@@ -11,31 +11,33 @@ imports:
   - alien-base-types/{{getAlien4CloudVersionFromTOSCATypes}}/alien-base-types.yml
   - org.ystia.nfs.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - <normative-types.yml>
-  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - <yorc-google-types.yml>
   - <yorc-openstack-types.yml>
   - <yorc-aws-types.yml>
   - <yorc-hostspool-types.yml>
   - org.ystia.yorc.experimental.consul.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.terraform.linux.terraform/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.consul.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.consul.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.nfs.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - <yorc-types.yml>
-  - org.alien4cloud.java.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.java.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.experimental.consul.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.ansible.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.alien4cloud/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.vault.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/type.yml
+  - org.alien4cloud.vault.vault_sh/{{getAlien4CloudForgeVersionFromTOSCATypes}}/type.yml
   - alien-extended-storage-types/{{getAlien4CloudVersionFromTOSCATypes}}/alien-extended-storage-types.yml
   - org.ystia.terraform.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.ansible.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
@@ -47,7 +49,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: server
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -55,6 +59,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - hostedOnComputeConsulHost:
             type_requirement: host
@@ -62,6 +69,13 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
       capabilities:
+        consul_server:
+          properties:
+            port: {{.Consul.Port}}
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
         consul_agent:
           properties:
             port: {{.Consul.Port}}
@@ -79,7 +93,7 @@ topology_template:
             node: YorcCompute
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-    OracleJDK:
+    JDK:
       type: org.alien4cloud.java.jdk.linux.nodes.OracleJDK
       properties:
         java_url: "{{.Jdk.DownloadURL}}"
@@ -97,16 +111,19 @@ topology_template:
         context_root: "/"
         component_version: "{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}"
         data_dir: "/opt/alien4cloud/data"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - javaSoftwareHostedOnJdkOracleJdkJdk:
             type_requirement: java
-            node: OracleJDK
+            node: JDK
             capability: org.alien4cloud.java.pub.capabilities.JDK
             relationship: org.alien4cloud.java.pub.relationships.JavaSoftwareHostedOnJDK
       capabilities:
         consul:
           properties:
-            tls_enabled: false
+            tls_enabled: {{.Consul.TLSEnabled}}
             protocol: tcp
             secure: false
             network_name: PRIVATE
@@ -126,7 +143,7 @@ topology_template:
             user: {{.Alien4cloud.User}}
             password: {{.Alien4cloud.Password}}
             port: {{.Alien4cloud.Port}}
-            protocol: http
+            protocol: {{.Alien4cloud.Protocol}}
             secure: false
             network_name: PRIVATE
             initiator: source
@@ -215,7 +232,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: agent
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -223,6 +242,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - joinServerConsulServerConsul_server:
             type_requirement: consul_server
@@ -247,7 +269,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: agent
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -255,6 +279,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - joinServerConsulServerConsul_server:
             type_requirement: consul_server
@@ -274,6 +301,67 @@ topology_template:
             secure: false
             network_name: PRIVATE
             initiator: source
+    {{if not .Insecure}}
+    VaultCompute: {{block "Compute" .}} {{end}}
+    ConsulAgentVaultServer:
+      type: org.ystia.yorc.experimental.consul.linux.ansible.nodes.ConsulAgent
+      properties:
+        install_dnsmasq: true
+        mode: agent
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
+        download_url: "{{.Consul.DownloadURL}}"
+        install_dir: "/usr/local/bin"
+        config_dir: "/etc/consul.d"
+        datacenter: dc1
+        domain: consul
+        web_ui: false
+        data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
+      requirements:
+        - joinServerConsulServerConsul_server:
+            type_requirement: consul_server
+            node: ConsulServer
+            capability: org.ystia.yorc.experimental.consul.pub.capabilities.ConsulServer
+            relationship: org.ystia.yorc.experimental.consul.linux.ansible.relationships.JoinServer
+        - hostedOnComputeYorcHost:
+            type_requirement: host
+            node: VaultCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+      capabilities:
+        consul_agent:
+          properties:
+            port: {{.Consul.Port}}
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+    VaultServer:
+      type: org.alien4cloud.vault.vault_sh.nodes.VaultServer
+      properties:
+        port: {{.Vault.Port}}
+        download_url: "{{.Vault.DownloadURL}}"
+        install_dir: "/var/vault"
+        tls_disable: false
+        auto_unsealed: true
+        ldap_enable: false
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
+      requirements:
+        - consul:
+            node: ConsulAgentVaultServer
+            capability: org.ystia.yorc.experimental.consul.pub.capabilities.ConsulServer
+            relationship: org.alien4cloud.vault.relationships.ConnectToConsulAgent
+        - host:
+            node: VaultCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    {{end}}
     YorcServer:
       type: org.ystia.yorc.linux.ansible.nodes.YorcServer
       properties:
@@ -282,6 +370,9 @@ topology_template:
         config_dir: "/etc/yorc"
         data_dir: "{{.Yorc.DataDir}}"
         private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - hostedOnComputeYorcHost:
             type_requirement: host
@@ -293,6 +384,13 @@ topology_template:
             node: ConsulAgentYorcServer
             capability: org.alien4cloud.consul.pub.capabilities.ConsulAgent
             relationship: org.ystia.yorc.linux.ansible.relationships.JoinConsulAgent
+        {{if not .Insecure}}
+        - connectToVaultServer:
+            type_requirement: vault
+            node: VaultServer
+            capability: org.alien4cloud.vault.pub.capabilities.VaultServer
+            relationship: org.ystia.yorc.linux.ansible.relationships.ConnectsToVaultServer
+        {{end}}
         - dependsOnAnsibleRuntimeAnsibleRuntimeFeature:
             type_requirement: ansible
             node: AnsibleRuntime
@@ -312,7 +410,7 @@ topology_template:
         rest:
           properties:
             port: {{.Yorc.Port}}
-            protocol: http
+            protocol: {{.Yorc.Protocol}}
             secure: false
             network_name: PRIVATE
             initiator: source
@@ -332,6 +430,144 @@ topology_template:
   workflows:
     install:
       steps:
+        {{if not .Insecure}}
+        VaultCompute_install:
+          target: VaultCompute
+          activities:
+            - delegate: install
+          on_success:
+            - ConsulAgentVaultServer_initial
+        ConsulAgentVaultServer_initial:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: initial
+          on_success:
+            - ConsulAgentVaultServer_creating
+        ConsulAgentVaultServer_creating:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: creating
+          on_success:
+            - ConsulAgentVaultServer_create
+        ConsulAgentVaultServer_create:
+          target: ConsulAgentVaultServer
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - ConsulAgentVaultServer_created
+        ConsulAgentVaultServer_created:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: created
+          on_success:
+            - ConsulAgentVaultServer_configuring
+        ConsulAgentVaultServer_configuring:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: configuring
+          on_success:
+            - ConsulAgentVaultServer_joinServerConsulServerConsul_server_pre_configure_source
+        ConsulAgentVaultServer_joinServerConsulServerConsul_server_pre_configure_source:
+          target: ConsulAgentVaultServer
+          target_relationship: joinServerConsulServerConsul_server
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - ConsulAgentVaultServer_configure
+        ConsulAgentVaultServer_configure:
+          target: ConsulAgentVaultServer
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - ConsulAgentVaultServer_configured
+        ConsulAgentVaultServer_configured:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: configured
+          on_success:
+            - ConsulAgentVaultServer_starting
+        ConsulAgentVaultServer_starting:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: starting
+          on_success:
+            - ConsulAgentVaultServer_start
+        ConsulAgentVaultServer_start:
+          target: ConsulAgentVaultServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - ConsulAgentVaultServer_started
+        ConsulAgentVaultServer_started:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: started
+          on_success:
+            - VaultServer_initial
+        VaultServer_initial:
+          target: VaultServer
+          activities:
+            - set_state: initial
+          on_success:
+            - VaultServer_creating
+        VaultServer_creating:
+          target: VaultServer
+          activities:
+            - set_state: creating
+          on_success:
+            - VaultServer_create
+        VaultServer_create:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - VaultServer_created
+        VaultServer_created:
+          target: VaultServer
+          activities:
+            - set_state: created
+          on_success:
+            - VaultServer_configuring
+        VaultServer_configuring:
+          target: VaultServer
+          activities:
+            - set_state: configuring
+          on_success:
+            - VaultServer_consul_pre_configure_source
+        VaultServer_consul_pre_configure_source:
+          target: VaultServer
+          target_relationship: consul
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - VaultServer_configured
+        VaultServer_configured:
+          target: VaultServer
+          activities:
+            - set_state: configured
+          on_success:
+            - VaultServer_starting
+        VaultServer_starting:
+          target: VaultServer
+          activities:
+            - set_state: starting
+          on_success:
+            - VaultServer_start
+        VaultServer_start:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - VaultServer_started
+        VaultServer_started:
+          target: VaultServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_initial
+        {{end}}
         ConsulAgentYorcServer_start:
           target: ConsulAgentYorcServer
           activities:
@@ -352,12 +588,12 @@ topology_template:
             - delegate: install
           on_success:
             - Alien4CloudCompute_install
-        OracleJDK_creating:
-          target: OracleJDK
+        JDK_creating:
+          target: JDK
           activities:
             - set_state: creating
           on_success:
-            - OracleJDK_create
+            - JDK_create
         YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source:
           target: YorcServer
           target_relationship: dependsOnTerraformRuntimeTerraformRuntimeFeature
@@ -366,6 +602,10 @@ topology_template:
             - call_operation: Configure.post_configure_source
           on_success:
             - Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target
+            {{if not .Insecure}}
+            - Infrastructure_infraSecretsHostedOnVault_post_configure_source
+            {{end}}
+            - YorcServer_configured
         ComputeYorc_install:
           target: YorcCompute
           activities:
@@ -543,12 +783,12 @@ topology_template:
             - set_state: started
           on_success:
             - YorcPlugin_initial
-        OracleJDK_starting:
-          target: OracleJDK
+        JDK_starting:
+          target: JDK
           activities:
             - set_state: starting
           on_success:
-            - OracleJDK_started
+            - JDK_started
         Infrastructure_configuring:
           target: Infrastructure
           activities:
@@ -561,12 +801,12 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - YorcOnDemandLocationResources_started
-        OracleJDK_configuring:
-          target: OracleJDK
+        JDK_configuring:
+          target: JDK
           activities:
             - set_state: configuring
           on_success:
-            - OracleJDK_configured
+            - JDK_configured
         YorcPlugin_start:
           target: YorcPlugin
           activities:
@@ -628,14 +868,14 @@ topology_template:
           activities:
             - delegate: install
           on_success:
-            - OracleJDK_initial
+            - JDK_initial
             - ConsulAgentA4C_initial
-        OracleJDK_created:
-          target: OracleJDK
+        JDK_created:
+          target: JDK
           activities:
             - set_state: created
           on_success:
-            - OracleJDK_configuring
+            - JDK_configuring
         YorcServer_start:
           target: YorcServer
           activities:
@@ -689,6 +929,9 @@ topology_template:
           on_success:
             - ConsulAgentYorcServer_initial
             - ConsulAgentA4C_initial
+            {{if not .Insecure}}
+            - ConsulAgentVaultServer_initial
+            {{end}}
         AnsibleRuntime_configured:
           target: AnsibleRuntime
           activities:
@@ -773,19 +1016,33 @@ topology_template:
           activities:
             - call_operation: Standard.configure
           on_success:
+            {{if not .Insecure}}
+            - YorcServer_connectToVaultServer_post_configure_source
+            {{else}}
             - YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source
+            {{end}}
+        {{if not .Insecure}}
+        YorcServer_connectToVaultServer_post_configure_source:
+          target: YorcServer
+          target_relationship: connectToVaultServer
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source
+        {{end}}
         YorcPlugin_created:
           target: YorcPlugin
           activities:
             - set_state: created
           on_success:
             - YorcPlugin_configuring
-        OracleJDK_create:
-          target: OracleJDK
+        JDK_create:
+          target: JDK
           activities:
             - call_operation: Standard.create
           on_success:
-            - OracleJDK_created
+            - JDK_created
         Infrastructure_initial:
           target: Infrastructure
           activities:
@@ -880,12 +1137,12 @@ topology_template:
             - set_state: configuring
           on_success:
             - YorcServer_joinConsulAgentConsulAgentConsul_agent_pre_configure_source
-        OracleJDK_configured:
-          target: OracleJDK
+        JDK_configured:
+          target: JDK
           activities:
             - set_state: configured
           on_success:
-            - OracleJDK_starting
+            - JDK_starting
         YorcOnDemandLocationResources_starting:
           target: YorcOnDemandLocationResources
           activities:
@@ -1069,6 +1326,16 @@ topology_template:
             - call_operation: Configure.post_configure_target
           on_success:
             - YorcServer_configured
+        {{if not .Insecure}}
+        Infrastructure_infraSecretsHostedOnVault_post_configure_source:
+          target: Infrastructure
+          target_relationship: infraSecretsHostedOnVault
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - YorcServer_configured
+        {{end}}
         YorcOnDemandLocationResources_initial:
           target: YorcOnDemandLocationResources
           activities:
@@ -1105,20 +1372,20 @@ topology_template:
             - call_operation: Standard.create
           on_success:
             - YorcServer_created
-        OracleJDK_initial:
-          target: OracleJDK
+        JDK_initial:
+          target: JDK
           activities:
             - set_state: initial
           on_success:
-            - OracleJDK_creating
+            - JDK_creating
         ConsulAgentA4C_configuring:
           target: ConsulAgentA4C
           activities:
             - set_state: configuring
           on_success:
             - ConsulAgentA4C_joinServerConsulServerConsul_server_pre_configure_source
-        OracleJDK_started:
-          target: OracleJDK
+        JDK_started:
+          target: JDK
           activities:
             - set_state: started
           on_success:
@@ -1131,6 +1398,67 @@ topology_template:
             - NFSServer_create
     uninstall:
       steps:
+        {{if not .Insecure}}
+        VaultServer_stopping:
+          target: VaultServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - VaultServer_stopped
+        VaultServer_stopped:
+          target: VaultServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - VaultServer_deleting
+        VaultServer_deleting:
+          target: VaultServer
+          activities:
+            - set_state: deleting
+          on_success:
+            - VaultServer_deleted
+        VaultServer_deleted:
+          target: VaultServer
+          activities:
+            - set_state: deleted
+          on_success:
+            - ConsulAgentVaultServer_stopping
+        ConsulAgentVaultServer_stopping:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - ConsulAgentVaultServer_stop
+        ConsulAgentVaultServer_stop:
+          target: ConsulAgentVaultServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - ConsulAgentVaultServer_stopped
+        ConsulAgentVaultServer_stopped:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - ConsulAgentVaultServer_deleting
+        ConsulAgentVaultServer_deleting:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: deleting
+          on_success:
+            - ConsulAgentVaultServer_deleted
+        ConsulAgentVaultServer_deleted:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: deleted
+          on_success:
+            - ConsulServer_stopping
+            - VaultCompute_uninstall
+        VaultCompute_uninstall:
+          target: VaultCompute
+          activities:
+            - delegate: uninstall
+        {{end}}
         ComputeAddress_uninstall:
           target: ComputeAddress
           activities:
@@ -1147,18 +1475,18 @@ topology_template:
             - set_state: stopping
           on_success:
             - YorcServer_stop
-        OracleJDK_stopped:
-          target: OracleJDK
+        JDK_stopped:
+          target: JDK
           activities:
             - set_state: stopped
           on_success:
-            - OracleJDK_deleting
-        OracleJDK_stopping:
-          target: OracleJDK
+            - JDK_deleting
+        JDK_stopping:
+          target: JDK
           activities:
             - set_state: stopping
           on_success:
-            - OracleJDK_stopped
+            - JDK_stopped
         ConsulAgentYorcServer_deleted:
           target: ConsulAgentYorcServer
           activities:
@@ -1355,8 +1683,8 @@ topology_template:
             - set_state: deleted
           on_success:
             - YorcServer_stopping
-        OracleJDK_deleted:
-          target: OracleJDK
+        JDK_deleted:
+          target: JDK
           activities:
             - set_state: deleted
           on_success:
@@ -1374,12 +1702,12 @@ topology_template:
           on_success:
             - NFSServer_stopping
             - ComputeYorc_uninstall
-        OracleJDK_deleting:
-          target: OracleJDK
+        JDK_deleting:
+          target: JDK
           activities:
             - set_state: deleting
           on_success:
-            - OracleJDK_deleted
+            - JDK_deleted
         AnsibleRuntime_delete:
           target: AnsibleRuntime
           activities:
@@ -1397,7 +1725,7 @@ topology_template:
           activities:
             - set_state: deleted
           on_success:
-            - OracleJDK_stopping
+            - JDK_stopping
         TerraformRuntime_stopped:
           target: TerraformRuntime
           activities:
@@ -1537,6 +1865,50 @@ topology_template:
             - ConsulAgentA4C_stopped
     start:
       steps:
+        {{if not .Insecure}}
+        VaultCompute_start:
+          target: VaultCompute
+          activities:
+            - delegate: start
+          on_success:
+            - ConsulAgentVaultServer_starting
+        ConsulAgentVaultServer_starting:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: starting
+          on_success:
+            - ConsulAgentVaultServer_start
+        ConsulAgentVaultServer_start:
+          target: ConsulAgentVaultServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - ConsulAgentVaultServer_started
+        ConsulAgentVaultServer_started:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: started
+          on_success:
+            - VaultServer_starting
+        VaultServer_starting:
+          target: VaultServer
+          activities:
+            - set_state: starting
+          on_success:
+            - VaultServer_start
+        VaultServer_start:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - VaultServer_started
+        VaultServer_started:
+          target: VaultServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_starting
+        {{end}}
         Alien4Cloud_started:
           target: Alien4Cloud
           activities:
@@ -1549,12 +1921,12 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - ConsulAgentYorcServer_started
-        OracleJDK_starting:
-          target: OracleJDK
+        JDK_starting:
+          target: JDK
           activities:
             - set_state: starting
           on_success:
-            - OracleJDK_started
+            - JDK_started
         YorcOnDemandLocationResources_start:
           target: YorcOnDemandLocationResources
           activities:
@@ -1588,7 +1960,7 @@ topology_template:
           activities:
             - delegate: start
           on_success:
-            - OracleJDK_starting
+            - JDK_starting
             - ConsulAgentA4C_starting
         Infrastructure_started:
           target: Infrastructure
@@ -1683,6 +2055,9 @@ topology_template:
           on_success:
             - ConsulAgentYorcServer_starting
             - ConsulAgentA4C_starting
+            {{if not .Insecure}}
+            - ConsulAgentVaultServer_starting
+            {{end}}
         Infrastructure_starting:
           target: Infrastructure
           activities:
@@ -1780,32 +2155,69 @@ topology_template:
           on_success:
             - YorcPlugin_starting
             - Infrastructure_starting
-        OracleJDK_started:
-          target: OracleJDK
+        JDK_started:
+          target: JDK
           activities:
             - set_state: started
           on_success:
             - Alien4Cloud_starting
     stop:
       steps:
+        {{if not .Insecure}}
+        VaultServer_stopping:
+          target: VaultServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - VaultServer_stopped
+        VaultServer_stopped:
+          target: VaultServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - ConsulAgentVaultServer_stopping
+        ConsulAgentVaultServer_stopping:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - ConsulAgentVaultServer_stop
+        ConsulAgentVaultServer_stop:
+          target: ConsulAgentVaultServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - ConsulAgentVaultServer_stopped
+        ConsulAgentVaultServer_stopped:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - VaultCompute_stop
+            - ConsulServer_stopping
+        VaultCompute_stop:
+          target: VaultCompute
+          activities:
+            - delegate: stop
+        {{end}}
         YorcServer_stopping:
           target: YorcServer
           activities:
             - set_state: stopping
           on_success:
             - YorcServer_stop
-        OracleJDK_stopped:
-          target: OracleJDK
+        JDK_stopped:
+          target: JDK
           activities:
             - set_state: stopped
           on_success:
             - Alien4CloudCompute_stop
-        OracleJDK_stopping:
-          target: OracleJDK
+        JDK_stopping:
+          target: JDK
           activities:
             - set_state: stopping
           on_success:
-            - OracleJDK_stopped
+            - JDK_stopped
         ComputeYorc_stop:
           target: YorcCompute
           activities:
@@ -1843,7 +2255,7 @@ topology_template:
           activities:
             - set_state: stopped
           on_success:
-            - OracleJDK_stopping
+            - JDK_stopping
         YorcOnDemandLocationResources_stopped:
           target: YorcOnDemandLocationResources
           activities:
@@ -2016,6 +2428,44 @@ topology_template:
             - NFSClient_stop
     run:
       steps:
+        {{if not .Insecure}}
+        ConsulAgentVaultServer_submitted:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: submitted
+          on_success:
+            - ConsulAgentVaultServer_executed
+        ConsulAgentVaultServer_executed:
+          target: ConsulAgentVaultServer
+          activities:
+            - set_state: executed
+          on_success:
+            - VaultServer_submitted
+        VaultServer_submitting:
+          target: VaultServer
+          activities:
+            - set_state: submitting
+          on_success:
+            - VaultServer_submitted
+        VaultServer_submitted:
+          target: VaultServer
+          activities:
+            - set_state: submitted
+          on_success:
+            - VaultServer_executing
+        VaultServer_executing:
+          target: VaultServer
+          activities:
+            - set_state: executing
+          on_success:
+            - VaultServer_executed
+        VaultServer_executed:
+          target: VaultServer
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcServer_submitting
+        {{end}}
         ConsulAgentYorcServer_submitted:
           target: ConsulAgentYorcServer
           activities:
@@ -2056,8 +2506,8 @@ topology_template:
             - set_state: submitted
           on_success:
             - Alien4Cloud_executed
-        OracleJDK_executed:
-          target: OracleJDK
+        JDK_executed:
+          target: JDK
           activities:
             - set_state: executed
           on_success:
@@ -2074,12 +2524,12 @@ topology_template:
             - set_state: submitted
           on_success:
             - YorcOnDemandLocationResources_executed
-        OracleJDK_submitted:
-          target: OracleJDK
+        JDK_submitted:
+          target: JDK
           activities:
             - set_state: submitted
           on_success:
-            - OracleJDK_executed
+            - JDK_executed
         ConsulAgentA4C_executed:
           target: ConsulAgentA4C
           activities:
@@ -2097,6 +2547,9 @@ topology_template:
           on_success:
             - ConsulAgentYorcServer_submitted
             - ConsulAgentA4C_submitted
+            {{if not .Insecure}}
+            - ConsulAgentVaultServer_submitted
+            {{end}}
         Infrastructure_submitted:
           target: Infrastructure
           activities:

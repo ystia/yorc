@@ -22,9 +22,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 const (
@@ -380,28 +381,29 @@ func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeN
 	exploreParents := true
 	// Get the capabilities exposed for this node
 	for _, capMapping := range substMapping.Capabilities {
+		if len(capMapping.Mapping) > 1 {
+			capability := capMapping.Mapping[1]
+			var attributeNames []string
 
-		capability := capMapping.Mapping[1]
-		var attributeNames []string
+			if capMapping.Mapping[0] == nodeName {
+				if capMapping.Attributes != nil {
+					attributeNames := make([]string, len(capMapping.Attributes))
+					i := 0
+					for name := range capMapping.Attributes {
+						attributeNames[i] = name
+						i++
+					}
+				} else {
+					// Expose all attributes
+					attributeNames, err = GetNodeCapabilityAttributeNames(
+						kv, deploymentID, nodeName, capability, exploreParents)
+					if err != nil {
+						return err
+					}
+				}
 
-		if capMapping.Mapping[0] == nodeName {
-			if capMapping.Attributes != nil {
-				attributeNames := make([]string, len(capMapping.Attributes))
-				i := 0
-				for name := range capMapping.Attributes {
-					attributeNames[i] = name
-					i++
-				}
-			} else {
-				// Expose all attributes
-				attributeNames, err = GetNodeCapabilityAttributeNames(
-					kv, deploymentID, nodeName, capability, exploreParents)
-				if err != nil {
-					return err
-				}
+				capabilityToAttrNames[capability] = attributeNames
 			}
-
-			capabilityToAttrNames[capability] = attributeNames
 		}
 	}
 
@@ -427,7 +429,7 @@ func isSubstitutionMappingAttribute(attributeName string) bool {
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is a substitution mapping capability attribute as provided
 // by Alien4Cloud, using the format capabilities.<capability name>.<attributr name>,
-// this function returns the the vqlue of the corresponding instance capability
+// this function returns the the value of the corresponding instance capability
 // attribute
 func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
@@ -451,7 +453,7 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 
 	if _, ok := attributesSet[attributeName]; ok {
 		// This attribute is exposed, returning its value
-		log.Debugf("Substituting attribute %s by its instance capability attribute in %s %s %s %s", attributeName, deploymentID, nodeName, instanceName)
+		log.Debugf("Substituting attribute %s by its instance capability attribute in %s %s %s", attributeName, deploymentID, nodeName, instanceName)
 		return GetInstanceCapabilityAttributeValue(
 			kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, nestedKeys...)
 	}

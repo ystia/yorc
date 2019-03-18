@@ -15,26 +15,30 @@
 package bootstrap
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/rest"
-
-	"github.com/ystia/yorc/tosca"
-
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ystia/yorc/commands"
-	"github.com/ystia/yorc/config"
+	survey "gopkg.in/AlecAivazis/survey.v1"
+	yaml "gopkg.in/yaml.v2"
 
-	"gopkg.in/AlecAivazis/survey.v1"
-	"gopkg.in/yaml.v2"
+	"github.com/ystia/yorc/v3/commands"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 var inputValues TopologyValues
@@ -72,6 +76,18 @@ var (
 		},
 		"yorc.private_key_file": defaultInputType{
 			description: "Path to ssh private key accessible locally",
+			value:       "",
+		},
+		"yorc.ca_passphrase": defaultInputType{
+			description: "Certificate authority private key passphrase",
+			value:       "",
+		},
+		"yorc.ca_key_file": defaultInputType{
+			description: "Path to Certificate Authority private key, accessible locally",
+			value:       "",
+		},
+		"yorc.ca_pem_file": defaultInputType{
+			description: "Path to PEM-encoded Certificate Authority, accessible locally",
 			value:       "",
 		},
 		"yorc.workers_number": defaultInputType{
@@ -116,7 +132,22 @@ var (
 		},
 		"consul.port": defaultInputType{
 			description: "Consul port",
-			value:       8500,
+			value:       8543,
+		},
+		"consul.encrypt_key": defaultInputType{
+			description: "16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic",
+			value:       "",
+		},
+	}
+
+	vaultDefaultInputs = map[string]defaultInputType{
+		"vault.download_url": defaultInputType{
+			description: "Hashicorp Vault download URL",
+			value:       "https://releases.hashicorp.com/vault/1.0.3/vault_1.0.3_linux_amd64.zip",
+		},
+		"vault.port": defaultInputType{
+			description: "Vault port",
+			value:       8200,
 		},
 	}
 
@@ -213,6 +244,7 @@ func setBootstrapExtraParams(args []string, cmd *cobra.Command) error {
 		yorcPluginDefaultInputs,
 		alien4CloudDefaultInputs,
 		consulDefaultInputs,
+		vaultDefaultInputs,
 		terraformDefaultInputs,
 		jdkDefaultInputs,
 		credentialsInputs,
@@ -331,9 +363,34 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		return err
 	}
 
+	//generating a deployment name if needed.
+	if deploymentID == "" {
+		t := time.Now()
+		deploymentID = fmt.Sprintf("bootstrap-%d-%02d-%02d--%02d-%02d-%02d",
+			t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	}
+
 	// Get infrastructure from viper configuration if not provided in inputs
 	if inputValues.Infrastructures == nil {
 		inputValues.Infrastructures = configuration.Infrastructures
+	}
+
+	inputValues.Insecure = insecure
+
+	//recovering infra type if needed
+	if infrastructureType == "" {
+		switch inputValues.Location.Type {
+		case "OpenStack":
+			infrastructureType = "openstack"
+		case "Google Cloud":
+			infrastructureType = "google"
+		case "AWS":
+			infrastructureType = "aws"
+		case "HostsPool":
+			infrastructureType = "hostspool"
+		default:
+			infrastructureType = ""
+		}
 	}
 	// Now check for missing mandatory parameters and ask them to the user
 
@@ -401,10 +458,27 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		return err
 	}
 
-	// Update Yorc private key content if needed
-	if inputValues.Yorc.PrivateKeyContent == "" {
+	fmt.Println("\nGetting Yorc configuration")
 
-		fmt.Println("\nGetting Yorc configuration")
+	// Set yorc and Alien4Cloud protocol
+	if insecure {
+		inputValues.Yorc.Protocol = "http"
+		inputValues.Alien4cloud.Protocol = "http"
+	} else {
+		inputValues.Yorc.Protocol = "https"
+		inputValues.Alien4cloud.Protocol = "https"
+	}
+
+	// Get path where to store files to be used by the local Yorc
+	// when bootstrapping the remote Yorc
+	resourcesAbsolutePath, err := filepath.Abs(resourcesPath)
+	if err != nil {
+		return err
+	}
+
+	// Update Yorc private key content if needed
+
+	if inputValues.Yorc.PrivateKeyContent == "" {
 
 		if inputValues.Yorc.PrivateKeyFile == "" {
 			answer := struct {
@@ -432,18 +506,60 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 		inputValues.Yorc.PrivateKeyContent = string(data[:])
 	} else {
-		// Store this content locally to be used by the local Yorc
-		// when bootstrapping the remote Yorc
-		absolutePath, err := filepath.Abs(resourcesPath)
-		if err != nil {
-			return err
-		}
-		inputValues.Yorc.PrivateKeyFile = filepath.Join(absolutePath, "yorc.pem")
+		inputValues.Yorc.PrivateKeyFile = filepath.Join(resourcesAbsolutePath, "yorc.pem")
 		err = ioutil.WriteFile(inputValues.Yorc.PrivateKeyFile, []byte(inputValues.Yorc.PrivateKeyContent), 0700)
 		if err != nil {
 			return err
 		}
 
+	}
+
+	if !insecure {
+		fmt.Println("\nGetting Certificate Authority configuration")
+		if err := getCAConfiguration(
+			&inputValues.Yorc,
+			inputFilePath != "",
+			resourcesAbsolutePath); err != nil {
+			return err
+		}
+
+	}
+
+	fmt.Println("\nGetting Consul configuration")
+	if insecure {
+		inputValues.Consul.Port = 8500
+	} else {
+		inputValues.Consul.TLSEnabled = true
+		inputValues.Consul.TLSForChecksEnabled = true
+
+		// Get or generate an encrytion key
+		if inputValues.Consul.EncryptKey == "" && inputFilePath == "" {
+
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic (if none set, one will be generated):",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			inputValues.Consul.EncryptKey = strings.TrimSpace(answer.Value)
+		}
+
+		if inputValues.Consul.EncryptKey == "" {
+			fmt.Println("Generating a 16-bytes, Base64 encoded encryption key used to encrypt Consul network traffic")
+			inputValues.Consul.EncryptKey, err = generateConsulEncryptKey()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	fmt.Println("\nGetting Infrastructure configuration")
@@ -489,7 +605,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	// Get on-demand resources definition for this infrastructure type
 	onDemandResourceName := fmt.Sprintf("yorc-%s-types.yml", infrastructureType)
-	data, err = tosca.Asset(onDemandResourceName)
+
+	data, err = registry.GetRegistry().GetToscaDefinition(onDemandResourceName)
+	if err != nil {
+		return err
+	}
 	if err := yaml.Unmarshal(data, &topology); err != nil {
 		return err
 	}
@@ -596,6 +716,155 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 	}
 
+	// In insecure mode, the infrastructure secrets will not be stored in vault
+	if insecure {
+		inputValues.Infrastructures[infrastructureType].Set("use_vault", false)
+	}
+
+	exportInputs()
+
+	if configOnly == true {
+		println("config_only option is set, exiting.")
+		os.Exit(0)
+	}
+	return nil
+
+}
+
+// generateConsulEncryptKey generates a 16-bytes, Base64 encoded value of an
+// encryption key used to encrypt Consul network traffic
+func generateConsulEncryptKey() (string, error) {
+	bKey := make([]byte, 16)
+	_, err := rand.Read(bKey)
+	if err != nil {
+		return "", errors.Wrapf(err, "Error generating Consul encrypt key")
+	}
+
+	return base64.StdEncoding.EncodeToString(bKey), nil
+}
+
+// getCAConfiguration asks for a CA passphrase if not provided, then gets
+// the content of Certificate Authority and key if provided by the user or generates
+// a key and certificate authority
+func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, resourcesPath string) error {
+
+	// Mandatory parameter: CA key passphrase
+	if pConfig.CAPassPhrase == "" {
+		answer := struct {
+			Value string
+		}{}
+
+		prompt := &survey.Password{
+			Message: "Certificate authority private key passphrase (required, at least 4 characters):",
+		}
+		question := &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+			Validate: func(val interface{}) error {
+				// Must be at least 4 characters
+				str := val.(string)
+				if len(str) < 4 {
+					return fmt.Errorf("You entered %d characters, but should provide at least 4 characters", len(str))
+				}
+				return nil
+			},
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return err
+		}
+
+		pConfig.CAPassPhrase = strings.TrimSpace(answer.Value)
+	}
+
+	// Entering interactive mode if one of CA or Key is defined and the other
+	// is not, if both are undefined they will be generated
+	askForInput := !inputFileProvided ||
+		((pConfig.CAKeyFile == "" || pConfig.CAPEMFile == "") &&
+			pConfig.CAKeyFile != pConfig.CAPEMFile)
+
+	// Get CA key or generate one
+	if pConfig.CAKeyContent == "" {
+
+		if pConfig.CAKeyFile == "" && askForInput {
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "Path to Certificate Authority private key (if none passed, a key will be generated):",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			pConfig.CAKeyFile = strings.TrimSpace(answer.Value)
+		}
+
+		if pConfig.CAKeyFile == "" {
+			fmt.Println("Generating a CA key")
+			pConfig.CAKeyFile = filepath.Join(resourcesPath, "ca-key.pem")
+			cmdArgs := fmt.Sprintf("genrsa -aes256 -out %s -passout pass:%s 4096",
+				pConfig.CAKeyFile, pConfig.CAPassPhrase)
+			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
+			if err := cmd.Run(); err != nil {
+				return errors.Wrapf(err, "Failed to generate CA key running 'openssl %s'", cmdArgs)
+			}
+		}
+
+		data, err := ioutil.ReadFile(pConfig.CAKeyFile)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to read CA key file %s", pConfig.CAKeyFile)
+		}
+		pConfig.CAKeyContent = string(data[:])
+	}
+
+	// Get CA or generate one
+	if pConfig.CAPEMContent == "" {
+
+		if pConfig.CAPEMFile == "" && askForInput {
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "Path to PEM-encoded Certificate Authority (if none passed, a Certificate Authority will be generated):",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			pConfig.CAPEMFile = strings.TrimSpace(answer.Value)
+		}
+
+		if pConfig.CAPEMFile == "" {
+			pConfig.CAPEMFile = filepath.Join(resourcesPath, "ca.pem")
+			fmt.Printf("\nGenerating a PEM-encoded Certificate Authority %s\n", pConfig.CAPEMFile)
+			fmt.Println("This Certificate Authority should be imported in your Web brower as a trusted Certificate Authority")
+			cmdArgs := fmt.Sprintf("req -new -x509 -days 3650 -key %s -sha256 -passin pass:%s -subj /CN=yorc/O=ystia/C=US -out %s",
+				pConfig.CAKeyFile, pConfig.CAPassPhrase, pConfig.CAPEMFile)
+			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
+			if err := cmd.Run(); err != nil {
+				return errors.Wrapf(err,
+					"Failed to generate a PEM-encoded Certificate Authority running 'openssl %s'",
+					cmdArgs)
+			}
+		}
+
+		data, err := ioutil.ReadFile(pConfig.CAPEMFile)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to read CA file %s", pConfig.CAPEMFile)
+		}
+		pConfig.CAPEMContent = string(data[:])
+	}
+
 	return nil
 }
 
@@ -646,6 +915,51 @@ func reviewAndUpdateInputs() error {
 	err = yaml.Unmarshal([]byte(reply), &inputValues)
 
 	return nil
+}
+
+func exportInputs() {
+	if inputsPath == "" {
+
+		bSlice, err := yaml.Marshal(inputValues)
+
+		if err != nil {
+			log.Fatal("cannot marshal inputValues ", err)
+		}
+
+		inputsPathOut := deploymentID + ".yaml"
+
+		count := 1
+		for {
+			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
+				break
+			}
+			inputsPathOut = deploymentID + "_" + strconv.Itoa(count) + ".yaml"
+			count++
+		}
+
+		if _, err := os.Stat("inputsaves/"); os.IsNotExist(err) {
+			err = os.Mkdir("inputsaves/", 0700)
+			if err != nil {
+				log.Fatal("cannot create inputsave directory ", err)
+			}
+		}
+
+		println("Exporting set configuration to inputsaves/" + inputsPathOut)
+
+		file, err := os.OpenFile("inputsaves/"+inputsPathOut, os.O_CREATE|os.O_WRONLY, 0600)
+
+		if err != nil {
+			log.Fatal("Cannot create file to save the configuration ", err)
+		}
+
+		_, err = fmt.Fprintf(file, string(bSlice[:]))
+
+		if err != nil {
+			log.Fatal("Cannot write configuration to file", err)
+		}
+
+		file.Close()
+	}
 }
 
 // getComputeCredentials asks for the user used to connect to an on-demand compute node
@@ -783,11 +1097,38 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			hostConfig.Connection.Port = 22
 		}
 
-		fmt.Println("Defining key/value labels for this host, a public_address label should be defined")
+		//asking public address first
+		fmt.Println("Defining key/value labels for this host. Defining public_address value is mandatory")
 		hostConfig.Labels = make(map[string]string)
-		labelsFinished := false
-		publicAddressDefined := false
-		for !labelsFinished {
+
+		prompt = &survey.Input{
+			Message: "public_address value:"}
+
+		question = &survey.Question{
+			Name:     "value",
+			Prompt:   prompt,
+			Validate: survey.Required,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+
+		hostConfig.Labels["public_address"] = answer.Value
+
+		//asking for additional key values labels
+		for {
+
+			// asking if a new label must be defined
+			promptEnd := &survey.Select{
+				Message: "Add another key/value label for this host ?:",
+				Options: []string{"yes", "no"},
+				Default: "no",
+			}
+			var reply string
+			survey.AskOne(promptEnd, &reply, nil)
+			if reply == "no" {
+				break
+			}
 
 			prompt := &survey.Input{
 				Message: "Label key (required):"}
@@ -802,10 +1143,6 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			}
 			labelKey := answer.Value
 
-			if labelKey == "public_address" {
-				publicAddressDefined = true
-			}
-
 			prompt = &survey.Input{
 				Message: "Label value:"}
 
@@ -818,22 +1155,6 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			}
 
 			hostConfig.Labels[labelKey] = answer.Value
-
-			// If the public address label is already defined
-			// asking if a new label must be defined
-			// else a new label must be defined, because public_address is
-			// mandatory for the bootstrap
-			if publicAddressDefined {
-				promptEnd := &survey.Select{
-					Message: "Add another key/value label:",
-					Options: []string{"yes", "no"},
-					Default: "no",
-				}
-				var reply string
-				survey.AskOne(promptEnd, &reply, nil)
-				labelsFinished = (reply == "no")
-			}
-
 		}
 
 		// The private SSH key used to connect to the host is the Yorc private key
@@ -1032,6 +1353,9 @@ func getInputValues(inputFilePath string) (TopologyValues, error) {
 				fmt.Println("Can't use config file:", err)
 			}
 		}
+
+		var infratype = bootstrapViper.GetString("InfrastructureType")
+		infrastructureType = infratype
 	}
 
 	err := bootstrapViper.Unmarshal(&values)
@@ -1069,8 +1393,8 @@ func getYorcDownloadURL() string {
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-engine/releases/yorc-%s.tgz",
-			yorcVersion)
+			"https://dl.bintray.com/ystia/yorc-engine/%s/yorc-%s.tgz",
+			yorcVersion, yorcVersion)
 	}
 	return downloadURL
 }
@@ -1085,8 +1409,8 @@ func getYorcPluginDownloadURL() string {
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-a4c-plugin/releases/alien4cloud-yorc-plugin-%s.zip",
-			yorcVersion)
+			"https://dl.bintray.com/ystia/yorc-a4c-plugin/%s/alien4cloud-yorc-plugin-%s.zip",
+			yorcVersion, yorcVersion)
 	}
 	return downloadURL
 }

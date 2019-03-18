@@ -22,9 +22,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
+
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
@@ -120,17 +121,11 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 		}
 	}
 
-	instancesByNodes, err := deployments.CreateNewNodeStackInstances(kv, id, nodeName, int(instancesDelta))
-	if err != nil {
-		return "", err
-	}
-
+	// Add related workflow, nodeName and instances delta
 	data := make(map[string]string)
-	for scalableNode, nodeInstances := range instancesByNodes {
-		data[path.Join("nodes", scalableNode)] = nodeInstances
-	}
-	// Add related workflow
+	data["instancesDelta"] = strconv.Itoa(int(instancesDelta))
 	data["workflowName"] = "install"
+	data["nodeName"] = nodeName
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleOut, data)
 }
 

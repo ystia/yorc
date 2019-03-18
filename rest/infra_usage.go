@@ -16,11 +16,13 @@ package rest
 
 import (
 	"fmt"
-	"github.com/julienschmidt/httprouter"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/registry"
-	"github.com/ystia/yorc/tasks"
 	"net/http"
+
+	"github.com/julienschmidt/httprouter"
+
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {

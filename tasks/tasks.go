@@ -26,10 +26,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 type anotherLivingTaskAlreadyExistsError struct {
@@ -44,7 +44,7 @@ func (e anotherLivingTaskAlreadyExistsError) Error() string {
 
 // NewAnotherLivingTaskAlreadyExistsError allows to create a new anotherLivingTaskAlreadyExistsError error
 func NewAnotherLivingTaskAlreadyExistsError(taskID, targetID, status string) error {
-	return &anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
+	return anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
 }
 
 // IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
@@ -212,31 +212,27 @@ func DeleteTask(kv *api.KV, taskID string) error {
 //
 // Only Deploy, UnDeploy, ScaleOut, ScaleIn and Purge task type are considered.
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
-	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+
+	taskIDs, err := GetTasksIdsForTarget(kv, targetID)
 	if err != nil {
 		return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for _, taskKey := range tasksKeys {
-		taskID := path.Base(taskKey)
-		ttID, err := GetTaskTarget(kv, taskID)
+
+	for _, taskID := range taskIDs {
+
+		tStatus, err := GetTaskStatus(kv, taskID)
 		if err != nil {
 			return false, "", "", err
 		}
-		if ttID == targetID {
-			tStatus, err := GetTaskStatus(kv, taskID)
-			if err != nil {
-				return false, "", "", err
-			}
-			tType, err := GetTaskType(kv, taskID)
-			if err != nil {
-				return false, "", "", err
-			}
+		tType, err := GetTaskType(kv, taskID)
+		if err != nil {
+			return false, "", "", err
+		}
 
-			switch tType {
-			case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut:
-				if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
-					return true, taskID, tStatus.String(), nil
-				}
+		switch tType {
+		case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut:
+			if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
+				return true, taskID, tStatus.String(), nil
 			}
 		}
 	}
@@ -344,7 +340,7 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 	switch taskType {
 	case TaskTypeCustomCommand:
 		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
-	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy:
+	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge:
 		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
 		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))

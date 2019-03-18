@@ -15,27 +15,27 @@
 package sshutil
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
+	"os/exec"
 	"path"
-
-	"github.com/bramvdbogaerde/go-scp"
+	"path/filepath"
+	"strconv"
 	"strings"
 
-	"bytes"
+	"github.com/bramvdbogaerde/go-scp"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/net/context"
-	"net"
-	"os/exec"
-	"path/filepath"
-	"strconv"
+
+	"github.com/ystia/yorc/v3/helper/executil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Client is interface allowing running command
@@ -43,11 +43,36 @@ type Client interface {
 	RunCommand(string) (string, error)
 }
 
+// TODO(loicalbertin) sshSession and SSHSessionWrapper may be merged
+
 // SSHSessionWrapper is a wrapper with a piped SSH session
 type SSHSessionWrapper struct {
-	Session *ssh.Session
+	session *sshSession
 	Stdout  io.Reader
 	Stderr  io.Reader
+}
+
+// StdinPipe returns a pipe that will be connected to the
+// remote command's standard input when the command starts.
+func (sw *SSHSessionWrapper) StdinPipe() (io.WriteCloser, error) {
+	return sw.session.StdinPipe()
+}
+
+// Close closes the session
+func (sw *SSHSessionWrapper) Close() error {
+	return sw.session.Close()
+}
+
+// RequestPty requests the association of a pty with the session on the remote host.
+func (sw *SSHSessionWrapper) RequestPty(term string, h, w int, termmodes ssh.TerminalModes) error {
+	return sw.session.RequestPty(term, h, w, termmodes)
+}
+
+// Start runs cmd on the remote host. Typically, the remote
+// server passes cmd to the shell for interpretation.
+// A Session only accepts one call to Run, Start or Shell.
+func (sw *SSHSessionWrapper) Start(cmd string) error {
+	return sw.session.Start(cmd)
 }
 
 // SSHClient is a client SSH
@@ -72,18 +97,18 @@ var sessionsPool = &pool{}
 func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 	var ps = &SSHSessionWrapper{}
 	var err error
-	ps.Session, err = client.newSession()
+	ps.session, err = client.newSession()
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to prepare SSH command")
 	}
 
 	log.Debug("[SSHSession] Add Stderr/Stdout pipelines")
-	ps.Stdout, err = ps.Session.StdoutPipe()
+	ps.Stdout, err = ps.session.StdoutPipe()
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to setup stdout for session")
 	}
 
-	ps.Stderr, err = ps.Session.StderrPipe()
+	ps.Stderr, err = ps.session.StderrPipe()
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to setup stderr for session")
 	}
@@ -97,15 +122,16 @@ func (client *SSHClient) RunCommand(cmd string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to create new session")
 	}
+	defer session.Close()
 
 	log.Debugf("[SSHSession] cmd: %q", cmd)
 	stdOutErrBytes, err := session.CombinedOutput(cmd)
 	stdOutErrStr := strings.Trim(string(stdOutErrBytes[:]), "\x00")
 	log.Debugf("[SSHSession] stdout/stderr: %q", stdOutErrStr)
-	return stdOutErrStr, err
+	return stdOutErrStr, errors.WithStack(err)
 }
 
-func (client *SSHClient) newSession() (*ssh.Session, error) {
+func (client *SSHClient) newSession() (*sshSession, error) {
 	session, err := sessionsPool.openSession(client)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create session")
@@ -118,7 +144,7 @@ func (client *SSHClient) newSession() (*ssh.Session, error) {
 func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 	chClosed := make(chan struct{})
 	defer func() {
-		sw.Session.Close()
+		sw.session.Close()
 		close(chClosed)
 	}()
 	log.Debugf("[SSHSession] running command: %q", cmd)
@@ -126,16 +152,22 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 		select {
 		case <-ctx.Done():
 			log.Debug("[SSHSession] Cancellation has been sent: a sigkill signal is sent to remote process")
-			sw.Session.Signal(ssh.SIGKILL)
-			sw.Session.Close()
+			sw.session.Signal(ssh.SIGKILL)
+			sw.session.Close()
 			return
 		case <-chClosed:
 			return
 		}
 	}()
 
-	err := sw.Session.Run(cmd)
-	return err
+	err := sw.session.Run(cmd)
+	if err != nil {
+		// Get stderr
+		stdout, _ := ioutil.ReadAll(sw.Stdout)
+		stderr, _ := ioutil.ReadAll(sw.Stderr)
+		return errors.Wrapf(err, "failed to run ssh command, stderr: %q, stdout: %q", stderr, stdout)
+	}
+	return nil
 }
 
 // ReadPrivateKey returns an authentication method relying on private/public key pairs

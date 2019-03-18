@@ -15,12 +15,13 @@
 package stringutil
 
 import (
-	"github.com/ystia/yorc/log"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 // GetLastElement returns the last element of a "separator-separated" string

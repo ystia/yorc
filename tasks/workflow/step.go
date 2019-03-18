@@ -25,18 +25,18 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/metricsutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/operations"
-	"github.com/ystia/yorc/prov/scheduling"
-	"github.com/ystia/yorc/registry"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/workflow/builder"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/metricsutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/operations"
+	"github.com/ystia/yorc/v3/prov/scheduling"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tasks/workflow/builder"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // step represents the workflow step
@@ -326,7 +326,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 				action.AsyncOperation.WorkflowStepInfo = eventInfo
 				// Register scheduled action for asynchronous execution
 				id, err := scheduling.RegisterAction(w.consulClient, deploymentID, timeInterval, action)
-				log.Debugf("Scheduled action;%+v has been registered with timeInterval:%s and ID:%q", action, timeInterval.String(), id)
+				log.Debugf("Scheduled action with ID;%q has been registered with timeInterval:%s and ID:%q", action.ID, timeInterval.String(), id)
 				if err != nil {
 					return err
 				}

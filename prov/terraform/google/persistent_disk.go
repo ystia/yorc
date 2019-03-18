@@ -22,12 +22,13 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/sizeutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/sizeutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV,
@@ -122,14 +123,10 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		volumeID = fmt.Sprintf("${google_compute_disk.%s.name}", persistentDisk.Name)
 	}
 
-	// Provide Consul Key for attribute volume_id
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyVolumeID := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/volume_id"),
-		Value: volumeID}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyVolumeID)
-	commons.AddResource(infrastructure, "consul_keys", persistentDisk.Name, &consulKeys)
+	// Provide output for attribute volume_id
+	volumeKey := nodeName + "-" + instanceName + "-volume"
+	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeID})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/volume_id")] = volumeKey
 	return nil
 }
 

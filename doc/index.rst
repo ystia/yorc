@@ -19,6 +19,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. _yorc_index_section:
+
 =============================
 Yorc |release| Documentation
 =============================
@@ -40,5 +42,6 @@ Yorc |release| Documentation
    telemetry
    performance
    upgrade
+   plugins
    issues
 

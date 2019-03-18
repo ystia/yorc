@@ -12,45 +12,16 @@ artifact_types:
   yorc.artifacts.Deployment.SlurmJob:
     description: Slurm Job deployment descriptor
     derived_from: tosca.artifacts.Deployment
-  yorc.artifacts.Deployment.SlurmJobBin:
+  yorc.artifacts.Deployment.SlurmJobBatch:
     description: Slurm Job binary deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
   yorc.artifacts.Deployment.SlurmJobImage:
     description: Slurm Job Container image deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
 
-node_types:
-  yorc.nodes.slurm.Compute:
-    derived_from: yorc.nodes.Compute
-    properties:
-      gres:
-        type: string
-        required: false
-      constraint:
-        type: string
-        required: false
-      partition:
-        type: string
-        required: false
-        description: Slurm partition where the nodes will be deployed
-      job_name:
-        type: string
-        required: false
-        description: Specify a name for the job allocation. The specified name will appear along with the job id.
-    attributes:
-      cuda_visible_devices:
-        type: string
-        description: Coma separated list of visibles GPU devices for the compute.
-      job_id:
-        type: string
-        description: The ID of the job allocation.
-      partition:
-        type: string
-        description: Slurm partition where the nodes are deployed.
-
-
-  yorc.nodes.slurm.Job:
-    derived_from: org.alien4cloud.nodes.Job
+data_types:
+  yorc.datatypes.slurm.JobOptions:
+    derived_from: tosca.datatypes.Root
     properties:
       name:
         type: string
@@ -80,30 +51,117 @@ node_types:
           Set a limit on the total run time of the job allocation.
           Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
         required: false
-      batch:
-        type: boolean
-        description: True if the job is run on batch mode.
-        required: false
-        default: true
+      account:
+        type: string
+        description: >
+          Charge resources used by this job to specified account. May be mandatory according to configuration.
+      reservation:
+        type: string
+        description: >
+          Allocate resources for the job from the named reservation.
       extra_options:
         type: list
         description: >
-         This define all other slurm job options with the format opt=value (ex: mpi=pmi2 or partition=MyPartition).
+          This define all other slurm job options (ex: --mpi=pmi2 or --partition=MyPartition).
         required: false
         entry_schema:
           type: string
-      exec_args:
+
+  yorc.datatypes.slurm.ExecutionOptions:
+    derived_from: tosca.datatypes.Root
+    properties:
+      command:
+        type: string
+        description: >
+          Allows a job to run a command instead of a batch script if none is provided.
+        required: false
+      args:
         type: list
         description: >
-         This define all arguments passed to the executable run by the job.
+          If command is provided, this allows to define arguments passed to the command.
         required: false
         entry_schema:
           type: string
+      env_vars:
+        type: list
+        description: Environment variables to pass to the job execution.
+        required: false
+        entry_schema:
+          type: string
+
+capability_types:
+  yorc.capabilities.slurm.Endpoint:
+    derived_from: yorc.capabilities.Endpoint.ProvisioningAdmin
+    properties:
+      # Adds non required credentials
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        description: Credentials used to provision the resource
+        required: false
+
+node_types:
+  yorc.nodes.slurm.Compute:
+    derived_from: yorc.nodes.Compute
+    properties:
+      gres:
+        type: string
+        required: false
+      constraint:
+        type: string
+        required: false
+      partition:
+        type: string
+        required: false
+        description: Slurm partition where the nodes will be deployed
+      job_name:
+        type: string
+        required: false
+        description: Specify a name for the job allocation. The specified name will appear along with the job id.
+      account:
+        type: string
+        description: >
+          Charge resources used by this allocation to specified account. May be mandatory according to configuration.
+      reservation:
+        type: string
+        description: >
+          Allocate resources from the named reservation.
+    attributes:
+      cuda_visible_devices:
+        type: string
+        description: Coma separated list of visibles GPU devices for the compute.
+      job_id:
+        type: string
+        description: The ID of the job allocation.
+      partition:
+        type: string
+        description: Slurm partition where the nodes are deployed.
+
+  yorc.nodes.slurm.Job:
+    derived_from: org.alien4cloud.nodes.Job
+    properties:
+      slurm_options:
+        type: yorc.datatypes.slurm.JobOptions
+        description: >
+          Job properties used for Slurm sbatch execution. See Slurm documentation (https://slurm.schedmd.com/sbatch.html) for more details.
+        required: false
+      working_directory:
+        type: string
+        description: Directory where the batch script or command will be executed. Default is home's related user.
+        required: false
+      execution_options:
+        type: yorc.datatypes.slurm.ExecutionOptions
+        description: >
+          Properties used for the execution itself.
       monitoring_time_interval:
         type: string
         description: >
           Time interval duration used for job monitoring as "5s" or "300ms"
           Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+        required: false
+      credentials:
+        type: tosca.datatypes.Credential
+        description: >
+           Provide user credentials for connection to slurm client node
         required: false
     attributes:
       job_id:
@@ -127,7 +185,14 @@ node_types:
   yorc.nodes.slurm.SingularityJob:
     derived_from: yorc.nodes.slurm.Job
     properties:
-      exec_command:
-        type: string
-        description: If this property is filled. The specified command is executed with singularity exec instead of default singularity run.
+      singularity_command_options:
+        type: list
+        description: Options passed to the "singularity run" or "singularity exec" command.
         required: false
+        entry_schema:
+          type: string
+      singularity_debug:
+        type: boolean
+        description: Print all debug and verbose information during singularity execution
+        required: false
+        default: false

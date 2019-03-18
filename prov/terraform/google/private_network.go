@@ -17,16 +17,18 @@ package google
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID,
@@ -62,15 +64,10 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 
 	// Use existing private network if defined with network_name
 	if privateNetwork.Name != "" {
-		// Just provide network_name attribute
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-		consulKeyNetwork := commons.ConsulKey{
-			Path:  path.Join(nodeKey, "/attributes/network_name"),
-			Value: privateNetwork.Name,
-		}
-
-		consulKeys.Keys = append(consulKeys.Keys, consulKeyNetwork)
-		commons.AddResource(infrastructure, "consul_keys", privateNetwork.Name, &consulKeys)
+		// Provide output for network_name
+		networkKey := nodeName + "-network"
+		commons.AddOutput(infrastructure, networkKey, &commons.Output{Value: privateNetwork.Name})
+		outputs[path.Join(nodeKey, "/attributes/network_name")] = networkKey
 		return nil
 	}
 
@@ -104,14 +101,10 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 		}}
 	commons.AddResource(infrastructure, "google_compute_firewall", externalFw.Name, externalFw)
 
-	// Provide Consul Key for network_name
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyNetwork := commons.ConsulKey{
-		Path:  path.Join(nodeKey, "/attributes/network_name"),
-		Value: fmt.Sprintf("${google_compute_network.%s.name}", privateNetwork.Name)}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyNetwork)
-	commons.AddResource(infrastructure, "consul_keys", privateNetwork.Name, &consulKeys)
+	// Provide output for network_name
+	networkKey := nodeName + "-network"
+	commons.AddOutput(infrastructure, networkKey, &commons.Output{Value: fmt.Sprintf("${google_compute_network.%s.name}", privateNetwork.Name)})
+	outputs[path.Join(nodeKey, "/attributes/network_name")] = networkKey
 	return nil
 }
 
@@ -202,21 +195,18 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 	log.Debugf("Add subnet:%+v", subnet)
 	commons.AddResource(infrastructure, "google_compute_subnetwork", subnet.Name, subnet)
 
-	// Provide Consul Key for attribute gateway_ip
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyGateway := commons.ConsulKey{
-		Path:  path.Join(nodeKey, "/attributes/gateway_ip"),
-		Value: fmt.Sprintf("${google_compute_subnetwork.%s.gateway_address}", subnet.Name)}
-	consulKeyNetwork := commons.ConsulKey{
-		Path:  path.Join(nodeKey, "/attributes/network_name"),
-		Value: subnet.Network,
-	}
-	consulKeySubnetwork := commons.ConsulKey{
-		Path:  path.Join(nodeKey, "/attributes/subnetwork_name"),
-		Value: subnet.Name,
-	}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyGateway, consulKeyNetwork, consulKeySubnetwork)
-	commons.AddResource(infrastructure, "consul_keys", subnet.Name, &consulKeys)
+	// Provide outputs
+	gatewayKey := nodeName + "-gateway"
+	commons.AddOutput(infrastructure, gatewayKey, &commons.Output{Value: fmt.Sprintf("${google_compute_subnetwork.%s.gateway_address}", subnet.Name)})
+	outputs[path.Join(nodeKey, "/attributes/gateway_ip")] = gatewayKey
+
+	networkKey := nodeName + "-network"
+	commons.AddOutput(infrastructure, networkKey, &commons.Output{Value: subnet.Network})
+	outputs[path.Join(nodeKey, "/attributes/network_name")] = networkKey
+
+	subnetKey := nodeName + "-subnet"
+	commons.AddOutput(infrastructure, subnetKey, &commons.Output{Value: subnet.Name})
+	outputs[path.Join(nodeKey, "/attributes/subnetwork_name")] = subnetKey
 
 	// Add internal firewall rules for subnet
 	sourceRanges := append(secondarySourceRange, subnet.IPCIDRRange)

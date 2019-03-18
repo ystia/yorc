@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/ystia/yorc/prov/hostspool"
-	"github.com/ystia/yorc/registry"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/prov/hostspool"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 const (

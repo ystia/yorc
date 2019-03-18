@@ -23,7 +23,6 @@ The command ``yorc bootstrap`` can be used to bootstrap the full stack, from Ali
 to Yorc and its dependencies, over different types of infrastructures, on a single node
 or distributed on several nodes.
 
-
 Prerequisites
 -------------
 
@@ -46,6 +45,7 @@ It requires the following packages to be installed on the local host:
   * python-pip
   * zip/unzip
   * openssh-client
+  * openssl (to generate certificates when they are not provided)
   * wget
 
 This basic installation on the local host will attempt to install without sudo privileges
@@ -61,8 +61,8 @@ you could either add them yourself, with sudo privileges, running for example:
 Or you could create a python virtual environment, and let the Yorc bootstrap command
 install the ansible module within this virtual environment (operation which doesn't require sudo privileges).
 
-You can run these commands to create a virtual environment, here a virtual 
-environment called ``yorcenv`` :
+You can run these commands to create a virtual environment, here a virtual
+environment called ``yorcenv``:
 
 .. parsed-literal::
 
@@ -100,7 +100,7 @@ have its port 8088 open.
 Bootstrap process overview
 --------------------------
 
-The command ``yorc bootstrap`` will configure on the local host a basic setup with 
+The command ``yorc bootstrap`` will configure on the local host a basic setup with
 Yorc and a Consul data store.
 
 This basic setup will then be used to bootstrap the full stack Alien4Cloud/Yorc
@@ -110,6 +110,11 @@ You can deploy the full stack either on a single node (by default), or distribut
 on several nodes as described in :ref:`Run Yorc in HA mode <yorc_ha_section>`, using ``yorc bootstrap``
 command line option ``--deployment_type HA`` described below.
 
+When flag ``--insecure`` is not specified, a secured installation will performed:
+
+  * TLS with mutual authentication between components will be configured,
+  * a Vault will be installed and used to store infrastructure credentials.
+
 Configuration values can be provided by the user:
 
  * in interactive mode,
@@ -117,16 +122,18 @@ Configuration values can be provided by the user:
  * using ``yorc bootstrap`` command line options
  * using environment variables.
 
-You can combine these modes, ``yorc bootstrap`` will check in any case if 
+You can combine these modes, ``yorc bootstrap`` will check in any case if
 required configuration values are missing, and will ask for missing values.
 
 These configuration values will allow you to specify:
 
   * optional Alien4Cloud configuration values
-  * Yorc configuration values, all optional, except from the path to a ssh private
-    key that will be used by the local orchestrator to connect to the bootstrapped setup
+  * Yorc configuration values, all optional, except from:
+      * the path to a ssh private key that will be used by the local orchestrator to connect to the bootstrapped setup
+      * the Certificate authority private key passphrase to use in the default secure mode
+        (while the other properties, Certificate Authority private key and PEM-encoded Certificate Authority, are optional. If not provided, they will be generated, and the generated Certificate Authority at ``work/bootstrapResources/ca.pem`` can then be imported in your Web browser as a trusted Certificate Authority)
   * Infrastructure configuration with required configuration values depending on
-    the infrastucture, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
+    the infrastructure, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
   * Configuration of compute Nodes to create on demand,
   * User used to connect to these compute nodes,
   * Configuration of the connection to public network created on demand.
@@ -136,7 +143,7 @@ Yorc plugin Documentation at https://yorc-a4c-plugin.readthedocs.io/en/latest/lo
 For example, in the :ref:`Google Configuration file example <yorc_google_example_section>`, you can see on-demand ``compute``  and ``address`` configuration values.
 
 Once configuration settings are provided, ``yorc bootstrap`` will proceed to the
-full stack deployment, showing deployment steps progress (by default, but you can see 
+full stack deployment, showing deployment steps progress (by default, but you can see
 deployment logs instead trough the option ``--follow logs`` described below).
 
 Once the deployment is finished, the orchestrator on the local host is still running,
@@ -152,8 +159,8 @@ To clean the local host setup, run:
     ./yorc bootstrap cleanup
 
 This will only clean the local host environment, it won't undeploy the bootstrapped
-setup installed on remote hosts. 
-
+setup installed on remote hosts.
+It stops the local yorc and consul servers, cleans files in working directory except from downloaded bundles, on purpose as some of them take time to be downloaded.
 
 Bootstrapping the setup in interactive mode
 -------------------------------------------
@@ -183,12 +190,16 @@ The following ``yorc bootstrap`` option are available:
   * ``--alien4cloud_user`` Alien4Cloud user (default, admin)
   * ``--ansible_extra_package_repository_url`` URL of package indexes where to find the ansible package, instead of the default Python Package repository
   * ``--ansible_version`` Ansible version (default \ |ansible_version|\ )
+  * ``--config_only`` Makes the bootstrapping abort right after exporting the inputs
   * ``--consul_download_url`` Consul download URL (default, Consul version compatible with this Yorc, under https://releases.hashicorp.com/consul/)
-  * ``--consul_port`` Consul port (default 8500)
+  * ``--consul_encrypt_key`` 16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic
+  * ``--consul_port`` Consul port (default 8543)
   * ``--credentials_user`` User Yorc uses to connect to Compute Nodes
+  * ``--deployment_name`` Name of the deployment. If not specified deployment name is based on time.
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
   * ``--follow`` Follow bootstrap deployment steps, logs, or none (default, steps)
   * ``--infrastructure`` Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool
+  * ``--insecure`` Insecure mode - no TLS configuration, no Vault to store secrets
   * ``--jdk_download_url`` Java Development Kit download URL (default, JDK downloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
   * ``--jdk_version`` Java Development Kit version (default 1.8.0-131-b11)
   * ``--resources_zip`` Path to bootstrap resources zip file (default, zip bundled within Yorc)
@@ -196,13 +207,19 @@ The following ``yorc bootstrap`` option are available:
   * ``--terraform_download_url`` Terraform download URL (default, Terraform version compatible with this Yorc, under https://releases.hashicorp.com/terraform/)
   * ``--terraform_plugins_download_urls`` Terraform plugins download URLs (default, Terraform plugins compatible with this Yorc, under https://releases.hashicorp.com/terraform-provider-xxx/)
   * ``--values`` Path to file containing input values
+  * ``--vault_download_url`` Hashicorp Vault download URL (default "https://releases.hashicorp.com/vault/1.0.3/vault_1.0.3_linux_amd64.zip")
+  * ``--vault_port`` Vault port (default 8200)
   * ``--working_directory`` Working directory where to place deployment files (default, work)
+  * ``--yorc_ca_key_file`` Path to Certificate Authority private key, accessible locally
+  * ``--yorc_ca_passphrase`` Bootstrapped Yorc Home directory (default, /var/yorc)
+  * ``--yorc_ca_pem_file`` Path to PEM-encoded Certificate Authority, accessible locally
   * ``--yorc_data_dir`` Bootstrapped Yorc Home directory (default, /var/yorc)
   * ``--yorc_download_url`` Yorc download URL (default, current Yorc release under https://github.com/ystia/yorc/releases/)
   * ``--yorc_plugin_download_url`` Yorc plugin download URL (default, current Yorc plugin release under https://github.com/ystia/yorc-a4c-plugin/releases)
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
+  
 
 In addition, similarly to the configuration of infrastructures in ``yorc server``
 command described at :ref:`Infrastructures Configuration <infrastructures_configuration>`, you can use options to
@@ -212,7 +229,7 @@ define infrastructure and on-demand resources configuration values, for example 
 
 The option ``--resources_zip`` is an advanced usage option allowing you to change
 the bootstrap deployment description. You need to clone first the Yorc source code repository at
-https://github.com/ystia/yorc, go into to directory ``commands``, change deployment 
+https://github.com/ystia/yorc, go into to directory ``commands``, change deployment
 description files under ``bootstrap/resources/topology``, then zip the content of ``bootstrap/resources/``
 so that this zip will be used to perform the bootstrap deployment.
 
@@ -267,6 +284,14 @@ Example of a Google Cloud deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     google:
       # Path on local host to file containing Google service account private keys
@@ -295,6 +320,14 @@ Example of an AWS deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     aws:
       region: us-east-2
@@ -321,6 +354,14 @@ Example of an OpenStack deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certificate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     openstack:
       auth_url: http://10.1.2.3:5000/v2.0
@@ -352,6 +393,14 @@ Example of a Hosts Pool deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certificate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   compute:
     shareable: "false"
   hosts:
@@ -388,6 +437,38 @@ Example of a Hosts Pool deployment configuration file
       os.version: "7.3.1611"
       private_address: "10.0.0.11"
       public_address: "10.129.1.11"
+
+
+Exporting and loading an interactive configuration file
+-------------------------------------------------------
+
+When deploying, the final configuration of the bootstrapping is automatically exported to a file. The name of the
+file is the deployment id, which is a timestamp of current year to second. You can create a custom deployment id
+using ''-n'' option :
+
+.. parsed-literal::
+
+    ./yorc bootstrap -n a_deploy_name
+
+If you specify an already existing name (an input config file of the same name this already exists), an unique name will
+be created, of the form ''nameN'', where N is an integer, generated incrementally.
+
+You can then load a config file using the "-v" option :
+
+.. parsed-literal::
+
+    ./yorc bootstrap -v path_to_a_file_containing_input_values
+
+Please note than if a config is loaded using this option, it will not be exported again.
+
+If you wish to only export the interactive configuration without doing an actual bootstrap, just set the ''--config_only'' flag:
+
+.. parsed-literal::
+
+    ./yorc bootstrap --config_only
+
+it will cause the yorc invocation to terminate straight after the export of interactive config.
+
 
 Troubleshooting
 ===============
@@ -464,3 +545,4 @@ You can now resume the bootstrap deployment running :
 .. parsed-literal::
 
     ./yorc deployments tasks resume <deployment ID>
+

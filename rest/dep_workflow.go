@@ -17,16 +17,15 @@ package rest
 import (
 	"fmt"
 	"net/http"
-
 	"path"
-
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
+
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {

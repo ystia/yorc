@@ -14,8 +14,10 @@
 
 package aws
 
-import "github.com/ystia/yorc/registry"
-import "github.com/ystia/yorc/prov/terraform"
+import (
+	"github.com/ystia/yorc/v3/prov/terraform"
+	"github.com/ystia/yorc/v3/registry"
+)
 
 func init() {
 	reg := registry.GetRegistry()

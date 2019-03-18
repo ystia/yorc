@@ -26,12 +26,13 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 type osGenerator struct {
@@ -62,44 +63,10 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 	infrastructure := commons.Infrastructure{}
 
-	consulAddress := "127.0.0.1:8500"
-	if cfg.Consul.Address != "" {
-		consulAddress = cfg.Consul.Address
-	}
-	consulScheme := "http"
-	if cfg.Consul.SSL {
-		consulScheme = "https"
-	}
-	consulCA := ""
-	if cfg.Consul.CA != "" {
-		consulCA = cfg.Consul.CA
-	}
-	consulKey := ""
-	if cfg.Consul.Key != "" {
-		consulKey = cfg.Consul.Key
-	}
-	consulCert := ""
-	if cfg.Consul.Cert != "" {
-		consulCert = cfg.Consul.Cert
-	}
-
 	log.Debugf("Generating infrastructure for deployment with node %s", nodeName)
-	log.Debugf(">>> In GenerateTerraformInfraForNode use consulAddress %s", consulAddress)
-	log.Debugf(">>> In GenerateTerraformInfraForNode use consulScheme %s", consulScheme)
-	log.Debugf(">>> In GenerateTerraformInfraForNode use consulCA %s", consulCA)
-	log.Debugf(">>> In GenerateTerraformInfraForNode use consulKey %s", consulKey)
-	log.Debugf(">>> In GenerateTerraformInfraForNode use consulCert %s", consulCert)
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	infrastructure.Terraform = map[string]interface{}{
-		"backend": map[string]interface{}{
-			"consul": map[string]interface{}{
-				"path":    terraformStateKey,
-				"address": consulAddress,
-				"scheme":  consulScheme,
-			},
-		},
-	}
+	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
 	cmdEnv := []string{
 		fmt.Sprintf("OS_USERNAME=%s", cfg.Infrastructures[infrastructureName].GetString("user_name")),
@@ -117,14 +84,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			"cert":        cfg.Infrastructures[infrastructureName].GetString("cert"),
 			"key":         cfg.Infrastructures[infrastructureName].GetString("key"),
 		},
-		"consul": map[string]interface{}{
-			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
-			"address":   consulAddress,
-			"scheme":    consulScheme,
-			"ca_file":   consulCA,
-			"cert_file": consulCert,
-			"key_file":  consulKey,
-		},
+		"consul": commons.GetConsulProviderfiguration(cfg),
 		"null": map[string]interface{}{
 			"version": commons.NullPluginVersionConstraint,
 		},

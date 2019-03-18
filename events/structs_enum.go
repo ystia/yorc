@@ -37,9 +37,11 @@ const (
 	StatusChangeTypeWorkflowStep
 	// StatusChangeTypeAlienTask is a StatusChangeType of type AlienTask
 	StatusChangeTypeAlienTask
+	// StatusChangeTypeAttributeValue is a StatusChangeType of type AttributeValue
+	StatusChangeTypeAttributeValue
 )
 
-const _StatusChangeTypeName = "InstanceDeploymentCustomCommandScalingWorkflowWorkflowStepAlienTask"
+const _StatusChangeTypeName = "InstanceDeploymentCustomCommandScalingWorkflowWorkflowStepAlienTaskAttributeValue"
 
 var _StatusChangeTypeMap = map[StatusChangeType]string{
 	0: _StatusChangeTypeName[0:8],
@@ -49,14 +51,14 @@ var _StatusChangeTypeMap = map[StatusChangeType]string{
 	4: _StatusChangeTypeName[38:46],
 	5: _StatusChangeTypeName[46:58],
 	6: _StatusChangeTypeName[58:67],
+	7: _StatusChangeTypeName[67:81],
 }
 
-// String implements the Stringer interface.
-func (x StatusChangeType) String() string {
-	if str, ok := _StatusChangeTypeMap[x]; ok {
+func (i StatusChangeType) String() string {
+	if str, ok := _StatusChangeTypeMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("StatusChangeType(%d)", x)
+	return fmt.Sprintf("StatusChangeType(%d)", i)
 }
 
 var _StatusChangeTypeValue = map[string]StatusChangeType{
@@ -74,12 +76,14 @@ var _StatusChangeTypeValue = map[string]StatusChangeType{
 	strings.ToLower(_StatusChangeTypeName[46:58]): 5,
 	_StatusChangeTypeName[58:67]:                  6,
 	strings.ToLower(_StatusChangeTypeName[58:67]): 6,
+	_StatusChangeTypeName[67:81]:                  7,
+	strings.ToLower(_StatusChangeTypeName[67:81]): 7,
 }
 
 // ParseStatusChangeType attempts to convert a string to a StatusChangeType
 func ParseStatusChangeType(name string) (StatusChangeType, error) {
 	if x, ok := _StatusChangeTypeValue[name]; ok {
-		return x, nil
+		return StatusChangeType(x), nil
 	}
 	return StatusChangeType(0), fmt.Errorf("%s is not a valid StatusChangeType", name)
 }

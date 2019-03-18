@@ -20,9 +20,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // SetInstanceStateStringWithContextualLogs stores the state of a given node instance and publishes a status change event
@@ -33,7 +34,10 @@ func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, d
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	_, err = events.PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instanceName, state)
-	return err
+	if err != nil {
+		return err
+	}
+	return notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, "state", state)
 }
 
 // SetInstanceStateWithContextualLogs stores the state of a given node instance and publishes a status change event
@@ -172,11 +176,40 @@ func SetInstanceAttribute(deploymentID, nodeName, instanceName, attributeName, a
 
 }
 
+// SetInstanceListAttributes sets a list of instance attributes in order to store all attributes together then publish.
+// This is done for avoiding inconsistency at publish time
+func SetInstanceListAttributes(attributes []*AttributeData) error {
+	return SetInstanceListAttributesComplex(attributes)
+
+}
+
 // SetInstanceAttributeComplex sets an instance attribute that may be a literal or a complex data type
 func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	storeComplexType(store, attrPath, attributeValue)
+	err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	if err != nil {
+		return err
+	}
+	return errGrp.Wait()
+}
+
+// SetInstanceListAttributesComplex sets an instance list of attributes that may be a literal or a complex data type
+// All attributes are stored together
+// Then all notifications are published
+func SetInstanceListAttributesComplex(attributes []*AttributeData) error {
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	for _, attribute := range attributes {
+		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
+		storeComplexType(store, attrPath, attribute.Value)
+	}
+	for _, attribute := range attributes {
+		err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), attribute.DeploymentID, attribute.NodeName, attribute.InstanceName, attribute.Name, attribute.Value)
+		if err != nil {
+			return err
+		}
+	}
 	return errGrp.Wait()
 }
 
@@ -200,6 +233,29 @@ func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attr
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		storeComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
+		err = notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName, attributeValue)
+		if err != nil {
+			return err
+		}
 	}
 	return errGrp.Wait()
+}
+
+func notifyAndPublishAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
+	// First, Publish event
+	sValue, ok := attributeValue.(string)
+	if ok {
+		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, sValue, "updated")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Next, notify dependent attributes if existing
+	an := &AttributeNotifier{
+		NodeName:      nodeName,
+		InstanceName:  instanceName,
+		AttributeName: attributeName,
+	}
+	return an.NotifyValueChange(kv, deploymentID)
 }

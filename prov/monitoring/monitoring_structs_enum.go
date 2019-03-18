@@ -36,12 +36,11 @@ var _CheckStatusMap = map[CheckStatus]string{
 	1: _CheckStatusName[7:15],
 }
 
-// String implements the Stringer interface.
-func (x CheckStatus) String() string {
-	if str, ok := _CheckStatusMap[x]; ok {
+func (i CheckStatus) String() string {
+	if str, ok := _CheckStatusMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("CheckStatus(%d)", x)
+	return fmt.Sprintf("CheckStatus(%d)", i)
 }
 
 var _CheckStatusValue = map[string]CheckStatus{
@@ -54,7 +53,7 @@ var _CheckStatusValue = map[string]CheckStatus{
 // ParseCheckStatus attempts to convert a string to a CheckStatus
 func ParseCheckStatus(name string) (CheckStatus, error) {
 	if x, ok := _CheckStatusValue[name]; ok {
-		return x, nil
+		return CheckStatus(x), nil
 	}
 	return CheckStatus(0), fmt.Errorf("%s is not a valid CheckStatus", name)
 }

@@ -25,11 +25,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
@@ -151,8 +151,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return err
 	}
 
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-
 	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
@@ -218,12 +216,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			// retrieve the actual used device as depending on the hypervisor it may not be the one we provided, and if there was no devices provided
 			// then we can get it back
 
-			// Bellow code lead to an issue in terraform (https://github.com/hashicorp/terraform/issues/15284) so as a workaround we use a output variable
-			// volumeDevConsulKey := commons.ConsulKey{Path: path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)} // to be backward compatible with Alien stuff
-			// relDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
-			// relVolDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
-			// consulKeys.Keys = append(consulKeys.Keys, volumeDevConsulKey, relDevConsulKey, relVolDevConsulKey)
-			key1 := attachName + "ActualDevkey"
+			key1 := attachName + "-device"
 			commons.AddOutput(infrastructure, key1, &commons.Output{Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)})
 			outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = key1
 			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = key1
@@ -288,10 +281,13 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			}
 			fipAssociateName = "FIP" + instance.Name
 			commons.AddResource(infrastructure, "openstack_compute_floatingip_associate_v2", fipAssociateName, &floatingIPAssociate)
-			consulKeyFloatingIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: floatingIP}
+
+			// Provide output for public IP as floating IP
+			publicIPKey := nodeName + "-" + instanceName + "-publicIP"
+			commons.AddOutput(infrastructure, publicIPKey, &commons.Output{Value: floatingIP})
+			outputs[path.Join(instancesKey, instanceName, "/attributes/public_address")] = publicIPKey
 			// In order to be backward compatible to components developed for Alien (only the above is standard)
-			consulKeyFloatingIPBak := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: floatingIP}
-			consulKeys.Keys = append(consulKeys.Keys, consulKeyFloatingIP, consulKeyFloatingIPBak)
+			outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = publicIPKey
 		} else {
 			log.Debugf("Looking for Network id for %q", networkNodeName)
 			var networkID string
@@ -327,10 +323,18 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				instance.Networks = make([]ComputeNetwork, 0)
 			}
 			instance.Networks = append(instance.Networks, cn)
-			consulKetNetName := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", instance.Name, i)}
-			consulKetNetID := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", instance.Name, i)}
-			consulKetNetAddresses := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses"), Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", instance.Name, i)}
-			consulKeys.Keys = append(consulKeys.Keys, consulKetNetName, consulKetNetID, consulKetNetAddresses)
+
+			// Provide output for network_name, network_id, addresses attributes
+			networkIDKey := nodeName + "-" + instanceName + "-networkID"
+			networkNameKey := nodeName + "-" + instanceName + "-networkName"
+			networkAddressesKey := nodeName + "-" + instanceName + "-addresses"
+			commons.AddOutput(infrastructure, networkIDKey, &commons.Output{Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", instance.Name, i)})
+			commons.AddOutput(infrastructure, networkNameKey, &commons.Output{Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", instance.Name, i)})
+			commons.AddOutput(infrastructure, networkAddressesKey, &commons.Output{Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", instance.Name, i)})
+
+			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name")] = networkNameKey
+			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id")] = networkIDKey
+			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses")] = networkAddressesKey
 		}
 	}
 
@@ -343,18 +347,17 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	} else {
 		accessIP = "${openstack_compute_instance_v2." + instance.Name + ".network.0.fixed_ip_v4}"
 	}
-	consulKeys.Keys = append(consulKeys.Keys, commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: accessIP}) // Use access ip here
 
-	// Add Connection check
-	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env); err != nil {
-		return err
-	}
+	// Provide output for access IP and private IP
+	accessIPKey := nodeName + "-" + instanceName + "-IPAddress"
+	commons.AddOutput(infrastructure, accessIPKey, &commons.Output{Value: accessIP})
+	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
 
-	consulKeyAttrib := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)} // Use latest provisioned network for private access
-	consulKeyFixedIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyAttrib, consulKeyFixedIP)
+	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
+	privateIP := fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1) // Use latest provisioned network for private access
+	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = privateIPKey
+	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 
-	commons.AddResource(infrastructure, "consul_keys", instance.Name, &consulKeys)
-
-	return nil
+	return commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env)
 }

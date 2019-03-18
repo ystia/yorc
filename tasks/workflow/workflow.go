@@ -23,11 +23,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/workflow/builder"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tasks/workflow/builder"
 )
 
 // createWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
@@ -105,7 +105,5 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, 
 	} else {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
 	}
-
-	events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, status.String())
-	return status, errors.Wrapf(checkAndSetTaskStatus(kv, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
+	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, kv, deploymentID, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }

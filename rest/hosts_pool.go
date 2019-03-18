@@ -23,9 +23,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/hostspool"
+
+	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/hostspool"
 )
 
 func (s *Server) deleteHostInPool(w http.ResponseWriter, r *http.Request) {
@@ -190,9 +191,11 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	filtersString := r.URL.Query()["filter"]
+
 	filters := make([]labelsutil.Filter, len(filtersString))
 	for i := range filtersString {
 		var err error
+
 		filters[i], err = labelsutil.CreateFilter(filtersString[i])
 		if err != nil {
 			writeError(w, r, newBadRequestError(err))

@@ -24,13 +24,13 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/metricsutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/metricsutil"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 type scheduledAction struct {
@@ -67,7 +67,7 @@ func (sca *scheduledAction) stop() {
 }
 
 func (sca *scheduledAction) schedule() {
-	log.Debugf("Scheduling action:%+v", sca)
+	log.Debugf("Scheduling action with ID:%q", sca.ID)
 	ticker := time.NewTicker(sca.timeInterval)
 	for {
 		select {
@@ -132,7 +132,7 @@ func (sca *scheduledAction) proceed() error {
 		return err
 	}
 	consulutil.StoreConsulKeyAsString(path.Join(consulutil.SchedulingKVPrefix, "actions", sca.ID, "latestTaskID"), sca.latestTaskID)
-	log.Debugf("Proceed scheduled action:%+v with taskID:%q", sca, sca.latestTaskID)
+	log.Debugf("Proceed scheduled action with ID:%q with taskID:%q", sca.ID, sca.latestTaskID)
 	return nil
 }
 

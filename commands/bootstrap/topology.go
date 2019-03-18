@@ -25,12 +25,11 @@ import (
 	"text/template"
 
 	"github.com/pkg/errors"
+	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/ziputil"
-	"github.com/ystia/yorc/rest"
-
-	"gopkg.in/yaml.v2"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v3/rest"
 )
 
 // AnsibleConfiguration provides Ansible user-defined settings
@@ -43,8 +42,14 @@ type AnsibleConfiguration struct {
 type YorcConfiguration struct {
 	DownloadURL       string `yaml:"download_url" mapstructure:"download_url"`
 	Port              int
+	Protocol          string
 	PrivateKeyContent string `yaml:"private_key_content" mapstructure:"private_key_content"`
 	PrivateKeyFile    string `yaml:"private_key_file" mapstructure:"private_key_file"`
+	CAPEMContent      string `yaml:"ca_pem" mapstructure:"ca_pem"`
+	CAPEMFile         string `yaml:"ca_pem_file" mapstructure:"ca_pem_file"`
+	CAKeyContent      string `yaml:"ca_key" mapstructure:"ca_key"`
+	CAKeyFile         string `yaml:"ca_key_file" mapstructure:"ca_key_file"`
+	CAPassPhrase      string `yaml:"ca_passphrase" mapstructure:"ca_passphrase"`
 	DataDir           string `yaml:"data_dir" mapstructure:"data_dir"`
 	WorkersNumber     int    `yaml:"workers_number" mapstructure:"workers_number"`
 }
@@ -58,14 +63,18 @@ type YorcPluginConfiguration struct {
 type Alien4CloudConfiguration struct {
 	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 	Port        int
+	Protocol    string
 	User        string
 	Password    string
 }
 
 // ConsulConfiguration provides Consul user-defined settings
 type ConsulConfiguration struct {
-	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
-	Port        int
+	DownloadURL         string `yaml:"download_url" mapstructure:"download_url"`
+	Port                int
+	TLSEnabled          bool   `yaml:"tls_enabled" mapstructure:"tls_enabled"`
+	TLSForChecksEnabled bool   `yaml:"tls_for_checks_enabled" mapstructure:"tls_for_checks_enabled"`
+	EncryptKey          string `yaml:"encrypt_key" mapstructure:"encrypt_key"`
 }
 
 // TerraformConfiguration provides Terraform settings
@@ -93,6 +102,12 @@ type CredentialsConfiguration struct {
 	Keys map[string]string
 }
 
+// VaultConfiguration provides Vault user-defined settings
+type VaultConfiguration struct {
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
+	Port        int
+}
+
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
 	Ansible         AnsibleConfiguration
@@ -108,6 +123,8 @@ type TopologyValues struct {
 	Jdk             JdkConfiguration
 	Location        LocationConfiguration
 	Hosts           []rest.HostConfig
+	Vault           VaultConfiguration
+	Insecure        bool
 }
 
 // formatAsYAML is a function used in templates to output the yaml representation
@@ -281,14 +298,15 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
-		"formatAsYAML":                        formatAsYAML,
-		"formatOnDemandResourceCredsAsYAML":   formatOnDemandResourceCredsAsYAML,
-		"indent":                              indent,
-		"getFile":                             getFile,
-		"getRepositoryURL":                    getRepositoryURL,
-		"getAlien4CloudVersion":               getAlien4CloudVersion,
-		"getAlien4CloudVersionFromTOSCATypes": getAlien4CloudVersionFromTOSCATypes,
-		"getForgeVersionFromTOSCATypes":       getForgeVersionFromTOSCATypes,
+		"formatAsYAML":                             formatAsYAML,
+		"formatOnDemandResourceCredsAsYAML":        formatOnDemandResourceCredsAsYAML,
+		"indent":                                   indent,
+		"getFile":                                  getFile,
+		"getRepositoryURL":                         getRepositoryURL,
+		"getAlien4CloudVersion":                    getAlien4CloudVersion,
+		"getAlien4CloudVersionFromTOSCATypes":      getAlien4CloudVersionFromTOSCATypes,
+		"getAlien4CloudForgeVersionFromTOSCATypes": getAlien4CloudForgeVersionFromTOSCATypes,
+		"getForgeVersionFromTOSCATypes":            getForgeVersionFromTOSCATypes,
 	}
 
 	parsedTemplate, err := template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...)
@@ -318,19 +336,24 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 		return err
 	}
 	// Remove empty lines than may appear in conditional template code parsed
-	err = removeEmptyLines(resultFilePath)
+	// as it would cause issues in Alien4Cloud Workflows parsing
+	err = removeWorkflowsEmptyLines(resultFilePath)
 	return err
 }
 
-func removeEmptyLines(filename string) error {
+func removeWorkflowsEmptyLines(filename string) error {
 	re := regexp.MustCompile("(?m)^\\s*$[\r\n]*")
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
 
-	result := strings.Trim(re.ReplaceAllString(string(data[:]), ""), "\r\n")
-	err = ioutil.WriteFile(filename, []byte(result), 0600)
+	workflowStartIndex := strings.Index(string(data), "workflows:")
+	if workflowStartIndex == -1 {
+		return nil
+	}
+	workflowSection := strings.Trim(re.ReplaceAllString(string(data[workflowStartIndex:]), ""), "\r\n")
+	err = ioutil.WriteFile(filename, []byte(fmt.Sprintf("%s%s", string(data[:workflowStartIndex]), workflowSection)), 0600)
 	return err
 
 }

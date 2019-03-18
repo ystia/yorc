@@ -17,7 +17,7 @@ package operations
 import (
 	"strings"
 
-	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/v3/helper/provutil"
 )
 
 // GetInstanceName returns the built instance name from nodeName and instanceID

@@ -15,6 +15,9 @@
 
 #set -x
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+binDir="${scriptDir}/bin"
+
+export GO111MODULE=on
 
 get_consul_version () {
     grep consul_version "${scriptDir}/../versions.yaml" | awk '{print $2}'
@@ -31,7 +34,8 @@ error_exit () {
 }
 
 install_consul() {
-    cd ${scriptDir}
+    mkdir -p "${binDir}"
+    cd "${binDir}"
     consulVersion=$(get_consul_version)
     zipName="consul_${consulVersion}_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
     wget "https://releases.hashicorp.com/consul/${consulVersion}/${zipName}"
@@ -45,26 +49,26 @@ if [[ -z "$(which go)" ]]; then
     error_exit "go program should be present in your path"
 fi
 
-if [[ -z "$GOPATH" ]]; then
-    export GOPATH="$(go env GOPATH)"
-fi
+if [[ ${BUILD_ARGS} == *"-tags"* ]]; then
+    error_exit "Variable BUILD_ARGS (\"${BUILD_ARGS}\") contains -tags option, this is deprecated. Use BUILD_TAGS variable to provide a tag list (space-separated) instead."
+fi 
 
 for tool in $@; do
     #Suppress trailing /... in url if any
     tool="${tool%%/...*}"
-    if [[ ! -x $GOPATH/bin/${tool##*/} ]]; then
-        error_exit "Tool not found $GOPATH/bin/${tool##*/} doesn't exist. This could be fixed by running 'make tools'"
+    if [[ -z "$(which ${tool##*/})" ]]; then
+        error_exit "Tool not found ${tool##*/} doesn't exist. This could be fixed by running 'make tools'"
     fi
 done
 
-if [[ ! -x "${scriptDir}/consul" ]]; then
-    rm -f "${scriptDir}/consul"
+if [[ ! -x "${binDir}/consul" ]]; then
+    rm -f "${binDir}/consul"
     install_consul
 else
-    installedConsulVersion=$(${scriptDir}/consul version | grep "Consul v" | cut -d 'v' -f2)
+    installedConsulVersion=$(${binDir}/consul version | grep "Consul v" | cut -d 'v' -f2)
     consulVersion=$(get_consul_version)
     if [[ "${installedConsulVersion}" != "${consulVersion}" ]]; then
-        rm -f "${scriptDir}/consul"
+        rm -f "${binDir}/consul"
         install_consul
     fi
 fi

@@ -31,18 +31,20 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/operations"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/operations"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tosca"
 )
+
+const home = "~"
+const batchScript = "b.batch"
 
 type execution interface {
 	resolveExecution() error
@@ -50,16 +52,8 @@ type execution interface {
 	execute(ctx context.Context) error
 }
 
-type operationNotImplemented struct {
-	msg string
-}
-
 type noJobFound struct {
 	msg string
-}
-
-func (oni operationNotImplemented) Error() string {
-	return oni.msg
 }
 
 func (jid *noJobFound) Error() string {
@@ -67,43 +61,54 @@ func (jid *noJobFound) Error() string {
 }
 
 type executionCommon struct {
-	kv                     *api.KV
-	cfg                    config.Configuration
-	deploymentID           string
-	taskID                 string
-	client                 *sshutil.SSHClient
-	NodeName               string
-	operation              prov.Operation
-	OperationRemoteBaseDir string
-	NodeType               string
-	OverlayPath            string
-	Artifacts              map[string]string
-	EnvInputs              []*operations.EnvInput
-	VarInputsNames         []string
-	NodePath               string
-	Primary                string
-	nodeInstances          []string
-	jobInfo                *jobInfo
-	stepName               string
+	kv             *api.KV
+	cfg            config.Configuration
+	deploymentID   string
+	taskID         string
+	client         *sshutil.SSHClient
+	NodeName       string
+	operation      prov.Operation
+	NodeType       string
+	OverlayPath    string
+	Artifacts      map[string]string
+	EnvInputs      []*operations.EnvInput
+	VarInputsNames []string
+	NodePath       string
+	Primary        string
+	PrimaryFile    string
+	nodeInstances  []string
+	jobInfo        *jobInfo
+	stepName       string
+	isSingularity  bool
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
+	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
+	if err != nil {
+		return nil, err
+	}
 	execCommon := &executionCommon{kv: kv,
-		cfg:                    cfg,
-		deploymentID:           deploymentID,
-		NodeName:               nodeName,
-		operation:              operation,
-		VarInputsNames:         make([]string, 0),
-		EnvInputs:              make([]*operations.EnvInput, 0),
-		taskID:                 taskID,
-		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
-		stepName:               stepName,
+		cfg:            cfg,
+		deploymentID:   deploymentID,
+		NodeName:       nodeName,
+		operation:      operation,
+		VarInputsNames: make([]string, 0),
+		EnvInputs:      make([]*operations.EnvInput, 0),
+		taskID:         taskID,
+		stepName:       stepName,
+		isSingularity:  isSingularity,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
-
-	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
+	// Get user credentials from credentials node property
+	// Its not a capability, so capabilityName set to empty string
+	creds, err := getUserCredentials(kv, deploymentID, nodeName, "", "credentials")
+	if err != nil {
+		return nil, err
+	}
+	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
+	execCommon.client, err = getSSHClient(creds.UserName, creds.PrivateKey, creds.Password, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -140,28 +145,37 @@ func (e *executionCommon) execute(ctx context.Context) error {
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
 	case strings.ToLower(tosca.RunnableSubmitOperationName):
-		log.Printf("Running the job: %s", e.operation.Name)
-		// Copy the artifacts
-		if err := e.uploadArtifacts(ctx); err != nil {
-			return errors.Wrap(err, "failed to upload artifact")
-		}
-		if e.Primary != "" {
-			// Copy the operation implementation
-			if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-				return errors.Wrap(err, "failed to upload operation implementation")
-			}
-		}
-
+		log.Debugf("Submit the job: %s", e.operation.Name)
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
 			return errors.Wrap(err, "failed to build job information")
 		}
+		if e.jobInfo.Command != "" && e.Primary != "" {
+			// If both primary artifact is provided (script) and command: return an error
+			return errors.Errorf("Either a script artifact or a command must be provided, but not both.")
+		}
 
-		// Run the command
-		err := e.runJobCommand(ctx)
+		// Add the primary artifact to the artifacts map if not already included
+		var is bool
+		if e.Primary != "" && e.PrimaryFile != "" {
+			for _, artPath := range e.Artifacts {
+				if strings.HasPrefix(e.Primary, artPath) {
+					is = true
+				}
+			}
+			if !is {
+				e.Artifacts[e.PrimaryFile] = e.Primary
+			}
+		}
+
+		// Copy the artifacts
+		if err := e.uploadArtifacts(ctx); err != nil {
+			return errors.Wrap(err, "failed to upload artifact")
+		}
+		err := e.prepareAndSubmitJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return errors.Wrap(err, "failed to run command")
+			return errors.Wrapf(err, "failed to submit job with ID:%s", e.jobInfo.ID)
 		}
 
 		jobInfoJSON, err := json.Marshal(e.jobInfo)
@@ -185,7 +199,12 @@ func (e *executionCommon) execute(ctx context.Context) error {
 				return err
 			}
 			// Not cancelling within the same task try to get jobID from attribute
-			_, jobID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+			id, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+			if err != nil {
+				return err
+			} else if id != nil && id.RawString() != "" {
+				jobID = id.String()
+			}
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
 				"Slurm job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.NodeName)
 		} else {
@@ -208,30 +227,8 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal stored Slurm job information")
 	}
+	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.Credentials.UserName)
 	return jobInfo, nil
-}
-
-func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
-	var err error
-	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
-	if err != nil {
-		return err
-	}
-
-	_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
-	if err != nil {
-		return err
-	}
-
-	e.Primary = strings.TrimSpace(e.Primary)
-
-	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
-		e.Primary = ""
-	}
-
-	log.Debugf("primary implementation: %q", e.Primary)
-	return e.resolveInstances()
 }
 
 func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
@@ -240,173 +237,174 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["taskID"] = e.taskID
 	data["jobID"] = e.jobInfo.ID
 	data["stepName"] = e.stepName
-	data["isBatch"] = strconv.FormatBool(e.jobInfo.BatchMode)
-	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
-	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
-	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
+	data["workingDir"] = e.jobInfo.WorkingDir
+	data["userName"] = e.jobInfo.Credentials.UserName
+	data["password"] = e.jobInfo.Credentials.Password
+	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
+	data["artifacts"] = strings.Join(e.jobInfo.Artifacts, ",")
+
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
-func (e *executionCommon) retrieveJobID(ctx context.Context) error {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debugf("Task has been cancelled. The job information polling is stopping now")
-			return nil
-		case <-ticker.C:
-			jobInfo, err := getJobInfo(e.client, "", e.jobInfo.Name)
-			if err != nil {
-				_, notFound := err.(*noJobFound)
-				// If job is not found, we assume it still hasn't be created
-				if !notFound {
-					return err
-				}
-			} else if jobInfo.ID != "" {
-				// JobID has been retrieved
-				e.jobInfo.ID = jobInfo.ID
-				return nil
-			}
-		}
-	}
-}
-
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
-	job := jobInfo{}
 	// Get main properties from node
-	jobName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "name")
+	e.jobInfo = &jobInfo{}
+	jobName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "name")
 	if err != nil {
 		return err
 	}
 	if jobName == nil || jobName.RawString() == "" {
-		job.Name = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
-		if job.Name == "" {
-			job.Name = e.deploymentID
+		e.jobInfo.Name = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		if e.jobInfo.Name == "" {
+			e.jobInfo.Name = e.deploymentID
 		}
 	} else {
-		job.Name = jobName.RawString()
+		e.jobInfo.Name = jobName.RawString()
 	}
 
-	if ts, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "tasks"); err != nil {
+	if ts, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "tasks"); err != nil {
 		return err
 	} else if ts != nil && ts.RawString() != "" {
-		if job.Tasks, err = strconv.Atoi(ts.RawString()); err != nil {
+		if e.jobInfo.Tasks, err = strconv.Atoi(ts.RawString()); err != nil {
 			return err
 		}
 	}
 
 	var nodes = 1
-	if ns, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "nodes"); err != nil {
+	if ns, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "nodes"); err != nil {
 		return err
 	} else if ns != nil && ns.RawString() != "" {
 		if nodes, err = strconv.Atoi(ns.RawString()); err != nil {
 			return err
 		}
 	}
-	job.Nodes = nodes
+	e.jobInfo.Nodes = nodes
 
-	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "mem_per_node"); err != nil {
+	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "mem_per_node"); err != nil {
 		return err
 	} else if m != nil && m.RawString() != "" {
-		if job.Mem, err = strconv.Atoi(m.RawString()); err != nil {
+		if e.jobInfo.Mem, err = strconv.Atoi(m.RawString()); err != nil {
 			return err
 		}
 	}
 
-	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "cpus_per_task"); err != nil {
+	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "cpus_per_task"); err != nil {
 		return err
 	} else if c != nil && c.RawString() != "" {
-		if job.Cpus, err = strconv.Atoi(c.RawString()); err != nil {
+		if e.jobInfo.Cpus, err = strconv.Atoi(c.RawString()); err != nil {
 			return err
 		}
 	}
 
-	if maxTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "time"); err != nil {
+	if maxTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "time"); err != nil {
 		return err
 	} else if maxTime != nil {
-		job.MaxTime = maxTime.RawString()
+		e.jobInfo.MaxTime = maxTime.RawString()
 	}
 
 	if monitoringTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "monitoring_time_interval"); err != nil {
 		return err
 	} else if monitoringTime != nil && monitoringTime.RawString() != "" {
-		job.MonitoringTimeInterval, err = time.ParseDuration(monitoringTime.RawString())
+		e.jobInfo.MonitoringTimeInterval, err = time.ParseDuration(monitoringTime.RawString())
 		if err != nil {
 			return err
 		}
 	}
-	if job.MonitoringTimeInterval == 0 {
-		job.MonitoringTimeInterval = e.cfg.Infrastructures[infrastructureName].GetDuration("job_monitoring_time_interval")
-		if job.MonitoringTimeInterval <= 0 {
+	if e.jobInfo.MonitoringTimeInterval == 0 {
+		e.jobInfo.MonitoringTimeInterval = e.cfg.Infrastructures[infrastructureName].GetDuration("job_monitoring_time_interval")
+		if e.jobInfo.MonitoringTimeInterval <= 0 {
 			// Default value
-			job.MonitoringTimeInterval = 5 * time.Second
+			e.jobInfo.MonitoringTimeInterval = 5 * time.Second
 		}
 	}
 
-	// BatchMode default is true
-	var batchMode = true
-	if bm, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "batch"); err != nil {
-		return err
-	} else if bm != nil && bm.RawString() != "" {
-		if batchMode, err = strconv.ParseBool(bm.RawString()); err != nil {
-			return err
-		}
-	}
-	job.BatchMode = batchMode
-
-	var extraOpts []string
-	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
+	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "extra_options"); err != nil {
 		return err
 	} else if extra != nil && extra.RawString() != "" {
-		if err = json.Unmarshal([]byte(extra.RawString()), &extraOpts); err != nil {
+		if err = json.Unmarshal([]byte(extra.RawString()), &e.jobInfo.Opts); err != nil {
 			return err
 		}
 	}
-	job.Opts = extraOpts
-
-	var execArgs []string
-	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_args"); err != nil {
-		return err
-	} else if ea != nil && ea.RawString() != "" {
-		if err = json.Unmarshal([]byte(ea.RawString()), &execArgs); err != nil {
-			return err
-		}
-	}
-
-	var args []string
-	job.Inputs = make(map[string]string)
+	e.jobInfo.Inputs = make(map[string]string)
 	for _, input := range e.EnvInputs {
-		if input.Name == "args" && input.Value != "" {
-			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
-				return err
-			}
-		} else {
-			job.Inputs[input.Name] = input.Value
+		if !strings.Contains(input.Name, "credentials") {
+			e.jobInfo.Inputs[input.Name] = input.Value
 		}
 	}
-
-	job.ExecArgs = append(execArgs, args...)
 
 	// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
 	// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
-	_, job.ID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+	id, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+	if err != nil {
+		return err
+	} else if id != nil && id.RawString() != "" {
+		e.jobInfo.ID = id.String()
+	}
+
+	// Get user credentials from credentials node property, if values are provided
+	// Its not a capability property so capability name is empty
+	e.jobInfo.Credentials, err = getUserCredentials(e.kv, e.deploymentID, e.NodeName, "", "credentials")
 	if err != nil {
 		return err
 	}
-	e.jobInfo = &job
+
+	// Job account
+	if acc, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "account"); err != nil {
+		return err
+	} else if acc != nil && acc.RawString() != "" {
+		e.jobInfo.Account = acc.RawString()
+	} else if e.cfg.Infrastructures[infrastructureName].GetBool("enforce_accounting") {
+		return errors.Errorf("Job account must be set as configuration enforces accounting")
+	}
+
+	// Reservation
+	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "reservation"); err != nil {
+		return err
+	} else if res != nil && res.RawString() != "" {
+		e.jobInfo.Reservation = res.RawString()
+	}
+
+	// Execution options
+	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "args"); err != nil {
+		return err
+	} else if ea != nil && ea.RawString() != "" {
+		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
+			return err
+		}
+	}
+	if envVars, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "env_vars"); err != nil {
+		return err
+	} else if envVars != nil && envVars.RawString() != "" {
+		if err = json.Unmarshal([]byte(envVars.RawString()), &e.jobInfo.EnvVars); err != nil {
+			return err
+		}
+	}
+	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "command"); err != nil {
+		return err
+	} else if cmd != nil && cmd.RawString() != "" {
+		e.jobInfo.Command = cmd.RawString()
+	} else if e.Primary == "" {
+		return errors.Errorf("Either job command property must be filled or batch script must be provided")
+	}
+
+	// Working directory: default is user's home
+	if wd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "working_directory"); err != nil {
+		return err
+	} else if wd != nil && wd.RawString() != "" {
+		e.jobInfo.WorkingDir = wd.RawString()
+	} else {
+		e.jobInfo.WorkingDir = home
+	}
 	return nil
 }
 
-func (e *executionCommon) fillJobCommandOpts() string {
+func (e *executionCommon) buildJobOpts() string {
 	var opts string
 	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.Name)
-
 	if e.jobInfo.Tasks > 1 {
 		opts += fmt.Sprintf(" --ntasks=%d", e.jobInfo.Tasks)
 	}
 	opts += fmt.Sprintf(" --nodes=%d", e.jobInfo.Nodes)
-
 	if e.jobInfo.Mem != 0 {
 		opts += fmt.Sprintf(" --mem=%dG", e.jobInfo.Mem)
 	}
@@ -417,66 +415,55 @@ func (e *executionCommon) fillJobCommandOpts() string {
 		opts += fmt.Sprintf(" --time=%s", e.jobInfo.MaxTime)
 	}
 	if e.jobInfo.Opts != nil && len(e.jobInfo.Opts) > 0 {
-		for _, opt := range e.jobInfo.Opts {
-			opts += fmt.Sprintf(" --%s", opt)
-		}
+		opts += fmt.Sprintf(" %s", strings.Join(e.jobInfo.Opts, " "))
 	}
+	if e.jobInfo.Reservation != "" {
+		opts += fmt.Sprintf(" --reservation=%s", e.jobInfo.Reservation)
+	}
+	if e.jobInfo.Account != "" {
+		opts += fmt.Sprintf(" --account=%s", e.jobInfo.Account)
+	}
+	log.Debugf("opts=%q", opts)
 	return opts
 }
 
-func (e *executionCommon) runJobCommand(ctx context.Context) error {
-	opts := e.fillJobCommandOpts()
-	execFile := ""
-	if e.Primary != "" {
-		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
+func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
+	var cmd string
+	if e.jobInfo.Command != "" {
+		inner := fmt.Sprintf("%s %s", e.jobInfo.Command, quoteArgs(e.jobInfo.Args))
+		cmd = e.wrapCommand(inner)
+	} else {
+		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
 	}
-	if e.jobInfo.BatchMode {
-		if e.Primary != "" {
-			e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
-		} else {
-			e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
-		}
-		err := e.findBatchOutput(ctx)
-		if err != nil {
-			return err
-		}
-		return e.runBatchMode(ctx, opts, execFile)
-	}
-	err := e.runInteractiveMode(ctx, opts, execFile)
-	if err != nil {
-		return err
-	}
-	// retrieve jobInfo
-	return e.retrieveJobID(ctx)
+	return e.submitJob(ctx, cmd)
 }
 
-func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) error {
-	// Add inputs as env variables
-	var exports string
-	for k, v := range e.jobInfo.Inputs {
-		log.Debugf("Add env var with key:%q and value:%q", k, v)
-		export := fmt.Sprintf("export %s=%s;", k, v)
-		exports += export
-	}
-	// srun stdout/stderr is redirected on output file and run in asynchronous mode
-	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
-	e.jobInfo.Outputs = []string{redirectFile}
-	cmd := fmt.Sprintf("%ssrun %s %s %s > %s &", exports, opts, execFile, strings.Join(e.jobInfo.ExecArgs, " "), redirectFile)
-	cmd = strings.Trim(cmd, "")
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		log.Debugf("stderr:%q", output)
-		return errors.Wrap(err, output)
-	}
-	return nil
+func (e *executionCommon) wrapCommand(innerCmd string) string {
+	pathScript := path.Join(e.jobInfo.WorkingDir, batchScript)
+	// Add the script to the artifact's list
+	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, batchScript)
+	// Write script
+	cat := fmt.Sprintf(`cat <<'EOF' > %s
+#!/bin/bash
+
+%s
+EOF
+`, pathScript, innerCmd)
+	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript)
 }
 
-func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) error {
-	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
+func (e *executionCommon) addWorkingDirCmd() string {
+	var cmd string
+	if e.jobInfo.WorkingDir != home {
+		cmd = fmt.Sprintf("mkdir -p %s;", e.jobInfo.WorkingDir)
+	}
+	return cmd
+}
+
+func (e *executionCommon) buildEnvVars() string {
 	var exports string
-	for _, arg := range e.jobInfo.ExecArgs {
-		if is, key, val := parseKeyValue(arg); is {
+	for _, v := range e.jobInfo.EnvVars {
+		if is, key, val := parseKeyValue(v); is {
 			log.Debugf("Add env var with key:%q and value:%q", key, val)
 			export := fmt.Sprintf("export %s=%s;", key, val)
 			exports += export
@@ -484,58 +471,40 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 	}
 	for k, v := range e.jobInfo.Inputs {
 		log.Debugf("Add env var with key:%q and value:%q", k, v)
-		export := fmt.Sprintf("export %s=%s;", k, v)
-		exports += export
+		if strings.TrimSpace(k) != "" && strings.TrimSpace(v) != "" {
+			export := fmt.Sprintf("export %s=%s;", k, v)
+			exports += export
+		}
 	}
-	cmd := fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
+	return exports
+}
+
+func (e *executionCommon) submitJob(ctx context.Context, cmd string) error {
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %s", cmd))
+	out, err := e.client.RunCommand(cmd)
 	if err != nil {
-		log.Debugf("stderr:%q", output)
-		return errors.Wrap(err, output)
+		log.Debugf("stderr:%q", out)
+		return errors.Wrap(err, out)
 	}
-	output = strings.Trim(output, "\n")
-	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
+	out = strings.Trim(out, "\n")
+	if e.jobInfo.ID, err = retrieveJobID(out); err != nil {
 		return err
-	}
-	// Set default output if nothing is specified by user
-	// this is the default output generated by sbatch
-	if len(e.jobInfo.Outputs) == 0 {
-		e.jobInfo.Outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
 	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
 	return nil
 }
 
-func (e *executionCommon) findBatchOutput(ctx context.Context) error {
-	pathExecFile := path.Join(e.OverlayPath, e.Primary)
-	script, err := os.Open(pathExecFile)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to open file with path:%q", pathExecFile)
-	}
-
-	var all = true
-	outputs := parseOutputConfigFromOpts(e.jobInfo.Opts)
-	log.Debugf("outputs:%+v", outputs)
-	if len(outputs) > 0 {
-		// options override SBATCH parameters, only get srun outputs options
-		all = false
-	}
-
-	o, err := parseOutputConfigFromBatchScript(script, all)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to parse batch file to retrieve outputs with path:%q", pathExecFile)
-	}
-	e.jobInfo.Outputs = append(outputs, o...)
-	log.Debugf("job outputs:%+v", e.jobInfo.Outputs)
-	return nil
-}
-
 func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 	log.Debugf("Upload artifacts to remote host")
+	// Add artifact to job artifact's list for monitoring actions
+	e.jobInfo.Artifacts = make([]string, 0)
+	for k := range e.Artifacts {
+		e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, k)
+	}
+
 	var g errgroup.Group
-	for _, artPath := range e.Artifacts {
-		log.Debugf("handle artifact path:%q", artPath)
+	for artName, artPath := range e.Artifacts {
+		log.Debugf("handle artifact path:%q, name:%q", artPath, artName)
 		func(artPath string) {
 			g.Go(func() error {
 				sourcePath := path.Join(e.OverlayPath, artPath)
@@ -544,32 +513,39 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 					return err
 				}
 				if fileInfo.IsDir() {
-					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, e.OverlayPath)
+					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, path.Dir(sourcePath))
 				}
-				return e.uploadFile(ctx, sourcePath, e.OverlayPath)
+				return e.uploadArtifact(ctx, sourcePath, artName)
 			})
 		}(artPath)
 	}
 	return g.Wait()
 }
 
-func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath string, fileInfo os.FileInfo, artifactBaseDir string) error {
+func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath string, fileInfo os.FileInfo, artifactBaseName string) error {
 	return filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		log.Debugf("Walk path:%s", pathFile)
 		if !info.IsDir() {
-			return e.uploadFile(ctx, pathFile, artifactBaseDir)
+			return e.uploadArtifact(ctx, pathFile, artifactBaseName)
 		}
 		return nil
 	})
 }
 
-func (e *executionCommon) uploadFile(ctx context.Context, pathFile, artifactBaseDir string) error {
-	relPath, err := filepath.Rel(artifactBaseDir, pathFile)
-	if err != nil {
-		return err
+func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifactBaseName string) error {
+	log.Debugf("artifactBaseName:%s", artifactBaseName)
+	var relPath string
+	if strings.HasSuffix(pathFile, artifactBaseName) {
+		relPath = artifactBaseName
+	} else {
+		var err error
+		relPath, err = filepath.Rel(artifactBaseName, pathFile)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Read file in bytes
@@ -578,13 +554,49 @@ func (e *executionCommon) uploadFile(ctx context.Context, pathFile, artifactBase
 		return err
 	}
 
-	remotePath := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, relPath)
-	log.Debugf("uploadFile file from source path:%q to remote relative path:%q", pathFile, remotePath)
-	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
-		log.Debugf("an error occurred:%+v", err)
+	remotePath := path.Join(e.jobInfo.WorkingDir, relPath)
+	log.Debugf("uploadArtifact file from source path:%q to:%q", pathFile, remotePath)
+	return e.client.CopyFile(bytes.NewReader(source), remotePath, "0755")
+}
+
+func (e *executionCommon) resolveOperation() error {
+	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
+	var err error
+	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	// Only Submit operation need to retrieve primary/operation implementation file
+	if strings.ToLower(e.operation.Name) != strings.ToLower(tosca.RunnableSubmitOperationName) {
+		return nil
+	}
+
+	// Only operation file is required for Singularity execution
+	if e.isSingularity {
+		e.Primary, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+	} else {
+		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+	}
+	if err != nil {
+		return err
+	}
+	e.Primary = strings.TrimSpace(e.Primary)
+	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
+		e.Primary = ""
+	}
+
+	// Get operation implementation file for upload purpose
+	if !e.isSingularity && e.Primary != "" {
+		var err error
+		e.PrimaryFile, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Debugf("primary implementation: %q", e.Primary)
+	return e.resolveInstances()
 }
 
 func (e *executionCommon) resolveInstances() error {
@@ -610,7 +622,6 @@ func (e *executionCommon) resolveExecution() error {
 		return err
 	}
 
-	e.client, err = GetSSHClient(e.cfg)
 	return err
 }
 

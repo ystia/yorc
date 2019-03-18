@@ -2,8 +2,66 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Bootstrap Yorc with a Vault instance ([GH-282](https://github.com/ystia/yorc/issues/282))
+* Refactor Slurm jobs ([GH-220](https://github.com/ystia/yorc/issues/220))
+
+### FEATURES
+
+* Yorc hostspool now allows more filtering ([GH-89](https://github.com/ystia/yorc/issues/89))
+
 ### BUG FIXES
 
+* Deployment fails on error "socket: too many open files" ([GH-334](https://github.com/ystia/yorc/issues/334))
+* Yorc bootstrap does not correctly treat default alien4cloud version download ([GH-286](https://github.com/ystia/yorc/issues/286))
+* Attribute notification is not correctly set with HOST keyword ([GH-338](https://github.com/ystia/yorc/issues/338))
+* Custom command events doesn't provide enough information ([GH-324](https://github.com/ystia/yorc/issues/324))
+
+## 3.2.0-M3 (March 11, 2019)
+
+### BUG FIXES
+
+* Yorc panics on segmentation violation attempting to deploy Ystia Forge Slurm topology ([GH-321](https://github.com/ystia/yorc/issues/321))
+* Panic can append when undeploying Slurm computes ([GH-326](https://github.com/ystia/yorc/issues/326))
+
+### FEATURES
+
+* Yorc supports Slurm Accounting ([GH-280](https://github.com/ystia/yorc/issues/280))
+* Yorc supports Slurm reservation ([GH-132](https://github.com/ystia/yorc/issues/132))
+
+## 3.2.0-M2 (February 15, 2019)
+
+### DEPENDENCIES
+
+* Technical update to use Alien4Cloud 2.1.1 (Used in bootstrap)
+
+### BUG FIXES
+
+* Purging n deployment in parallel, one can fail on error: Missing targetId for task with id ([GH-293](https://github.com/ystia/yorc/issues/293))
+* Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283))
+* Interface name is not retrieved from custom command Rest request ([GH-287](https://github.com/ystia/yorc/issues/287))
+* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289))
+* Missing events for uninstall workflow in purge task ([GH-302](https://github.com/ystia/yorc/issues/302))
+* All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291))
+* It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306))
+* Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308))
+* SSH Session pool: Panic if connection failed, this impacts Slurm infrastructure ([GH-315](https://github.com/ystia/yorc/issues/315))
+
+### ENHANCEMENTS
+
+* Bootstrap a secure Yorc setup ([GH-179](https://github.com/ystia/yorc/issues/179))
+* Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
+* Publish value change event for instance attributes ([GH-222](https://github.com/ystia/yorc/issues/222))
+* Move to Go modules to manage dependencies ([GH-183](https://github.com/ystia/yorc/issues/183))
+* Document How to create a Yorc Plugin ([GH-119](https://github.com/ystia/yorc/issues/119))
+* Slurm user credentials can be defined as slurm deployment topology properties, as an alternative to yorc configuration properties ([GH-281](https://github.com/ystia/yorc/issues/281))
+
+## 3.2.0-M1 (January 28, 2019)
+
+### BUG FIXES
+
+* Can't deploy applications using a secured yorc/consul ([GH-274](https://github.com/ystia/yorc/issues/274))
 * K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
 * Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
 

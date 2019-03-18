@@ -18,17 +18,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strconv"
-
-	"net/http"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/rest"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/rest"
 )
 
 func init() {
@@ -185,7 +185,7 @@ func formatEvent(event json.RawMessage, colorize bool) string {
 	case events.StatusChangeTypeDeployment:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Deployment Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeCustomCommand:
-		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (custom command)\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EStatus.String()])
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (custom command)\t Operation: %s\t Node: %s\t Instance: %s\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EOperationName.String()], data[events.ENodeID.String()], data[events.EInstanceID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeScaling:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (scaling)\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeWorkflow:
@@ -196,6 +196,9 @@ func formatEvent(event json.RawMessage, colorize bool) string {
 	case events.StatusChangeTypeAlienTask:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (Execution)\t Execution: %q\t Workflow: %s\t Instance: %s\t Step: %s\t Node: %s\t Operation: %s%s\t Status: %s\n", ts, data[events.EDeploymentID.String()],
 			data[events.ETaskID.String()], data[events.ETaskExecutionID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.ENodeID.String()], data[events.EOperationName.String()], formatOptionalInfo(data), data[events.EStatus.String()])
+	case events.StatusChangeTypeAttributeValue:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Node: %s\t Instance: %s\t Attribute: %s\t Value: %s\t Status: %s\t\n", ts, data[events.EDeploymentID.String()], data[events.ENodeID.String()], data[events.EInstanceID.String()], data[events.EAttributeName.String()], data[events.EAttributeValue.String()], data[events.EStatus.String()])
+
 	}
 
 	return ret

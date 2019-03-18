@@ -20,11 +20,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/ystia/yorc/events"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 type deploymentNotFound struct {
@@ -136,6 +137,8 @@ RETRY:
 		if !ok {
 			goto RETRY
 		}
+		log.Debugf("Deployment status change for %s from %s to %s",
+			deploymentID, currentStatus.String(), status.String())
 		events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 	}
 	return nil

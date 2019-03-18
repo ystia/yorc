@@ -21,8 +21,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 //go:generate go-enum -f=structs.go --lower
@@ -34,7 +35,8 @@ import (
 // Scaling,
 // Workflow,
 // WorkflowStep
-// AlienTask
+// AlienTask,
+// AttributeValue
 // )
 type StatusChangeType int
 
@@ -71,6 +73,10 @@ const (
 	ETaskExecutionID
 	// EWorkflowStepID is event information related to workflow step
 	EWorkflowStepID
+	// EAttributeName is event information related to attribute name
+	EAttributeName
+	// EAttributeValue is event information related to attribute value
+	EAttributeValue
 )
 
 func (i InfoType) String() string {
@@ -105,6 +111,10 @@ func (i InfoType) String() string {
 		return "alienTaskId"
 	case EWorkflowStepID:
 		return "stepId"
+	case EAttributeName:
+		return "attribute"
+	case EAttributeValue:
+		return "value"
 	}
 	return ""
 }
@@ -183,12 +193,13 @@ func (e *statusChange) check() error {
 	}
 
 	mandatoryMap := map[StatusChangeType][]InfoType{
-		StatusChangeTypeInstance:      {ENodeID, EInstanceID},
-		StatusChangeTypeCustomCommand: {ETaskID},
-		StatusChangeTypeScaling:       {ETaskID},
-		StatusChangeTypeWorkflow:      {ETaskID},
-		StatusChangeTypeWorkflowStep:  {ETaskID, EWorkflowID, ENodeID, EWorkflowStepID, EInstanceID},
-		StatusChangeTypeAlienTask:     {ETaskID, EWorkflowID, ENodeID, EWorkflowStepID, EInstanceID, ETaskExecutionID},
+		StatusChangeTypeInstance:       {ENodeID, EInstanceID},
+		StatusChangeTypeAttributeValue: {ENodeID, EAttributeName, EAttributeValue},
+		StatusChangeTypeCustomCommand:  {ETaskID},
+		StatusChangeTypeScaling:        {ETaskID},
+		StatusChangeTypeWorkflow:       {ETaskID},
+		StatusChangeTypeWorkflowStep:   {ETaskID, EWorkflowID, ENodeID, EWorkflowStepID, EInstanceID},
+		StatusChangeTypeAlienTask:      {ETaskID, EWorkflowID, ENodeID, EWorkflowStepID, EInstanceID, ETaskExecutionID},
 	}
 	// Check mandatory info in function of status change type
 	if mandatoryInfos, is := mandatoryMap[e.eventType]; is {

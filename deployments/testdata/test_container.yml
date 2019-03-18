@@ -12,6 +12,9 @@ node_types:
       Test Container definition
     capabilities: {host: yorc.test.capabilities.TestContainerCapability}
     attributes:
+      my_attribute:
+        type: string
+        description: My attribute
       apache_url:
         concat:
         - http://

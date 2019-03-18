@@ -14,11 +14,11 @@
 
 package slurm
 
-import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/v3/registry"
 
 const (
 	artifactGenericImplementation = "yorc.artifacts.Deployment.SlurmJob"
-	artifactBinImplementation     = "yorc.artifacts.Deployment.SlurmJobBin"
+	artifactBatchImplementation   = "yorc.artifacts.Deployment.SlurmJobBatch"
 	artifactImageImplementation   = "yorc.artifacts.Deployment.SlurmJobImage"
 )
 
@@ -29,7 +29,7 @@ func init() {
 	reg.RegisterOperationExecutor(
 		[]string{
 			artifactGenericImplementation,
-			artifactBinImplementation,
+			artifactBatchImplementation,
 			artifactImageImplementation,
 		}, executor, registry.BuiltinOrigin)
 

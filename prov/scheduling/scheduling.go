@@ -24,14 +24,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
 )
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
 func RegisterAction(client *api.Client, deploymentID string, timeInterval time.Duration, action *prov.Action) (string, error) {
-	log.Debugf("Action:%+v has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action, deploymentID, timeInterval.String())
+	log.Debugf("Action with ID:%q has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action.ID, deploymentID, timeInterval.String())
 	id := uuid.NewV4().String()
 
 	// Check mandatory parameters

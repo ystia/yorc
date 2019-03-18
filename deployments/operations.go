@@ -15,26 +15,24 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
-	"context"
-
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented

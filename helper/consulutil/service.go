@@ -18,8 +18,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // YorcService is the service name for yorc as a Consul service

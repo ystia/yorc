@@ -30,26 +30,40 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/ziputil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/rest"
-
 	"gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/rest"
 )
 
 var cmdConsul *exec.Cmd
 var yorcServerShutdownChan chan struct{}
 var yorcServerOutputFile *os.File
 
+type dependenciesVersion struct {
+	Alien4cloud string
+	Consul      string
+	Terraform   string
+	Yorc        string
+}
+
+var previousBootstrapVersion dependenciesVersion
+
 // setupYorcServer starts a Yorc server
 func setupYorcServer(workingDirectoryPath string) error {
 
+	// Get previous version of Yorc used for the bootstrap
+	// to known if dependencies
+	previousBootstrapVersion = getPreviousSetupDependenciesVersion(workingDirectoryPath)
 	if err := installDependencies(workingDirectoryPath); err != nil {
 		return err
 	}
+
+	// Store new versions installed
+	storeDependenciesVersion(workingDirectoryPath)
 
 	// Update PATH, as Yorc Server expects to find terraform in its PATH
 
@@ -75,7 +89,8 @@ func setupYorcServer(workingDirectoryPath string) error {
 		WorkersNumber:    inputValues.Yorc.WorkersNumber,
 		Infrastructures:  inputValues.Infrastructures,
 		Terraform: config.Terraform{
-			PluginsDir: workDirAbsolutePath,
+			PluginsDir:         workDirAbsolutePath,
+			KeepGeneratedFiles: true,
 		},
 		Ansible: config.Ansible{
 			DebugExec:            true,
@@ -109,7 +124,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	// Before starting yorc, hceck if it is already running
+	// Before starting yorc, check if it is already running
 	// Starting Yorc server
 	err = waitForYorcServerUP(0)
 	if err == nil {
@@ -179,6 +194,65 @@ func setupYorcServer(workingDirectoryPath string) error {
 
 	return err
 
+}
+
+// getPreviousSetupDependenciesVersion returns versions of components
+// donwloaded for a previous bootstrap
+func getPreviousSetupDependenciesVersion(workingDirectoryPath string) dependenciesVersion {
+	var versions dependenciesVersion
+	versionsFile := filepath.Join(workingDirectoryPath, "versions.yaml")
+	if _, err := os.Stat(versionsFile); os.IsNotExist(err) {
+		// Previous version didn't store its versions
+		// will return empty values, so that the current bootstrap will
+		// download dependencies
+		return versions
+	}
+
+	yamlFile, err := ioutil.ReadFile(versionsFile)
+	if err != nil {
+		fmt.Printf("Overriding previous dependencies on error reading file %s: %v\n", yamlFile, err)
+		return versions
+	}
+	err = yaml.Unmarshal(yamlFile, &versions)
+	if err != nil {
+		fmt.Printf("Overriding previous dependencies on error unmarshaling file %s: %v\n", yamlFile, err)
+	}
+
+	return versions
+}
+
+// storeDependenciesVersion sotres in the working directory versions of components
+// donwloaded by the bootstrap
+func storeDependenciesVersion(workingDirectoryPath string) {
+
+	versions := dependenciesVersion{
+		Alien4cloud: alien4cloudVersion,
+		Consul:      consulVersion,
+		Terraform:   terraformVersion,
+		Yorc:        yorcVersion,
+	}
+
+	bSlice, err := yaml.Marshal(versions)
+	if err != nil {
+		fmt.Printf("Failed to marshall dependencies versions %v\n", err)
+		return
+	}
+
+	filename := filepath.Join(workingDirectoryPath, "versions.yaml")
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0600)
+
+	if err != nil {
+		fmt.Printf("Failed to open file file %s: %v\n", filename, err)
+		return
+	}
+
+	defer file.Close()
+
+	_, err = fmt.Fprintf(file, string(bSlice[:]))
+
+	if err != nil {
+		fmt.Printf("Failed to write in file %s: %v\n", filename, err)
+	}
 }
 
 func getYorcClient() (*httputil.YorcClient, error) {
@@ -323,18 +397,20 @@ func installDependencies(workingDirectoryPath string) error {
 	}
 
 	// Download Consul
-	if err := downloadUnzip(inputValues.Consul.DownloadURL, "consul.zip", workingDirectoryPath); err != nil {
+	overwrite := (previousBootstrapVersion.Consul != consulVersion)
+	if err := downloadUnzip(inputValues.Consul.DownloadURL, "consul.zip", workingDirectoryPath, overwrite); err != nil {
 		return err
 	}
 
 	// Download Terraform
-	if err := downloadUnzip(inputValues.Terraform.DownloadURL, "terraform.zip", workingDirectoryPath); err != nil {
+	overwrite = (previousBootstrapVersion.Terraform != terraformVersion)
+	if err := downloadUnzip(inputValues.Terraform.DownloadURL, "terraform.zip", workingDirectoryPath, overwrite); err != nil {
 		return err
 	}
 
 	// Donwload Terraform plugins
 	for i, url := range inputValues.Terraform.PluginURLs {
-		if err := downloadUnzip(url, fmt.Sprintf("terraform-plugin-%d.zip", i), workingDirectoryPath); err != nil {
+		if err := downloadUnzip(url, fmt.Sprintf("terraform-plugin-%d.zip", i), workingDirectoryPath, overwrite); err != nil {
 			return err
 		}
 	}
@@ -349,8 +425,8 @@ func getFilePath(url, destinationPath string) string {
 }
 
 // downloadUnzip donwloads and unzips a URL to a given destination
-func downloadUnzip(url, fileName, destinationPath string) error {
-	filePath, err := download(url, fileName, destinationPath)
+func downloadUnzip(url, fileName, destinationPath string, overwrite bool) error {
+	filePath, err := download(url, fileName, destinationPath, overwrite)
 	if err != nil {
 		return err
 	}
@@ -365,13 +441,18 @@ func downloadUnzip(url, fileName, destinationPath string) error {
 
 // download donwloads and optionally unzips a URL to a given destination
 // returns the path to destination file
-func download(url, fileName, destinationPath string) (string, error) {
+func download(url, fileName, destinationPath string, overwrite bool) (string, error) {
 
 	filePath := filepath.Join(destinationPath, fileName)
 
 	fmt.Println("Downloading", url, "to", filePath)
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	execute := overwrite
+	if !overwrite {
+		_, err := os.Stat(filePath)
+		execute = os.IsNotExist(err)
+	}
+	if execute {
 		// The file was not downloaded yet
 		outputFile, err := os.Create(filePath)
 		if err != nil {

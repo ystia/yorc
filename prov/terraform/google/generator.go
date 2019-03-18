@@ -24,13 +24,14 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 const infrastructureName = "google"
@@ -51,35 +52,8 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 	infrastructure := commons.Infrastructure{}
 
-	consulAddress := "127.0.0.1:8500"
-	if cfg.Consul.Address != "" {
-		consulAddress = cfg.Consul.Address
-	}
-	consulScheme := "http"
-	if cfg.Consul.SSL {
-		consulScheme = "https"
-	}
-	consulCA := ""
-	if cfg.Consul.CA != "" {
-		consulCA = cfg.Consul.CA
-	}
-	consulKey := ""
-	if cfg.Consul.Key != "" {
-		consulKey = cfg.Consul.Key
-	}
-	consulCert := ""
-	if cfg.Consul.Cert != "" {
-		consulCert = cfg.Consul.Cert
-	}
-
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	infrastructure.Terraform = map[string]interface{}{
-		"backend": map[string]interface{}{
-			"consul": map[string]interface{}{
-				"path": terraformStateKey,
-			},
-		},
-	}
+	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
 	// Define Terraform provider environment variables
 	var cmdEnv []string
@@ -99,14 +73,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 		"google": map[string]interface{}{
 			"version": cfg.Terraform.GooglePluginVersionConstraint,
 		},
-		"consul": map[string]interface{}{
-			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
-			"address":   consulAddress,
-			"scheme":    consulScheme,
-			"ca_file":   consulCA,
-			"cert_file": consulCert,
-			"key_file":  consulKey,
-		},
+		"consul": commons.GetConsulProviderfiguration(cfg),
 		"null": map[string]interface{}{
 			"version": commons.NullPluginVersionConstraint,
 		},

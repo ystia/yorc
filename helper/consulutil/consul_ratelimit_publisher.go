@@ -19,8 +19,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Internal type used to uniquely identify the errorgroup in a context
@@ -44,6 +45,11 @@ type ConsulStore interface {
 // It allows to use a context and an errgroup.Group to store several keys in parallel in Consul but with a defined parallelism.
 type consulStore struct {
 	ctx context.Context
+}
+
+// GetKV returns the KV associated to the consul publisher
+func GetKV() *api.KV {
+	return consulPub.kv
 }
 
 // WithContext uses a given context to create an errgroup.Group that will be use to store keys in Consul in parallel.

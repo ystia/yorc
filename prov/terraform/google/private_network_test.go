@@ -17,15 +17,17 @@ package google
 import (
 	"context"
 	"fmt"
+	"path"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"path"
-	"testing"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration) {

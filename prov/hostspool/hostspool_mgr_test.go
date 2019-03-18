@@ -26,10 +26,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/helper/sshutil"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
 )
 
 var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----
@@ -600,7 +601,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	// Allocate host1
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
-		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
+		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[1].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
 	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
@@ -891,7 +892,7 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	// Allocate host1
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
-		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
+		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[1].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
 	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
@@ -1023,7 +1024,7 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources}
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
-		fmt.Sprintf("%s=%s", filterLabel, hostpool[0].Labels[filterLabel]))
+		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
 	allocatedName, warnings, err := cm.Allocate(alloc1, filter)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
@@ -1042,7 +1043,7 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: resources}
 	filterLabel = "label2"
 	filter, err = labelsutil.CreateFilter(
-		fmt.Sprintf("%s=%s", filterLabel, hostpool[0].Labels[filterLabel]))
+		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
 	allocatedName, warnings, err = cm.Allocate(alloc2, filter)
 	assert.Equal(t, hostpool[0].Name, allocatedName,

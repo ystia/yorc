@@ -19,10 +19,8 @@ Here is how to install and setup the Yorc project:
     # Or
     sudo yum install build-essential git curl
 
-    # Install Go and set GOPATH
+    # Install Go
 
-    mkdir -p $GOPATH/src/github.com/ystia
-    cd $GOPATH/src/github.com/ystia
     git clone https://github.com/ystia/yorc.git
     cd yorc
 
@@ -39,7 +37,7 @@ You can contribute to the Yorc project in several ways. All of them are welcome.
 * Report a documentation issue
 * Report a bug
 * Report an improvement request
-* Propose a PR that fixes one of the above, we will try to tag `good_first_pr` issues that are a good starting point for contributing
+* Propose a PR that fixes one of the above, we will try to tag `good first issue` issues that are a good starting point for contributing
 
 ### Report an issue
 

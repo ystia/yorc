@@ -39,12 +39,11 @@ var _HostStatusMap = map[HostStatus]string{
 	2: _HostStatusName[13:18],
 }
 
-// String implements the Stringer interface.
-func (x HostStatus) String() string {
-	if str, ok := _HostStatusMap[x]; ok {
+func (i HostStatus) String() string {
+	if str, ok := _HostStatusMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("HostStatus(%d)", x)
+	return fmt.Sprintf("HostStatus(%d)", i)
 }
 
 var _HostStatusValue = map[string]HostStatus{
@@ -59,7 +58,7 @@ var _HostStatusValue = map[string]HostStatus{
 // ParseHostStatus attempts to convert a string to a HostStatus
 func ParseHostStatus(name string) (HostStatus, error) {
 	if x, ok := _HostStatusValue[name]; ok {
-		return x, nil
+		return HostStatus(x), nil
 	}
 	return HostStatus(0), fmt.Errorf("%s is not a valid HostStatus", name)
 }

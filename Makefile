@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOTOOLS = github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum github.com/google/addlicense
+GOTOOLS = github.com/abice/go-enum github.com/google/addlicense
 
 VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
 VERSION:=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
-BUILD_TAG:=$(shell echo `expr match "$(BUILD_ARGS)" '-tags \([A-Za-z0-9]*\)'`)
-VERSION:=$(if $(BUILD_TAG),$(VERSION)+$(BUILD_TAG),$(VERSION))
+VERSION_META:=$(shell echo `echo $(BUILD_TAGS) | tr ' ' '.'`)
+VERSION:=$(if $(VERSION_META),$(VERSION)+$(VERSION_META),$(VERSION))
 COMMIT_HASH=$(shell git rev-parse HEAD)
 ANSIBLE_VERSION=$(shell grep "ansible_version" versions.yaml | awk '{print $$2}')
 CONSUL_VERSION=$(shell grep "consul_version" versions.yaml | awk '{print $$2}')
@@ -32,21 +32,31 @@ TF_OPENSTACK_PLUGIN_VERSION=$(shell grep "tf_openstack_plugin_version" versions.
 TF_GOOGLE_PLUGIN_VERSION=$(shell grep "tf_google_plugin_version" versions.yaml | awk '{print $$2}')
 YORC_VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 
+# Should be updated when changing major version
+YORC_PACKAGE=github.com/ystia/yorc/v3
+
+export GO111MODULE=on
+export BUILD_DIR=$(shell pwd)/build
+export GOBIN=$(BUILD_DIR)/bin
+export PATH=$(GOBIN):$(shell echo $$PATH)
+export CGO_ENABLED=0
+
 build: test
 	@echo "--> Running go build"
-	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags "-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH) \
-	 -X github.com/ystia/yorc/commands.TfConsulPluginVersion=$(TF_CONSUL_PLUGIN_VERSION) \
-	 -X github.com/ystia/yorc/commands.TfAWSPluginVersion=$(TF_AWS_PLUGIN_VERSION) \
-	 -X github.com/ystia/yorc/commands.TfOpenStackPluginVersion=$(TF_OPENSTACK_PLUGIN_VERSION) \
-	 -X github.com/ystia/yorc/commands.TfGooglePluginVersion=$(TF_GOOGLE_PLUGIN_VERSION) \
-	 -X github.com/ystia/yorc/commands/bootstrap.ansibleVersion=$(ANSIBLE_VERSION) \
-	 -X github.com/ystia/yorc/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
-	 -X github.com/ystia/yorc/commands/bootstrap.alien4cloudVersion=$(ALIEN4CLOUD_VERSION) \
-	 -X github.com/ystia/yorc/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
-	 -X github.com/ystia/yorc/commands/bootstrap.yorcVersion=$(YORC_VERSION)"
-	 @rm -f ./build/bootstrapResources.zip
-	 @cd ./commands && zip -q -r ../build/bootstrapResources.zip ./bootstrap/resources/*
-	 @cat ./build/bootstrapResources.zip >> ./yorc
+	@go build -o yorc -tags "$(BUILD_TAGS)" $(BUILD_ARGS) -ldflags "-X $(YORC_PACKAGE)/commands.version=v$(VERSION) -X $(YORC_PACKAGE)/commands.gitCommit=$(COMMIT_HASH) \
+	 -X $(YORC_PACKAGE)/commands.TfConsulPluginVersion=$(TF_CONSUL_PLUGIN_VERSION) \
+	 -X $(YORC_PACKAGE)/commands.TfAWSPluginVersion=$(TF_AWS_PLUGIN_VERSION) \
+	 -X $(YORC_PACKAGE)/commands.TfOpenStackPluginVersion=$(TF_OPENSTACK_PLUGIN_VERSION) \
+	 -X $(YORC_PACKAGE)/commands.TfGooglePluginVersion=$(TF_GOOGLE_PLUGIN_VERSION) \
+	 -X $(YORC_PACKAGE)/commands/bootstrap.ansibleVersion=$(ANSIBLE_VERSION) \
+	 -X $(YORC_PACKAGE)/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
+	 -X $(YORC_PACKAGE)/commands/bootstrap.alien4cloudVersion=$(ALIEN4CLOUD_VERSION) \
+	 -X $(YORC_PACKAGE)/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
+	 -X $(YORC_PACKAGE)/commands/bootstrap.yorcVersion=$(YORC_VERSION)"
+	 @rm -f ./build/embeddedResources.zip
+	 @cd ./commands && zip -q -r ../build/embeddedResources.zip ./bootstrap/resources/*
+	 @cd ./data && zip -q -r ../build/embeddedResources.zip ./*
+	 @cat ./build/embeddedResources.zip >> ./yorc
 	 @zip -A ./yorc > /dev/null
 
 generate: checks
@@ -69,12 +79,12 @@ dist: build
 test: generate header format
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 ./...
+	@go test -tags "testing $(BUILD_TAGS)" $(TESTARGS) -p 1 ./...
 endif
 
 
 cover:
-	@go test -p 1 -cover $(COVERARGS) ./...  
+	@go test -tags "testing $(BUILD_TAGS)"  -p 1 -cover $(COVERARGS) ./...  
 
 format:
 	@echo "--> Running go fmt"
@@ -82,23 +92,10 @@ format:
 
 vet:
 	@echo "--> Running go tool vet $(VETARGS) ."
-	@go list ./... \
-		| cut -d '/' -f 4- \
-		| xargs -n1 \
-			go tool vet $(VETARGS) ;\
-	if [ $$? -ne 0 ]; then \
-		echo ""; \
-		echo "Vet found suspicious constructs. Please check the reported constructs"; \
-		echo "and fix them if necessary before submitting the code for reviewal."; \
-	fi
+	@go vet $(VETARGS) ./...
 
 tools:
-	@./build/tools.sh $(GOTOOLS)
-
-savedeps: checks
-	@godep save -v ./...
-
-restoredeps: checks
-	@godep restore -v
+	@echo "--> Installing $(GOTOOLS)"
+	@go install $(GOTOOLS)
 
 .PHONY: build cov checks test cover format vet tools dist
