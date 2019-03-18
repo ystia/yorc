@@ -64,18 +64,12 @@ type OperationOutputNotifier struct {
 	OutputName    string
 }
 
-type attributeNotificationsHandler struct {
-	kv           *api.KV
-	consulStore  consulutil.ConsulStore
-	deploymentID string
-	attribute    *notifiedAttribute
-}
-
 type notifiedAttribute struct {
 	nodeName       string
 	instanceName   string
 	attributeName  string
 	capabilityName string
+	deploymentID   string
 }
 
 // BuildAttributeDataFromPath allows to return attribute data from path as below:
@@ -179,7 +173,7 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 	return nil
 }
 
-func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, anh *attributeNotificationsHandler) error {
+func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, notifiedAttr *notifiedAttribute) error {
 	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -204,29 +198,29 @@ func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, n
 		if isEndpoint && attributeName == "ip_address" {
 			notifier = &AttributeNotifier{
 				NodeName:      host,
-				InstanceName:  anh.attribute.instanceName,
+				InstanceName:  notifiedAttr.instanceName,
 				AttributeName: attributeName,
 			}
 		} else {
 			notifier = &AttributeNotifier{
 				NodeName:       host,
-				InstanceName:   anh.attribute.instanceName,
+				InstanceName:   notifiedAttr.instanceName,
 				AttributeName:  attributeName,
 				CapabilityName: capabilityName,
 			}
 		}
 
 		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, host, instanceName, notifier)
-		err = anh.saveNotification(notifier)
+		err = notifiedAttr.saveNotification(kv, notifier)
 		if err != nil {
 			return err
 		}
-		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, host, instanceName, capabilityName, attributeName, anh)
+		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, host, instanceName, capabilityName, attributeName, notifiedAttr)
 	}
 	return nil
 }
 
-func addSubstitutionMappingAttributeNotification(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
+func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
 	items := strings.Split(attributeName, ".")
 	capabilityName := items[1]
 	capAttrName := items[2]
@@ -239,38 +233,34 @@ func addSubstitutionMappingAttributeNotification(consulStore consulutil.ConsulSt
 		return err
 	}
 	if _, ok := attributesSet[attributeName]; ok {
-		anh := &attributeNotificationsHandler{
-			consulStore:  consulStore,
-			kv:           kv,
-			deploymentID: deploymentID,
-			attribute: &notifiedAttribute{
-				nodeName:      nodeName,
-				instanceName:  instanceName,
-				attributeName: attributeName,
-			},
+		notifiedAttr := &notifiedAttribute{
+			nodeName:      nodeName,
+			deploymentID:  deploymentID,
+			instanceName:  instanceName,
+			attributeName: attributeName,
 		}
 
 		// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
-		err = addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, anh)
+		err = addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, notifiedAttr)
 		if err != nil {
 			return err
 		}
 
 		notifier := &AttributeNotifier{
 			NodeName:       nodeName,
-			InstanceName:   anh.attribute.instanceName,
+			InstanceName:   notifiedAttr.instanceName,
 			AttributeName:  capAttrName,
 			CapabilityName: capabilityName,
 		}
 		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
-		return anh.saveNotification(notifier)
+		return notifiedAttr.saveNotification(kv, notifier)
 	}
 	return nil
 }
 
 // This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
 // This allows too to publish initial state for default attribute value
-func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
+func addAttributeNotifications(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
 	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return err
@@ -286,7 +276,7 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 	}
 
 	if isSubstitutionMappingAttribute(attributeName) && !substitutionInstance {
-		return addSubstitutionMappingAttributeNotification(consulStore, kv, deploymentID, nodeName, instanceName, attributeName)
+		return addSubstitutionMappingAttributeNotification(kv, deploymentID, nodeName, instanceName, attributeName)
 	}
 
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
@@ -344,35 +334,31 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
 		if host != "" {
-			addAttributeNotifications(consulStore, kv, deploymentID, host, instanceName, attributeName)
+			addAttributeNotifications(kv, deploymentID, host, instanceName, attributeName)
 		}
 	}
 
 	// all possibilities have been checked at this point: check if any get_attribute function is contained
 	if value != nil {
-		anh := attributeNotificationsHandler{
-			consulStore:  consulStore,
-			kv:           kv,
-			deploymentID: deploymentID,
-			attribute: &notifiedAttribute{
-				nodeName:      nodeName,
-				instanceName:  instanceName,
-				attributeName: attributeName,
-			},
+		notifiedAttr := &notifiedAttribute{
+			deploymentID:  deploymentID,
+			nodeName:      nodeName,
+			instanceName:  instanceName,
+			attributeName: attributeName,
 		}
-		return anh.parseFunction(value.RawString())
+		return notifiedAttr.parseFunction(kv, value.RawString())
 	}
 
 	return nil
 }
 
 // This is looking for Tosca get_attribute and get_operation_output functions
-func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) error {
+func (notifiedAttr *notifiedAttribute) parseFunction(kv *api.KV, rawFunction string) error {
 	// Function
 	va := &tosca.ValueAssignment{}
 	err := yaml.Unmarshal([]byte(rawFunction), va)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", rawFunction, anh.attribute.nodeName)
+		return errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", rawFunction, notifiedAttr.nodeName)
 	}
 	log.Debugf("function = %+v", va.GetFunction())
 
@@ -385,15 +371,15 @@ func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) erro
 		for i, op := range fct.Operands {
 			operands[i] = op.String()
 		}
-		notifier, err := anh.findAttributeNotifier(operands)
+		notifier, err := notifiedAttr.findAttributeNotifier(kv, operands)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, anh.attribute.nodeName)
+			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, notifiedAttr.nodeName)
 		}
 
 		// Store notification
-		err = anh.saveNotification(notifier)
+		err = notifiedAttr.saveNotification(kv, notifier)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to save notification from notifier:%+v and notified %+v", notifier, anh.attribute)
+			return errors.Wrapf(err, "Failed to save notification from notifier:%+v and notified %+v", notifier, notifiedAttr)
 		}
 	}
 
@@ -404,35 +390,35 @@ func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) erro
 		for i, op := range fct.Operands {
 			operands[i] = op.String()
 		}
-		notifier, err := anh.findOperationOutputNotifier(operands)
+		notifier, err := notifiedAttr.findOperationOutputNotifier(operands)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, anh.attribute.nodeName)
+			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, notifiedAttr.nodeName)
 		}
 
 		// Store notification
-		err = anh.saveNotification(notifier)
+		err = notifiedAttr.saveNotification(kv, notifier)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to save notification from notifier:%+v and notified %+v", notifier, anh.attribute)
+			return errors.Wrapf(err, "Failed to save notification from notifier:%+v and notified %+v", notifier, notifiedAttr)
 		}
 	}
 	return nil
 }
 
-func (anh *attributeNotificationsHandler) findOperationOutputNotifier(operands []string) (Notifier, error) {
+func (notifiedAttr *notifiedAttribute) findOperationOutputNotifier(operands []string) (Notifier, error) {
 	funcString := fmt.Sprintf("get_operation_output: [%s]", strings.Join(operands, ", "))
 	if len(operands) != 4 {
 		return nil, errors.Errorf("expecting exactly four parameters for a get_operation_output function (%s)", funcString)
 	}
 	return &OperationOutputNotifier{
-		InstanceName:  anh.attribute.instanceName,
-		NodeName:      anh.attribute.nodeName,
+		InstanceName:  notifiedAttr.instanceName,
+		NodeName:      notifiedAttr.nodeName,
 		OperationName: strings.ToLower(operands[2]),
 		InterfaceName: strings.ToLower(operands[1]),
 		OutputName:    operands[3],
 	}, nil
 }
 
-func (anh *attributeNotificationsHandler) findAttributeNotifier(operands []string) (Notifier, error) {
+func (notifiedAttr *notifiedAttribute) findAttributeNotifier(kv *api.KV, operands []string) (Notifier, error) {
 	funcString := fmt.Sprintf("get_attribute: [%s]", strings.Join(operands, ", "))
 	if len(operands) < 2 || len(operands) > 3 {
 		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
@@ -450,9 +436,9 @@ func (anh *attributeNotificationsHandler) findAttributeNotifier(operands []strin
 
 	switch operands[0] {
 	case funcKeywordSELF:
-		node = anh.attribute.nodeName
+		node = notifiedAttr.nodeName
 	case funcKeywordHOST:
-		node, err = resolveHostNotifier(anh.kv, anh.deploymentID, anh.attribute.nodeName, attrName)
+		node, err = resolveHostNotifier(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, attrName)
 		if err != nil {
 			return nil, err
 		}
@@ -466,31 +452,31 @@ func (anh *attributeNotificationsHandler) findAttributeNotifier(operands []strin
 
 	notifier := &AttributeNotifier{
 		NodeName:       node,
-		InstanceName:   anh.attribute.instanceName,
+		InstanceName:   notifiedAttr.instanceName,
 		AttributeName:  attrName,
 		CapabilityName: capName,
 	}
 	return notifier, nil
 }
 
-func (anh *attributeNotificationsHandler) saveNotification(notifier Notifier) error {
+func (notifiedAttr *notifiedAttribute) saveNotification(kv *api.KV, notifier Notifier) error {
 	var notificationsPath string
 	switch n := notifier.(type) {
 	case *AttributeNotifier:
 		if n.CapabilityName != "" {
-			notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", n.NodeName, anh.attribute.instanceName, "capabilities", n.CapabilityName, "attribute_notifications", n.AttributeName)
+			notificationsPath = path.Join(consulutil.DeploymentKVPrefix, notifiedAttr.deploymentID, "topology", "instances", n.NodeName, notifiedAttr.instanceName, "capabilities", n.CapabilityName, "attribute_notifications", n.AttributeName)
 
 		} else {
-			notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", n.NodeName, anh.attribute.instanceName, "attribute_notifications", n.AttributeName)
+			notificationsPath = path.Join(consulutil.DeploymentKVPrefix, notifiedAttr.deploymentID, "topology", "instances", n.NodeName, notifiedAttr.instanceName, "attribute_notifications", n.AttributeName)
 		}
 	case *OperationOutputNotifier:
-		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", n.NodeName, n.InstanceName, "outputs", n.InterfaceName, n.OperationName, "attribute_notifications", n.OutputName)
+		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, notifiedAttr.deploymentID, "topology", "instances", n.NodeName, n.InstanceName, "outputs", n.InterfaceName, n.OperationName, "attribute_notifications", n.OutputName)
 
 	default:
 		return errors.Errorf("Unexpected type %T for saving notifications", n)
 	}
 
-	notifs, _, err := anh.kv.Keys(notificationsPath+"/", "/", nil)
+	notifs, _, err := kv.Keys(notificationsPath+"/", "/", nil)
 	if err != nil {
 		return err
 	}
@@ -500,10 +486,9 @@ func (anh *attributeNotificationsHandler) saveNotification(notifier Notifier) er
 	}
 
 	key := path.Join(notificationsPath, strconv.Itoa(index))
-	val := buildNotificationValue(anh.attribute.nodeName, anh.attribute.instanceName, anh.attribute.capabilityName, anh.attribute.attributeName)
+	val := buildNotificationValue(notifiedAttr.nodeName, notifiedAttr.instanceName, notifiedAttr.capabilityName, notifiedAttr.attributeName)
 	log.Debugf("store notification with[key=%q, value:%q", key, val)
-	anh.consulStore.StoreConsulKeyAsString(key, val)
-	return nil
+	return consulutil.StoreConsulKeyAsString(key, val)
 }
 
 // notification value is path-based as: "<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
