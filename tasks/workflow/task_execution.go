@@ -185,9 +185,10 @@ func setTaskStatus(ctx context.Context, kv *api.KV, targetID, taskID string, sta
 	}
 
 	// Emit event for status change
-	// As task has been set, error are ignored
+	// wfName may be empty as this data is not filled for non-workflow task type (as for custom command by instance)
 	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
 	taskType, err := tasks.GetTaskType(kv, taskID)
+	// As task has been set, error are ignored but taskType is mandatory for emitting event
 	if err != nil {
 		log.Printf("[WARNING] Failed to emit event for change status to %q for taskID:%q due to error:%+v", status.String(), taskID, err)
 		return nil
