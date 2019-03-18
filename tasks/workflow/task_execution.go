@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -140,7 +141,7 @@ func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 }
 
 // checkAndSetTaskStatus allows to check the task status before updating it
-func checkAndSetTaskStatus(kv *api.KV, taskID string, finalStatus tasks.TaskStatus) error {
+func checkAndSetTaskStatus(ctx context.Context, kv *api.KV, targetID, taskID string, finalStatus tasks.TaskStatus) error {
 	kvp, meta, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get task status for taskID:%q", taskID)
@@ -165,12 +166,12 @@ func checkAndSetTaskStatus(kv *api.KV, taskID string, finalStatus tasks.TaskStat
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		}
-		return setTaskStatus(kv, taskID, finalStatus, meta.LastIndex)
+		return setTaskStatus(ctx, kv, targetID, taskID, finalStatus, meta.LastIndex)
 	}
 	return nil
 }
 
-func setTaskStatus(kv *api.KV, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
+func setTaskStatus(ctx context.Context, kv *api.KV, targetID, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
 	set, _, err := kv.CAS(p, nil)
@@ -180,8 +181,19 @@ func setTaskStatus(kv *api.KV, taskID string, status tasks.TaskStatus, lastIndex
 	}
 	if !set {
 		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), taskID)
-		return checkAndSetTaskStatus(kv, taskID, status)
+		return checkAndSetTaskStatus(ctx, kv, targetID, taskID, status)
 	}
+
+	// Emit event for status change
+	// wfName may be empty as this data is not filled for non-workflow task type (as for custom command by instance)
+	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
+	taskType, err := tasks.GetTaskType(kv, taskID)
+	// As task has been set, error are ignored but taskType is mandatory for emitting event
+	if err != nil {
+		log.Printf("[WARNING] Failed to emit event for change status to %q for taskID:%q due to error:%+v", status.String(), taskID, err)
+		return nil
+	}
+	tasks.EmitTaskEventWithContextualLogs(ctx, kv, targetID, taskID, taskType, wfName, status.String())
 	return nil
 }
 

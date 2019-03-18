@@ -193,7 +193,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 		events.ExecutionID: t.taskID,
 	}
 	ctx := events.NewContext(context.Background(), logOptFields)
-	err = checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusRUNNING)
+	err = checkAndSetTaskStatus(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusRUNNING)
 	if err != nil {
 		log.Printf("%+v", err)
 		return
@@ -251,13 +251,13 @@ func (w *worker) runOneExecutionTask(ctx context.Context, t *taskExecution) erro
 			// let's assume the we failed for this reason
 			// while we actually don't know if we encounter another error
 			tasks.UpdateTaskStepWithStatus(kv, t.taskID, t.step, tasks.TaskStepStatusCANCELED)
-			checkAndSetTaskStatus(kv, t.taskID, tasks.TaskStatusCANCELED)
+			checkAndSetTaskStatus(ctx, kv, t.targetID, t.taskID, tasks.TaskStatusCANCELED)
 		} else if err != nil {
 			tasks.UpdateTaskStepWithStatus(kv, t.taskID, t.step, tasks.TaskStepStatusERROR)
-			checkAndSetTaskStatus(kv, t.taskID, tasks.TaskStatusFAILED)
+			checkAndSetTaskStatus(ctx, kv, t.targetID, t.taskID, tasks.TaskStatusFAILED)
 		} else {
 			tasks.UpdateTaskStepWithStatus(kv, t.taskID, t.step, tasks.TaskStepStatusDONE)
-			checkAndSetTaskStatus(kv, t.taskID, tasks.TaskStatusDONE)
+			checkAndSetTaskStatus(ctx, kv, t.targetID, t.taskID, tasks.TaskStatusDONE)
 		}
 	}()
 	// We do not monitor task failure as there is only one execution
@@ -266,39 +266,38 @@ func (w *worker) runOneExecutionTask(ctx context.Context, t *taskExecution) erro
 	case tasks.TaskTypeQuery:
 		err = w.runQuery(ctx, t)
 	case tasks.TaskTypeCustomCommand:
-		err = w.runCustomCommand(ctx, t)
+		ctx, err = w.runCustomCommand(ctx, t)
 	case tasks.TaskTypeForcePurge:
 		err = w.runPurge(ctx, t)
 	default:
 		err = errors.Errorf("Unknown TaskType %d (%s) for TaskExecution with id %q", t.taskType, t.taskType.String(), t.taskID)
 	}
-
 	return err
 }
 
-func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
+func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (context.Context, error) {
 	kv := w.consulClient.KV()
 	commandName, err := tasks.GetTaskData(kv, t.taskID, "commandName")
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve custom command name")
+		return ctx, errors.Wrap(err, "failed to retrieve custom command name")
 	}
 
 	var interfaceName string
 	interfaceName, err = tasks.GetTaskData(kv, t.taskID, "interfaceName")
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve custom interface name")
+		return ctx, errors.Wrap(err, "failed to retrieve custom interface name")
 	}
 	nodes, err := tasks.GetTaskRelatedNodes(kv, t.taskID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve custom command target node")
+		return ctx, errors.Wrap(err, "failed to retrieve custom command target node")
 	}
 	if len(nodes) != 1 {
-		return errors.Wrapf(err, "expecting custom command to be related to \"1\" node while it is actually related to \"%d\" nodes", len(nodes))
+		return ctx, errors.Wrapf(err, "expecting custom command to be related to \"1\" node while it is actually related to \"%d\" nodes", len(nodes))
 	}
 	nodeName := nodes[0]
 	nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.targetID, nodeName)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 	op, err := operations.GetOperation(ctx, kv, t.targetID, nodeName, interfaceName+"."+commandName, "", "")
 	if err != nil {
@@ -306,7 +305,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.targetID, t.taskID, nodeName, err)
 		}
-		return errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
+		return ctx, errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
 	}
 	exec, err := getOperationExecutor(kv, t.targetID, op.ImplementationArtifact)
 	if err != nil {
@@ -314,30 +313,26 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.targetID, t.taskID, nodeName, err)
 		}
-		return errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
+		return ctx, errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
 	}
 
 	ctx = operations.SetOperationLogFields(ctx, op)
-	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName})
+	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName, events.OperationName: op.Name})
 
 	err = func() error {
 		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name}), time.Now())
 		return exec.ExecOperation(ctx, w.cfg, t.taskID, t.targetID, nodeName, op)
 	}()
 	if err != nil {
-		events.PublishAndLogCustomCommandStatusChange(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusFAILED.String())
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "failures"}), 1)
 		err2 := setNodeStatus(ctx, t.cc.KV(), t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err2 != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("failed to update node %q state to error", nodeName)
 		}
-		return err
+		return ctx, err
 	}
-	// Already done in parent function
-	// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
-	events.PublishAndLogCustomCommandStatusChange(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE.String())
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
-	return err
+	return ctx, err
 }
 
 func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.Action, wasCancelled bool, actionErr error) {
@@ -529,8 +524,6 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) error {
 				return errors.Wrap(err, "Failed to store query result")
 			}
 		}
-		// done in parent function
-		// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
 	default:
 		return errors.Errorf("Unknown query: %q", query)
 	}
@@ -630,7 +623,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		return errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
 	}
 	// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
-	checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
+	checkAndSetTaskStatus(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE)
 	err = tasks.DeleteTask(kv, t.taskID)
 	if err != nil {
 		return err

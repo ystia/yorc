@@ -35,7 +35,7 @@ import (
 func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, value, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instanceName})
 
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ENodeID] = nodeName
 	info[EInstanceID] = instanceName
 	info[EAttributeName] = attributeName
@@ -78,8 +78,7 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 // PublishAndLogInstanceStatusChange returns the published event id
 func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
-
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ENodeID] = nodeName
 	info[EInstanceID] = instance
 	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, strings.ToLower(status))
@@ -135,7 +134,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
 	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, strings.ToLower(status))
 	if err != nil {
@@ -165,7 +164,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
 	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, strings.ToLower(status))
 	if err != nil {
@@ -198,7 +197,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 	if wfStepInfo == nil {
 		return "", errors.Errorf("WorkflowStep information  param must be provided")
 	}
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
 	info[EInstanceID] = wfStepInfo.InstanceName
 	info[EWorkflowID] = wfStepInfo.WorkflowName
@@ -226,7 +225,7 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID, TaskExecutionID: taskExecutionID})
 	}
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
 	// Warning: Alien task corresponds to what we call taskExecution
 	info[ETaskExecutionID] = taskExecutionID
@@ -256,7 +255,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	info := make(Info)
+	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
 	info[EWorkflowID] = workflowID
 	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, strings.ToLower(status))
@@ -348,4 +347,41 @@ func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 		return 0, errors.New("Failed to retrieve last index for logs")
 	}
 	return qm.LastIndex, nil
+}
+
+func buildInfoFromContext(ctx context.Context) Info {
+	infoUp := make(Info)
+
+	lof, ok := FromContext(ctx)
+	if ok {
+		for k, v := range lof {
+			infType, has := bindEventInfoWithContext(k)
+			if has {
+				infoUp[infType] = v
+			}
+		}
+	}
+	return infoUp
+}
+
+func bindEventInfoWithContext(f FieldType) (InfoType, bool) {
+	var i InfoType
+	has := true
+	switch f {
+	case WorkFlowID:
+		i = EWorkflowID
+	case ExecutionID:
+		i = ETaskID
+	case NodeID:
+		i = ENodeID
+	case InstanceID:
+		i = EInstanceID
+	case OperationName:
+		i = EOperationName
+	case TaskExecutionID:
+		i = ETaskExecutionID
+	default:
+		has = false
+	}
+	return i, has
 }

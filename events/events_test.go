@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -659,4 +660,28 @@ func getLogContent(t *testing.T, log []byte) string {
 	err := json.Unmarshal(log, &data)
 	require.Nil(t, err)
 	return data["content"].(string)
+}
+
+func TestBuildInfoFromContext(t *testing.T) {
+	type args struct {
+		lof LogOptionalFields
+	}
+	tests := []struct {
+		name string
+		args args
+		want Info
+	}{
+		{"TestEmptyCtx", args{nil}, Info{}},
+		{"TestExistingCtx", args{LogOptionalFields{WorkFlowID: "wfOne", ExecutionID: "execOne", NodeID: "nodeOne", InstanceID: "instanceOne", InterfaceName: "interfaceOne", OperationName: "opOne", TypeID: "typeOne", TaskExecutionID: "taskExecOne"}},
+			Info{EWorkflowID: "wfOne", ETaskID: "execOne", ENodeID: "nodeOne", EOperationName: "opOne", ETaskExecutionID: "taskExecOne", EInstanceID: "instanceOne"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			infoUp := buildInfoFromContext(NewContext(context.Background(), tt.args.lof))
+			if !reflect.DeepEqual(infoUp, tt.want) {
+				t.Fatalf("buildInfoFromContext() failed with test:%q get= %v, want %v", tt.name, infoUp, tt.want)
+			}
+		})
+	}
 }
