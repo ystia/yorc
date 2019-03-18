@@ -33,7 +33,8 @@ func deployTopology(workdDir, deploymentDir string) error {
 	// deployment
 	// First downloading it in the work dir if not yet there
 	// like other external downloadable dependencies
-	a4cFilePath, err := download(inputValues.Alien4cloud.DownloadURL, "alien4cloud-dist.tar.gz", workdDir)
+	overwrite := (previousBootstrapVersion.Alien4cloud != alien4cloudVersion)
+	a4cFilePath, err := download(inputValues.Alien4cloud.DownloadURL, "alien4cloud-dist.tar.gz", workdDir, overwrite)
 	if err != nil {
 		return err
 	}
