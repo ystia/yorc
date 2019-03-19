@@ -18,6 +18,7 @@
 * Attribute notification is not correctly set with HOST keyword ([GH-338](https://github.com/ystia/yorc/issues/338))
 * Custom command events doesn't provide enough information ([GH-324](https://github.com/ystia/yorc/issues/324))
 * Update Default Oracle JDK download URL as the previous one is not available for download anymore ([GH-341](https://github.com/ystia/yorc/issues/341))
+* Bad notifications storage with several notified for one attribute notifier ([GH-343](https://github.com/ystia/yorc/issues/343))
 
 ## 3.2.0-M3 (March 11, 2019)
 
