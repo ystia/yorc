@@ -321,7 +321,7 @@ func getExternalIPAdress(clientset kubernetes.Interface, nodeName string) (strin
 			return addr.Address, nil
 		}
 	}
-	return "", errors.Wrap(err, "Node "+nodeName+" don't have external IP adress")
+	return "", errors.New("Node "+nodeName+" don't have external IP adress")
 }
 
 func getVersion(clientset kubernetes.Interface) (string, error) {
