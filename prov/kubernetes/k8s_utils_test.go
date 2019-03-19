@@ -15,6 +15,8 @@
 package kubernetes
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
@@ -39,5 +41,30 @@ func TestGetVersionDefault(t *testing.T) {
 	expected := "v0.0.0-master+$Format:%h$"
 	if v != expected {
 		t.Fatal("getVersion should return " + expected)
+	}
+}
+
+func TestGetExternalIPAdress(t *testing.T) {
+	k8s := newTestSimpleK8s()
+	nodeExtIP := "1.2.3.4"
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "testNode",
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeExternalIP,
+					Address: nodeExtIP,
+				},
+			},
+		},
+	}
+	k8s.clientset.CoreV1().Nodes().Create(&node)
+	ip, err := getExternalIPAdress(k8s.clientset, "testNode")
+	if err != nil {
+		t.Fatal("should not raise an error when IP is present", err)
+	}
+	if ip != nodeExtIP {
+		t.Fatal("IP returned by function (" + ip + ") should be " + nodeExtIP)
 	}
 }
