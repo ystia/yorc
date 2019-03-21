@@ -84,9 +84,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panicf("%v", err)
 		}
 		if dExits {
-			mess := fmt.Sprintf("Deployment with id %q already exists", id)
-			log.Debugf("[ERROR]: %s", mess)
-			writeError(w, r, newConflictRequest(mess))
+			s.updateDeployment(w, r, id)
 			return
 		}
 		uid = id
