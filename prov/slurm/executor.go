@@ -229,6 +229,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.C
 	go parseSallocResponse(sessionWrapper.Stderr, chAllocResp, chErr)
 	go parseSallocResponse(sessionWrapper.Stdout, chAllocResp, chErr)
 	wg.Add(1)
+	var allocErr error
 	go func() {
 		defer wg.Done()
 		select {
@@ -243,11 +244,10 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.C
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mes)
 			return
 		case err := <-chErr:
-			log.Debug(err.Error())
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+			allocErr = err
 			return
 		case <-time.After(30 * time.Second):
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString("timeout elapsed waiting for jobID parsing after slurm allocation request")
+			allocErr = errors.New("timeout elapsed waiting for jobID parsing after slurm allocation request")
 			return
 		}
 	}()
@@ -281,11 +281,17 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.C
 	// Run the salloc command
 	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag, sallocReservationFlag, sallocAccountFlag))
 	err = sessionWrapper.RunCommand(ctxAlloc, sallocCmd)
+	wg.Wait() // we wait until jobID has been set or error has been retrieved asynchronously
 	if err != nil {
-		return errors.Wrap(err, "Failed to allocate Slurm resource")
+		var mErr error
+		if allocErr != nil {
+			// we merge both allocation error message and ssh command error
+			mErr = errors.Wrap(allocErr, err.Error())
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return errors.Wrap(mErr, "Failed to allocate Slurm resource")
 	}
 
-	wg.Wait() // we wait until jobID has been set
 	// retrieve nodename and partition
 	var nodeAndPartitionAttrs []string
 	if nodeAndPartitionAttrs, err = getAttributes(sshClient, "node_partition", allocResponse.jobID); err != nil {

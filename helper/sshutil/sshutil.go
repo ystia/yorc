@@ -141,6 +141,7 @@ func (client *SSHClient) newSession() (*sshSession, error) {
 }
 
 // RunCommand allows to run a specified command from a session wrapper in order to handle stdout/stderr during long synchronous commands
+// stdout/stderr are retrieved asynchronously with SSHSessionWrapper.Stdout and SSHSessionWrapper.Stderr
 func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 	chClosed := make(chan struct{})
 	defer func() {
@@ -159,15 +160,7 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 			return
 		}
 	}()
-
-	err := sw.session.Run(cmd)
-	if err != nil {
-		// Get stderr
-		stdout, _ := ioutil.ReadAll(sw.Stdout)
-		stderr, _ := ioutil.ReadAll(sw.Stderr)
-		return errors.Wrapf(err, "failed to run ssh command, stderr: %q, stdout: %q", stderr, stdout)
-	}
-	return nil
+	return sw.session.Run(cmd)
 }
 
 // ReadPrivateKey returns an authentication method relying on private/public key pairs

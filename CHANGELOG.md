@@ -6,6 +6,7 @@
 
 * Bootstrap Yorc with a Vault instance ([GH-282](https://github.com/ystia/yorc/issues/282))
 * Refactor Slurm jobs ([GH-220](https://github.com/ystia/yorc/issues/220))
+* Yorc does not log a slurm command error message, making diagnostic difficult ([GH-348](https://github.com/ystia/yorc/issues/348))
 
 ### FEATURES
 
