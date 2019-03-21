@@ -32,18 +32,18 @@ func newTestSimpleK8s() *k8s {
 	return &client
 }
 
-func newTestSimpleNode(nodeName string, extIP string) corev1.Node{
+func newTestSimpleNode(nodeName string, extIP string) corev1.Node {
 	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 		},
 	}
-	if extIP == ""{
+	if extIP == "" {
 		return node
 	}
 	node.Status.Addresses = []corev1.NodeAddress{{Type: corev1.NodeExternalIP,
-												Address: extIP,},
-											}
+		Address: extIP},
+	}
 	return node
 }
 
@@ -81,7 +81,7 @@ func TestGetExternalIPAdressWrongNodeName(t *testing.T) {
 	node := newTestSimpleNode(nodeName, nodeExtIP)
 	k8s.clientset.CoreV1().Nodes().Create(&node)
 	ip, err := getExternalIPAdress(k8s.clientset, "randomNodeName")
-	if err == nil || ip != ""{
+	if err == nil || ip != "" {
 		t.Fatal("Getting a non existing node should raise an error and return empty string")
 	}
 }
@@ -94,7 +94,7 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	t.Log(node.Status.Addresses)
 	k8s.clientset.CoreV1().Nodes().Create(&node)
 	ip, err := getExternalIPAdress(k8s.clientset, "testNode")
-	if err == nil || ip != ""{
+	if err == nil || ip != "" {
 		t.Fatal("Getting a node with no externalIP should raise error and return empty ip")
 	}
 }
