@@ -188,7 +188,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	yamlFile, archiveErr := unzipArchiveGetTopology(s.config.WorkingDirectory, uid, r, false)
 	if archiveErr != nil {
-		log.Printf("Error analyzing archive for deployement %s\n", uid)
+		log.Printf("Error analyzing archive for deployment %s\n", uid)
 		writeError(w, r, archiveErr)
 		return
 	}

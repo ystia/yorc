@@ -26,6 +26,6 @@ import (
 // updateDeployment updates a deployment
 func (s *Server) updateDeployment(w http.ResponseWriter, r *http.Request, id string) {
 	msg := fmt.Sprintf("Deployment with id %q already exists - Update supported only in premium versions", id)
-	log.Debugf("[ERROR]: %s", msg)
+	log.Printf("[ERROR]: %s", msg)
 	writeError(w, r, newConflictRequest(msg))
 }
