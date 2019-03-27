@@ -24,8 +24,8 @@ In this case you should use a `POST` method.
 In this case you should use a `PUT` method. There are some constraints on submitting a deployment with a given ID:
 
 * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
-* If this ID  is already in use, the behaviour depends on the Yorc version, premium or open source :
-  * in the premium version, a deployment update will be performed as described in the next section
+* If this ID  is already in use, the behavior depends on the Yorc version, premium or open source :
+  * in the premium version, a deployment update will be performed as described in the next section,
   * in the open source version, a `409 Conflict` error is returned.
 
 `PUT /deployments/<deployment_id>`
@@ -67,8 +67,8 @@ Content-Length: 0
 ```
 
 This endpoint produces no content except in case of error.
-As deployment update is a premium feature, attempting to perform a deployment update
-using the open source version of Yorc will return the error `409 Conflict`.
+As the ability to update a deployment is a premium feature, attempting to perform
+a deployment update using the open source version of Yorc will return the error `409 Conflict`.
 
 ### List deployments <a name="list-deps"></a>
 
