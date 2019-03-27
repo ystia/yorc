@@ -25,7 +25,7 @@ In this case you should use a `PUT` method. There are some constraints on submit
 
 * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
 * If this ID  is already in use, the behavior depends on the Yorc version, premium or open source :
-  * in the premium version, a deployment update will be performed as described in the next section below,
+  * in the premium version, a deployment update will be performed as described in next section below,
   * in the open source version, a `409 Conflict` error is returned.
 
 `PUT /deployments/<deployment_id>`
