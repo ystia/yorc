@@ -8,6 +8,10 @@ metadata:
 imports:
   - yorc: <yorc-types.yml>
 
+artifact_types:
+  yorc.artifacts.openstack.Deployment:
+    derived_from: tosca.artifacts.Deployment
+
 capability_types:
   # NOTE: Alien specific
   yorc.capabilities.openstack.FIPConnectivity:
@@ -56,6 +60,12 @@ node_types:
         description: >
           Comma-separated list of security groups to add to the Compute
         required: false
+    requirements:
+      - group:
+          capability: yorc.capabilities.Group
+          node: yorc.nodes.openstack.ServerGroup
+          relationship: yorc.relationships.MemberOf
+          occurrences: [0, 1]
 
   yorc.nodes.openstack.BlockStorage:
     derived_from: tosca.nodes.BlockStorage
@@ -108,3 +118,29 @@ node_types:
         description: Has the TOSCA container used to create a virtual network instance a DHCP service.
         required: false
         default: true
+
+  yorc.nodes.openstack.ServerGroup:
+    derived_from: tosca.nodes.Root
+    properties:
+      name:
+        type: string
+        description: The name of the server group.
+        required: true
+      policy:
+        type: string
+        description: The policy applied to the server group.
+        required: true
+    capabilities:
+      group:
+        type: yorc.capabilities.Group
+        valid_source_types: [yorc.nodes.openstack.Compute]
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.openstack.Deployment
+        delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.openstack.Deployment
