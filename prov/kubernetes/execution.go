@@ -175,8 +175,6 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		default:
 			return errors.Errorf("Unsupported k8s SimpleResource type %q", e.nodeType)
 		}
-
-		//return errors.Errorf("============Not yet supported k8s simple ressource type %q", e.nodeType)
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
@@ -418,7 +416,6 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
 	}
 	var pvcRepr apiv1.PersistentVolumeClaim
-	//Unmarshall
 	if err = json.Unmarshal([]byte(rSpec), &pvcRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
