@@ -331,3 +331,17 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 	}
 	return version.String(), nil
 }
+
+func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		_, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		return false, nil
+	}, ctx.Done())
+
+}
