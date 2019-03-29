@@ -17,13 +17,11 @@ package google
 import (
 	"context"
 	"fmt"
-	"path"
-	"strings"
-	"time"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+	"path"
+	"strings"
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
@@ -145,7 +143,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		// External IP address can be static if required
 		if hasStaticAddressReq {
 			// Address Lookup
-			externalAddress, err = attributeLookup(ctx, kv, deploymentID, instanceName, addressNode, "ip_address")
+			externalAddress, err = deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, addressNode, instanceName, "ip_address")
 			if err != nil {
 				return err
 			}
@@ -356,34 +354,6 @@ func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.In
 	return nil
 }
 
-func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, nodeName, attribute string) (string, error) {
-	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
-	res := make(chan string, 1)
-	go func() {
-		for {
-			if attr, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute); attr != nil && attr.RawString() != "" {
-				if attr != nil && attr.RawString() != "" {
-					res <- attr.RawString()
-					return
-				}
-			}
-
-			select {
-			case <-time.After(1 * time.Second):
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	select {
-	case val := <-res:
-		return val, nil
-	case <-ctx.Done():
-		return "", ctx.Err()
-	}
-}
-
 func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
 	devices := make([]string, 0)
 
@@ -417,7 +387,7 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 		var volumeID string
 		if volumeIDValue == nil || volumeIDValue.RawString() == "" {
 			// Lookup for attribute volume_id
-			volumeID, err = attributeLookup(ctx, kv, deploymentID, instanceName, volumeNodeName, "volume_id")
+			volumeID, err = deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, volumeNodeName, instanceName, "volume_id")
 			if err != nil {
 				return nil, err
 			}
@@ -477,7 +447,7 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 		}
 		switch netType {
 		case "yorc.nodes.google.Subnetwork":
-			subnet, err := attributeLookup(ctx, kv, deploymentID, "0", networkNodeName, "subnetwork_name")
+			subnet, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, networkNodeName, "0", "subnetwork_name")
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 			}
@@ -493,7 +463,7 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 				log.Debugf("add network interface with user-specified sub-network property:%s", subRaw.RawString())
 				netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subRaw.RawString()})
 			} else { // we mention the network
-				network, err := attributeLookup(ctx, kv, deploymentID, "0", networkNodeName, "network_name")
+				network, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, networkNodeName, "0", "network_name")
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 				}
