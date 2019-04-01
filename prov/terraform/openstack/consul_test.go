@@ -60,5 +60,11 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("TestGenerateMultipleIP", func(t *testing.T) {
 			testGenerateMultipleIP(t, srv, kv)
 		})
+		t.Run("simpleServerGroup", func(t *testing.T) {
+			testSimpleServerGroup(t, kv)
+		})
+		t.Run("OSInstanceWithServerGroup", func(t *testing.T) {
+			testOSInstanceWithServerGroup(t, kv, srv)
+		})
 	})
 }

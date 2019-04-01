@@ -45,7 +45,7 @@ func (g *osGenerator) generateServerGroup(ctx context.Context, kv *api.KV, cfg c
 		return err
 	}
 	serverGroup.Policies = []string{policy}
-	commons.AddResource(infrastructure, "openstack_compute_servergroup_v2", serverGroup.Name, &serverGroup)
+	commons.AddResource(infrastructure, "openstack_compute_servergroup_v2", serverGroup.Name, serverGroup)
 
 	// Provide output for server group ID
 	idKey := nodeName + "-id"

@@ -1,0 +1,21 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: SimpleServerGroup
+  template_version: 0.1.0-SNAPSHOT
+  template_author: yorc
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    ServerGroupA:
+      type: yorc.nodes.openstack.ServerGroup
+      properties:
+        policy: "anti-affinity"
+        name: "sg-SimpleApp-ServerGroupPolicy"
