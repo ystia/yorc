@@ -443,9 +443,17 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 	case k8sDeleteOperation:
 		var pvcName = pvcRepr.Name
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Deleting k8s PVC %s", pvcName)
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcName, metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "Persisent volume claim %s does not exists", pvc.Name)
+		}
 		err = clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(pvcName, nil)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to delete persistent volume claim %s", pvcName)
+		}
+		err = waitForPVCDeletion(ctx, clientset, pvc)
+		if err != nil {
+			return err
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s PVC %s deleted!", pvcName)
 	default:
