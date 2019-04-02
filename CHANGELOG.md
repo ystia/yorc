@@ -2,8 +2,11 @@
 
 ## UNRELEASED
 
+## 3.2.0-M4 (March 29, 2019)
+
 ### ENHANCEMENTS
 
+* REST API doc changes on deployment update support in premium version ([GH-352](https://github.com/ystia/yorc/issues/352))
 * Bootstrap Yorc with a Vault instance ([GH-282](https://github.com/ystia/yorc/issues/282))
 * Refactor Slurm jobs ([GH-220](https://github.com/ystia/yorc/issues/220))
 * Yorc does not log a slurm command error message, making diagnostic difficult ([GH-348](https://github.com/ystia/yorc/issues/348))

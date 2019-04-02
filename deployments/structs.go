@@ -26,7 +26,10 @@ import "encoding/json"
 // UNDEPLOYED,
 // DEPLOYMENT_FAILED,
 // UNDEPLOYMENT_FAILED,
-// SCALING_IN_PROGRESS
+// SCALING_IN_PROGRESS,
+// UPDATE_IN_PROGRESS,
+// UPDATED,
+// UPDATE_FAILURE
 // )
 type DeploymentStatus int
 

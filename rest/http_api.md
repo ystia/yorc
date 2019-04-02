@@ -24,7 +24,9 @@ In this case you should use a `POST` method.
 In this case you should use a `PUT` method. There are some constraints on submitting a deployment with a given ID:
 
 * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
-* This ID should not already be in used (otherwise a `409 Conflict` error is returned)
+* If this ID  is already in use, the behavior depends on the Yorc version, premium or open source :
+  * in the premium version, a deployment update will be performed as described in next section below,
+  * in the open source version, a `409 Conflict` error is returned.
 
 `PUT /deployments/<deployment_id>`
 
@@ -42,6 +44,31 @@ This endpoint produces no content except in case of error.
 
 A critical note is that the deployment is proceeded asynchronously and a success only guarantees that the deployment is successfully
 **submitted**.
+
+### Update a deployment (premium feature) <a name="update-csar"></a>
+
+Updates a deployment by uploading an updated CSAR. 'Content-Type' header should be set to 'application/zip'.
+
+`PUT /deployments/<deployment_id>`
+
+If the given ID doesn't correspond to the ID of an existing deployment, this call
+won't perform an update, but will create a new deployment as described in the previous section.
+
+**Result**:
+
+A successfully submitted deployment update will result in an HTTP status code 200.
+There won't be any 'Location' header relative to the base URI indicating a task URI
+handling the update process, as the current implementation only supports the update
+of Workflows, which is performed synchronously.
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Length: 0
+```
+
+This endpoint produces no content except in case of error.
+As the ability to update a deployment is a premium feature, attempting to perform
+a deployment update using the open source version of Yorc will return the error `409 Conflict`.
 
 ### List deployments <a name="list-deps"></a>
 

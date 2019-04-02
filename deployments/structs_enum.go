@@ -38,19 +38,28 @@ const (
 	UNDEPLOYMENT_FAILED
 	// SCALING_IN_PROGRESS is a DeploymentStatus of type SCALING_IN_PROGRESS
 	SCALING_IN_PROGRESS
+	// UPDATE_IN_PROGRESS is a DeploymentStatus of type UPDATE_IN_PROGRESS
+	UPDATE_IN_PROGRESS
+	// UPDATED is a DeploymentStatus of type UPDATED
+	UPDATED
+	// UPDATE_FAILURE is a DeploymentStatus of type UPDATE_FAILURE
+	UPDATE_FAILURE
 )
 
-const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESS"
+const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILURE"
 
 var _DeploymentStatusMap = map[DeploymentStatus]string{
-	0: _DeploymentStatusName[0:7],
-	1: _DeploymentStatusName[7:29],
-	2: _DeploymentStatusName[29:37],
-	3: _DeploymentStatusName[37:61],
-	4: _DeploymentStatusName[61:71],
-	5: _DeploymentStatusName[71:88],
-	6: _DeploymentStatusName[88:107],
-	7: _DeploymentStatusName[107:126],
+	0:  _DeploymentStatusName[0:7],
+	1:  _DeploymentStatusName[7:29],
+	2:  _DeploymentStatusName[29:37],
+	3:  _DeploymentStatusName[37:61],
+	4:  _DeploymentStatusName[61:71],
+	5:  _DeploymentStatusName[71:88],
+	6:  _DeploymentStatusName[88:107],
+	7:  _DeploymentStatusName[107:126],
+	8:  _DeploymentStatusName[126:144],
+	9:  _DeploymentStatusName[144:151],
+	10: _DeploymentStatusName[151:165],
 }
 
 func (i DeploymentStatus) String() string {
@@ -69,6 +78,9 @@ var _DeploymentStatusValue = map[string]DeploymentStatus{
 	_DeploymentStatusName[71:88]:   5,
 	_DeploymentStatusName[88:107]:  6,
 	_DeploymentStatusName[107:126]: 7,
+	_DeploymentStatusName[126:144]: 8,
+	_DeploymentStatusName[144:151]: 9,
+	_DeploymentStatusName[151:165]: 10,
 }
 
 // ParseDeploymentStatus attempts to convert a string to a DeploymentStatus

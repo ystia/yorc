@@ -54,6 +54,99 @@ func extractFile(f *zip.File, path string) {
 	}
 }
 
+// unzipArchiveGetTopology unzips an archive and return the path to its topology
+// yaml file
+func unzipArchiveGetTopology(workingDir, deploymentID string, r *http.Request, deploymentUpdate bool) (string, *Error) {
+	var err error
+	var file *os.File
+
+	uploadPath := filepath.Join(workingDir, "deployments", deploymentID)
+	backupPath := filepath.Join(workingDir, "deployments", "."+deploymentID)
+	if deploymentUpdate {
+		// This is a deployment update, renaming the current deployment directory
+		if _, err := os.Stat(uploadPath); !os.IsNotExist(err) {
+			// path/to/whatever exists
+			if err := os.Rename(uploadPath, backupPath); err != nil {
+				return "", newInternalServerError(err)
+			}
+
+			defer func() {
+				// Restore backup in case of error
+				if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
+					os.Rename(backupPath, uploadPath)
+				}
+			}()
+		}
+	}
+
+	if err = os.MkdirAll(uploadPath, 0775); err != nil {
+		return "", newInternalServerError(err)
+	}
+
+	file, err = os.Create(fmt.Sprintf("%s/deployment.zip", uploadPath))
+	// check err
+	if err != nil {
+		return "", newInternalServerError(err)
+	}
+
+	_, err = io.Copy(file, r.Body)
+	if err != nil {
+		return "", newInternalServerError(err)
+	}
+	destDir := filepath.Join(uploadPath, "overlay")
+	if err = os.MkdirAll(destDir, 0775); err != nil {
+		return "", newInternalServerError(err)
+	}
+	zipReader, err := zip.OpenReader(file.Name())
+	if err != nil {
+		return "", newInternalServerError(err)
+	}
+	defer zipReader.Close()
+
+	// Iterate through the files in the archive,
+	// and extract them.
+	for _, f := range zipReader.File {
+		fPath := filepath.Join(destDir, f.Name)
+		if f.FileInfo().IsDir() {
+			// Ensure that we have full rights on directory to be able to extract files into them
+			if err = os.MkdirAll(fPath, f.Mode()|0700); err != nil {
+				return "", newInternalServerError(err)
+			}
+			continue
+		}
+		extractFile(f, fPath)
+	}
+
+	patterns := []struct {
+		pattern string
+	}{
+		{"*.yml"},
+		{"*.yaml"},
+	}
+	var yamlList []string
+	for _, pattern := range patterns {
+		var yamls []string
+		if yamls, err = filepath.Glob(filepath.Join(destDir, pattern.pattern)); err != nil {
+			return "", newInternalServerError(err)
+		}
+		yamlList = append(yamlList, yamls...)
+	}
+	if len(yamlList) != 1 {
+		err = fmt.Errorf(
+			"One and only one YAML (.yml or .yaml) file should be present at the root of archive for deployment %s",
+			deploymentID)
+		return "", newBadRequestError(err)
+	}
+
+	// Cleanup
+	if deploymentUpdate {
+		os.RemoveAll(backupPath)
+	}
+
+	return yamlList[0], nil
+
+}
+
 func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var uid string
@@ -84,9 +177,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panicf("%v", err)
 		}
 		if dExits {
-			mess := fmt.Sprintf("Deployment with id %q already exists", id)
-			log.Debugf("[ERROR]: %s", mess)
-			writeError(w, r, newConflictRequest(mess))
+			s.updateDeployment(w, r, id)
 			return
 		}
 		uid = id
@@ -95,67 +186,14 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Analyzing deployment %s\n", uid)
 
-	var err error
-	var file *os.File
-	uploadPath := filepath.Join(s.config.WorkingDirectory, "deployments", uid)
-	if err = os.MkdirAll(uploadPath, 0775); err != nil {
-		log.Panicf("%+v", err)
+	yamlFile, archiveErr := unzipArchiveGetTopology(s.config.WorkingDirectory, uid, r, false)
+	if archiveErr != nil {
+		log.Printf("Error analyzing archive for deployment %s\n", uid)
+		writeError(w, r, archiveErr)
+		return
 	}
 
-	file, err = os.Create(fmt.Sprintf("%s/deployment.zip", uploadPath))
-	// check err
-	if err != nil {
-		log.Panicf("%+v", err)
-	}
-
-	_, err = io.Copy(file, r.Body)
-	if err != nil {
-		log.Panicf("%+v", err)
-	}
-	destDir := filepath.Join(uploadPath, "overlay")
-	if err = os.MkdirAll(destDir, 0775); err != nil {
-		log.Panicf("%+v", err)
-	}
-	zipReader, err := zip.OpenReader(file.Name())
-	if err != nil {
-		log.Panicf("%+v", err)
-	}
-	defer zipReader.Close()
-
-	// Iterate through the files in the archive,
-	// and extract them.
-	// TODO: USe go routines to process files concurrently
-	for _, f := range zipReader.File {
-		fPath := filepath.Join(destDir, f.Name)
-		if f.FileInfo().IsDir() {
-			// Ensure that we have full rights on directory to be able to extract files into them
-			if err = os.MkdirAll(fPath, f.Mode()|0700); err != nil {
-				log.Panicf("%+v", err)
-			}
-			continue
-		}
-		extractFile(f, fPath)
-	}
-
-	patterns := []struct {
-		pattern string
-	}{
-		{"*.yml"},
-		{"*.yaml"},
-	}
-	var yamlList []string
-	for _, pattern := range patterns {
-		if yamls, err := filepath.Glob(filepath.Join(destDir, pattern.pattern)); err != nil {
-			log.Panicf("%+v", err)
-		} else {
-			yamlList = append(yamlList, yamls...)
-		}
-	}
-	if len(yamlList) != 1 {
-		log.Panic("One and only one YAML (.yml or .yaml) file should be present at the root of deployment archive")
-	}
-
-	if err := deployments.StoreDeploymentDefinition(r.Context(), s.consulClient.KV(), uid, yamlList[0]); err != nil {
+	if err := deployments.StoreDeploymentDefinition(r.Context(), s.consulClient.KV(), uid, yamlFile); err != nil {
 		log.Debugf("ERROR: %+v", err)
 		log.Panic(err)
 	}

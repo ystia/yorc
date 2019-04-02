@@ -102,5 +102,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testAttributeNotifications", func(t *testing.T) {
 			testAttributeNotifications(t, kv)
 		})
+		t.Run("testTopologyUpdate", func(t *testing.T) {
+			testTopologyUpdate(t, kv)
+		})
 	})
 }
