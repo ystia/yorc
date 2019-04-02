@@ -130,6 +130,10 @@ node_types:
         type: string
         description: The policy applied to the server group.
         required: true
+    attributes:
+      id:
+        type: string
+        description: The unique id of the server group.
     capabilities:
       group:
         type: yorc.capabilities.Group
