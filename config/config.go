@@ -119,16 +119,17 @@ func (ho HostedOperations) Format(s fmt.State, verb rune) {
 
 // Ansible configuration
 type Ansible struct {
-	UseOpenSSH              bool             `yaml:"use_openssh,omitempty" mapstructure:"use_openssh" json:"use_open_ssh,omitempty"`
-	DebugExec               bool             `yaml:"debug,omitempty" mapstructure:"debug" json:"debug_exec,omitempty"`
-	ConnectionRetries       int              `yaml:"connection_retries,omitempty" mapstructure:"connection_retries" json:"connection_retries,omitempty"`
-	OperationRemoteBaseDir  string           `yaml:"operation_remote_base_dir,omitempty" mapstructure:"operation_remote_base_dir" json:"operation_remote_base_dir,omitempty"`
-	KeepOperationRemotePath bool             `yaml:"keep_operation_remote_path,omitempty" mapstructure:"keep_operation_remote_path" json:"keep_operation_remote_path,omitempty"`
-	KeepGeneratedRecipes    bool             `yaml:"keep_generated_recipes,omitempty" mapstructure:"keep_generated_recipes" json:"keep_generated_recipes,omitempty"`
-	ArchiveArtifacts        bool             `yaml:"archive_artifacts,omitempty" mapstructure:"archive_artifacts" json:"archive_artifacts,omitempty"`
-	CacheFacts              bool             `yaml:"cache_facts,omitempty" mapstructure:"cache_facts" json:"cache_facts,omitempty"`
-	HostedOperations        HostedOperations `yaml:"hosted_operations,omitempty" mapstructure:"hosted_operations" json:"hosted_operations,omitempty"`
-	JobsChecksPeriod        time.Duration    `yaml:"job_monitoring_time_interval,omitempty" mapstructure:"job_monitoring_time_interval" json:"job_monitoring_time_interval,omitempty"`
+	UseOpenSSH              bool                         `yaml:"use_openssh,omitempty" mapstructure:"use_openssh" json:"use_open_ssh,omitempty"`
+	DebugExec               bool                         `yaml:"debug,omitempty" mapstructure:"debug" json:"debug_exec,omitempty"`
+	ConnectionRetries       int                          `yaml:"connection_retries,omitempty" mapstructure:"connection_retries" json:"connection_retries,omitempty"`
+	OperationRemoteBaseDir  string                       `yaml:"operation_remote_base_dir,omitempty" mapstructure:"operation_remote_base_dir" json:"operation_remote_base_dir,omitempty"`
+	KeepOperationRemotePath bool                         `yaml:"keep_operation_remote_path,omitempty" mapstructure:"keep_operation_remote_path" json:"keep_operation_remote_path,omitempty"`
+	KeepGeneratedRecipes    bool                         `yaml:"keep_generated_recipes,omitempty" mapstructure:"keep_generated_recipes" json:"keep_generated_recipes,omitempty"`
+	ArchiveArtifacts        bool                         `yaml:"archive_artifacts,omitempty" mapstructure:"archive_artifacts" json:"archive_artifacts,omitempty"`
+	CacheFacts              bool                         `yaml:"cache_facts,omitempty" mapstructure:"cache_facts" json:"cache_facts,omitempty"`
+	HostedOperations        HostedOperations             `yaml:"hosted_operations,omitempty" mapstructure:"hosted_operations" json:"hosted_operations,omitempty"`
+	JobsChecksPeriod        time.Duration                `yaml:"job_monitoring_time_interval,omitempty" mapstructure:"job_monitoring_time_interval" json:"job_monitoring_time_interval,omitempty"`
+	Config                  map[string]map[string]string `yaml:"config,omitempty" mapstructure:"config"`
 }
 
 // Consul configuration

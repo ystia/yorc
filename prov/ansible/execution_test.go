@@ -15,18 +15,22 @@
 package ansible
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"text/template"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v3/config"
@@ -108,6 +112,9 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	})
 	t.Run("testExecutionGenerateOnNode", func(t *testing.T) {
 		testExecutionGenerateOnNode(t, kv, deploymentID, nodeAName, "standard.create")
+	})
+	t.Run("testExecutionGenerateAnsibleConfig", func(t *testing.T) {
+		testExecutionGenerateAnsibleConfig(t)
 	})
 
 	var operationTestCases = []string{
@@ -595,4 +602,92 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	require.Nil(t, err)
 	t.Log(writer.String())
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
+}
+
+func testExecutionGenerateAnsibleConfig(t *testing.T) {
+
+	// Create a tmeprariy directory where to create the ansible config file
+	tempdir, err := ioutil.TempDir("", path.Base(t.Name()))
+	require.NoError(t, err, "Failed to create temporary directory")
+	defer os.RemoveAll(tempdir)
+
+	// First test with no ansible config settings in Yorc server configuration
+	yorcConfig := config.Configuration{
+		WorkingDirectory: tempdir,
+	}
+
+	execution := &executionCommon{
+		cfg: yorcConfig}
+
+	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
+	require.NoError(t, err, "Error generating ansible config file")
+
+	cfgPath := path.Join(yorcConfig.WorkingDirectory, "ansible.cfg")
+	resultMap, content := readAnsibleConfigSettings(t, cfgPath)
+
+	assert.Equal(t,
+		len(ansibleConfig[ansibleConfigDefaultsHeader]),
+		len(resultMap[ansibleConfigDefaultsHeader]),
+		"Missing entries in ansible config file, content: %q", content)
+	for k, v := range resultMap[ansibleConfigDefaultsHeader] {
+		assert.Equal(t, ansibleConfig[ansibleConfigDefaultsHeader][k], v, "Wrong ansible config value for %s", k)
+	}
+
+	// Test with ansible config settings in Yorc server configuration
+	// one of them overriding Yorc default ansible config setting
+	newSettingName := "special_context_filesystems"
+	newSettingValue := "nfs,vboxsf,fuse,ramfs,myspecialfs"
+	overridenSettingName := "timeout"
+	overridenSettingValue := "60"
+
+	yorcConfig.Ansible.Config = map[string]map[string]string{
+		ansibleConfigDefaultsHeader: map[string]string{
+			newSettingName:       newSettingValue,
+			overridenSettingName: overridenSettingValue,
+		},
+	}
+
+	// Test enabling fact caching
+
+}
+
+func readAnsibleConfigSettings(t *testing.T, filepath string) (map[string]map[string]string, string) {
+	cfgFile, err := os.Open(filepath)
+	require.NoError(t, err, "Failed to open ansible config file at %s", filepath)
+	defer cfgFile.Close()
+
+	scanner := bufio.NewScanner(cfgFile)
+	resultMap := make(map[string]map[string]string)
+	var fileContentBuider strings.Builder
+	header := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		fileContentBuider.WriteString(line)
+		fileContentBuider.WriteString("\n")
+		if squareBrackerIndex := strings.Index(line, "]"); squareBrackerIndex >= 0 {
+			header = strings.TrimSpace(line[1:squareBrackerIndex])
+			resultMap[header] = make(map[string]string)
+		}
+
+		if header == "" {
+			continue
+		}
+
+		if equalIndex := strings.Index(line, "="); equalIndex >= 0 {
+			if key := strings.TrimSpace(line[:equalIndex]); len(key) > 0 {
+				fmt.Printf("key .%s.\n", key)
+				value := ""
+				if len(line) > equalIndex {
+					value = strings.TrimSpace(line[equalIndex+1:])
+				}
+				fmt.Printf("value .%s.\n", value)
+				resultMap[header][key] = value
+			}
+		}
+	}
+
+	err = scanner.Err()
+	require.NoError(t, err, "Error reading ansible config file")
+
+	return resultMap, fileContentBuider.String()
 }

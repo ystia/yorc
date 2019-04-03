@@ -56,24 +56,27 @@ import (
 
 const taskContextOutput = "task_context"
 
-const ansibleConfig = `[defaults]
-host_key_checking=False
-timeout=30
-stdout_callback = yaml
-retry_files_save_path = #PLAY_PATH#
-nocows = 1
-`
-const ansibleFactCaching = `
-gathering = smart
-fact_caching = jsonfile
-fact_caching_connection = #FACTS_CACHE_PATH#/facts_cache
-`
-
 const vaultPassScript = `#!/usr/bin/env python
 
 import os
 print os.environ['VAULT_PASSWORD']
 `
+
+const ansibleConfigDefaultsHeader = "defaults"
+
+var ansibleConfig = map[string]map[string]string{
+	ansibleConfigDefaultsHeader: map[string]string{
+		"host_key_checking": "False",
+		"timeout":           "30",
+		"stdout_callback":   "yaml",
+		"nocows":            "1",
+	},
+}
+
+var ansibleFactCaching = map[string]string{
+	"gathering":    "smart",
+	"fact_caching": "jsonfile",
+}
 
 type ansibleRetriableError struct {
 	root error
@@ -986,16 +989,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
-	ansibleCfgContent := strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)
-	if e.CacheFacts {
-		ansibleCfgCacheContent := strings.Replace(ansibleFactCaching, "#FACTS_CACHE_PATH#", ansiblePath, -1)
-		ansibleCfgContent += ansibleCfgCacheContent
-	}
-	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansibleCfgContent), 0664); err != nil {
-		err = errors.Wrap(err, "Failed to write ansible.cfg file")
+	// Generating Ansible config
+	if err = e.generateAnsibleConfigurationFile(ansiblePath, ansibleRecipePath); err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
+
 	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
 	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(e.cfg.Ansible.OperationRemoteBaseDir+"_", "")
 	if e.operation.RelOp.IsRelationshipOperation {
@@ -1291,4 +1290,48 @@ func (e *executionCommon) vaultEncodeString(s, ansibleRecipePath string) (string
 	err := cmd.Run()
 	return outBuf.String(), errors.Wrapf(err, "failed to encode ansible vault token, stderr: %q", errBuf.String())
 
+}
+
+// generateAnsibleConfigurationFile generates an ansible.cfg file using default
+// settings which can be completed/overriden by settings providing in Yorc Server
+// configuration
+func (e *executionCommon) generateAnsibleConfigurationFile(
+	ansiblePath, ansibleRecipePath string) error {
+
+	// Adding settings whose values are known at runtime, related to the deployment
+	// directory path
+	ansibleConfig[ansibleConfigDefaultsHeader]["retry_files_save_path"] = ansibleRecipePath
+	if e.CacheFacts {
+		ansibleFactCaching["fact_caching_connection"] = path.Join(ansiblePath, "facts_cache")
+
+		for k, v := range ansibleFactCaching {
+			ansibleConfig[ansibleConfigDefaultsHeader][k] = v
+		}
+	}
+
+	// Ansible configuration user-defined values provided in Yorc Server configuration
+	// can override default settings
+	for header, settings := range e.cfg.Ansible.Config {
+		for k, v := range settings {
+			ansibleConfig[header][k] = v
+		}
+	}
+
+	var ansibleCfgContentBuilder strings.Builder
+	for header, settings := range ansibleConfig {
+		ansibleCfgContentBuilder.WriteString(fmt.Sprintf("[%s]\n", header))
+		for k, v := range settings {
+			ansibleCfgContentBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+		}
+	}
+
+	var err error
+	if err = ioutil.WriteFile(
+		filepath.Join(ansibleRecipePath, "ansible.cfg"),
+		[]byte(ansibleCfgContentBuilder.String()), 0664); err != nil {
+
+		err = errors.Wrap(err, "Failed to write ansible.cfg file")
+	}
+
+	return err
 }
