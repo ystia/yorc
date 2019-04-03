@@ -93,4 +93,72 @@ node_types:
           description: Monitor a submitted job for completion.
         cancel:
           description: Cancel a submitted job.
+
+policy_types:
+  yorc.policies.Monitoring:
+    abstract: true
+    derived_from: tosca.policies.Root
+    description: The yorc TOSCA Policy Type definition that is used to monitor computes and applications.
+    properties:
+      period:
+        type: string
+        description: >
+          Time interval duration used for monitoring as "5s" or "300ms"
+          Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+        required: true
+        default: "5s"
+      initial_delay:
+        type: integer
+        description: Number of seconds after the node has started before monitoring is initiated
+        default: 0
+        required: false
+        constraints:
+          - greater_or_equal: 0
+      timeout:
+        type: integer
+        description: Number of seconds after which the monitoring check times out.
+        default: 1
+        required: false
+        constraints:
+          - greater_or_equal: 1
+  yorc.policies.monitoring.HTTPMonitoring:
+    derived_from: yorc.policies.Monitoring
+    description: The yorc TOSCA Policy that is used to monitor applications with HTTP checks.
+    targets: [ tosca.nodes.SoftwareComponent ]
+    properties:
+      scheme:
+        type: string
+        description: Scheme to use for connecting to the target endpoint. Defaults to HTTP.
+        required: true
+        default: http
+        constraints:
+          - valid_values: [ http, https ]
+      port:
+        type: integer
+        description: Port to use for connecting the target endpoint.
+        required: true
+        default: 80
+        constraints:
+          - in_range: [ 1, 65535 ]
+      path:
+        type: string
+        description: Path to access on the target endpoint.
+        required: false
+      http_headers:
+        type: list
+        description: Custom headers to set in the request.
+        required: false
+        entry_schema:
+          type: string
+  yorc.policies.monitoring.TCPMonitoring:
+    derived_from: yorc.policies.Monitoring
+    description: The yorc TOSCA Policy that is used to monitor computes and applications with TCP checks.
+    targets: [ tosca.nodes.Compute, tosca.nodes.SoftwareComponent ]
+    properties:
+      port:
+        type: integer
+        description: Port to use for opening a socket.
+        required: true
+        constraints:
+          - in_range: [ 1, 65535 ]
           

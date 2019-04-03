@@ -130,6 +130,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 		storeOutputs(ctx, topology, topologyPrefix)
 		storeSubstitutionMappings(ctx, topology, topologyPrefix)
 		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
+		storePolicies(ctx, topology, topologyPrefix)
 	} else {
 		// For imported templates, storing substitution mappings if any
 		// as they contain details on service to application/node type mapping
@@ -385,6 +386,31 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		storeInterfaces(consulStore, node.Interfaces, nodePrefix, false)
 	}
 
+}
+
+// storePolicies stores topology policies
+func storePolicies(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	nodesPrefix := path.Join(topologyPrefix, "policies")
+	for _, policyMap := range topology.TopologyTemplate.Policies {
+		for policyName, policy := range policyMap {
+			nodePrefix := nodesPrefix + "/" + policyName
+			consulStore.StoreConsulKeyAsString(nodePrefix+"/type", policy.Type)
+
+			if policy.Targets != nil {
+				targetPrefix := nodePrefix + "/targets"
+				consulStore.StoreConsulKeyAsString(targetPrefix, strings.Join(policy.Targets, ","))
+			}
+			propertiesPrefix := nodePrefix + "/properties"
+			for propName, propValue := range policy.Properties {
+				storeValueAssignment(consulStore, propertiesPrefix+"/"+url.QueryEscape(propName), propValue)
+			}
+			metadataPrefix := nodePrefix + "/metadata/"
+			for metaName, metaValue := range policy.Metadata {
+				consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
+			}
+		}
+	}
 }
 
 // storePropertyDefinition stores a property definition
