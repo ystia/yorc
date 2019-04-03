@@ -17,9 +17,14 @@ package kubernetes
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"testing"
+	"context"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 )
 
 type k8s struct {
@@ -29,6 +34,13 @@ type k8s struct {
 func newTestSimpleK8s() *k8s {
 	client := k8s{}
 	client.clientset = fake.NewSimpleClientset()
+	return &client
+}
+
+func newTestK8s() *k8s {
+	client := k8s{
+		clientset: &fake.Clientset{},
+	}
 	return &client
 }
 
@@ -96,5 +108,27 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	ip, err := getExternalIPAdress(k8s.clientset, "testNode")
 	if err == nil || ip != "" {
 		t.Fatal("Getting a node with no externalIP should raise error and return empty ip")
+	}
+}
+
+func TestWaitForPVCDeletionAndDeleted(t *testing.T){
+	k8s := newTestK8s()
+	getCount := 0
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
+	//Simulate a deletion in progress : wait for 2 get that return the volume and then delete it   
+	k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if getCount < 2{
+			getCount++
+			pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
+			return true, pvc, nil
+		}else{
+			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
+		}
+	})
+	ctx := context.Background()
+	err := waitForPVCDeletion(ctx , k8s.clientset, pvc)
+	if err != nil{
+		t.Logf("Error : %s", err.Error())
+		t.Fatal("Deleted pvc should not raise an error")
 	}
 }
