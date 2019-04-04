@@ -633,6 +633,17 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 		assert.Equal(t, ansibleConfig[ansibleConfigDefaultsHeader][k], v, "Wrong ansible config value for %s", k)
 	}
 
+	// Test enabling fact caching, it should add configuration settings
+	execution.CacheFacts = true
+	initialConfigMapLength := len(ansibleConfig[ansibleConfigDefaultsHeader])
+	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
+	require.NoError(t, err, "Error generating ansible config file")
+	resultMap, content = readAnsibleConfigSettings(t, cfgPath)
+	assert.Equal(t,
+		initialConfigMapLength+len(ansibleFactCaching),
+		len(resultMap[ansibleConfigDefaultsHeader]),
+		"Missing entries in ansible config file with fact caching, content: %q", content)
+
 	// Test with ansible config settings in Yorc server configuration
 	// one of them overriding Yorc default ansible config setting
 	newSettingName := "special_context_filesystems"
@@ -647,7 +658,22 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 		},
 	}
 
-	// Test enabling fact caching
+	execution = &executionCommon{
+		cfg: yorcConfig}
+
+	initialConfigMapLength = len(ansibleConfig[ansibleConfigDefaultsHeader])
+	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
+	require.NoError(t, err, "Error generating ansible config file")
+
+	resultMap, content = readAnsibleConfigSettings(t, cfgPath)
+
+	assert.Equal(t,
+		initialConfigMapLength+1,
+		len(resultMap[ansibleConfigDefaultsHeader]),
+		"Missing entries in ansible config file with user-defined values, content: %q", content)
+
+	assert.Equal(t, newSettingValue, resultMap[ansibleConfigDefaultsHeader][newSettingName], "Wrong ansible config value for %s", newSettingName)
+	assert.Equal(t, overridenSettingValue, resultMap[ansibleConfigDefaultsHeader][overridenSettingName], "Wrong ansible config value for %s", overridenSettingName)
 
 }
 
