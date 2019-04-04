@@ -113,22 +113,34 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 
 func TestWaitForPVCDeletionAndDeleted(t *testing.T){
 	k8s := newTestK8s()
+	errorChan := make(chan struct{})
+	finishedChan := make(chan struct{})
 	getCount := 0
+	ctx := context.Background()
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-	//Simulate a deletion in progress : wait for 2 get that return the volume and then delete it   
+	//Simulate a deletion in progress : wait for 2 get that return the volume and then fakely delete it 
+	//If the API continue to receive GET, raise error  
 	k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
-		if getCount < 2{
-			getCount++
-			pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-			return true, pvc, nil
-		}else{
+		getCount ++
+		if getCount > 5{
+			close(errorChan)
+		}else if getCount > 2{
 			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
 		}
+		return true, pvc, nil
 	})
-	ctx := context.Background()
-	err := waitForPVCDeletion(ctx , k8s.clientset, pvc)
-	if err != nil{
-		t.Logf("Error : %s", err.Error())
-		t.Fatal("Deleted pvc should not raise an error")
+	go func(){
+		err := waitForPVCDeletion(ctx , k8s.clientset, pvc)
+		if err != nil{
+			t.Logf("Error : %s", err.Error())
+			t.Fatal("Deleted pvc should not raise an error")
+		}
+		close(finishedChan)
+	}()
+	select {
+		case <- errorChan:
+			t.Fatal("Function waitForPVCDeletion is still polling API even though it is deleted")
+		case <- finishedChan:
+			//Wait for test to be well done
 	}
 }
