@@ -223,6 +223,11 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			consulKeys.DependsOn = []string{fmt.Sprintf("openstack_networking_subnet_v2.%s_subnet", nodeName)}
 			commons.AddResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
+		case "yorc.nodes.openstack.ServerGroup":
+			err = g.generateServerGroup(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs, &cmdEnv)
+			if err != nil {
+				return false, nil, nil, nil, err
+			}
 		default:
 			return false, nil, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 		}
