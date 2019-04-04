@@ -408,9 +408,10 @@ All available configuration options for Ansible are:
 
 .. _option_ansible_config_cfg:
 
-  * ``config``: This is a complex structure allowing to define `Ansible configuration settings <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_  if you need a specific Anisble Configuration.
-    You should provide the Ansible Configuration section (for example ``defaults``, ``inventory``, ``ssh_connection``...),
-    then the list of parameters with their value provided as a string : for a boolean parameter, you would provide the string False or True. For example in a yaml, it would give in Yaml:
+  * ``config``: This is a complex structure allowing to define `Ansible configuration settings <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_  if you need a specific Ansible Configuration.
+    You should first provide the Ansible Configuration section (for example ``defaults``, ``inventory``, ``ssh_connection``...),
+    then the list of parameters belonging to this section; ie. the ``Ini key`` within the ``Ini Section`` as described in `Ansible documentation <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_ , these parameters value being provided as a string : for a boolean parameter, you would provide the string False or True.
+    For example, it would give in Yaml:
 
 .. code-block:: YAML
 
