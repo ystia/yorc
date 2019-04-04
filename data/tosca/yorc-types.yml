@@ -65,11 +65,18 @@ capability_types:
   yorc.capabilities.Assignable:
     derived_from: tosca.capabilities.Root
 
+  yorc.capabilities.Group:
+    derived_from: tosca.capabilities.Root
+
 relationship_types:
   yorc.relationships.AssignsTo:
     derived_from: tosca.relationships.Root
     description: This type represents an IP address assignment to a Compute node type.
     valid_target_types: [ yorc.capabilities.Assignable ]
+  yorc.relationships.MemberOf:
+    derived_from: tosca.relationships.Root
+    description: This type represents the membership of a node to a group.
+    valid_target_types: [ yorc.capabilities.Group ]
 
 node_types:
   yorc.nodes.Compute:

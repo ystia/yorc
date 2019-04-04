@@ -20,7 +20,11 @@ import (
 	"github.com/ystia/yorc/v3/registry"
 )
 
+const openstackDeploymentArtifact = "yorc.artifacts.openstack.Deployment"
+
 func init() {
 	reg := registry.GetRegistry()
 	reg.RegisterDelegates([]string{`yorc\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, commons.PreDestroyStorageInfraCallback), registry.BuiltinOrigin)
+	reg.RegisterOperationExecutor(
+		[]string{openstackDeploymentArtifact}, &defaultExecutor{}, registry.BuiltinOrigin)
 }

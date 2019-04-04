@@ -157,7 +157,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 			return errors.Errorf("failed to retrieve dependency btw any network and the subnet with name:%q", subnet.Name)
 		}
 
-		subnet.Network, err = attributeLookup(ctx, kv, deploymentID, "0", networkNode, "network_name")
+		subnet.Network, err = deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, networkNode, "0", "network_name")
 		if err != nil {
 			return err
 		}

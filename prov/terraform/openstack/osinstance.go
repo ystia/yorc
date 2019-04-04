@@ -359,5 +359,39 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = privateIPKey
 	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 
+	err = addServerGroupMembership(ctx, kv, deploymentID, nodeName, &instance)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add serverGroup membership for deploymentID:%q, nodeName:%q, instance:%q", deploymentID, nodeName, instanceName)
+	}
+
 	return commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env)
+}
+
+func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nodeName string, compute *ComputeInstance) error {
+	keys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "group")
+	if err != nil {
+		return err
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+
+	if len(keys) == 1 {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(keys[0])
+		serverGroup, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return err
+		}
+
+		id, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, serverGroup, "0", "id")
+		if err != nil {
+			return err
+		}
+
+		compute.SchedulerHints.Group = id
+		return nil
+	}
+
+	return errors.Errorf("Only one group requirement can be accepted for OpenStack compute with name:%q", nodeName)
+
 }

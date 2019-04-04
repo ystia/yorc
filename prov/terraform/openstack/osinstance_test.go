@@ -228,3 +228,39 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	assert.Equal(t, "TF_VAR_private_key="+string(yorcPem), env[0], "env var for private key expected")
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }
+
+func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
+				"provisioning_over_fip_allowed": false,
+				"private_network_name":          "test",
+			}}}
+	g := osGenerator{}
+	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
+	outputs := make(map[string]string, 0)
+
+	srv.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/ServerGroupPolicy_sg/type"):                []byte("yorc.nodes.openstack.ServerGroup"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/ServerGroupPolicy_sg/0/attributes/id"): []byte("my_sg_id"),
+	})
+
+	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "ComputeA", "0", &infrastructure, outputs, &env)
+	require.Nil(t, err)
+
+	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
+	instancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "ComputeA-0")
+
+	compute, ok := instancesMap["ComputeA-0"].(*ComputeInstance)
+	require.True(t, ok, "ComputeA-0 is not a ComputeInstance")
+	require.Equal(t, "yorc", compute.KeyPair)
+	require.Equal(t, "7d9bd308-d9c1-4952-a410-95b761672499", compute.ImageID)
+	require.Equal(t, "4", compute.FlavorID)
+	require.Equal(t, "my_sg_id", compute.SchedulerHints.Group)
+}
