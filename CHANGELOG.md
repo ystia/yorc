@@ -5,6 +5,7 @@
 ### FEATURES
 
 * Implement an anti-affinity placement policy for Openstack ([GH-84](https://github.com/ystia/yorc/issues/84))
+* Allow to configure Ansible configuration file ([GH-346](https://github.com/ystia/yorc/issues/346))
 
 ## 3.2.0-M4 (March 29, 2019)
 
