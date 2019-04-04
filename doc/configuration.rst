@@ -325,6 +325,13 @@ Below is an example of configuration file with Ansible configuration options.
             "entrypoint": ["python", "-c"],
             "command": ["import time;time.sleep(31536000);"]                                                   
           }            
+        },
+        "config": {
+          "defaults": {
+            "display_skipped_hosts": "False",
+            "special_context_filesystems": "nfs,vboxsf,fuse,ramfs,myspecialfs",
+            "timeout": "60"
+          }            
         }  
       }
     }
@@ -398,6 +405,21 @@ All available configuration options for Ansible are:
       .. _option_ansible_sandbox_hosted_ops_default_sandbox_env_cfg:
 
       * ``env``: An optional list environment variables to set when creating the container. The format of each variable is ``var_name=value``.
+
+.. _option_ansible_config_cfg:
+
+  * ``config``: This is a complex structure allowing to define `Ansible configuration settings <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_  if you need a specific Anisble Configuration.
+    You should provide the Ansible Configuration section (for example ``defaults``, ``inventory``, ``ssh_connection``...),
+    then the list of parameters with their value provided as a string : for a boolean parameter, you would provide the string False or True. For example in a yaml, it would give in Yaml:
+
+.. code-block:: YAML
+
+  ansible:
+    config:
+      defaults:
+        display_skipped_hosts: "False"
+        special_context_filesystems: "nfs,vboxsf,fuse,ramfs,myspecialfs"
+        timeout: "60"
 
 
 Ansible performance considerations
