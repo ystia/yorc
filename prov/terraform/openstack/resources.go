@@ -34,6 +34,7 @@ type ComputeInstance struct {
 	AvailabilityZone string           `json:"availability_zone,omitempty"`
 	Networks         []ComputeNetwork `json:"network,omitempty"`
 	KeyPair          string           `json:"key_pair,omitempty"`
+	SchedulerHints   SchedulerHints   `json:"scheduler_hints,omitempty"`
 
 	commons.Resource
 
@@ -115,4 +116,16 @@ type ComputeVolumeAttach struct {
 	VolumeID   string `json:"volume_id"`
 	InstanceID string `json:"instance_id"`
 	Device     string `json:"device,omitempty"`
+}
+
+// ServerGroup represents an OpenStack Server group
+// https://www.terraform.io/docs/providers/openstack/r/compute_servergroup_v2.html
+type ServerGroup struct {
+	Name     string   `json:"name"`
+	Policies []string `json:"policies"`
+}
+
+// SchedulerHints represents a scheduler_hints block for computeInstance
+type SchedulerHints struct {
+	Group string `json:"group"`
 }

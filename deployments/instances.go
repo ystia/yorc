@@ -16,7 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v3/log"
 	"path"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -66,6 +68,35 @@ func GetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string) (
 func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) error {
 	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName), nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+// LookupInstanceAttributeValue executes a lookup to retrieve instance attribute value when attribute can be long to retrieve
+func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, attribute string, nestedKeys ...string) (string, error) {
+	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
+	res := make(chan string, 1)
+	go func() {
+		for {
+			if attr, _ := GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute, nestedKeys...); attr != nil && attr.RawString() != "" {
+				if attr != nil && attr.RawString() != "" {
+					res <- attr.RawString()
+					return
+				}
+			}
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	select {
+	case val := <-res:
+		return val, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }
 
 // GetInstanceAttributeValue retrieves the given attribute for a node instance

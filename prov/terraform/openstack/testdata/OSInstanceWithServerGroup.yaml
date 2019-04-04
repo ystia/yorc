@@ -1,0 +1,56 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: SimpleApp
+  template_version: 0.1.0-SNAPSHOT
+  template_author: yorc
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    ComputeA:
+      metadata:
+        a4c_edit_x: 0
+        a4c_edit_y: "-34"
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "7d9bd308-d9c1-4952-a410-95b761672499"
+        flavor: 4
+        key_pair: yorc
+      requirements:
+        - ComputeA_ServerGroupPolicy_sg:
+            type_requirement: group
+            node: ServerGroupPolicy_sg
+            capability: yorc.capabilities.Group
+            relationship: yorc.relationships.MemberOf
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 2
+            default_instances: 2
+    ServerGroupPolicy_sg:
+      type: yorc.nodes.openstack.ServerGroup
+      properties:
+        policy: "anti-affinity"
+        name: "sg-SimpleApp-ServerGroupPolicy"
+  policies:
+    - ServerGroupPolicy:
+        type: yorc.openstack.policies.ServerGroupPolicy
+        targets: [ ComputeA ]
+        properties:
+          policy: "anti-affinity"
