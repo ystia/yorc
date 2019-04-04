@@ -16,6 +16,7 @@ package monitoring
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -25,23 +26,40 @@ import (
 // CheckStatus x ENUM(
 // PASSING,
 // CRITICAL
+// WARNING
 // )
 type CheckStatus int
 
-const (
-	// PASSING is the status of a passing check
-	PASSING CheckStatus = iota
-	// CRITICAL is the status of a critical check
-	CRITICAL
-)
+// CheckType x ENUM(
+// TCP,
+// HTTP
+// )
+type CheckType int
+
+type tcpConnection struct {
+	address string
+	port    int
+}
+
+type httpConnection struct {
+	httpClient *http.Client
+	scheme     string
+	address    string
+	port       int
+	path       string
+	headersMap map[string]string
+	header     http.Header
+}
 
 // Check represents a registered check
 type Check struct {
 	ID           string
-	TCPAddress   string
 	TimeInterval time.Duration
 	Report       CheckReport
+	CheckType    CheckType
 
+	tcpConn  tcpConnection
+	httpConn httpConnection
 	stop     bool
 	stopLock sync.Mutex
 	chStop   chan struct{}

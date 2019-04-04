@@ -17,7 +17,9 @@ package monitoring
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/go-cleanhttp"
 	"net"
+	"net/http"
 	"path"
 	"strings"
 	"time"
@@ -93,14 +95,80 @@ func (c *Check) run() {
 }
 
 func (c *Check) check() {
-	conn, err := net.DialTimeout("tcp", c.TCPAddress, c.timeout)
+	if c.CheckType == CheckTypeTCP {
+		c.checkTCP()
+	} else if c.CheckType == CheckTypeHTTP {
+		c.checkHTTP()
+	}
+}
+
+func (c *Check) checkTCP() {
+	tcpAddr := fmt.Sprintf("%s:%d", c.tcpConn.address, c.tcpConn.port)
+	conn, err := net.DialTimeout("tcp", tcpAddr, c.timeout)
 	if err != nil {
-		log.Debugf("[WARN] TCP check (id:%q) connection failed for address:%s", c.ID, c.TCPAddress)
+		log.Debugf("[WARN] TCP check (id:%q) connection failed for address:%s", c.ID, tcpAddr)
 		c.updateStatus(CheckStatusCRITICAL)
 		return
 	}
 	conn.Close()
 	c.updateStatus(CheckStatusPASSING)
+}
+
+func (c *Check) checkHTTP() {
+	// instantiate httpClient if not already done
+	if c.httpConn.httpClient == nil {
+		trans := cleanhttp.DefaultTransport()
+		trans.DisableKeepAlives = true
+
+		c.httpConn.httpClient = &http.Client{
+			Timeout:   c.timeout,
+			Transport: trans,
+		}
+	}
+
+	// Create HTTP Request
+	url := fmt.Sprintf("%s://%s:%d", c.httpConn.scheme, c.httpConn.address, c.httpConn.port)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		c.updateStatus(CheckStatusCRITICAL)
+		return
+	}
+
+	// instantiate headers
+	if c.httpConn.header == nil {
+		c.httpConn.header = make(http.Header)
+		for k, v := range c.httpConn.headersMap {
+			c.httpConn.header.Add(k, v)
+		}
+
+		if c.httpConn.header.Get("Accept") == "" {
+			c.httpConn.header.Set("Accept", "text/plain, text/*, */*")
+		}
+	}
+	req.Header = c.httpConn.header
+
+	// Send request
+	resp, err := c.httpConn.httpClient.Do(req)
+	if err != nil {
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		c.updateStatus(CheckStatusCRITICAL)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check response status code
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		c.updateStatus(CheckStatusPASSING)
+
+	} else if resp.StatusCode == 429 {
+		// 429 Too Many Requests (RFC 6585)
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		c.updateStatus(CheckStatusWARNING)
+	} else {
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		c.updateStatus(CheckStatusCRITICAL)
+	}
 }
 
 func (c *Check) exist() bool {
@@ -142,7 +210,10 @@ func (c *Check) notify() {
 	} else if c.Report.Status == CheckStatusCRITICAL {
 		// Node in ERROR
 		nodeState = tosca.NodeStateError
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelERROR, c.Report.DeploymentID).Registerf("Monitoring Check returned a connection failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelERROR, c.Report.DeploymentID).Registerf("Monitoring Check returned a failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+	} else {
+		nodeState = tosca.NodeStateError
+		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelWARN, c.Report.DeploymentID).Registerf("Monitoring Check returned a warning for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
 	}
 
 	// Update the node state

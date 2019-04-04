@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-types
   template_author: yorc
-  template_version: 1.0.0
+  template_version: 1.1.0
 
 imports:
   - normative: <normative-types.yml>
@@ -100,27 +100,13 @@ policy_types:
     derived_from: tosca.policies.Root
     description: The yorc TOSCA Policy Type definition that is used to monitor computes and applications.
     properties:
-      period:
+      time_interval:
         type: string
         description: >
           Time interval duration used for monitoring as "5s" or "300ms"
           Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
         required: true
         default: "5s"
-      initial_delay:
-        type: integer
-        description: Number of seconds after the node has started before monitoring is initiated
-        default: 0
-        required: false
-        constraints:
-          - greater_or_equal: 0
-      timeout:
-        type: integer
-        description: Number of seconds after which the monitoring check times out.
-        default: 1
-        required: false
-        constraints:
-          - greater_or_equal: 1
   yorc.policies.monitoring.HTTPMonitoring:
     derived_from: yorc.policies.Monitoring
     description: The yorc TOSCA Policy that is used to monitor applications with HTTP checks.
@@ -145,7 +131,7 @@ policy_types:
         description: Path to access on the target endpoint.
         required: false
       http_headers:
-        type: list
+        type: map
         description: Custom headers to set in the request.
         required: false
         entry_schema:

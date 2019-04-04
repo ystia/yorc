@@ -56,7 +56,7 @@ require (
 	github.com/goware/urlx v0.0.0-20160722204212-8bb4a2e4339f55b15164907177e96e9faf885504
 	github.com/gregjones/httpcache v0.0.0-20190203031600-7a902570cb17 // indirect
 	github.com/hashicorp/consul v1.2.3
-	github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d // indirect
+	github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d
 	github.com/hashicorp/go-hclog v0.0.0-20190109152822-4783caec6f2e // indirect
 	github.com/hashicorp/go-memdb v0.0.0-20181108192425-032f93b25bec // indirect
 	github.com/hashicorp/go-multierror v1.0.0

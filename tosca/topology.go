@@ -59,7 +59,7 @@ type TopologyTemplate struct {
 	Outputs            map[string]ParameterDefinition `yaml:"outputs,omitempty"`
 	SubstitionMappings *SubstitutionMapping           `yaml:"substitution_mappings,omitempty"`
 	Workflows          map[string]Workflow
-	Policies           []PolicyMap                    `yaml:"policies,omitempty"`
+	Policies           []PolicyMap `yaml:"policies,omitempty"`
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
 }

@@ -112,7 +112,7 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 	instance := "0"
 	expectedCheck := NewCheck(dep, node, instance)
 
-	err := defaultMonManager.registerCheck(dep, node, instance, "1.2.3.4", 22, 1*time.Second)
+	err := defaultMonManager.registerTCPCheck(dep, node, instance, "1.2.3.4", 22, 1*time.Second)
 	require.Nil(t, err, "Unexpected error while adding check")
 
 	time.Sleep(2 * time.Second)

@@ -27,13 +27,16 @@ const (
 	CheckStatusPASSING CheckStatus = iota
 	// CheckStatusCRITICAL is a CheckStatus of type CRITICAL
 	CheckStatusCRITICAL
+	// CheckStatusWARNING is a CheckStatus of type WARNING
+	CheckStatusWARNING
 )
 
-const _CheckStatusName = "PASSINGCRITICAL"
+const _CheckStatusName = "PASSINGCRITICALWARNING"
 
 var _CheckStatusMap = map[CheckStatus]string{
 	0: _CheckStatusName[0:7],
 	1: _CheckStatusName[7:15],
+	2: _CheckStatusName[15:22],
 }
 
 func (i CheckStatus) String() string {
@@ -44,10 +47,12 @@ func (i CheckStatus) String() string {
 }
 
 var _CheckStatusValue = map[string]CheckStatus{
-	_CheckStatusName[0:7]:                   0,
-	strings.ToLower(_CheckStatusName[0:7]):  0,
-	_CheckStatusName[7:15]:                  1,
-	strings.ToLower(_CheckStatusName[7:15]): 1,
+	_CheckStatusName[0:7]:                    0,
+	strings.ToLower(_CheckStatusName[0:7]):   0,
+	_CheckStatusName[7:15]:                   1,
+	strings.ToLower(_CheckStatusName[7:15]):  1,
+	_CheckStatusName[15:22]:                  2,
+	strings.ToLower(_CheckStatusName[15:22]): 2,
 }
 
 // ParseCheckStatus attempts to convert a string to a CheckStatus
@@ -56,4 +61,40 @@ func ParseCheckStatus(name string) (CheckStatus, error) {
 		return CheckStatus(x), nil
 	}
 	return CheckStatus(0), fmt.Errorf("%s is not a valid CheckStatus", name)
+}
+
+const (
+	// CheckTypeTCP is a CheckType of type TCP
+	CheckTypeTCP CheckType = iota
+	// CheckTypeHTTP is a CheckType of type HTTP
+	CheckTypeHTTP
+)
+
+const _CheckTypeName = "TCPHTTP"
+
+var _CheckTypeMap = map[CheckType]string{
+	0: _CheckTypeName[0:3],
+	1: _CheckTypeName[3:7],
+}
+
+func (i CheckType) String() string {
+	if str, ok := _CheckTypeMap[i]; ok {
+		return str
+	}
+	return fmt.Sprintf("CheckType(%d)", i)
+}
+
+var _CheckTypeValue = map[string]CheckType{
+	_CheckTypeName[0:3]:                  0,
+	strings.ToLower(_CheckTypeName[0:3]): 0,
+	_CheckTypeName[3:7]:                  1,
+	strings.ToLower(_CheckTypeName[3:7]): 1,
+}
+
+// ParseCheckType attempts to convert a string to a CheckType
+func ParseCheckType(name string) (CheckType, error) {
+	if x, ok := _CheckTypeValue[name]; ok {
+		return CheckType(x), nil
+	}
+	return CheckType(0), fmt.Errorf("%s is not a valid CheckType", name)
 }
