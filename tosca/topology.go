@@ -44,7 +44,7 @@ type Topology struct {
 	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
 	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty"`
 	// TODO Group Types
-	// TODO Policy Types
+	PolicyTypes map[string]PolicyType `yaml:"policy_types,omitempty"`
 
 	TopologyTemplate TopologyTemplate `yaml:"topology_template"`
 }

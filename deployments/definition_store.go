@@ -146,6 +146,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	}
 	storeCapabilityTypes(ctx, topology, topologyPrefix, importPath)
 	storeArtifactTypes(ctx, topology, topologyPrefix, importPath)
+	storePolicyTypes(ctx, topology, topologyPrefix, importPath)
 
 	// Detect potential cycles in inline workflows
 	if err := checkNestedWorkflows(topology); err != nil {
@@ -761,6 +762,22 @@ func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPr
 			propPrefix := propertiesPrefix + "/" + propName
 			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
 		}
+	}
+}
+
+// storePolicyTypes stores topology policy types
+func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	for policyName, policyType := range topology.PolicyTypes {
+		key := path.Join(topologyPrefix, "types", policyName)
+		storeCommonType(consulStore, policyType.Type, key, importPath)
+		consulStore.StoreConsulKeyAsString(key+"/name", policyName)
+		propertiesPrefix := key + "/properties"
+		for propName, propDefinition := range policyType.Properties {
+			propPrefix := propertiesPrefix + "/" + propName
+			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
+		}
+		consulStore.StoreConsulKeyAsString(key+"/targets", strings.Join(policyType.Targets, ","))
 	}
 }
 

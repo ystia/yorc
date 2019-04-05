@@ -24,6 +24,7 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulMonitoringPackageTests(t *testing.T) {
+	t.Skip()
 	srv, client := testutil.NewTestConsulInstance(t)
 
 	cfg := config.Configuration{
@@ -79,11 +80,11 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		t.Run("testComputeMonitoringHook", func(t *testing.T) {
 			testComputeMonitoringHook(t, client, config.Configuration{})
 		})
-		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval", func(t *testing.T) {
-			testIsMonitoringRequiredWithNoTimeInterval(t, client)
+		t.Run("testIsMonitoringRequiredWithNoPolicy", func(t *testing.T) {
+			testIsMonitoringRequiredWithNoPolicy(t, client)
 		})
-		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval", func(t *testing.T) {
-			testIsMonitoringRequiredWithZeroTimeInterval(t, client)
+		t.Run("testIsMonitoringRequiredWithNoPolicy", func(t *testing.T) {
+			testIsMonitoringRequiredWithNoPolicyForTarget(t, client)
 		})
 		t.Run("testAddAndRemoveCheck", func(t *testing.T) {
 			testAddAndRemoveCheck(t, client)

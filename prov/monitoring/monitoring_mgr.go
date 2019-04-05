@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 )
@@ -247,40 +246,6 @@ func (mgr *monitoringMgr) setHTTPConnection(check *Check, address string, port i
 	check.httpConn.port = port
 }
 
-func (mgr *monitoringMgr) isMonitoringRequired(deploymentID, nodeName string) (bool, time.Duration, error) {
-	// Check if the node is a compute
-	var isCompute bool
-	isCompute, err := deployments.IsNodeDerivedFrom(mgr.cc.KV(), deploymentID, nodeName, "tosca.nodes.Compute")
-	if err != nil {
-		return false, 0, err
-	}
-	if !isCompute {
-		return false, 0, nil
-	}
-
-	// monitoring_time_interval must be set to positive value
-	found, val, err := deployments.GetNodeMetadata(mgr.cc.KV(), deploymentID, nodeName, "monitoring_time_interval")
-	if err != nil {
-		return false, 0, err
-	}
-	if !found {
-		return false, 0, nil
-	}
-
-	var t int
-	if t, err = strconv.Atoi(val); err != nil {
-		return false, 0, err
-	}
-	if t > 0 {
-		duration, err := time.ParseDuration(val + "s")
-		if err != nil {
-			return false, 0, err
-		}
-		return true, duration, nil
-	}
-	return false, 0, nil
-}
-
 // registerTCPCheck allows to register a TCP check
 func (mgr *monitoringMgr) registerTCPCheck(deploymentID, nodeName, instance, ipAddress string, port int, interval time.Duration) error {
 	id := buildID(deploymentID, nodeName, instance)
@@ -413,6 +378,14 @@ func (mgr *monitoringMgr) flagCheckForRemoval(deploymentID, nodeName, instance s
 	id := buildID(deploymentID, nodeName, instance)
 	log.Debugf("PreUnregisterCheck check with id:%q", id)
 	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
+	kvp, _, err := mgr.cc.KV().Get(checkPath, nil)
+	if err != nil {
+		return err
+	}
+	if kvp == nil || string(kvp.Value) == "" {
+		// nothing to do : the check hasn't been registered
+		return nil
+	}
 	return consulutil.StoreConsulKeyAsString(path.Join(checkPath, ".unregisterFlag"), "true")
 }
 
