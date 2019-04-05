@@ -15,16 +15,15 @@
 package kubernetes
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"testing"
-	"context"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 )
 
 type k8s struct {
@@ -111,36 +110,36 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	}
 }
 
-func TestWaitForPVCDeletionAndDeleted(t *testing.T){
+func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
 	k8s := newTestK8s()
 	errorChan := make(chan struct{})
 	finishedChan := make(chan struct{})
 	getCount := 0
 	ctx := context.Background()
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-	//Simulate a deletion in progress : wait for 2 get that return the volume and then fakely delete it 
-	//If the API continue to receive GET, raise error  
+	//Simulate a deletion in progress : wait for 2 get that return the volume and then fakely delete it
+	//If the API continue to receive GET, raise error
 	k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
-		getCount ++
-		if getCount > 5{
+		getCount++
+		if getCount > 5 {
 			close(errorChan)
-		}else if getCount > 2{
+		} else if getCount > 2 {
 			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
 		}
 		return true, pvc, nil
 	})
-	go func(){
-		err := waitForPVCDeletion(ctx , k8s.clientset, pvc)
-		if err != nil{
+	go func() {
+		err := waitForPVCDeletion(ctx, k8s.clientset, pvc)
+		if err != nil {
 			t.Logf("Error : %s", err.Error())
 			t.Fatal("Deleted pvc should not raise an error")
 		}
 		close(finishedChan)
 	}()
 	select {
-		case <- errorChan:
-			t.Fatal("Function waitForPVCDeletion is still polling API even though it is deleted")
-		case <- finishedChan:
-			//Wait for test to be well done
+	case <-errorChan:
+		t.Fatal("Function waitForPVCDeletion is still polling API even though it is deleted")
+	case <-finishedChan:
+		//Wait for test to be well done
 	}
 }

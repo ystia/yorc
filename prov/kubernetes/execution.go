@@ -438,6 +438,10 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create persistent volume claim %s", pvc.Name)
 		}
+		err = waitForPVCCompletion(ctx, clientset, pvc)
+		if err != nil {
+			return err
+		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s PVC %s created in namespace %s", pvc.Name, namespace)
 
 	case k8sDeleteOperation:

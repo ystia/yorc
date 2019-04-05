@@ -345,3 +345,17 @@ func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc
 	}, ctx.Done())
 
 }
+
+func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		if pvc.Status.Phase == corev1.ClaimBound {
+			return true, nil
+		}
+		return false, nil
+	}, ctx.Done())
+
+}
