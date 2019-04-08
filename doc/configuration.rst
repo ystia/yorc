@@ -436,8 +436,9 @@ And when :ref:`ansible fact caching <option_ansible_cache_facts_cmd>` is enabled
   * ``gathering: "smart"``, to set Ansible fact gathering to smart: each new host that has no facts discovered will be scanned
   * ``fact_caching: "jsonfile"``, to use a json file-based cache plugin
 	
-Be careful when overriding these settings defined by default by the Orchestrator, as it might lead to unpredictable results.
-
+.. warning::
+    Be careful when overriding these settings defined by default by the Orchestrator,
+    as it might lead to unpredictable results.
 
 Ansible performance considerations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
