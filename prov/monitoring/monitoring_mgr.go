@@ -378,12 +378,12 @@ func (mgr *monitoringMgr) flagCheckForRemoval(deploymentID, nodeName, instance s
 	id := buildID(deploymentID, nodeName, instance)
 	log.Debugf("PreUnregisterCheck check with id:%q", id)
 	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
-	kvp, _, err := mgr.cc.KV().Get(checkPath, nil)
+	kvps, _, err := mgr.cc.KV().List(checkPath, nil)
 	if err != nil {
 		return err
 	}
-	if kvp == nil || string(kvp.Value) == "" {
-		// nothing to do : the check hasn't been registered
+	if kvps == nil || len(kvps) == 0 {
+		// nothing to do : the check hasn't been registered or has already been removed
 		return nil
 	}
 	return consulutil.StoreConsulKeyAsString(path.Join(checkPath, ".unregisterFlag"), "true")
