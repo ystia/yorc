@@ -1312,6 +1312,9 @@ func (e *executionCommon) generateAnsibleConfigurationFile(
 	// Ansible configuration user-defined values provided in Yorc Server configuration
 	// can override default settings
 	for header, settings := range e.cfg.Ansible.Config {
+		if _, ok := ansibleConfig[header]; !ok {
+			ansibleConfig[header] = make(map[string]string, len(settings))
+		}
 		for k, v := range settings {
 			ansibleConfig[header][k] = v
 		}
