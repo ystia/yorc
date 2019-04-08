@@ -151,7 +151,11 @@ func (mgr *monitoringMgr) startMonitoring() {
 						// Remove it from the manager checks
 						delete(mgr.checks, id)
 						// Unregister it definitively
-						mgr.unregisterCheck(id)
+						err = mgr.unregisterCheck(id)
+						if err != nil {
+							handleError(err)
+							continue
+						}
 					}
 					continue
 				}
@@ -205,10 +209,25 @@ func (mgr *monitoringMgr) startMonitoring() {
 						continue
 					}
 				}
-				if check.CheckType == CheckTypeTCP {
-					mgr.setTCPConnection(check, address, port)
-				} else if check.CheckType == CheckTypeHTTP {
-					mgr.setHTTPConnection(key, check, address, port)
+
+				// In function of check type, create related checkExecution
+				switch check.CheckType {
+				case CheckTypeTCP:
+					check.execution = &tcpCheckExecution{
+						port:    port,
+						address: address,
+					}
+				case CheckTypeHTTP:
+					execution := &httpCheckExecution{
+						port:    port,
+						address: address,
+					}
+					check.execution = execution
+					err = mgr.addHTTPExecutionAdditionalFields(key, execution, address, port)
+					if err != nil {
+						handleError(err)
+						continue
+					}
 				}
 
 				reportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
@@ -236,30 +255,22 @@ func (mgr *monitoringMgr) startMonitoring() {
 	}()
 }
 
-func (mgr *monitoringMgr) setTCPConnection(check *Check, address string, port int) {
-	check.tcpConn.address = address
-	check.tcpConn.port = port
-}
-
-func (mgr *monitoringMgr) setHTTPConnection(key string, check *Check, address string, port int) error {
-	check.httpConn.address = address
-	check.httpConn.port = port
-
+func (mgr *monitoringMgr) addHTTPExecutionAdditionalFields(key string, execution *httpCheckExecution, address string, port int) error {
 	kvp, _, err := mgr.cc.KV().Get(path.Join(key, "scheme"), nil)
 	if err != nil {
 		return err
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Errorf("Missing mandatory field \"scheme\" for check with ID:%q", check.ID)
+		return errors.Errorf("Missing mandatory field \"scheme\" for check with kay path:%q", key)
 	}
-	check.httpConn.scheme = string(kvp.Value)
+	execution.scheme = string(kvp.Value)
 
 	kvp, _, err = mgr.cc.KV().Get(path.Join(key, "path"), nil)
 	if err != nil {
 		return err
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
-		check.httpConn.path = string(kvp.Value)
+		execution.path = string(kvp.Value)
 	}
 
 	kvps, _, err := mgr.cc.KV().List(path.Join(key, "headers"), nil)
@@ -267,9 +278,9 @@ func (mgr *monitoringMgr) setHTTPConnection(key string, check *Check, address st
 		return err
 	}
 	for _, kvp := range kvps {
-		check.httpConn.headersMap = make(map[string]string, len(kvps))
+		execution.headersMap = make(map[string]string, len(kvps))
 		if kvp.Value != nil {
-			check.httpConn.headersMap[path.Base(kvp.Key)] = string(kvp.Value)
+			execution.headersMap[path.Base(kvp.Key)] = string(kvp.Value)
 		}
 	}
 	return nil

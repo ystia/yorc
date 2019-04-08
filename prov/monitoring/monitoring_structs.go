@@ -16,7 +16,6 @@ package monitoring
 
 import (
 	"context"
-	"net/http"
 	"sync"
 	"time"
 )
@@ -36,21 +35,6 @@ type CheckStatus int
 // )
 type CheckType int
 
-type tcpConnection struct {
-	address string
-	port    int
-}
-
-type httpConnection struct {
-	httpClient *http.Client
-	scheme     string
-	address    string
-	port       int
-	path       string
-	headersMap map[string]string
-	header     http.Header
-}
-
 // Check represents a registered check
 type Check struct {
 	ID           string
@@ -58,13 +42,12 @@ type Check struct {
 	Report       CheckReport
 	CheckType    CheckType
 
-	tcpConn  tcpConnection
-	httpConn httpConnection
-	stop     bool
-	stopLock sync.Mutex
-	chStop   chan struct{}
-	timeout  time.Duration
-	ctx      context.Context
+	stop      bool
+	stopLock  sync.Mutex
+	chStop    chan struct{}
+	timeout   time.Duration
+	ctx       context.Context
+	execution checkExecution
 }
 
 // CheckReport represents a node check report including its status
