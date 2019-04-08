@@ -130,7 +130,7 @@ func (c *Check) checkHTTP() {
 	url := fmt.Sprintf("%s://%s:%d", c.httpConn.scheme, c.httpConn.address, c.httpConn.port)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%q", c.ID, url)
 		c.updateStatus(CheckStatusCRITICAL)
 		return
 	}
@@ -151,7 +151,7 @@ func (c *Check) checkHTTP() {
 	// Send request
 	resp, err := c.httpConn.httpClient.Do(req)
 	if err != nil {
-		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%q", c.ID, url)
 		c.updateStatus(CheckStatusCRITICAL)
 		return
 	}
@@ -163,10 +163,10 @@ func (c *Check) checkHTTP() {
 
 	} else if resp.StatusCode == 429 {
 		// 429 Too Many Requests (RFC 6585)
-		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%q", c.ID, url)
 		c.updateStatus(CheckStatusWARNING)
 	} else {
-		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%s", c.ID, url)
+		log.Debugf("[WARN] check HTTP request (id:%q) failed for url:%q", c.ID, url)
 		c.updateStatus(CheckStatusCRITICAL)
 	}
 }

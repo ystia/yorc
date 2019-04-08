@@ -153,8 +153,7 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 
 	switch policyType {
 	case httpMonitoring:
-		//TODO
-		return nil
+		return applyHTTPMonitoringPolicy(kv, policyName, deploymentID, target, timeInterval, port, instances)
 	case tcpMonitoring:
 		return applyTCPMonitoringPolicy(deploymentID, target, timeInterval, port, instances)
 	default:
@@ -164,17 +163,66 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 
 func applyTCPMonitoringPolicy(deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
-		ipAddress, err := deployments.GetInstanceAttributeValue(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
+		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
 		if err != nil {
-			return errors.Errorf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
+			return err
 		}
-		if ipAddress == nil || ipAddress.RawString() == "" {
-			return errors.Errorf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID:%q", target, instance, deploymentID)
-		}
-
-		if err := defaultMonManager.registerTCPCheck(deploymentID, target, instance, ipAddress.RawString(), port, timeInterval); err != nil {
-			return errors.Errorf("Failed to register check for node name:%q due to: %v", target, err)
+		if err := defaultMonManager.registerTCPCheck(deploymentID, target, instance, ipAddress, port, timeInterval); err != nil {
+			return errors.Errorf("Failed to register TCP check for node name:%q due to: %v", target, err)
 		}
 	}
 	return nil
+}
+
+func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
+	for _, instance := range instances {
+		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
+		if err != nil {
+			return err
+		}
+		schemeValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "scheme")
+		if err != nil || schemeValue == nil || schemeValue.RawString() == "" {
+			return errors.Errorf("Failed to retrieve scheme for monitoring policy:%q due to: %v", policyName, err)
+		}
+		var urlPath string
+		pathValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "path")
+		if pathValue != nil && pathValue.RawString() != "" {
+			urlPath = pathValue.RawString()
+		}
+		var d map[string]interface{}
+		var headersMap map[string]string
+		headersValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "http_headers")
+		if headersValue != nil && headersValue.RawString() != "" {
+			var ok bool
+			d, ok = headersValue.Value.(map[string]interface{})
+			if !ok {
+				return errors.New("failed to retrieve HTTP headers map from Tosca Value: not expected type")
+			}
+
+			headersMap = make(map[string]string, len(d))
+			for k, v := range d {
+				v, ok := v.(string)
+				if !ok {
+					return errors.Errorf("failed to retrieve string value from headers map from Tosca Value:%q not expected type", v)
+				}
+				headersMap[k] = v
+			}
+		}
+
+		if err := defaultMonManager.registerHTTPCheck(deploymentID, target, instance, ipAddress, schemeValue.RawString(), urlPath, port, headersMap, timeInterval); err != nil {
+			return errors.Errorf("Failed to register HTTP check for node name:%q due to: %v", target, err)
+		}
+	}
+	return nil
+}
+
+func retrieveIPAddress(deploymentID, target, instance string) (string, error) {
+	ipAddress, err := deployments.GetInstanceAttributeValue(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
+	if err != nil {
+		return "", errors.Errorf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
+	}
+	if ipAddress == nil || ipAddress.RawString() == "" {
+		return "", errors.Errorf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID:%q", target, instance, deploymentID)
+	}
+	return ipAddress.RawString(), nil
 }

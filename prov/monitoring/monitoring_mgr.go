@@ -208,7 +208,7 @@ func (mgr *monitoringMgr) startMonitoring() {
 				if check.CheckType == CheckTypeTCP {
 					mgr.setTCPConnection(check, address, port)
 				} else if check.CheckType == CheckTypeHTTP {
-					mgr.setHTTPConnection(check, address, port)
+					mgr.setHTTPConnection(key, check, address, port)
 				}
 
 				reportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
@@ -241,9 +241,38 @@ func (mgr *monitoringMgr) setTCPConnection(check *Check, address string, port in
 	check.tcpConn.port = port
 }
 
-func (mgr *monitoringMgr) setHTTPConnection(check *Check, address string, port int) {
+func (mgr *monitoringMgr) setHTTPConnection(key string, check *Check, address string, port int) error {
 	check.httpConn.address = address
 	check.httpConn.port = port
+
+	kvp, _, err := mgr.cc.KV().Get(path.Join(key, "scheme"), nil)
+	if err != nil {
+		return err
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return errors.Errorf("Missing mandatory field \"scheme\" for check with ID:%q", check.ID)
+	}
+	check.httpConn.scheme = string(kvp.Value)
+
+	kvp, _, err = mgr.cc.KV().Get(path.Join(key, "path"), nil)
+	if err != nil {
+		return err
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		check.httpConn.path = string(kvp.Value)
+	}
+
+	kvps, _, err := mgr.cc.KV().List(path.Join(key, "headers"), nil)
+	if err != nil {
+		return err
+	}
+	for _, kvp := range kvps {
+		check.httpConn.headersMap = make(map[string]string, len(kvps))
+		if kvp.Value != nil {
+			check.httpConn.headersMap[path.Base(kvp.Key)] = string(kvp.Value)
+		}
+	}
+	return nil
 }
 
 // registerTCPCheck allows to register a TCP check
