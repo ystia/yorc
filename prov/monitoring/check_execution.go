@@ -20,6 +20,7 @@ import (
 	"github.com/ystia/yorc/v3/log"
 	"net"
 	"net/http"
+	"path"
 	"time"
 )
 
@@ -67,6 +68,9 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) CheckStatus {
 
 	// Create HTTP Request
 	url := fmt.Sprintf("%s://%s:%d", ce.scheme, ce.address, ce.port)
+	if ce.path != "" {
+		url = path.Join(url, ce.path)
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%+v", url, err)
