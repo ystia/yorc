@@ -17,12 +17,15 @@ package slurm
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"path"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
@@ -124,6 +127,8 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	if !existStdOut && !existStdErr {
 		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
+
+	deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", info["JobState"])
 
 	// See if monitoring must be continued and set job state if terminated
 	switch info["JobState"] {

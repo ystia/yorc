@@ -237,6 +237,7 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["taskID"] = e.taskID
 	data["jobID"] = e.jobInfo.ID
 	data["stepName"] = e.stepName
+	data["nodeName"] = e.NodeName
 	data["workingDir"] = e.jobInfo.WorkingDir
 	data["userName"] = e.jobInfo.Credentials.UserName
 	data["password"] = e.jobInfo.Credentials.Password
