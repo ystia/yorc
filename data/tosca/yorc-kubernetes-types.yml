@@ -105,6 +105,19 @@ node_types:
           Must be an empty string (default) or Memory.
         required: false
 
+  yorc.nodes.kubernetes.api.types.SimpleResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.SimpleResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+        delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+            
 capability_types:
   yorc.capabilities.KubernetesVolume:
     derived_from: yorc.capabilities.DockerVolume

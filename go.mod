@@ -144,5 +144,6 @@ require (
 	k8s.io/api v0.0.0-20180628040859-072894a440bd
 	k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d
 	k8s.io/client-go v8.0.0+incompatible
+	k8s.io/kube-openapi v0.0.0-20190306001800-15615b16d372 // indirect
 	vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc
 )

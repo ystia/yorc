@@ -43,6 +43,7 @@ import (
 
 const deploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
 const serviceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
+const simpleRessourceType string = "yorc.nodes.kubernetes.api.types.SimpleResource"
 
 type k8sResourceOperation int
 
@@ -163,6 +164,17 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
 	case serviceResourceType:
 		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
+	case simpleRessourceType:
+		rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
+		if err != nil {
+			return err
+		}
+		switch rType.RawString() {
+		case "pvc":
+			return e.manageSimpleResourcePVC(ctx, clientset, generator, op, rSpec.RawString())
+		default:
+			return errors.Errorf("Unsupported k8s SimpleResource type %q", e.nodeType)
+		}
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
@@ -398,6 +410,62 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	return nil
 }
 
+//Manage kubernetes PersistentVolumeClaim
+func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
+	if rSpec == "" {
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
+	}
+	var pvcRepr apiv1.PersistentVolumeClaim
+	if err = json.Unmarshal([]byte(rSpec), &pvcRepr); err != nil {
+		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+	}
+	//Test if ressource request field is filled
+	if len(pvcRepr.Spec.Resources.Requests) == 0 {
+		return errors.Errorf("Missing mandatory field resource request property for node %s", e.nodeName)
+	}
+	namespace, nsProvided := getNamespace(e.deploymentID, pvcRepr.ObjectMeta)
+
+	switch operationType {
+	case k8sCreateOperation:
+		if !nsProvided {
+			err = createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+			if err != nil {
+				return err
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
+		}
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Create(&pvcRepr)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to create persistent volume claim %s", pvc.Name)
+		}
+		err = waitForPVCCompletion(ctx, clientset, pvc)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s PVC %s created in namespace %s", pvc.Name, namespace)
+
+	case k8sDeleteOperation:
+		var pvcName = pvcRepr.Name
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Deleting k8s PVC %s", pvcName)
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcName, metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "Persisent volume claim %s does not exists", pvc.Name)
+		}
+		err = clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(pvcName, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to delete persistent volume claim %s", pvcName)
+		}
+		err = waitForPVCDeletion(ctx, clientset, pvc)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s PVC %s deleted!", pvcName)
+	default:
+		return errors.Errorf("Unsupported operation on k8s SimpleResourcePVC")
+	}
+	return nil
+}
+
 // Below code is for legacy way of managing Kubernetes containers
 
 // Deprecated
@@ -490,6 +558,7 @@ func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interfac
 	return nil
 }
 
+//Is it used ?
 func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, nbInstances int32) error {
 	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {

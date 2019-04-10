@@ -19,6 +19,7 @@
 ### FEATURES
 
 * Yorc hostspool now allows more filtering ([GH-89](https://github.com/ystia/yorc/issues/89))
+* Yorc support of kubernetes PersistentVolumeClaim ([GH-209](https://github.com/ystia/yorc/issues/209))
 
 ### BUG FIXES
 
