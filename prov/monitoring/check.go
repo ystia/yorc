@@ -86,8 +86,8 @@ func (c *Check) run() {
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			status := c.execution.execute(c.timeout)
-			c.updateStatus(status)
+			status, mess := c.execution.execute(c.timeout)
+			c.updateStatus(status, mess)
 		}
 	}
 }
@@ -105,7 +105,7 @@ func (c *Check) exist() bool {
 	return true
 }
 
-func (c *Check) updateStatus(status CheckStatus) {
+func (c *Check) updateStatus(status CheckStatus, message string) {
 	if c.Report.Status != status {
 		// Be sure check isn't currently being removed before check has been stopped
 		if !c.exist() {
@@ -117,17 +117,16 @@ func (c *Check) updateStatus(status CheckStatus) {
 			log.Printf("[WARN] TCP check updating status failed for check ID:%q due to error:%+v", c.ID, err)
 		}
 		c.Report.Status = status
-		c.notify()
+		c.notify(message)
 	}
 }
 
-func (c *Check) notify() {
+func (c *Check) notify(message string) {
 	var nodeState tosca.NodeState
 	if c.Report.Status == CheckStatusPASSING {
 		// Back to normal
 		nodeState = tosca.NodeStateStarted
 		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelINFO, c.Report.DeploymentID).Registerf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
-
 	} else if c.Report.Status == CheckStatusCRITICAL {
 		// Node in ERROR
 		nodeState = tosca.NodeStateError

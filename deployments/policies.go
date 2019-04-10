@@ -49,7 +49,7 @@ func GetPoliciesForTypeAndNode(kv *api.KV, deploymentID, policyTypeName, nodeNam
 		}
 		// Check policy targets
 		if isType {
-			is, err := IsTargetForPolicy(kv, deploymentID, policyName, nodeName)
+			is, err := IsTargetForPolicy(kv, deploymentID, policyName, nodeName, false)
 			if err != nil {
 				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
@@ -116,12 +116,12 @@ func GetPolicyType(kv *api.KV, deploymentID, policyName string) (string, error) 
 }
 
 // IsTargetForPolicy returns true if the node name is a policy target
-func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string) (bool, error) {
+func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string, recursive bool) (bool, error) {
 	targets, err := GetPolicyTargets(kv, deploymentID, policyName)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if targets != nil {
+	if !recursive {
 		return collections.ContainsString(targets, nodeName), nil
 	}
 
