@@ -337,5 +337,41 @@ func getExternalIPAdress(clientset kubernetes.Interface, nodeName string) (strin
 			return addr.Address, nil
 		}
 	}
-	return "", errors.Wrap(err, "Node "+nodeName+" don't have external IP adress")
+	return "", errors.New("Node " + nodeName + " don't have external IP adress")
+}
+
+func getVersion(clientset kubernetes.Interface) (string, error) {
+	version, err := clientset.Discovery().ServerVersion()
+	if err != nil {
+		return "", err
+	}
+	return version.String(), nil
+}
+
+func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		_, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		return false, nil
+	}, ctx.Done())
+
+}
+
+func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		if pvc.Status.Phase == corev1.ClaimBound {
+			return true, nil
+		}
+		return false, nil
+	}, ctx.Done())
+
 }
