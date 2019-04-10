@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 )
 
@@ -67,11 +68,14 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
 
+	log.Debugf(">>>>>>>>>>> Job %s monitoring is called", jobID)
+
 	return o.monitorJob(ctx, cfg, namespaceProvided, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 }
 
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, namespaceProvided bool, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
+	debugPrintJobStatus(o.clientset, namespace, jobID)
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve job %q", jobID)
 	}

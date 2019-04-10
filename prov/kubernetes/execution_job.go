@@ -90,6 +90,8 @@ func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interfac
 	if err != nil {
 		return errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
 	}
+	log.Debugf(">>>>>>>>>>> Job %s created", job.jobRepr.Name)
+	debugPrintJobStatus(clientset, job.namespace, job.jobRepr.Name)
 
 	// Set job id to the instance attribute
 	err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "job_id", job.jobRepr.Name)
