@@ -139,7 +139,6 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		// job's still running or its state is about to be set definitively: monitoring is keeping on
 	default:
 		// Other cases as FAILED, CANCELLED, STOPPED, SUSPENDED, TIMEOUT, etc : error is return with job state and job info is logged
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
 		deregister = true
 		err = errors.Errorf("job with ID:%q finished unsuccessfully with state:%q", actionData.jobID, info["JobState"])
 	}
