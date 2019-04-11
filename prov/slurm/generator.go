@@ -30,7 +30,6 @@ const infrastructureName = "slurm"
 
 func generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, operation string) (*infrastructure, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
-	// nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	infra := &infrastructure{}
 	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)

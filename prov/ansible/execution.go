@@ -152,8 +152,6 @@ type executionCommon struct {
 	Dependencies             []string
 	hosts                    map[string]*hostConnection
 	OperationPath            string
-	NodePath                 string
-	NodeTypePath             string
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
@@ -233,13 +231,11 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 }
 
 func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
 	var err error
 	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
 	}
-	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
 	if e.operation.RelOp.IsRelationshipOperation {
 		e.relationshipType, err = deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.operation.RelOp.RequirementIndex)
 		if err != nil {
@@ -1049,6 +1045,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 					continue
 				}
 				if e.Outputs[line[0]] != taskContextOutput {
+					// TODO this should be part of the deployments package
 					if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
 						return err
 					}
