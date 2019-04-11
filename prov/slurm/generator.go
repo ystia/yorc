@@ -16,14 +16,12 @@ package slurm
 
 import (
 	"context"
-	"path"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tosca"
 )
@@ -32,9 +30,9 @@ const infrastructureName = "slurm"
 
 func generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, operation string) (*infrastructure, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	// nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	infra := &infrastructure{}
-	log.Debugf("inspecting node %s", nodeKey)
+	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return nil, err

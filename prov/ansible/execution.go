@@ -131,15 +131,15 @@ type ansibleRunner interface {
 }
 
 type executionCommon struct {
-	kv                       *api.KV
-	cfg                      config.Configuration
-	ctx                      context.Context
-	deploymentID             string
-	taskID                   string
-	NodeName                 string
-	operation                prov.Operation
-	NodeType                 string
-	Description              string
+	kv           *api.KV
+	cfg          config.Configuration
+	ctx          context.Context
+	deploymentID string
+	taskID       string
+	NodeName     string
+	operation    prov.Operation
+	NodeType     string
+	// Description              string
 	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
@@ -277,13 +277,13 @@ func (e *executionCommon) resolveOperation() error {
 	} else {
 		e.Dependencies = make([]string, 0)
 	}
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/description", nil)
-	if err != nil {
-		return errors.Wrap(err, "Consul query failed: ")
-	}
-	if kvPair != nil && len(kvPair.Value) > 0 {
-		e.Description = string(kvPair.Value)
-	}
+	// kvPair, _, err = e.kv.Get(e.OperationPath+"/description", nil)
+	// if err != nil {
+	// 	return errors.Wrap(err, "Consul query failed: ")
+	// }
+	// if kvPair != nil && len(kvPair.Value) > 0 {
+	// 	e.Description = string(kvPair.Value)
+	// }
 
 	// if operation_host is not overridden by requirement, we retrieve operation/implementation definition info
 	if e.operation.OperationHost == "" {

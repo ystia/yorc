@@ -188,11 +188,11 @@ func GetRelationshipTypeImplementingAnOperation(kv *api.KV, deploymentID, nodeNa
 	relType := relTypeInit
 	for relType != "" {
 		operationPath := getOperationPath(deploymentID, "", relType, operationName)
-		kvp, _, err := kv.Get(path.Join(operationPath, "name"), nil)
+		keys, _, err := kv.Keys(operationPath+"/", "/", nil)
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil && len(kvp.Value) > 0 {
+		if len(keys) > 0 {
 			return relType, nil
 		}
 		relType, err = GetParentType(kv, deploymentID, relType)
@@ -236,11 +236,12 @@ func GetTypeImplementingAnOperation(kv *api.KV, deploymentID, typeName, operatio
 		log.Debugf("[GetTypeImplementingAnOperation] implType=%q", implType)
 		operationPath := getOperationPath(deploymentID, "", implType, operationName)
 		log.Debugf("[GetTypeImplementingAnOperation] operationPath=%q", operationPath)
-		kvp, _, err := kv.Get(path.Join(operationPath, "name"), nil)
+
+		keys, _, err := kv.Keys(operationPath+"/", "/", nil)
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil && len(kvp.Value) > 0 {
+		if len(keys) > 0 {
 			return implType, nil
 		}
 		implType, err = GetParentType(kv, deploymentID, implType)

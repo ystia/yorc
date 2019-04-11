@@ -19,53 +19,51 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/sizeutil"
 	"github.com/ystia/yorc/v3/log"
 )
 
-func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, url, instanceName string) (BlockStorageVolume, error) {
+func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string) (BlockStorageVolume, error) {
 	volume := BlockStorageVolume{}
-	var nodeType string
-	var err error
-	if nodeType, err = g.getStringFormConsul(kv, url, "type"); err != nil {
-		return volume, err
-	}
-	if nodeType != "yorc.nodes.openstack.BlockStorage" {
-		return volume, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
-	}
-	var nodeName string
-	if nodeName, err = g.getStringFormConsul(kv, url, "name"); err != nil {
-		return volume, err
-	}
-	volume.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
-	size, err := g.getStringFormConsul(kv, url, "properties/size")
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return volume, err
 	}
-	if size == "" {
-		return volume, errors.Errorf("Missing mandatory property 'size' for %s", url)
+	if nodeType != "yorc.nodes.openstack.BlockStorage" {
+		return volume, errors.Errorf("Unsupported node type for %s: %s", nodeName, nodeType)
+	}
+	volume.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
+
+	size, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "size")
+	if err != nil {
+		return volume, err
+	}
+	if size == nil || size.RawString() == "" {
+		return volume, errors.Errorf("Missing mandatory property 'size' for %s", nodeName)
 	}
 	// Default size unit is MB
 	log.Debugf("Size form consul is %q", size)
-	volume.Size, err = sizeutil.ConvertToGB(size)
+	volume.Size, err = sizeutil.ConvertToGB(size.RawString())
 	if err != nil {
 		return volume, err
 	}
 	log.Debugf("Computed size rounded in GB: %d", volume.Size)
 
-	region, err := g.getStringFormConsul(kv, url, "properties/region")
+	region, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "region")
 	if err != nil {
 		return volume, err
-	} else if region != "" {
-		volume.Region = region
+	} else if region != nil && region.RawString() != "" {
+		volume.Region = region.RawString()
 	} else {
 		volume.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
-	az, err := g.getStringFormConsul(kv, url, "properties/availability_zone")
+	az, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return volume, err
 	}
-	volume.AvailabilityZone = az
-
+	if az != nil {
+		volume.AvailabilityZone = az.RawString()
+	}
 	return volume, nil
 }
