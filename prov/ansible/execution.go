@@ -59,7 +59,7 @@ const taskContextOutput = "task_context"
 const vaultPassScript = `#!/usr/bin/env python
 
 import os
-print os.environ['VAULT_PASSWORD']
+print(os.environ['VAULT_PASSWORD'])
 `
 
 const ansibleConfigDefaultsHeader = "defaults"
