@@ -209,11 +209,34 @@ func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target stri
 			}
 		}
 
-		if err := defaultMonManager.registerHTTPCheck(deploymentID, target, instance, ipAddress, schemeValue.RawString(), urlPath, port, headersMap, timeInterval); err != nil {
+		var tlsClientConfig map[string]string
+		if schemeValue.RawString() == "https" {
+			tlsClientConfig, err = retrieveTLSClientConfig(kv, policyName, deploymentID)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := defaultMonManager.registerHTTPCheck(deploymentID, target, instance, ipAddress, schemeValue.RawString(), urlPath, port, headersMap, tlsClientConfig, timeInterval); err != nil {
 			return errors.Errorf("Failed to register HTTP check for node name:%q due to: %v", target, err)
 		}
 	}
 	return nil
+}
+
+func retrieveTLSClientConfig(kv *api.KV, policyName, deploymentID string) (map[string]string, error) {
+	tlsClientConfig := make(map[string]string, 0)
+	props := []string{"ca_cert", "ca_path", "client_cert", "client_key", "skip_verify"}
+	for _, prop := range props {
+		val, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "tls_client", prop)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to retrieve TLS client config properties for policy:%q", policyName)
+		}
+		if val != nil && val.String() != "" {
+			tlsClientConfig[prop] = val.String()
+		}
+	}
+	return tlsClientConfig, nil
 }
 
 func retrieveIPAddress(deploymentID, target, instance string) (string, error) {

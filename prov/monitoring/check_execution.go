@@ -23,7 +23,7 @@ import (
 	"github.com/ystia/yorc/v3/log"
 	"net"
 	"net/http"
-	"path"
+	"strings"
 	"time"
 )
 
@@ -33,85 +33,81 @@ type checkExecution interface {
 
 type tcpCheckExecution struct {
 	address string
-	port    int
-}
-
-type tlsClientConfig struct {
-	caFile        string
-	caPath        string
-	certFile      string
-	keyFile       string
-	skipTLSVerify bool
 }
 
 type httpCheckExecution struct {
 	httpClient *http.Client
-	scheme     string
-	address    string
-	port       int
-	path       string
-	headersMap map[string]string
+	url        string
 	header     http.Header
-	tlsConf    *tlsClientConfig
+}
+
+func newTCPCheckExecution(address string, port int) *tcpCheckExecution {
+	tcpAddr := fmt.Sprintf("%s:%d", address, port)
+	return &tcpCheckExecution{
+		address: tcpAddr,
+	}
 }
 
 func (ce *tcpCheckExecution) execute(timeout time.Duration) (CheckStatus, string) {
-	tcpAddr := fmt.Sprintf("%s:%d", ce.address, ce.port)
-	conn, err := net.DialTimeout("tcp", tcpAddr, timeout)
+	conn, err := net.DialTimeout("tcp", ce.address, timeout)
 	if err != nil {
-		log.Debugf("[WARN] TCP check execution failed for address:%s", tcpAddr)
+		log.Debugf("[WARN] TCP check execution failed for address:%s", ce.address)
 		return CheckStatusCRITICAL, ""
 	}
 	conn.Close()
 	return CheckStatusPASSING, ""
 }
 
-func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, string) {
-	// instantiate httpClient if not already done
-	if ce.httpClient == nil {
-		trans := cleanhttp.DefaultTransport()
-		trans.DisableKeepAlives = true
-		tlsConf, err := ce.buildTlsClientConfig()
-		if err != nil {
-			log.Debugf("[WARN] check HTTP execution failed due to error:%+v", err)
-			return CheckStatusWARNING, ""
+func newHTTPCheckExecution(address string, port int, scheme, urlPath string, headers, tlsConfig map[string]string) (*httpCheckExecution, error) {
+	execution := &httpCheckExecution{}
+	// set http url
+	execution.url = fmt.Sprintf("%s://%s:%d", scheme, address, port)
+	if urlPath != "" {
+		if !strings.HasPrefix(urlPath, "/") {
+			urlPath = "/" + urlPath
 		}
-		trans.TLSClientConfig = tlsConf
-		ce.httpClient = &http.Client{
-			Timeout:   timeout,
-			Transport: trans,
-		}
+		execution.url = fmt.Sprintf("%s%s", execution.url, urlPath)
+	}
+	log.Debugf("url=%q", execution.url)
+
+	// Set default header
+	execution.header = make(http.Header)
+	for k, v := range headers {
+		execution.header.Add(k, v)
+	}
+	if execution.header.Get("Accept") == "" {
+		execution.header.Set("Accept", "text/plain, text/*, */*")
 	}
 
-	// Create HTTP Request
-	url := fmt.Sprintf("%s://%s:%d", ce.scheme, ce.address, ce.port)
-	if ce.path != "" {
-		url = path.Join(url, ce.path)
-	}
-	req, err := http.NewRequest("GET", url, nil)
+	// Set HTTPClient
+	trans := cleanhttp.DefaultTransport()
+	trans.DisableKeepAlives = true
+	tlsConf, err := buildTLSClientConfig(address, tlsConfig)
 	if err != nil {
-		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%+v", url, err)
-		return CheckStatusCRITICAL, ""
+		return nil, err
+	}
+	trans.TLSClientConfig = tlsConf
+	execution.httpClient = &http.Client{
+		Transport: trans,
 	}
 
-	// instantiate headers
-	if ce.header == nil {
-		ce.header = make(http.Header)
-		for k, v := range ce.headersMap {
-			ce.header.Add(k, v)
-		}
+	log.Debugf("TLSClientConfig=%+v", trans.TLSClientConfig)
+	return execution, nil
+}
 
-		if ce.header.Get("Accept") == "" {
-			ce.header.Set("Accept", "text/plain, text/*, */*")
-		}
+func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, string) {
+	// Create HTTP Request
+	req, err := http.NewRequest("GET", ce.url, nil)
+	if err != nil {
+		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 	}
 	req.Header = ce.header
 
 	// Send request
+	ce.httpClient.Timeout = timeout
 	resp, err := ce.httpClient.Do(req)
 	if err != nil {
-		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%+v", url, err)
-		return CheckStatusCRITICAL, ""
+		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 	}
 	defer resp.Body.Close()
 
@@ -120,39 +116,40 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, strin
 		return CheckStatusPASSING, ""
 	} else if resp.StatusCode == 429 {
 		// 429 Too Many Requests (RFC 6585)
-		log.Debugf("[WARN] check HTTP execution failed for url:%q with status code:%d", url, resp.StatusCode)
-		return CheckStatusWARNING, ""
+		return CheckStatusWARNING, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q with status code:%d", ce.url, resp.StatusCode)
 	} else {
-		log.Debugf("[WARN] check HTTP execution failed for url:%q with status code:%d", url, resp.StatusCode)
-		return CheckStatusCRITICAL, ""
+		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q with status code:%d", ce.url, resp.StatusCode)
 	}
 }
 
-func (ce *httpCheckExecution) buildTlsClientConfig() (*tls.Config, error) {
-	if ce.tlsConf != nil {
+func buildTLSClientConfig(address string, tlsConfigMap map[string]string) (*tls.Config, error) {
+	if tlsConfigMap == nil || len(tlsConfigMap) == 0 {
 		return &tls.Config{
 			InsecureSkipVerify: true,
 		}, nil
 	}
 
-	tlsConfig := &tls.Config{ServerName: ce.address}
-	if ce.tlsConf.certFile != "" && ce.tlsConf.keyFile != "" {
-		cert, err := tls.LoadX509KeyPair(ce.tlsConf.certFile, ce.tlsConf.keyFile)
+	tlsConfig := &tls.Config{ServerName: address}
+	if tlsConfigMap["client_cert"] != "" && tlsConfigMap["client_key"] != "" {
+		cert, err := tls.LoadX509KeyPair(tlsConfigMap["client_cert"], tlsConfigMap["client_key"])
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load TLS certificates for http check with tls")
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
-	if ce.tlsConf.caFile != "" || ce.tlsConf.caPath != "" {
+	if tlsConfigMap["ca_cert"] != "" || tlsConfigMap["ca_path"] != "" {
 		cfg := &rootcerts.Config{
-			CAFile: ce.tlsConf.caFile,
-			CAPath: ce.tlsConf.caPath,
+			CAFile: tlsConfigMap["ca_cert"],
+			CAPath: tlsConfigMap["ca_path"],
 		}
-		rootcerts.ConfigureTLS(tlsConfig, cfg)
+		err := rootcerts.ConfigureTLS(tlsConfig, cfg)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to Configure TLS for http check with tls")
+		}
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		tlsConfig.BuildNameToCertificate()
 	}
-	if ce.tlsConf.skipTLSVerify {
+	if tlsConfigMap["skip_verify"] == "true" {
 		tlsConfig.InsecureSkipVerify = true
 	}
 	return tlsConfig, nil

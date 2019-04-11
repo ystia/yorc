@@ -121,20 +121,33 @@ func (c *Check) updateStatus(status CheckStatus, message string) {
 	}
 }
 
-func (c *Check) notify(message string) {
+func (c *Check) notify(additionalMessage string) {
 	var nodeState tosca.NodeState
-	if c.Report.Status == CheckStatusPASSING {
+	var eventLevel events.LogLevel
+	var statusChangeMess string
+
+	switch c.Report.Status {
+	case CheckStatusPASSING:
 		// Back to normal
 		nodeState = tosca.NodeStateStarted
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelINFO, c.Report.DeploymentID).Registerf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
-	} else if c.Report.Status == CheckStatusCRITICAL {
+		eventLevel = events.LogLevelINFO
+		statusChangeMess = fmt.Sprintf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+	case CheckStatusCRITICAL:
 		// Node in ERROR
 		nodeState = tosca.NodeStateError
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelERROR, c.Report.DeploymentID).Registerf("Monitoring Check returned a failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
-	} else {
+		eventLevel = events.LogLevelERROR
+		statusChangeMess = fmt.Sprintf("Monitoring Check returned a failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+	case CheckStatusWARNING:
+		// TODO maybe a warning state should be more appropriate
 		nodeState = tosca.NodeStateError
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelWARN, c.Report.DeploymentID).Registerf("Monitoring Check returned a warning for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+		eventLevel = events.LogLevelWARN
+		statusChangeMess = fmt.Sprintf("Monitoring Check returned a warning for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
 	}
+
+	if additionalMessage != "" {
+		events.WithContextOptionalFields(c.ctx).NewLogEntry(eventLevel, c.Report.DeploymentID).Registerf(additionalMessage)
+	}
+	events.WithContextOptionalFields(c.ctx).NewLogEntry(eventLevel, c.Report.DeploymentID).Registerf(statusChangeMess)
 
 	// Update the node state
 	if err := deployments.SetInstanceStateWithContextualLogs(c.ctx, defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance, nodeState); err != nil {

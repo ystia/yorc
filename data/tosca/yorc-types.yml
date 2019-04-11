@@ -36,6 +36,31 @@ data_types:
         type: string
         required: true
         description: The user (name or ID) used as a credential for authorization or access to a networked resource.
+  yorc.datatypes.TLSClientConfig:
+    derived_from: tosca.datatypes.Root
+    properties:
+      client_cert:
+        type: string
+        required: false
+        description: File path to the PEM-encoded client certificate.
+      client_key:
+        type: string
+        required: false
+        description: File path to the PEM-encoded client private key.
+      ca_cert:
+        type: string
+        required: false
+        description: File path to the PEM-encoded client certificate authority.
+      ca_path:
+        type: string
+        required: false
+        description: Path to a directory of PEM-encoded certificates authorities.
+      skip_verify:
+        type: boolean
+        required: false
+        description: >
+          Controls whether a client verifies the server’s certificate chain and host name.
+          If set to true, TLS accepts any certificate presented by the server and any host name in that certificate
 
 capability_types:
   yorc.capabilities.Endpoint.ProvisioningAdmin:
@@ -143,6 +168,11 @@ policy_types:
         required: false
         entry_schema:
           type: string
+      tls_client:
+        type: yorc.datatypes.TLSClientConfig
+        description: TLS client configuration used for HTTP checks.
+        required: false
+
   yorc.policies.monitoring.TCPMonitoring:
     derived_from: yorc.policies.Monitoring
     description: The yorc TOSCA Policy that is used to monitor computes and applications with TCP checks.

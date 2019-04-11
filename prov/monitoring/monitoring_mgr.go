@@ -213,17 +213,9 @@ func (mgr *monitoringMgr) startMonitoring() {
 				// In function of check type, create related checkExecution
 				switch check.CheckType {
 				case CheckTypeTCP:
-					check.execution = &tcpCheckExecution{
-						port:    port,
-						address: address,
-					}
+					check.execution = newTCPCheckExecution(address, port)
 				case CheckTypeHTTP:
-					execution := &httpCheckExecution{
-						port:    port,
-						address: address,
-					}
-					check.execution = execution
-					err = mgr.addHTTPExecutionAdditionalFields(key, execution, address, port)
+					check.execution, err = mgr.buildHTTPExecution(key, address, port)
 					if err != nil {
 						handleError(err)
 						continue
@@ -255,35 +247,46 @@ func (mgr *monitoringMgr) startMonitoring() {
 	}()
 }
 
-func (mgr *monitoringMgr) addHTTPExecutionAdditionalFields(key string, execution *httpCheckExecution, address string, port int) error {
+func (mgr *monitoringMgr) buildHTTPExecution(key string, address string, port int) (*httpCheckExecution, error) {
+	var scheme, urlPath string
 	kvp, _, err := mgr.cc.KV().Get(path.Join(key, "scheme"), nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Errorf("Missing mandatory field \"scheme\" for check with kay path:%q", key)
+		return nil, errors.Errorf("Missing mandatory field \"scheme\" for check with kay path:%q", key)
 	}
-	execution.scheme = string(kvp.Value)
+	scheme = string(kvp.Value)
 
 	kvp, _, err = mgr.cc.KV().Get(path.Join(key, "path"), nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
-		execution.path = string(kvp.Value)
+		urlPath = string(kvp.Value)
 	}
 
 	kvps, _, err := mgr.cc.KV().List(path.Join(key, "headers"), nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	headersMap := make(map[string]string, len(kvps))
 	for _, kvp := range kvps {
-		execution.headersMap = make(map[string]string, len(kvps))
 		if kvp.Value != nil {
-			execution.headersMap[path.Base(kvp.Key)] = string(kvp.Value)
+			headersMap[path.Base(kvp.Key)] = string(kvp.Value)
 		}
 	}
-	return nil
+	kvps, _, err = mgr.cc.KV().List(path.Join(key, "tlsClient"), nil)
+	if err != nil {
+		return nil, err
+	}
+	tlsConf := make(map[string]string, len(kvps))
+	for _, kvp := range kvps {
+		if kvp.Value != nil {
+			tlsConf[path.Base(kvp.Key)] = string(kvp.Value)
+		}
+	}
+	return newHTTPCheckExecution(address, port, scheme, urlPath, headersMap, tlsConf)
 }
 
 // registerTCPCheck allows to register a TCP check
@@ -339,7 +342,7 @@ func (mgr *monitoringMgr) registerTCPCheck(deploymentID, nodeName, instance, ipA
 }
 
 // registerHTTPCheck allows to register an HTTP check
-func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ipAddress, scheme, urlPath string, port int, headers map[string]string, interval time.Duration) error {
+func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ipAddress, scheme, urlPath string, port int, headers map[string]string, tlsClientConfig map[string]string, interval time.Duration) error {
 	id := buildID(deploymentID, nodeName, instance)
 	log.Debugf("Register HTTP check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 
@@ -393,6 +396,16 @@ func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ip
 			checkOps = append(checkOps, &api.KVTxnOp{
 				Verb:  api.KVSet,
 				Key:   path.Join(checkPath, "headers", k),
+				Value: []byte(v),
+			})
+		}
+	}
+
+	if tlsClientConfig != nil {
+		for k, v := range tlsClientConfig {
+			checkOps = append(checkOps, &api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(checkPath, "tlsClient", k),
 				Value: []byte(v),
 			})
 		}
