@@ -63,6 +63,10 @@ print(os.environ['VAULT_PASSWORD'])
 `
 
 const ansibleConfigDefaultsHeader = "defaults"
+const ansibleInventoryHostsHeader = "target_hosts"
+const ansibleInventoryHostedHeader = "hosted_operations"
+const ansibleInventoryHostsVarsHeader = ansibleInventoryHostsHeader + ":vars"
+const ansibleInventoryHostedVarsHeader = ansibleInventoryHostedHeader + ":vars"
 
 var ansibleConfig = map[string]map[string]string{
 	ansibleConfigDefaultsHeader: map[string]string{
@@ -76,6 +80,15 @@ var ansibleConfig = map[string]map[string]string{
 var ansibleFactCaching = map[string]string{
 	"gathering":    "smart",
 	"fact_caching": "jsonfile",
+}
+
+var ansibleInventoryConfig = map[string][]string{
+	ansibleInventoryHostsVarsHeader: []string{
+		"ansible_ssh_common_args=\"-o ConnectionAttempts=20\"",
+	},
+	ansibleInventoryHostedVarsHeader: []string{
+		"ansible_python_interpreter=/usr/bin/env python",
+	},
 }
 
 type ansibleRetriableError struct {
@@ -817,7 +830,7 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		}
 	} else {
 		sshCredentials := e.getSSHCredentials(ctx, host, true)
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s", sshCredentials.user))
 		// Set with priority private key against password
 		if e.cfg.DisableSSHAgent && sshCredentials.privateKey != "" {
 			// check privateKey's a valid path
@@ -891,7 +904,16 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 
 	var buffer bytes.Buffer
-	buffer.WriteString("[all]\n")
+	var header, emptySectionHeader string
+	if e.isOrchestratorOperation {
+		header = ansibleInventoryHostedHeader
+		emptySectionHeader = ansibleInventoryHostsHeader
+	} else {
+		header = ansibleInventoryHostsHeader
+		emptySectionHeader = ansibleInventoryHostedHeader
+	}
+	buffer.WriteString(fmt.Sprintf("[%s]\n", emptySectionHeader))
+	buffer.WriteString(fmt.Sprintf("[%s]\n", header))
 	for instanceName, host := range e.hosts {
 		err = e.generateHostConnection(ctx, &buffer, host)
 		if err != nil {
@@ -978,9 +1000,18 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 	}
 
-	if e.isOrchestratorOperation {
-		buffer.WriteString("\n[all:vars]\n")
-		buffer.WriteString("ansible_python_interpreter=/usr/bin/env python\n")
+	// Add variables in Yorc configuration, potentially overriding Yorc
+	// default values
+	for header, vars := range e.cfg.Ansible.Inventory {
+		ansibleInventoryConfig[header] = append(ansibleInventoryConfig[header], vars...)
+	}
+
+	// Create corresponding entries in inventory
+	for header, vars := range ansibleInventoryConfig {
+		buffer.WriteString(fmt.Sprintf("[%s]\n", header))
+		for _, val := range vars {
+			buffer.WriteString(fmt.Sprintf("%s\n", val))
+		}
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
