@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 )
@@ -73,24 +75,88 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	return o.monitorJob(ctx, cfg, namespaceProvided, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 }
 
+// Return true if the job is to be deregisted by yorc, so no more monitoring...
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, namespaceProvided bool, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
+	var (
+		err        error
+		deregister bool
+	)
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
-	debugPrintJobStatus(o.clientset, namespace, jobID)
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve job %q", jobID)
 	}
 
 	publishJobLogs(ctx, cfg, o.clientset, deploymentID, namespace, job.Name, action)
 
+	// Check for pods status to refine job state
+	podsList, err := o.clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
+	if err != nil {
+		return true, errors.Wrapf(err, "can not retrieve pods for job %q", jobID)
+	}
+	var nbRunning int
+	var nbPending int
+	var nbUnknown int
+	var nbSucceeded int
+	var nbFailed int
+	var jobState string
+	for _, pod := range podsList.Items {
+		podName := pod.GetName()
+		podStatusPhase := pod.Status.Phase
+		podStatusMessage := pod.Status.Message
+		switch pod.Status.Phase {
+		case "Running":
+			// The pod has been bound to a node, and all of the containers have been created.
+			// At least one container is still running, or is in the process of starting or restarting.
+			nbRunning = nbRunning + 1
+		case "Pending":
+			// The pod has been accepted by the Kubernetes system, but one or more of the container images has not been created.
+			// This includes time before being scheduled as well as time spent downloading images over the network, which could take a while.
+			nbPending = nbPending + 1
+		case "Succeeded":
+			// All containers in the pod have terminated in success, and will not be restarted.
+			nbSucceeded = nbSucceeded + 1
+		case "Failed":
+			// All containers in the pod have terminated, and at least one container has terminated in failure.
+			// The container either exited with non-zero status or was terminated by the system.
+			nbFailed = nbFailed + 1
+		case "Unknown":
+			// For some reason the state of the pod could not be obtained, typically due to an error in communicating with the host of the pod.
+			nbUnknown = nbUnknown + 1
+		}
+	}
+	// If the job is active, the pods status is used to set more precise value in the state attribute in the job instance.
+	if job.Status.Active != 0 {
+		// deregister remains false
+		if nbUnknown > 0 {
+			jobState = "Unknown"
+		}
+		if nbPending > 0 {
+			jobState = "Pending"
+		}
+		if nbRunning > 0 {
+			jobState = "Running"
+		}
+	}
+
 	if job.Status.Active == 0 && (job.Status.Succeeded != 0 || job.Status.Failed != 0) {
+		// job state is either succeeded or failed
+		deregister = true
+		if job.Status.Succeeded != 0 {
+			jobState = "Succeeded"
+		} else {
+			jobState = "Failed"
+		}
 		err = deleteJob(ctx, deploymentID, namespace, jobID, namespaceProvided, o.clientset)
 		if err != nil {
-			return true, errors.Wrapf(err, "failed to delete completed job %q", jobID)
+			err = errors.Wrapf(err, "failed to delete completed job %q", jobID)
 		}
 		if job.Status.Succeeded < *job.Spec.Completions {
-			return true, errors.Errorf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
+			jobState = "Failed"
+			err = errors.Errorf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
 		}
-		return true, nil
 	}
-	return false, nil
+
+	deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", jobState)
+
+	return deregister, err
 }
