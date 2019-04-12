@@ -271,22 +271,6 @@ type k8sJob struct {
 	namespaceProvided bool
 }
 
-func debugPrintJobStatus(clientset kubernetes.Interface, namespace string, jobID string) {
-	job, err := clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
-	if err != nil {
-		log.Debugf(">>>>>>> Job %s not found", jobID)
-	}
-	log.Debugf(">>>>>>> Job %s has %d active pods, %d failed, %d succeeded pods", jobID, job.Status.Active, job.Status.Failed, job.Status.Succeeded)
-
-	for i, jobCondition := range job.Status.Conditions {
-		message := jobCondition.Message
-		reason := jobCondition.Reason
-		status := jobCondition.Status
-		conditionType := jobCondition.Type
-		log.Debugf(">>>>>>> Job %s has status condition %d with message %s, reason %s, status %s, type %s", jobID, i, message, reason, status, conditionType)
-	}
-}
-
 func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
 	rSpec, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "resource_spec")
 	if err != nil {

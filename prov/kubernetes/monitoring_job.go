@@ -25,7 +25,6 @@ import (
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 )
 
@@ -69,9 +68,6 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	if !ok {
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
-
-	log.Debugf(">>>>>>>>>>> Job %s monitoring is called", jobID)
-
 	return o.monitorJob(ctx, cfg, namespaceProvided, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 }
 
@@ -100,9 +96,6 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	var nbFailed int
 	var jobState string
 	for _, pod := range podsList.Items {
-		podName := pod.GetName()
-		podStatusPhase := pod.Status.Phase
-		podStatusMessage := pod.Status.Message
 		switch pod.Status.Phase {
 		case "Running":
 			// The pod has been bound to a node, and all of the containers have been created.
