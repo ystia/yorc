@@ -90,8 +90,6 @@ func newHTTPCheckExecution(address string, port int, scheme, urlPath string, hea
 	execution.httpClient = &http.Client{
 		Transport: trans,
 	}
-
-	log.Debugf("TLSClientConfig=%+v", trans.TLSClientConfig)
 	return execution, nil
 }
 
