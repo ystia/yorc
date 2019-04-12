@@ -1000,14 +1000,19 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 	}
 
+	// Add inventory settings
+	inventoryConfig := make(map[string][]string)
+	for header, vars := range ansibleInventoryConfig {
+		inventoryConfig[header] = append(inventoryConfig[header], vars...)
+	}
 	// Add variables in Yorc configuration, potentially overriding Yorc
 	// default values
 	for header, vars := range e.cfg.Ansible.Inventory {
-		ansibleInventoryConfig[header] = append(ansibleInventoryConfig[header], vars...)
+		inventoryConfig[header] = append(inventoryConfig[header], vars...)
 	}
 
 	// Create corresponding entries in inventory
-	for header, vars := range ansibleInventoryConfig {
+	for header, vars := range inventoryConfig {
 		buffer.WriteString(fmt.Sprintf("[%s]\n", header))
 		for _, val := range vars {
 			buffer.WriteString(fmt.Sprintf("%s\n", val))
