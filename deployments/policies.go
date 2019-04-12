@@ -150,7 +150,7 @@ func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string, re
 	return false, nil
 }
 
-// GetPolicyTargetsForType retrieves the policy template targets
+// GetPolicyTargets retrieves the policy template targets
 // this targets are node names
 func GetPolicyTargets(kv *api.KV, deploymentID, policyName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName, "targets")

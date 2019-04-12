@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Known limitations
-// only public ip is used (no private ip)
-// only one monitoring check by node instance
+
+// Package monitoring is responsible for handling node monitoring (tcp and http checks) especially for tosca.nodes.Compute and tosca.nodes.SoftwareComponent node templates
+// Present limitation : only one monitoring check by node instance is allowed
 package monitoring
 
 import (
