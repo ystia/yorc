@@ -23,20 +23,23 @@ import (
 )
 
 const (
+	// CheckStatusINITIAL is a CheckStatus of type INITIAL
+	CheckStatusINITIAL CheckStatus = iota
 	// CheckStatusPASSING is a CheckStatus of type PASSING
-	CheckStatusPASSING CheckStatus = iota
+	CheckStatusPASSING
 	// CheckStatusCRITICAL is a CheckStatus of type CRITICAL
 	CheckStatusCRITICAL
 	// CheckStatusWARNING is a CheckStatus of type WARNING
 	CheckStatusWARNING
 )
 
-const _CheckStatusName = "PASSINGCRITICALWARNING"
+const _CheckStatusName = "INITIALPASSINGCRITICALWARNING"
 
 var _CheckStatusMap = map[CheckStatus]string{
 	0: _CheckStatusName[0:7],
-	1: _CheckStatusName[7:15],
-	2: _CheckStatusName[15:22],
+	1: _CheckStatusName[7:14],
+	2: _CheckStatusName[14:22],
+	3: _CheckStatusName[22:29],
 }
 
 func (i CheckStatus) String() string {
@@ -49,10 +52,12 @@ func (i CheckStatus) String() string {
 var _CheckStatusValue = map[string]CheckStatus{
 	_CheckStatusName[0:7]:                    0,
 	strings.ToLower(_CheckStatusName[0:7]):   0,
-	_CheckStatusName[7:15]:                   1,
-	strings.ToLower(_CheckStatusName[7:15]):  1,
-	_CheckStatusName[15:22]:                  2,
-	strings.ToLower(_CheckStatusName[15:22]): 2,
+	_CheckStatusName[7:14]:                   1,
+	strings.ToLower(_CheckStatusName[7:14]):  1,
+	_CheckStatusName[14:22]:                  2,
+	strings.ToLower(_CheckStatusName[14:22]): 2,
+	_CheckStatusName[22:29]:                  3,
+	strings.ToLower(_CheckStatusName[22:29]): 3,
 }
 
 // ParseCheckStatus attempts to convert a string to a CheckStatus

@@ -23,6 +23,7 @@ import (
 //go:generate go-enum -f=monitoring_structs.go --lower
 
 // CheckStatus x ENUM(
+// INITIAL,
 // PASSING,
 // CRITICAL
 // WARNING

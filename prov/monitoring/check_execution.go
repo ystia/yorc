@@ -97,6 +97,7 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, strin
 	// Create HTTP Request
 	req, err := http.NewRequest("GET", ce.url, nil)
 	if err != nil {
+		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 	}
 	req.Header = ce.header
@@ -105,6 +106,7 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, strin
 	ce.httpClient.Timeout = timeout
 	resp, err := ce.httpClient.Do(req)
 	if err != nil {
+		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 	}
 	defer resp.Body.Close()
@@ -114,8 +116,10 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, strin
 		return CheckStatusPASSING, ""
 	} else if resp.StatusCode == 429 {
 		// 429 Too Many Requests (RFC 6585)
+		log.Debugf("[WARN] check HTTP execution failed for url:%q with status code:%d", ce.url, resp.StatusCode)
 		return CheckStatusWARNING, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q with status code:%d", ce.url, resp.StatusCode)
 	} else {
+		log.Debugf("[WARN] check HTTP execution failed for url:%q with status code:%d", ce.url, resp.StatusCode)
 		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q with status code:%d", ce.url, resp.StatusCode)
 	}
 }

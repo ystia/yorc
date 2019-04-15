@@ -321,7 +321,7 @@ func (mgr *monitoringMgr) registerTCPCheck(deploymentID, nodeName, instance, ipA
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(checkReportPath, "status"),
-			Value: []byte(CheckStatusPASSING.String()),
+			Value: []byte(CheckStatusINITIAL.String()),
 		},
 	}
 
@@ -378,7 +378,7 @@ func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ip
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(checkReportPath, "status"),
-			Value: []byte(CheckStatusPASSING.String()),
+			Value: []byte(CheckStatusINITIAL.String()),
 		},
 	}
 
