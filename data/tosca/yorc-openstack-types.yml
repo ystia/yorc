@@ -17,6 +17,42 @@ capability_types:
   yorc.capabilities.openstack.FIPConnectivity:
     derived_from: tosca.capabilities.Connectivity
 
+policy_types:
+  yorc.openstack.policies.ServerGroupAffinity:
+    derived_from:  org.alien4cloud.policies.Affinity
+    description: >
+      Allows to apply a server group affinity placement policy to OpenStack compute instances
+    metadata:
+      # pluginId:pluginBean:phase
+      a4c_policy_impl: alien4cloud-yorc-plugin:yorc-openstack-server-group-modifier:post-node-match
+    targets: [ tosca.nodes.Compute ]
+    properties:
+      strict:
+        type: boolean
+        description: >
+          If true, the scheduling is stopped if the policy can't be applied.
+          If false, the policy is applied if possible according to the OpenStack environment resources. If it's not possible, the scheduling is still done.
+          To use a non-strict policy, the OpenStack environment should support Compute service API 2.15 or above.
+        required: false
+        default: true
+  yorc.openstack.policies.ServerGroupAntiAffinity:
+    derived_from:  org.alien4cloud.policies.AntiAffinity
+    description: >
+      Allows to apply a server group anti-affinity placement policy to OpenStack compute instances
+    metadata:
+      # pluginId:pluginBean:phase
+      a4c_policy_impl: alien4cloud-yorc-plugin:yorc-openstack-server-group-modifier:post-node-match
+    targets: [ tosca.nodes.Compute ]
+    properties:
+      strict:
+        type: boolean
+        description: >
+          If true, the scheduling is stopped if the policy can't be applied.
+          If false, the policy is applied if possible according to the OpenStack environment resources. If it's not possible, the scheduling is still done.
+          To use a non-strict policy, the OpenStack environment should support Compute service API 2.15 or above.
+        required: false
+        default: true
+
 node_types:
   yorc.nodes.openstack.Compute:
     derived_from: yorc.nodes.Compute
