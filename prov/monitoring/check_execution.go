@@ -16,9 +16,9 @@ package monitoring
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v3/log"
 	"net"
@@ -129,21 +129,18 @@ func buildTLSClientConfig(address string, tlsConfigMap map[string]string) (*tls.
 
 	tlsConfig := &tls.Config{ServerName: address}
 	if tlsConfigMap["client_cert"] != "" && tlsConfigMap["client_key"] != "" {
-		cert, err := tls.LoadX509KeyPair(tlsConfigMap["client_cert"], tlsConfigMap["client_key"])
+		cert, err := tls.X509KeyPair([]byte(tlsConfigMap["client_cert"]), []byte(tlsConfigMap["client_key"]))
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load TLS certificates for http check with tls")
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
-	if tlsConfigMap["ca_cert"] != "" || tlsConfigMap["ca_path"] != "" {
-		cfg := &rootcerts.Config{
-			CAFile: tlsConfigMap["ca_cert"],
-			CAPath: tlsConfigMap["ca_path"],
+	if tlsConfigMap["ca_cert"] != "" {
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM([]byte(tlsConfigMap["ca_cert"])) {
+			return nil, errors.New("bad CA Cert")
 		}
-		err := rootcerts.ConfigureTLS(tlsConfig, cfg)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to Configure TLS for http check with tls")
-		}
+		tlsConfig.RootCAs = caCertPool
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		tlsConfig.BuildNameToCertificate()
 	}

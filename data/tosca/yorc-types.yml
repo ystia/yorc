@@ -42,19 +42,15 @@ data_types:
       client_cert:
         type: string
         required: false
-        description: File path to the PEM-encoded client certificate.
+        description: PEM-encoded client certificate content used for TLS configuration.
       client_key:
         type: string
         required: false
-        description: File path to the PEM-encoded client private key.
+        description: PEM-encoded client private key content used for TLS configuration.
       ca_cert:
         type: string
         required: false
-        description: File path to the PEM-encoded client certificate authority.
-      ca_path:
-        type: string
-        required: false
-        description: Path to a directory of PEM-encoded certificates authorities.
+        description: PEM-encoded client certificate authority content used for TLS configuration.
       skip_verify:
         type: boolean
         required: false
