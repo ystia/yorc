@@ -97,7 +97,7 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, strin
 	// Create HTTP Request
 	req, err := http.NewRequest("GET", ce.url, nil)
 	if err != nil {
-		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
+		log.Debugf("[WARN] check HTTP execution failed creating request to url:%q due to error:%v", ce.url, err)
 		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 	}
 	req.Header = ce.header
@@ -106,7 +106,7 @@ func (ce *httpCheckExecution) execute(timeout time.Duration) (CheckStatus, strin
 	ce.httpClient.Timeout = timeout
 	resp, err := ce.httpClient.Do(req)
 	if err != nil {
-		log.Debugf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
+		log.Debugf("[WARN] check HTTP execution failed sending request to url:%q due to error:%v", ce.url, err)
 		return CheckStatusCRITICAL, fmt.Sprintf("[WARN] check HTTP execution failed for url:%q due to error:%v", ce.url, err)
 	}
 	defer resp.Body.Close()
