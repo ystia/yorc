@@ -128,7 +128,13 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
-	deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", info["JobState"])
+	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
+	if err != nil {
+		err = errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
+	}
+	if previousJobState != info["JobState"] {
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", info["JobState"])
+	}
 
 	// See if monitoring must be continued and set job state if terminated
 	switch info["JobState"] {

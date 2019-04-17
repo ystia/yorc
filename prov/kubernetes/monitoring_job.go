@@ -159,7 +159,13 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		}
 	}
 
-	deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", jobState)
+	previousState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
+	if err != nil {
+		err = errors.Wrapf(err, "failed to get instance state for job %q", jobID)
+	}
+	if previousState != jobState {
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", jobState)
+	}
 
 	return deregister, err
 }
