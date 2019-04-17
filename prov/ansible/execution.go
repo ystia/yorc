@@ -56,7 +56,7 @@ import (
 
 const taskContextOutput = "task_context"
 
-const vaultPassScript = `#!/usr/bin/env python
+const vaultPassScriptFormat = `#!/usr/bin/env %s
 
 import os
 print(os.environ['VAULT_PASSWORD'])
@@ -897,6 +897,16 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
+	pythonInterpreter := "python"
+	if _, err := exec.LookPath(pythonInterpreter); err != nil {
+		log.Debug("Found no python intepreter, attempting to use python3")
+		pythonInterpreter = "python3"
+		if _, err = exec.LookPath(pythonInterpreter); err != nil {
+			return fmt.Errorf("Found no python or python3 interpret in path")
+		}
+	}
+
+	vaultPassScript := fmt.Sprintf(vaultPassScriptFormat, pythonInterpreter)
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, ".vault_pass"), []byte(vaultPassScript), 0764); err != nil {
 		err = errors.Wrap(err, "Failed to write .vault_pass file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
