@@ -94,7 +94,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	var nbUnknown int
 	var nbSucceeded int
 	var nbFailed int
-	var jobState string
+	jobState := "No running pods"
 	for _, pod := range podsList.Items {
 		switch pod.Status.Phase {
 		case "Running":
