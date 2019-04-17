@@ -140,6 +140,10 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	default:
 		// Other cases as FAILED, CANCELLED, STOPPED, SUSPENDED, TIMEOUT, etc : error is return with job state and job info is logged
 		deregister = true
+		// Log event containing all the slurm information
+
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
+		// Error to be returned
 		err = errors.Errorf("job with ID:%q finished unsuccessfully with state:%q", actionData.jobID, info["JobState"])
 	}
 
