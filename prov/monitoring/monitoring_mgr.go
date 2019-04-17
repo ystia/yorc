@@ -349,6 +349,15 @@ func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ip
 	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
 	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
 
+	kvps, _, err := mgr.cc.KV().List(checkPath, nil)
+	if err != nil {
+		return err
+	}
+	if kvps != nil {
+		log.Debugf("HTTP check with id:%q is already registered: nothing to do", id)
+		return nil
+	}
+
 	checkOps := api.KVTxnOps{
 		&api.KVTxnOp{
 			Verb:  api.KVSet,

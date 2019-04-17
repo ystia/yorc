@@ -58,11 +58,38 @@ func (c *Check) Start() {
 
 	// timeout is defined arbitrary as half interval to avoid overlap
 	c.timeout = c.TimeInterval / 2
-	// instantiate channel to close the check ticker
+	// instantiate channel to close the internal routine
 	c.chStop = make(chan struct{})
-
 	c.stop = false
-	go c.run()
+
+	// initially, running check is disabled : it's enabled in function of node state
+	c.enabled = false
+
+	go func() {
+		for {
+			select {
+			case <-c.chStop:
+				log.Debugf("Stop monitoring check with id:%s", c.ID)
+				c.disable()
+				return
+			default:
+			}
+
+			instanceState, err := deployments.GetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
+			if err != nil || instanceState != tosca.NodeStateStarted && instanceState != tosca.NodeStateError {
+				// Disable check
+				c.disable()
+				continue
+			}
+			// Enable check
+			if c.enabled == false {
+				// instantiate channel to close the check ticker
+				c.chDisable = make(chan struct{})
+				c.enabled = true
+				go c.run()
+			}
+		}
+	}()
 }
 
 // Stop allows to stop a TCP check
@@ -76,13 +103,20 @@ func (c *Check) Stop() {
 	}
 }
 
+func (c *Check) disable() {
+	if c.enabled {
+		c.enabled = false
+		close(c.chDisable)
+	}
+}
+
 func (c *Check) run() {
 	log.Debugf("Running check:%+v", c)
 	ticker := time.NewTicker(c.TimeInterval)
 	for {
 		select {
-		case <-c.chStop:
-			log.Debugf("Stop running check with id:%s", c.ID)
+		case <-c.chDisable:
+			log.Debugf("Disable check with id:%s", c.ID)
 			ticker.Stop()
 			return
 		case <-ticker.C:
@@ -111,19 +145,9 @@ func (c *Check) updateStatus(status CheckStatus, message string) {
 		if !c.exist() {
 			return
 		}
-		// Ideally, the check should follow the node lifecycle and stopped when the node is stopped
-		// For the moment, only update status when the node is active (started) or on error
-		instanceState, err := deployments.GetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
-		if err != nil {
-			log.Printf("[WARN] Failed to retrieve node state with node:%q, instance:%q due to error:%+v", c.Report.NodeName, c.Report.Instance, err)
-			return
-		}
-		if instanceState != tosca.NodeStateStarted && instanceState != tosca.NodeStateError {
-			return
-		}
 
 		log.Debugf("Update check status from %q to %q", c.Report.Status.String(), status.String())
-		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status"), status.String())
+		err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status"), status.String())
 		if err != nil {
 			log.Printf("[WARN] TCP check updating status failed for check ID:%q due to error:%+v", c.ID, err)
 		}

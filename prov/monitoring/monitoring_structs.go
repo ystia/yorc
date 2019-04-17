@@ -44,8 +44,10 @@ type Check struct {
 	CheckType    CheckType
 
 	stop      bool
+	enabled   bool
 	stopLock  sync.Mutex
 	chStop    chan struct{}
+	chDisable chan struct{}
 	timeout   time.Duration
 	ctx       context.Context
 	execution checkExecution
