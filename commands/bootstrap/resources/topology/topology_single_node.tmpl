@@ -136,6 +136,7 @@ topology_template:
       type: org.ystia.ansible.linux.ansible.nodes.AnsibleRuntime
       properties:
         component_version: "{{.Ansible.Version}}"
+        extra_package_repository_url: "{{.Ansible.PackageRepositoryURL}}"
       requirements:
         - hostedOnComputeHost:
             type_requirement: host

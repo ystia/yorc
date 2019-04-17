@@ -1018,7 +1018,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	// Add variables in Yorc configuration, potentially overriding Yorc
 	// default values
 	for header, vars := range e.cfg.Ansible.Inventory {
-		inventoryConfig[header] = append(inventoryConfig[header], vars...)
+		// The header can be quoted in configuration if it contains a colon
+		key, err := strconv.Unquote(header)
+		if err != nil {
+			key = header
+		}
+		inventoryConfig[key] = append(inventoryConfig[header], vars...)
 	}
 
 	// Create corresponding entries in inventory
