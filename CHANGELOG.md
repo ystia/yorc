@@ -7,6 +7,10 @@
 * Implement an anti-affinity placement policy for Openstack ([GH-84](https://github.com/ystia/yorc/issues/84))
 * Allow to configure Ansible configuration file ([GH-346](https://github.com/ystia/yorc/issues/346))
 
+### ENHANCEMENTS
+
+* Upgrade Ansible to 2.7.9 ([GH-364](https://github.com/ystia/yorc/issues/364))
+
 ## 3.2.0-M4 (March 29, 2019)
 
 ### ENHANCEMENTS
@@ -19,6 +23,7 @@
 ### FEATURES
 
 * Yorc hostspool now allows more filtering ([GH-89](https://github.com/ystia/yorc/issues/89))
+* Yorc support of kubernetes PersistentVolumeClaim ([GH-209](https://github.com/ystia/yorc/issues/209))
 
 ### BUG FIXES
 

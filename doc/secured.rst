@@ -55,9 +55,9 @@ In the sections below, the ``comp.key`` and ``comp.pem`` files path are used in 
 
 Secured Consul cluster Setup
 ----------------------------
-.. note:: You need to generate cerificates for all the Consul agents within the Consul cluster you setup.
+.. note:: You need to generate certificates for all the Consul agents within the Consul cluster you setup.
 
-In a High Availability cluster, you need to setup at least 3 consul servers, and one consul client on each host where a Yorc server is running. 
+In a High Availability cluster, you need to setup at least 3 consul servers, and one consul client on each host where a Yorc server is running.
 
 Check Consul documentation for details about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_.
 
@@ -107,7 +107,7 @@ And below, a typical configuration file for a consul client.
 
 In the above example, the encryption is enabled for the gossip traffic inside the Consul cluster. Check Consul documentation for details `network traffic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
 
-You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_. 
+You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_.
 You may found useful information about how to install CA certificate in the OS, in case you get errors about trusting the signing authority.
 
 Secured Yorc Setup
@@ -130,6 +130,7 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
         "resources_prefix": "yorc1-",
         "key_file": "{PATH_TO_YORC_SERVER_KEY}",
         "cert_file": "{PATH_TO_YORC_SERVER_PEM}",
+        "ca_file": "{PATH_TO_CA_PEM}",
         "ssl_verify": true,
         "infrastructures" : {
             "openstack": {
@@ -143,7 +144,8 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
         }
     }
 
-In the above example SSL verification is enabled for Yorc (ssl_verify set to true). In this case, the Consul Agent must be enabled to use TLS configuration files for HTTP health checks. Otherwise, the TLS handshake may fail.
+In the above example SSL verification is enabled for Yorc (ssl_verify set to true). In this case, the Consul
+Agent must be enabled to use TLS configuration files for HTTP health checks. Otherwise, the TLS handshake may fail.
 You can find below the Consul agent's configuration:
 
 .. code-block:: json
