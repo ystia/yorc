@@ -94,7 +94,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	var nbUnknown int
 	var nbSucceeded int
 	var nbFailed int
-	jobState := "No running pods"
+	var jobState string
 	for _, pod := range podsList.Items {
 		switch pod.Status.Phase {
 		case "Running":
@@ -146,6 +146,16 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		if job.Status.Succeeded < *job.Spec.Completions {
 			jobState = "Failed"
 			err = errors.Errorf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
+		}
+	}
+
+	if job.Status.Active == 0 && job.Status.Succeeded == 0 && job.Status.Failed == 0 {
+		if nbUnknown > 0 {
+			// K8S gives us information
+			jobState = "Unknown"
+		} else {
+			// Yorc cannot really detect the jobState, K8S
+			jobState = "No pods created"
 		}
 	}
 
