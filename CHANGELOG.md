@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Remove Tosca description from storage ([GH-360](https://github.com/ystia/yorc/issues/300))
+
 ### FEATURES
 
 * Implement an anti-affinity placement policy for Openstack ([GH-84](https://github.com/ystia/yorc/issues/84))
