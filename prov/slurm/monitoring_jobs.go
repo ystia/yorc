@@ -139,6 +139,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		// job's still running or its state is about to be set definitively: monitoring is keeping on
 	default:
 		// Other cases as FAILED, CANCELLED, STOPPED, SUSPENDED, TIMEOUT, etc : error is return with job state and job info is logged
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
 		deregister = true
 		// Log event containing all the slurm information
 
@@ -174,8 +175,8 @@ func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath, fi
 	cmd := fmt.Sprintf("cat %s", filePath)
 	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
-		mess := fmt.Sprintf("an error:%+v occurred during logging file:%q", err, filePath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).RegisterAsString(mess)
+		log.Debugf("fail to log file (%s)due to error:%+v:", filePath, err)
+		return
 	}
 	if strings.TrimSpace(output) != "" {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
