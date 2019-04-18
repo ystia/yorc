@@ -150,13 +150,12 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	}
 
 	if job.Status.Active == 0 && job.Status.Succeeded == 0 && job.Status.Failed == 0 {
-		if nbUnknown > 0 {
-			// K8S gives us information
-			jobState = "Unknown"
-		} else {
-			// Yorc cannot really detect the jobState, K8S
-			jobState = "No pods created"
-		}
+		jobState = "No pods created"
+	}
+
+	if len(jobState) == 0 {
+		// Could not determine the jobs state based on infos from K8S API
+		jobState = "Unknown"
 	}
 
 	previousState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
