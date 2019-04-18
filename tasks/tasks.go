@@ -47,11 +47,6 @@ func NewAnotherLivingTaskAlreadyExistsError(taskID, targetID, status string) err
 	return anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
 }
 
-// NewInconsistentDeploymentError allows to create a new inconsistentDeploymentError error
-func NewInconsistentDeploymentError(deploymentID string) error {
-	return inconsistentDeploymentError{deploymentID: deploymentID}
-}
-
 // IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
 // If true, it returns the taskID of the currently running task
 func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
@@ -74,21 +69,6 @@ type taskDataNotFound struct {
 
 func (t taskDataNotFound) Error() string {
 	return fmt.Sprintf("Data %q not found for task %q", t.name, t.taskID)
-}
-
-type inconsistentDeploymentError struct {
-	deploymentID string
-}
-
-func (t inconsistentDeploymentError) Error() string {
-	return fmt.Sprintf("Inconsistent deployment with ID %q", t.deploymentID)
-}
-
-// IsInconsistentDeploymentError checks if an error is an inconsistent deployment error
-func IsInconsistentDeploymentError(err error) bool {
-	cause := errors.Cause(err)
-	_, ok := cause.(inconsistentDeploymentError)
-	return ok
 }
 
 // IsTaskDataNotFoundError checks if an error is a task data not found error

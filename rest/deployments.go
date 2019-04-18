@@ -258,7 +258,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		// Inconsistent deployment: force purge enters in action
-		if ok := tasks.IsInconsistentDeploymentError(err); ok {
+		if ok := deployments.IsInconsistentDeploymentError(err); ok {
 			log.Debugf("inconsistent deployment with ID:%q. We force purge it.", id)
 			newTaskID, err := s.tasksCollector.RegisterTask(id, tasks.TaskTypeForcePurge)
 			if err != nil {

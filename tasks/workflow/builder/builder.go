@@ -39,7 +39,7 @@ func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) (map[string]*Step, e
 	}
 
 	if wf.Steps == nil || len(wf.Steps) == 0 {
-		return nil, tasks.NewInconsistentDeploymentError(deploymentID)
+		return nil, deployments.NewInconsistentDeploymentError(deploymentID)
 	}
 
 	steps := make(map[string]*Step, len(wf.Steps))
