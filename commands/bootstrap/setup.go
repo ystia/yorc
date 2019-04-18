@@ -95,6 +95,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 		Ansible: config.Ansible{
 			DebugExec:            true,
 			KeepGeneratedRecipes: true,
+			UseOpenSSH:           inputValues.Ansible.UseOpenSSH,
 			Inventory:            inputValues.Ansible.Inventory,
 		},
 	}
