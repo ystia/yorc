@@ -153,16 +153,11 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		jobState = "No pods created"
 	}
 
-	if len(jobState) == 0 {
-		// Could not determine the jobs state based on infos from K8S API
-		jobState = "Unknown"
-	}
-
-	previousState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
-	if err != nil {
+	previousState, err1 := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
+	if err1 != nil {
 		err = errors.Wrapf(err, "failed to get instance state for job %q", jobID)
 	}
-	if previousState != jobState {
+	if len(jobState) != 0 && previousState != jobState {
 		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", jobState)
 	}
 
