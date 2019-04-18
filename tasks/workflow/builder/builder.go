@@ -38,6 +38,10 @@ func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) (map[string]*Step, e
 		return nil, err
 	}
 
+	if wf.Steps == nil || len(wf.Steps) == 0 {
+		return nil, tasks.NewInconsistentDeploymentError(deploymentID)
+	}
+
 	steps := make(map[string]*Step, len(wf.Steps))
 	visitedMap := make(map[string]*visitStep, len(wf.Steps))
 	for stepName := range wf.Steps {

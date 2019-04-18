@@ -250,10 +250,24 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		"workflowName": "uninstall",
 	}
 	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {
-		log.Debugln("register task err" + err.Error())
+		log.Debugf("register task has returned an err:%q", err.Error())
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			log.Debugln("another task is living")
 			writeError(w, r, newBadRequestError(err))
+			return
+		}
+
+		// Inconsistent deployment: force purge enters in action
+		if ok := tasks.IsInconsistentDeployment(err); ok {
+			log.Debugf("inconsistent deployment with ID:%q. We force purge it.", id)
+			newTaskID, err := s.tasksCollector.RegisterTask(id, tasks.TaskTypeForcePurge)
+			if err != nil {
+				log.Printf("Failed to force purge deployment with ID:%q due to error:%+v", id, err)
+				writeError(w, r, newInternalServerError(err))
+				return
+			}
+			w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, newTaskID))
+			w.WriteHeader(http.StatusAccepted)
 			return
 		}
 		log.Panic(err)
