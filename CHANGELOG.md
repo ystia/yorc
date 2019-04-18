@@ -11,6 +11,10 @@
 
 * Upgrade Ansible to 2.7.9 ([GH-364](https://github.com/ystia/yorc/issues/364))
 
+### BUG FIXES
+
+* Unable to delete a deployment with non-conform topology ([GH-368](https://github.com/ystia/yorc/issues/368))
+
 ## 3.2.0-M4 (March 29, 2019)
 
 ### ENHANCEMENTS
