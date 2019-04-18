@@ -72,7 +72,7 @@ func up110CleanupTypes(kv *api.KV, topoPrefix string) error {
 	}
 	for _, typePrefix := range types {
 
-		if err = deleteElementsFromConsulPrefix(kv, typePrefix, "description", "name"); err != nil {
+		if err = deleteElementsFromConsulPrefix(kv, typePrefix, "description", "name", "version"); err != nil {
 			return err
 		}
 

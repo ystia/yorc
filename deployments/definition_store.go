@@ -189,7 +189,7 @@ func storeRepositories(ctx context.Context, topology tosca.Topology, topologyPre
 
 func storeCommonType(consulStore consulutil.ConsulStore, commonType tosca.Type, typePrefix, importPath string) {
 	consulStore.StoreConsulKeyAsString(path.Join(typePrefix, "derived_from"), commonType.DerivedFrom)
-	consulStore.StoreConsulKeyAsString(path.Join(typePrefix, "version"), commonType.Version)
+	// consulStore.StoreConsulKeyAsString(path.Join(typePrefix, "version"), commonType.Version)
 	// consulStore.StoreConsulKeyAsString(path.Join(typePrefix, "description"), commonType.Description)
 	consulStore.StoreConsulKeyAsString(path.Join(typePrefix, "importPath"), importPath)
 	for metaName, metaValue := range commonType.Metadata {
