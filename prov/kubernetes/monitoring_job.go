@@ -141,10 +141,12 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		}
 		err = deleteJob(ctx, deploymentID, namespace, jobID, namespaceProvided, o.clientset)
 		if err != nil {
+			// error to be returned
 			err = errors.Wrapf(err, "failed to delete completed job %q", jobID)
 		}
 		if job.Status.Succeeded < *job.Spec.Completions {
 			jobState = "Failed"
+			// error to be returned
 			err = errors.Errorf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
 		}
 	}
@@ -153,10 +155,12 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		jobState = "No pods created"
 	}
 
+	// Get previus node status and avoit to set err to nil if no error occurs in get
 	previousState, err1 := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
 	if err1 != nil {
 		err = errors.Wrapf(err, "failed to get instance state for job %q", jobID)
 	}
+
 	if len(jobState) != 0 && previousState != jobState {
 		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", jobState)
 	}

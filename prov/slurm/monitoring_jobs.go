@@ -130,7 +130,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
 	if err != nil {
-		err = errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
+		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
 	}
 	if previousJobState != info["JobState"] {
 		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", info["JobState"])
@@ -142,7 +142,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		// job has been done successfully : unregister monitoring
 		deregister = true
 	case "RUNNING", "PENDING", "COMPLETING", "CONFIGURING", "SIGNALING", "RESIZING":
-		// job's still running or its state is about to be set definitively: monitoring is keeping on
+		// job's still running or its state is about to be set definitively: monitoring is keeping on (deregister stays false)
 	default:
 		// Other cases as FAILED, CANCELLED, STOPPED, SUSPENDED, TIMEOUT, etc : error is return with job state and job info is logged
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
