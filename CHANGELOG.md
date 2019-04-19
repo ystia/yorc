@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 3.2.0-M5 (April 19, 2019)
 
 ### FEATURES
 
