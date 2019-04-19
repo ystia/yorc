@@ -560,6 +560,7 @@ topology_template:
             - set_state: started
           on_success:
             - Infrastructure_initial
+            - YorcAnsibleConfig_initial
             - YorcPlugin_initial
         TerraformRuntime_created:
           target: TerraformRuntime
@@ -649,8 +650,6 @@ topology_template:
           target: Infrastructure
           activities:
             - set_state: started
-          on_success:
-            - YorcAnsibleConfig_initial
         YorcAnsibleConfig_started:
           target: YorcAnsibleConfig
           activities:
