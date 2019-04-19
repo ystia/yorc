@@ -16,9 +16,10 @@ package deployments
 
 import (
 	"context"
-	"github.com/ystia/yorc/v3/log"
 	"path"
 	"time"
+
+	"github.com/ystia/yorc/v3/log"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -50,18 +51,27 @@ func SetInstanceStateWithContextualLogs(ctx context.Context, kv *api.KV, deploym
 
 // GetInstanceState retrieves the state of a given node instance
 func GetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string) (tosca.NodeState, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"), nil)
+	stringStateValue, err := GetInstanceStateString(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
-		return tosca.NodeStateError, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return tosca.NodeStateError, err
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return tosca.NodeStateError, errors.Errorf("Missing mandatory attribute \"state\" on instance %q for node %q", instanceName, nodeName)
-	}
-	state, err := tosca.NodeStateString(string(kvp.Value))
+	state, err := tosca.NodeStateString(stringStateValue)
 	if err != nil {
 		return tosca.NodeStateError, err
 	}
 	return state, nil
+}
+
+// GetInstanceStateString retrieves the string value of the state attribute of a given node instance
+func GetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Errorf("Missing mandatory attribute \"state\" on instance %q for node %q", instanceName, nodeName)
+	}
+	return string(kvp.Value), nil
 }
 
 // DeleteInstance deletes the given instance of the given node from the Consul store

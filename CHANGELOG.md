@@ -10,6 +10,7 @@
 
 ### ENHANCEMENTS
 
+* Add job status feedback for slurm and k8s jobs ([GH-351](https://github.com/ystia/yorc/issues/351))
 * Upgrade Ansible to 2.7.9 ([GH-364](https://github.com/ystia/yorc/issues/364))
 * Reduce the volume of data stored in Consul part 1 ([GH-361](https://github.com/ystia/yorc/issues/361))
 

@@ -17,12 +17,15 @@ package slurm
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"path"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
@@ -125,17 +128,29 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
+	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
+	if err != nil {
+		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
+	}
+	if previousJobState != info["JobState"] {
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", info["JobState"])
+	}
+
 	// See if monitoring must be continued and set job state if terminated
 	switch info["JobState"] {
 	case "COMPLETED":
 		// job has been done successfully : unregister monitoring
 		deregister = true
 	case "RUNNING", "PENDING", "COMPLETING", "CONFIGURING", "SIGNALING", "RESIZING":
-		// job's still running or its state is about to be set definitively: monitoring is keeping on
+		// job's still running or its state is about to be set definitively: monitoring is keeping on (deregister stays false)
 	default:
 		// Other cases as FAILED, CANCELLED, STOPPED, SUSPENDED, TIMEOUT, etc : error is return with job state and job info is logged
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
 		deregister = true
+		// Log event containing all the slurm information
+
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
+		// Error to be returned
 		err = errors.Errorf("job with ID:%q finished unsuccessfully with state:%q", actionData.jobID, info["JobState"])
 	}
 
@@ -166,8 +181,8 @@ func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath, fi
 	cmd := fmt.Sprintf("cat %s", filePath)
 	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
-		mess := fmt.Sprintf("an error:%+v occurred during logging file:%q", err, filePath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).RegisterAsString(mess)
+		log.Debugf("fail to log file (%s)due to error:%+v:", filePath, err)
+		return
 	}
 	if strings.TrimSpace(output) != "" {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))

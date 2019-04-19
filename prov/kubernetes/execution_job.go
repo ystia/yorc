@@ -53,6 +53,7 @@ func (e *execution) executeAsync(ctx context.Context, cfg config.Configuration, 
 	data["originalTaskID"] = e.taskID
 	data["jobID"] = jobID
 	data["namespace"] = job.namespace
+	data["nodeName"] = e.nodeName
 	data["namespaceProvided"] = strconv.FormatBool(job.namespaceProvided)
 	data["stepName"] = stepName
 	// TODO deal with outputs?
