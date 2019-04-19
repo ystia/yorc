@@ -15,6 +15,7 @@
 package openstack
 
 import (
+	"context"
 	"path"
 	"strings"
 	"testing"
@@ -22,7 +23,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 )
 
@@ -30,17 +34,26 @@ func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	g := osGenerator{}
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipURL := "node/NetworkFIP" + indexSuffix
-	data[ipURL+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
-	data[ipURL+"/properties/floating_network_name"] = []byte("Public_Network")
+
+	nodeName := "NetworkFIP" + depID
+
+	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+
+	data[nodePrefix+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
+	data[nodePrefix+"/properties/floating_network_name"] = []byte("Public_Network")
 
 	srv1.PopulateKV(t, data)
-	gia, err := g.generateFloatingIP(kv, ipURL, "0")
+	gia, err := g.generateFloatingIP(kv, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "Public_Network", gia.Pool)
 	assert.False(t, gia.IsIP)
@@ -50,17 +63,24 @@ func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	g := osGenerator{}
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipURL := "node/NetworkFIP" + indexSuffix
-	data[ipURL+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
-	data[ipURL+"/properties/ip"] = []byte("10.0.0.2")
+	nodeName := "NetworkFIP" + depID
+
+	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+
+	data[nodePrefix+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
+	data[nodePrefix+"/properties/ip"] = []byte("10.0.0.2")
 
 	srv1.PopulateKV(t, data)
-	gia, err := g.generateFloatingIP(kv, ipURL, "0")
+	gia, err := g.generateFloatingIP(kv, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.Pool)
 	assert.True(t, gia.IsIP)
@@ -70,17 +90,23 @@ func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV)
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	g := osGenerator{}
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipURL := "node/NetworkFIP" + indexSuffix
-	data[ipURL+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
-	data[ipURL+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
+	nodeName := "NetworkFIP" + depID
+
+	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+	data[nodePrefix+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
+	data[nodePrefix+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
 
 	srv1.PopulateKV(t, data)
-	gia, err := g.generateFloatingIP(kv, ipURL, "0")
+	gia, err := g.generateFloatingIP(kv, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.Pool)
 	assert.True(t, gia.IsIP)

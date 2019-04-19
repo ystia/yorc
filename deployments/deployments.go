@@ -43,6 +43,26 @@ func IsDeploymentNotFoundError(err error) bool {
 	return ok
 }
 
+type inconsistentDeploymentError struct {
+	deploymentID string
+}
+
+func (t inconsistentDeploymentError) Error() string {
+	return fmt.Sprintf("Inconsistent deployment with ID %q", t.deploymentID)
+}
+
+// IsInconsistentDeploymentError checks if an error is an inconsistent deployment error
+func IsInconsistentDeploymentError(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(inconsistentDeploymentError)
+	return ok
+}
+
+// NewInconsistentDeploymentError allows to create a new inconsistentDeploymentError error
+func NewInconsistentDeploymentError(deploymentID string) error {
+	return inconsistentDeploymentError{deploymentID: deploymentID}
+}
+
 // DeploymentStatusFromString returns a DeploymentStatus from its textual representation.
 //
 // If ignoreCase is 'true' the given status is upper cased to match the generated status strings.

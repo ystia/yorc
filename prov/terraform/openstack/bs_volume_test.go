@@ -15,6 +15,7 @@
 package openstack
 
 import (
+	"context"
 	"path"
 	"strconv"
 	"testing"
@@ -22,8 +23,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 )
 
@@ -31,42 +35,47 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
-				"region": "Region_" + indexSuffix,
+				"region": "Region_" + depID,
 			}}}
 	g := osGenerator{}
 
 	var testData = []struct {
-		volURL       string
+		nodeName     string
 		inputSize    string
 		expectedSize int
 	}{
-		{"node_" + indexSuffix + "/volume1", "1", 1},
-		{"node_" + indexSuffix + "/volume10000000", "100", 1},
-		{"node_" + indexSuffix + "/volume10000000", "1500 M", 2},
-		{"node_" + indexSuffix + "/volume1GB", "1GB", 1},
-		{"node_" + indexSuffix + "/volume1GBS", "1      GB", 1},
-		{"node_" + indexSuffix + "/volume1GiB", "1 GiB", 2},
-		{"node_" + indexSuffix + "/volume2GIB", "2 GIB", 3},
-		{"node_" + indexSuffix + "/volume1TB", "1 tb", 1000},
-		{"node_" + indexSuffix + "/volume1TiB", "1 TiB", 1100},
+		{"volume1", "1", 1},
+		{"volume10000000", "100", 1},
+		{"volume10000000", "1500 M", 2},
+		{"volume1GB", "1GB", 1},
+		{"volume1GBS", "1      GB", 1},
+		{"volume1GiB", "1 GiB", 2},
+		{"volume2GIB", "2 GIB", 3},
+		{"volume1TB", "1 tb", 1000},
+		{"volume1TiB", "1 TiB", 1100},
 	}
+	nodesPrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes")
 	for i, tt := range testData {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volURL+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
-		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
+		data[path.Join(nodesPrefix, tt.nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
+		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		bsv, err := g.generateOSBSVolume(kv, cfg, tt.volURL, strconv.Itoa(i))
+		bsv, err := g.generateOSBSVolume(kv, cfg, depID, tt.nodeName, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
-		assert.Equal(t, "Region_"+indexSuffix, bsv.Region)
+		assert.Equal(t, "Region_"+depID, bsv.Region)
 	}
 }
 
@@ -74,32 +83,37 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
-				"region": "Region_" + indexSuffix,
+				"region": "Region_" + depID,
 			}}}
 	g := osGenerator{}
 
 	var testData = []struct {
-		volURL    string
+		nodeName  string
 		inputSize string
 	}{
-		{"node_" + indexSuffix + "/volume1", "1 bar"},
-		{"node_" + indexSuffix + "/volume2", "100 BAZ"},
-		{"node_" + indexSuffix + "/volume3", "M 1500"},
-		{"node_" + indexSuffix + "/volume4", "GB"},
+		{"volume1", "1 bar"},
+		{"volume2", "100 BAZ"},
+		{"volume3", "M 1500"},
+		{"volume4", "GB"},
 	}
+	nodesPrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes")
 	for i, tt := range testData {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volURL+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
-		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
+		data[path.Join(nodesPrefix, tt.nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
+		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		_, err := g.generateOSBSVolume(kv, cfg, tt.volURL, strconv.Itoa(i))
+		_, err := g.generateOSBSVolume(kv, cfg, depID, tt.nodeName, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
 }
@@ -108,21 +122,27 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
-				"region": "Region_" + indexSuffix,
+				"region": "Region_" + depID,
 			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol_"+indexSuffix+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
+	nodeName := "volumeMissingSize"
+
+	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
+	_, err = g.generateOSBSVolume(kv, cfg, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
@@ -131,21 +151,27 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
-				"region": "Region_" + indexSuffix,
+				"region": "Region_" + depID,
 			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol_"+indexSuffix+"/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
+	nodeName := "volumeWrongType"
+
+	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
+	_, err = g.generateOSBSVolume(kv, cfg, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
@@ -154,24 +180,32 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	t.Parallel()
 	log.SetDebug(true)
 
-	indexSuffix := path.Base(t.Name())
+	depID := path.Base(t.Name())
+	yamlName := "testdata/OSBaseImports.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
-				"region": "Region_" + indexSuffix,
+				"region": "Region_" + depID,
 			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
+	nodeName := "volumeOpts"
+
+	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+
 	data := make(map[string][]byte)
-	data["vol_"+indexSuffix+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
-	data["vol_"+indexSuffix+"/properties/size"] = []byte("1 GB")
-	data["vol_"+indexSuffix+"/properties/availability_zone"] = []byte("az1")
-	data["vol_"+indexSuffix+"/properties/region"] = []byte("Region2")
+	data[path.Join(nodePrefix, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
+	data[path.Join(nodePrefix, "properties/size")] = []byte("1 GB")
+	data[path.Join(nodePrefix, "properties/availability_zone")] = []byte("az1")
+	data[path.Join(nodePrefix, "properties/region")] = []byte("Region2")
 
 	srv1.PopulateKV(t, data)
-	bsv, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
+	bsv, err := g.generateOSBSVolume(kv, cfg, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)

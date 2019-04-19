@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package monitoring is responsible for handling node monitoring (tcp and http checks) especially for tosca.nodes.Compute and tosca.nodes.SoftwareComponent node templates
+// Present limitation : only one monitoring check by node instance is allowed
 package monitoring
 
 import (
-	"context"
-	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -27,22 +27,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/tasks"
-	"github.com/ystia/yorc/v3/tasks/workflow"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
-	"github.com/ystia/yorc/v3/tosca"
 )
 
 var defaultMonManager *monitoringMgr
-
-func init() {
-	workflow.RegisterPreActivityHook(removeMonitoringHook)
-	workflow.RegisterPostActivityHook(addMonitoringHook)
-}
 
 type monitoringMgr struct {
 	cc               *api.Client
@@ -161,7 +150,11 @@ func (mgr *monitoringMgr) startMonitoring() {
 						// Remove it from the manager checks
 						delete(mgr.checks, id)
 						// Unregister it definitively
-						mgr.unregisterCheck(id)
+						err = mgr.unregisterCheck(id)
+						if err != nil {
+							handleError(err)
+							continue
+						}
 					}
 					continue
 				}
@@ -179,13 +172,53 @@ func (mgr *monitoringMgr) startMonitoring() {
 					}
 					check.TimeInterval = d
 				}
+				var address string
 				kvp, _, err = mgr.cc.KV().Get(path.Join(key, "address"), nil)
 				if err != nil {
 					handleError(err)
 					continue
 				}
 				if kvp != nil && len(kvp.Value) > 0 {
-					check.TCPAddress = string(kvp.Value)
+					address = string(kvp.Value)
+				}
+
+				var port int
+				kvp, _, err = mgr.cc.KV().Get(path.Join(key, "port"), nil)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+				if kvp != nil && len(kvp.Value) > 0 {
+					port, err = strconv.Atoi(string(kvp.Value))
+					if err != nil {
+						handleError(err)
+						continue
+					}
+				}
+
+				kvp, _, err = mgr.cc.KV().Get(path.Join(key, "type"), nil)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+				if kvp != nil && len(kvp.Value) > 0 {
+					check.CheckType, err = ParseCheckType(string(kvp.Value))
+					if err != nil {
+						handleError(err)
+						continue
+					}
+				}
+
+				// In function of check type, create related checkExecution
+				switch check.CheckType {
+				case CheckTypeTCP:
+					check.execution = newTCPCheckExecution(address, port)
+				case CheckTypeHTTP:
+					check.execution, err = mgr.buildHTTPExecution(key, address, port)
+					if err != nil {
+						handleError(err)
+						continue
+					}
 				}
 
 				reportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
@@ -213,130 +246,52 @@ func (mgr *monitoringMgr) startMonitoring() {
 	}()
 }
 
-func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity builder.Activity) {
-	// Monitoring check are added after (post-hook):
-	// - Delegate activity and install operation
-	// - SetState activity and node state "Started"
-
-	switch {
-	case activity.Type() == builder.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
-		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
-
-		// Check if monitoring is required
-		isMonitorReq, monitoringInterval, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
-			return
-		}
-		if !isMonitorReq {
-			return
-		}
-
-		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
-			return
-		}
-
-		for _, instance := range instances {
-			ipAddress, err := deployments.GetInstanceAttributeValue(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
-			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-					Registerf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
-				return
-			}
-			if ipAddress == nil || ipAddress.RawString() == "" {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-					Registerf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID:%q", target, instance, deploymentID)
-				return
-			}
-
-			if err := defaultMonManager.registerCheck(deploymentID, target, instance, ipAddress.RawString(), 22, monitoringInterval); err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-					Registerf("Failed to register check for node name:%q due to: %v", target, err)
-				return
-			}
-		}
-	}
-}
-
-func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity builder.Activity) {
-	// Monitoring check are removed before (pre-hook):
-	// - Delegate activity and uninstall operation
-	// - SetState activity and node state "Deleted"
-	switch {
-	case activity.Type() == builder.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
-		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
-
-		// Check if monitoring has been required
-		isMonitorReq, _, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
-			return
-		}
-		if !isMonitorReq {
-			return
-		}
-
-		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
-			return
-		}
-
-		for _, instance := range instances {
-			if err := defaultMonManager.flagCheckForRemoval(deploymentID, target, instance); err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-					Registerf("Failed to unregister check for node name:%q due to: %v", target, err)
-				return
-			}
-		}
-	}
-}
-
-func (mgr *monitoringMgr) isMonitoringRequired(deploymentID, nodeName string) (bool, time.Duration, error) {
-	// Check if the node is a compute
-	var isCompute bool
-	isCompute, err := deployments.IsNodeDerivedFrom(mgr.cc.KV(), deploymentID, nodeName, "tosca.nodes.Compute")
+func (mgr *monitoringMgr) buildHTTPExecution(key string, address string, port int) (*httpCheckExecution, error) {
+	var scheme, urlPath string
+	kvp, _, err := mgr.cc.KV().Get(path.Join(key, "scheme"), nil)
 	if err != nil {
-		return false, 0, err
+		return nil, err
 	}
-	if !isCompute {
-		return false, 0, nil
+	if kvp == nil || len(kvp.Value) == 0 {
+		return nil, errors.Errorf("Missing mandatory field \"scheme\" for check with kay path:%q", key)
 	}
+	scheme = string(kvp.Value)
 
-	// monitoring_time_interval must be set to positive value
-	found, val, err := deployments.GetNodeMetadata(mgr.cc.KV(), deploymentID, nodeName, "monitoring_time_interval")
+	kvp, _, err = mgr.cc.KV().Get(path.Join(key, "path"), nil)
 	if err != nil {
-		return false, 0, err
+		return nil, err
 	}
-	if !found {
-		return false, 0, nil
+	if kvp != nil && len(kvp.Value) > 0 {
+		urlPath = string(kvp.Value)
 	}
 
-	var t int
-	if t, err = strconv.Atoi(val); err != nil {
-		return false, 0, err
+	kvps, _, err := mgr.cc.KV().List(path.Join(key, "headers"), nil)
+	if err != nil {
+		return nil, err
 	}
-	if t > 0 {
-		duration, err := time.ParseDuration(val + "s")
-		if err != nil {
-			return false, 0, err
+	headersMap := make(map[string]string, len(kvps))
+	for _, kvp := range kvps {
+		if kvp.Value != nil {
+			headersMap[path.Base(kvp.Key)] = string(kvp.Value)
 		}
-		return true, duration, nil
 	}
-	return false, 0, nil
+	kvps, _, err = mgr.cc.KV().List(path.Join(key, "tlsClient"), nil)
+	if err != nil {
+		return nil, err
+	}
+	tlsConf := make(map[string]string, len(kvps))
+	for _, kvp := range kvps {
+		if kvp.Value != nil {
+			tlsConf[path.Base(kvp.Key)] = string(kvp.Value)
+		}
+	}
+	return newHTTPCheckExecution(address, port, scheme, urlPath, headersMap, tlsConf)
 }
 
-// registerCheck allows to register a check
-func (mgr *monitoringMgr) registerCheck(deploymentID, nodeName, instance, ipAddress string, port int, interval time.Duration) error {
+// registerTCPCheck allows to register a TCP check
+func (mgr *monitoringMgr) registerTCPCheck(deploymentID, nodeName, instance, ipAddress string, port int, interval time.Duration) error {
 	id := buildID(deploymentID, nodeName, instance)
-	log.Debugf("Register check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
-	tcpAddr := fmt.Sprintf("%s:%d", ipAddress, port)
+	log.Debugf("Register TCP check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 
 	// Check is registered in a transaction to ensure to be read in its wholeness
 	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
@@ -344,13 +299,19 @@ func (mgr *monitoringMgr) registerCheck(deploymentID, nodeName, instance, ipAddr
 
 	checkOps := api.KVTxnOps{
 		&api.KVTxnOp{
-			Verb: api.KVCheckNotExists,
-			Key:  path.Join(checkPath, "address"),
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "type"),
+			Value: []byte("tcp"),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(checkPath, "address"),
-			Value: []byte(tcpAddr),
+			Value: []byte(ipAddress),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "port"),
+			Value: []byte(strconv.Itoa(port)),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -360,24 +321,115 @@ func (mgr *monitoringMgr) registerCheck(deploymentID, nodeName, instance, ipAddr
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(checkReportPath, "status"),
-			Value: []byte(CheckStatusPASSING.String()),
+			Value: []byte(CheckStatusINITIAL.String()),
 		},
 	}
 
 	ok, response, _, err := mgr.cc.KV().Txn(checkOps, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to add check with id:%q", id)
+		return errors.Wrapf(err, "Failed to add TCP check with id:%q", id)
 	}
 	if !ok {
 		// Check the response
 		errs := make([]string, 0)
 		for _, e := range response.Errors {
-			if e.OpIndex == 0 {
-				return errors.Wrapf(err, "Check with id:%q and TCP address:%q already exists", id, tcpAddr)
-			}
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to add check with id:%q due to:%s", id, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to add TCP check with id:%q due to:%s", id, strings.Join(errs, ", "))
+	}
+	return nil
+}
+
+// registerHTTPCheck allows to register an HTTP check
+func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ipAddress, scheme, urlPath string, port int, headers map[string]string, tlsClientConfig map[string]string, interval time.Duration) error {
+	id := buildID(deploymentID, nodeName, instance)
+	log.Debugf("Register HTTP check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
+
+	// Check is registered in a transaction to ensure to be read in its wholeness
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
+	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
+
+	kvps, _, err := mgr.cc.KV().List(checkPath, nil)
+	if err != nil {
+		return err
+	}
+	if kvps != nil {
+		log.Debugf("HTTP check with id:%q is already registered: nothing to do", id)
+		return nil
+	}
+
+	checkOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "type"),
+			Value: []byte("http"),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "address"),
+			Value: []byte(ipAddress),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "scheme"),
+			Value: []byte(scheme),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "port"),
+			Value: []byte(strconv.Itoa(port)),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "interval"),
+			Value: []byte(interval.String()),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkReportPath, "status"),
+			Value: []byte(CheckStatusINITIAL.String()),
+		},
+	}
+
+	if urlPath != "" {
+		checkOps = append(checkOps, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "path"),
+			Value: []byte(urlPath),
+		})
+	}
+
+	if headers != nil {
+		for k, v := range headers {
+			checkOps = append(checkOps, &api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(checkPath, "headers", k),
+				Value: []byte(v),
+			})
+		}
+	}
+
+	if tlsClientConfig != nil {
+		for k, v := range tlsClientConfig {
+			checkOps = append(checkOps, &api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(checkPath, "tlsClient", k),
+				Value: []byte(v),
+			})
+		}
+	}
+
+	ok, response, _, err := mgr.cc.KV().Txn(checkOps, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to add HTTP check with id:%q", id)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to add HTTP check with id:%q due to:%s", id, strings.Join(errs, ", "))
 	}
 	return nil
 }
@@ -387,6 +439,14 @@ func (mgr *monitoringMgr) flagCheckForRemoval(deploymentID, nodeName, instance s
 	id := buildID(deploymentID, nodeName, instance)
 	log.Debugf("PreUnregisterCheck check with id:%q", id)
 	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
+	kvps, _, err := mgr.cc.KV().List(checkPath, nil)
+	if err != nil {
+		return err
+	}
+	if kvps == nil || len(kvps) == 0 {
+		// nothing to do : the check hasn't been registered or has already been removed
+		return nil
+	}
 	return consulutil.StoreConsulKeyAsString(path.Join(checkPath, ".unregisterFlag"), "true")
 }
 

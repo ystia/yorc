@@ -26,6 +26,7 @@ import (
 
 var upgradeToMap = map[string]func(*api.KV, <-chan struct{}) error{
 	"1.0.0": upgradeschema.UpgradeFromPre31,
+	"1.1.0": upgradeschema.UpgradeTo110,
 }
 
 var orderedUpgradesVersions []semver.Version
@@ -127,7 +128,7 @@ func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersio
 		}
 		defer snapReader.Close()
 		for _, vUp := range orderedUpgradesVersions {
-			if vUp.GE(vCurrent) {
+			if vUp.GT(vCurrent) {
 				err = upgradeToMap[vUp.String()](client.KV(), leaderCh)
 				if err != nil {
 					// Restore Consul snapshot

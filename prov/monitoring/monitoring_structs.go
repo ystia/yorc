@@ -23,30 +23,34 @@ import (
 //go:generate go-enum -f=monitoring_structs.go --lower
 
 // CheckStatus x ENUM(
+// INITIAL,
 // PASSING,
 // CRITICAL
+// WARNING
 // )
 type CheckStatus int
 
-const (
-	// PASSING is the status of a passing check
-	PASSING CheckStatus = iota
-	// CRITICAL is the status of a critical check
-	CRITICAL
-)
+// CheckType x ENUM(
+// TCP,
+// HTTP
+// )
+type CheckType int
 
 // Check represents a registered check
 type Check struct {
 	ID           string
-	TCPAddress   string
 	TimeInterval time.Duration
 	Report       CheckReport
+	CheckType    CheckType
 
-	stop     bool
-	stopLock sync.Mutex
-	chStop   chan struct{}
-	timeout  time.Duration
-	ctx      context.Context
+	stop      bool
+	enabled   bool
+	stopLock  sync.Mutex
+	chStop    chan struct{}
+	chDisable chan struct{}
+	timeout   time.Duration
+	ctx       context.Context
+	execution checkExecution
 }
 
 // CheckReport represents a node check report including its status
