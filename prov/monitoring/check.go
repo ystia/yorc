@@ -17,7 +17,6 @@ package monitoring
 import (
 	"context"
 	"fmt"
-	"net"
 	"path"
 	"strings"
 	"time"
@@ -59,11 +58,38 @@ func (c *Check) Start() {
 
 	// timeout is defined arbitrary as half interval to avoid overlap
 	c.timeout = c.TimeInterval / 2
-	// instantiate channel to close the check ticker
+	// instantiate channel to close the internal routine
 	c.chStop = make(chan struct{})
-
 	c.stop = false
-	go c.run()
+
+	// initially, running check is disabled : it's enabled in function of node state
+	c.enabled = false
+
+	go func() {
+		for {
+			select {
+			case <-c.chStop:
+				log.Debugf("Stop monitoring check with id:%s", c.ID)
+				c.disable()
+				return
+			default:
+			}
+
+			instanceState, err := deployments.GetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
+			if err != nil || instanceState != tosca.NodeStateStarted && instanceState != tosca.NodeStateError {
+				// Disable check
+				c.disable()
+				continue
+			}
+			// Enable check
+			if c.enabled == false {
+				// instantiate channel to close the check ticker
+				c.chDisable = make(chan struct{})
+				c.enabled = true
+				go c.run()
+			}
+		}
+	}()
 }
 
 // Stop allows to stop a TCP check
@@ -77,30 +103,27 @@ func (c *Check) Stop() {
 	}
 }
 
+func (c *Check) disable() {
+	if c.enabled {
+		c.enabled = false
+		close(c.chDisable)
+	}
+}
+
 func (c *Check) run() {
 	log.Debugf("Running check:%+v", c)
 	ticker := time.NewTicker(c.TimeInterval)
 	for {
 		select {
-		case <-c.chStop:
-			log.Debugf("Stop running check with id:%s", c.ID)
+		case <-c.chDisable:
+			log.Debugf("Disable check with id:%s", c.ID)
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			c.check()
+			status, mess := c.execution.execute(c.timeout)
+			c.updateStatus(status, mess)
 		}
 	}
-}
-
-func (c *Check) check() {
-	conn, err := net.DialTimeout("tcp", c.TCPAddress, c.timeout)
-	if err != nil {
-		log.Debugf("[WARN] TCP check (id:%q) connection failed for address:%s", c.ID, c.TCPAddress)
-		c.updateStatus(CheckStatusCRITICAL)
-		return
-	}
-	conn.Close()
-	c.updateStatus(CheckStatusPASSING)
 }
 
 func (c *Check) exist() bool {
@@ -116,34 +139,50 @@ func (c *Check) exist() bool {
 	return true
 }
 
-func (c *Check) updateStatus(status CheckStatus) {
+func (c *Check) updateStatus(status CheckStatus, message string) {
 	if c.Report.Status != status {
 		// Be sure check isn't currently being removed before check has been stopped
 		if !c.exist() {
 			return
 		}
+
 		log.Debugf("Update check status from %q to %q", c.Report.Status.String(), status.String())
 		err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status"), status.String())
 		if err != nil {
 			log.Printf("[WARN] TCP check updating status failed for check ID:%q due to error:%+v", c.ID, err)
 		}
 		c.Report.Status = status
-		c.notify()
+		c.notify(message)
 	}
 }
 
-func (c *Check) notify() {
+func (c *Check) notify(additionalMessage string) {
 	var nodeState tosca.NodeState
-	if c.Report.Status == CheckStatusPASSING {
+	var eventLevel events.LogLevel
+	var statusChangeMess string
+
+	switch c.Report.Status {
+	case CheckStatusPASSING:
 		// Back to normal
 		nodeState = tosca.NodeStateStarted
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelINFO, c.Report.DeploymentID).Registerf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
-
-	} else if c.Report.Status == CheckStatusCRITICAL {
+		eventLevel = events.LogLevelINFO
+		statusChangeMess = fmt.Sprintf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+	case CheckStatusCRITICAL:
 		// Node in ERROR
 		nodeState = tosca.NodeStateError
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelERROR, c.Report.DeploymentID).Registerf("Monitoring Check returned a connection failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+		eventLevel = events.LogLevelERROR
+		statusChangeMess = fmt.Sprintf("Monitoring Check returned a failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+	case CheckStatusWARNING:
+		// TODO maybe a warning state should be more appropriate
+		nodeState = tosca.NodeStateError
+		eventLevel = events.LogLevelWARN
+		statusChangeMess = fmt.Sprintf("Monitoring Check returned a warning for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
 	}
+
+	if additionalMessage != "" {
+		events.WithContextOptionalFields(c.ctx).NewLogEntry(eventLevel, c.Report.DeploymentID).Registerf(additionalMessage)
+	}
+	events.WithContextOptionalFields(c.ctx).NewLogEntry(eventLevel, c.Report.DeploymentID).Registerf(statusChangeMess)
 
 	// Update the node state
 	if err := deployments.SetInstanceStateWithContextualLogs(c.ctx, defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance, nodeState); err != nil {

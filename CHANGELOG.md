@@ -6,6 +6,7 @@
 
 * Implement an anti-affinity placement policy for Openstack ([GH-84](https://github.com/ystia/yorc/issues/84))
 * Allow to configure Ansible configuration file ([GH-346](https://github.com/ystia/yorc/issues/346))
+* Monitor deployed services liveness ([GH-104](https://github.com/ystia/yorc/issues/104))
 
 ### ENHANCEMENTS
 

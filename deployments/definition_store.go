@@ -130,6 +130,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 		storeOutputs(ctx, topology, topologyPrefix)
 		storeSubstitutionMappings(ctx, topology, topologyPrefix)
 		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
+		storePolicies(ctx, topology, topologyPrefix)
 	} else {
 		// For imported templates, storing substitution mappings if any
 		// as they contain details on service to application/node type mapping
@@ -145,6 +146,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	}
 	storeCapabilityTypes(ctx, topology, topologyPrefix, importPath)
 	storeArtifactTypes(ctx, topology, topologyPrefix, importPath)
+	storePolicyTypes(ctx, topology, topologyPrefix, importPath)
 
 	// Detect potential cycles in inline workflows
 	if err := checkNestedWorkflows(topology); err != nil {
@@ -385,6 +387,31 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		storeInterfaces(consulStore, node.Interfaces, nodePrefix, false)
 	}
 
+}
+
+// storePolicies stores topology policies
+func storePolicies(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	nodesPrefix := path.Join(topologyPrefix, "policies")
+	for _, policyMap := range topology.TopologyTemplate.Policies {
+		for policyName, policy := range policyMap {
+			nodePrefix := nodesPrefix + "/" + policyName
+			consulStore.StoreConsulKeyAsString(nodePrefix+"/type", policy.Type)
+
+			if policy.Targets != nil {
+				targetPrefix := nodePrefix + "/targets"
+				consulStore.StoreConsulKeyAsString(targetPrefix, strings.Join(policy.Targets, ","))
+			}
+			propertiesPrefix := nodePrefix + "/properties"
+			for propName, propValue := range policy.Properties {
+				storeValueAssignment(consulStore, propertiesPrefix+"/"+url.QueryEscape(propName), propValue)
+			}
+			metadataPrefix := nodePrefix + "/metadata/"
+			for metaName, metaValue := range policy.Metadata {
+				consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
+			}
+		}
+	}
 }
 
 // storePropertyDefinition stores a property definition
@@ -735,6 +762,22 @@ func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPr
 			propPrefix := propertiesPrefix + "/" + propName
 			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
 		}
+	}
+}
+
+// storePolicyTypes stores topology policy types
+func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	for policyName, policyType := range topology.PolicyTypes {
+		key := path.Join(topologyPrefix, "types", policyName)
+		storeCommonType(consulStore, policyType.Type, key, importPath)
+		consulStore.StoreConsulKeyAsString(key+"/name", policyName)
+		propertiesPrefix := key + "/properties"
+		for propName, propDefinition := range policyType.Properties {
+			propPrefix := propertiesPrefix + "/" + propName
+			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
+		}
+		consulStore.StoreConsulKeyAsString(key+"/targets", strings.Join(policyType.Targets, ","))
 	}
 }
 
