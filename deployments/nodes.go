@@ -796,11 +796,11 @@ func createNodeInstance(kv *api.KV, consulStore consulutil.ConsulStore, deployme
 
 // DoesNodeExist checks if a given node exist in a deployment
 func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "name"), nil)
+	keys, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", "/", nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return kvp != nil && len(kvp.Value) > 0, nil
+	return len(keys) > 0, nil
 }
 
 // GetNodeMetadata retrieves the related node metadata key if exists

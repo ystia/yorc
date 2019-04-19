@@ -34,7 +34,6 @@ import (
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
@@ -73,7 +72,6 @@ type executionCommon struct {
 	Artifacts      map[string]string
 	EnvInputs      []*operations.EnvInput
 	VarInputsNames []string
-	NodePath       string
 	Primary        string
 	PrimaryFile    string
 	nodeInstances  []string
@@ -560,7 +558,6 @@ func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifact
 }
 
 func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
 	var err error
 	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
