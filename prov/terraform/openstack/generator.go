@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
@@ -38,17 +37,17 @@ import (
 type osGenerator struct {
 }
 
-func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) (string, error) {
-	getResult, _, err := kv.Get(baseURL+"/"+property, nil)
-	if err != nil {
-		return "", errors.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
-	}
-	if getResult == nil {
-		log.Debugf("Can't get property %s for node %s (not found)", property, baseURL)
-		return "", nil
-	}
-	return string(getResult.Value), nil
-}
+// func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) (string, error) {
+// 	getResult, _, err := kv.Get(baseURL+"/"+property, nil)
+// 	if err != nil {
+// 		return "", errors.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
+// 	}
+// 	if getResult == nil {
+// 		log.Debugf("Can't get property %s for node %s (not found)", property, baseURL)
+// 		return "", nil
+// 	}
+// 	return string(getResult.Value), nil
+// }
 
 func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
@@ -57,7 +56,6 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 		return false, nil, nil, nil, err
 	}
 	kv := cClient.KV()
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 
@@ -90,7 +88,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 		},
 	}
 
-	log.Debugf("inspecting node %s", nodeKey)
+	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
@@ -121,16 +119,18 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 		case "yorc.nodes.openstack.BlockStorage":
 			var bsIds []string
-			var volumeID string
-			if volumeID, err = g.getStringFormConsul(kv, nodeKey, "properties/volume_id"); err != nil {
+			volumeID, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "volume_id")
+			if err != nil {
 				return false, nil, nil, nil, err
-			} else if volumeID != "" {
+			}
+
+			if volumeID != nil && volumeID.RawString() != "" {
 				log.Debugf("Reusing existing volume with id %q for node %q", volumeID, nodeName)
-				bsIds = strings.Split(volumeID, ",")
+				bsIds = strings.Split(volumeID.RawString(), ",")
 			}
 
 			var bsVolume BlockStorageVolume
-			bsVolume, err = g.generateOSBSVolume(kv, cfg, nodeKey, instanceName)
+			bsVolume, err = g.generateOSBSVolume(kv, cfg, deploymentID, nodeName, instanceName)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
@@ -149,7 +149,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 		case "yorc.nodes.openstack.FloatingIP":
 			var ip IP
-			ip, err = g.generateFloatingIP(kv, nodeKey, instanceName)
+			ip, err = g.generateFloatingIP(kv, deploymentID, nodeName, instanceName)
 
 			if err != nil {
 				return false, nil, nil, nil, err
@@ -169,15 +169,14 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 					return false, nil, nil, nil, err
 				}
 				if (len(ips) - 1) < instName {
-					var networkName string
-					networkName, err = g.getStringFormConsul(kv, nodeKey, "properties/floating_network_name")
+					networkName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "floating_network_name")
 					if err != nil {
 						return false, nil, nil, nil, err
-					} else if networkName == "" {
+					} else if networkName == nil || networkName.RawString() == "" {
 						return false, nil, nil, nil, errors.Errorf("You need to provide enough IP address or a Pool to generate missing IP address")
 					}
 
-					floatingIP := FloatingIP{Pool: networkName}
+					floatingIP := FloatingIP{Pool: networkName.RawString()}
 					commons.AddResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
 					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
 
@@ -195,22 +194,21 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			commons.AddResource(&infrastructure, "consul_keys", ip.Name, &consulKeys)
 
 		case "yorc.nodes.openstack.Network":
-			var networkID string
-			networkID, err = g.getStringFormConsul(kv, nodeKey, "properties/network_id")
+			networkID, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "network_id")
 			if err != nil {
 				return false, nil, nil, nil, err
-			} else if networkID != "" {
+			} else if networkID != nil && networkID.RawString() != "" {
 				log.Debugf("Reusing existing volume with id %q for node %q", networkID, nodeName)
 				return false, nil, cmdEnv, nil, nil
 			}
 			var network Network
-			network, err = g.generateNetwork(kv, cfg, nodeKey, deploymentID)
+			network, err = g.generateNetwork(kv, cfg, deploymentID, nodeName)
 
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 			var subnet Subnet
-			subnet, err = g.generateSubnet(kv, cfg, nodeKey, deploymentID, nodeName)
+			subnet, err = g.generateSubnet(kv, cfg, deploymentID, nodeName)
 
 			if err != nil {
 				return false, nil, nil, nil, err
@@ -218,7 +216,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 			commons.AddResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
 			commons.AddResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
-			consulKey := commons.ConsulKey{Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
+			consulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "attributes/network_id"), Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
 			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 			consulKeys.DependsOn = []string{fmt.Sprintf("openstack_networking_subnet_v2.%s_subnet", nodeName)}
 			commons.AddResource(&infrastructure, "consul_keys", nodeName, &consulKeys)

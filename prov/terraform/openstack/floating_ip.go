@@ -17,6 +17,8 @@ package openstack
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v3/deployments"
 )
 
 // An IP is...
@@ -27,31 +29,28 @@ type IP struct {
 	IsIP bool
 }
 
-func (g *osGenerator) generateFloatingIP(kv *api.KV, url, instanceName string) (IP, error) {
+func (g *osGenerator) generateFloatingIP(kv *api.KV, deploymentID, nodeName, instanceName string) (IP, error) {
 	var nodeType string
 	result := IP{}
 	result.IsIP = false
 	var err error
-	if nodeType, err = g.getStringFormConsul(kv, url, "type"); err != nil {
+	if nodeType, err = deployments.GetNodeType(kv, deploymentID, nodeName); err != nil {
 		return IP{}, err
 	}
 	if nodeType != "yorc.nodes.openstack.FloatingIP" {
-		return IP{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
-	}
-	nodeName, err := g.getStringFormConsul(kv, url, "name")
-	if err != nil {
-		return IP{}, err
+		return IP{}, errors.Errorf("Unsupported node type for %s: %s", nodeName, nodeType)
 	}
 	result.Name = nodeName + "-" + instanceName
-	if ip, err := g.getStringFormConsul(kv, url, "properties/ip"); err != nil {
+
+	if ip, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "ip"); err != nil {
 		return IP{}, err
-	} else if ip != "" {
-		result.Pool = ip
+	} else if ip != nil && ip.RawString() != "" {
+		result.Pool = ip.RawString()
 		result.IsIP = true
-	} else if networkName, err := g.getStringFormConsul(kv, url, "properties/floating_network_name"); err != nil {
+	} else if networkName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "floating_network_name"); err != nil {
 		return IP{}, err
-	} else if networkName != "" {
-		result.Pool = networkName
+	} else if networkName != nil && networkName.RawString() != "" {
+		result.Pool = networkName.RawString()
 	} else {
 		return IP{}, errors.Errorf("A network name or IP need to be provided")
 	}

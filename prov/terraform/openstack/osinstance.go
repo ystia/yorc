@@ -352,11 +352,11 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	accessIPKey := nodeName + "-" + instanceName + "-IPAddress"
 	commons.AddOutput(infrastructure, accessIPKey, &commons.Output{Value: accessIP})
 	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
+	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
 
 	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
 	privateIP := fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1) // Use latest provisioned network for private access
 	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
-	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = privateIPKey
 	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 
 	err = addServerGroupMembership(ctx, kv, deploymentID, nodeName, &instance)

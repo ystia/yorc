@@ -32,31 +32,21 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/derived_from":        []byte("yorc.types.ParentA"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/importPath":          []byte("path/to/typeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art1/name": []byte("art1"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art1/file": []byte("TypeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art2/name": []byte("art2"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art2/file": []byte("TypeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art6/name": []byte("art6"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art6/file": []byte("TypeA"),
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/derived_from":        []byte("root"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art1/name": []byte("art1"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art1/file": []byte("ParentA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art3/name": []byte("art3"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art3/file": []byte("ParentA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art5/name": []byte("art5"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art5/file": []byte("ParentA"),
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/root/name": []byte("root"),
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/type":                []byte("yorc.types.A"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/name": []byte("art1"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/file": []byte("NodeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/name": []byte("art2"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/file": []byte("NodeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/name": []byte("art3"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/file": []byte("NodeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/name": []byte("art4"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/file": []byte("NodeA"),
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeB/type": []byte("root"),

@@ -44,7 +44,6 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 		return false, nil, nil, nil, err
 	}
 	kv := cClient.KV()
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 
 	infrastructure := commons.Infrastructure{}
@@ -68,7 +67,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 		},
 	}
 
-	log.Debugf("inspecting node %s", nodeKey)
+	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
