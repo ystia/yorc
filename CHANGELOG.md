@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 3.2.0-M5 (April 19, 2019)
+
 ### FEATURES
 
 * Implement an anti-affinity placement policy for Openstack ([GH-84](https://github.com/ystia/yorc/issues/84))
