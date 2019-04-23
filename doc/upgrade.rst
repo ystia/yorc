@@ -38,7 +38,7 @@ Ansible
 ~~~~~~~
 
 Although Yorc 3.2.0 can still work with Ansible 2.7.2, vulnerability issues were
-identified is this Ansible version.
+identified in this Ansible version.
 
 So, it is strongly advised to upgrade Ansible to version 2.7.9:
 
