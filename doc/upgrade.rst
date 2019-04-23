@@ -29,6 +29,23 @@ current version.
 
 .. note:: A rolling upgrade without interruption feature is planned for future versions.
 
+.. _yorc_upgrades_320_section:
+
+Upgrading to Yorc 3.2.0
+-----------------------
+
+Ansible
+~~~~~~~
+
+Although Yorc 3.2.0 can still work with Ansible 2.7.2, vulnerability issues were
+identified is this Ansible version.
+
+So, it is strongly advised to upgrade Ansible to version 2.7.9:
+
+.. code-block:: bash
+
+    sudo pip install ansible==2.7.9
+
 .. _yorc_upgrades_310_section:
 
 Upgrading to Yorc 3.1.0
