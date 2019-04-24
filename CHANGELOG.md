@@ -4,7 +4,8 @@
 
 ### BUG FIXES
 
-* Unexpected deployment deletion during topology unmarshalling([GH-375](https://github.com/ystia/yorc/issues/375))
+* Unexpected deployment deletion during topology unmarshalling ([GH-375](https://github.com/ystia/yorc/issues/375))
+* Parsing of a description field of an TOSCA interface is interpreted as an operation ([GH-372](https://github.com/ystia/yorc/issues/372))
 
 ### ENHANCEMENTS
 
