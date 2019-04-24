@@ -331,8 +331,11 @@ Below is an example of configuration file with Ansible configuration options.
             "display_skipped_hosts": "False",
             "special_context_filesystems": "nfs,vboxsf,fuse,ramfs,myspecialfs",
             "timeout": "60"
-          }            
-        }  
+          }
+        },
+        "inventory":{
+          "target_hosts:vars":["ansible_python_interpreter=/usr/bin/python3"]
+        }
       }
     }
 
