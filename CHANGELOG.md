@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Unexpected deployment deletion during topology unmarshalling([GH-375](https://github.com/ystia/yorc/issues/375))
+
 ### ENHANCEMENTS
 
 * Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
