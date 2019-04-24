@@ -264,6 +264,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
   - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
   - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+	- replace:
+			path: "{{ ansible_env.HOME}}/tmp/.yorc/wrapper"
+			regexp: "#!/usr/bin/env python"
+			replace: "#!{{ ansible_python.executable}}"
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
 
       environment:
@@ -405,7 +409,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
   - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
   - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
-
+	- replace:
+			path: "{{ ansible_env.HOME}}/tmp/.yorc/wrapper"
+			regexp: "#!/usr/bin/env python"
+			replace: "#!{{ ansible_python.executable}}"
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
         NodeA_0_A1: "/var/www"
@@ -543,8 +550,11 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
   - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
-
+	- copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+	- replace:
+			path: "{{ ansible_env.HOME}}/tmp/.yorc/wrapper"
+			regexp: "#!/usr/bin/env python"
+			replace: "#!{{ ansible_python.executable}}"
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
         NodeA_0_A1: "/var/www"
