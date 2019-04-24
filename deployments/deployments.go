@@ -163,12 +163,12 @@ RETRY:
 			events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 		}
 		return nil
-	} else {
-		// Set the status to INITIAL: no need to handle concurrency and to check previous status
-		if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), status.String()); err != nil {
-			return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
-		}
-		events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 	}
+
+	// Set the status to INITIAL: no need to handle concurrency and to check previous status
+	if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), status.String()); err != nil {
+		return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
+	}
+	events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 	return nil
 }
