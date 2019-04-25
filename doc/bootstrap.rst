@@ -281,11 +281,11 @@ for example :
 The bootstrap configuration file can be also be used to define Ansible Inventory
 configuration parameters.
 This is needed for example if remote hosts have python3 installed by default and not python,
-like on Ubuntu 18.10.
+like on Ubuntu 18+.
 
 In this case, you can add in the bootstrap configuration file, a section allowing
 to configure an Ansible behavioral inventory parameter that will allow to specify
-which python interpreter could be used on remote hosts, as described in
+which python interpreter could be used by Ansible on remote hosts, as described in
 :ref:`Ansible Inventory Configuration section <option_ansible_inventory_cfg>`.
 
 This would give for example in the bootstrap configuration file:
@@ -342,13 +342,14 @@ Example of a Google Cloud deployment configuration file
 
 .. _yorc_google_example_ubuntu_section:
 
-Example of a Google Cloud deployment configuration file provisioning Ubuntu 18.10
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example of a Google Cloud deployment configuration with Ubuntu 18.10 on-demand compute
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In this example, on-demand resources run Ubuntu 18.10 on which python3 is installed
-by default (and not python).
-In this case, a specific Ansible behavioral inventory parameter must be defined
-so that Ansible is able to find this python interpreter on the remote hosts.
+In this example, on-demand compute instances run Ubuntu 18.10 on which python3
+is installed by default (and not python).
+In this case, a specific Ansible behavioral inventory parameter 
+``ansible_python_interpreter`` must be defined so that Ansible is able to find 
+this python interpreter on the remote hosts.
 
 .. code-block:: YAML
 
