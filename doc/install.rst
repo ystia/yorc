@@ -52,8 +52,8 @@ Packages installation
 ---------------------
 
 Following packages are required to perform the installation:
-  * python
-  * python-pip
+  * python and python-pip
+    (or python3/python3-pip. In addition, to have Ansible use python3 on remote hosts, see :ref:`Ansible Inventory Configuration section <option_ansible_inventory_cfg>`)
   * zip/unzip
   * openssh-client
   * wget 

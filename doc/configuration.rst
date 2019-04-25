@@ -470,14 +470,14 @@ Ansible inventory option
 you need to define variables for hosts or groups.
 
 You should first provide the Ansible Inventory group name.
-You should then provide the list of parameters to define for this group,  which
+You should then provide the list of parameters to define for this group, which
 can be any parameter specific to your ansible playbooks, or `behavioral inventory
 parameters <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#list-of-behavioral-inventory-parameters>`_
 describing how Ansible interacts with remote hosts.
 
-For example, for Ansible to use python3 on remote hosts, you should provide the
-following configuration in Yaml:
-
+For example, for Ansible to use python3 on remote hosts, you must define
+the Ansible behavioral inventory parameter ``ansible_python_interpreter``
+in the Ansible inventory Yorc configuration, like below in Yaml:
 
 .. code-block:: YAML
 
@@ -489,12 +489,14 @@ following configuration in Yaml:
 By default, the Orchestrator will define :
 
   * an inventory group ``target_hosts`` containing the list of remote hosts, and its
-    associated variable group ``target_hosts:vars`` configuring this behavioral parameter:
+    associated variable group ``target_hosts:vars`` configuring by default this
+    behavioral parameter:
 
     * ``ansible_ssh_common_args="-o ConnectionAttempts=20"``
   
   * an inventory group ``hosted_operations``  and its associated variable group ``hosted_operations:vars``
-    for operations that are executed on the orchestrator host, configuring this behavioral parameter:
+    for operations that are executed on the orchestrator host, configuring by default
+    this behavioral parameter:
   
     * ``ansible_python_interpreter=/usr/bin/env python``
 
