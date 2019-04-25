@@ -410,7 +410,7 @@ All available configuration options for Ansible are:
       * ``env``: An optional list environment variables to set when creating the container. The format of each variable is ``var_name=value``.
 
       * ``config`` and ``inventory`` are complex structure allowing to configure
-        Ansible bheaviour, these options are described in more details in next section.
+        Ansible behavior, these options are described in more details in next section.
 
 .. _option_ansible_config_cfg:
 
@@ -422,7 +422,7 @@ Ansible config option
 you need a specific Ansible Configuration.
     
 You should first provide the Ansible Configuration section (for example ``defaults``,
-``inventory``, ``ssh_connection``...).
+``ssh_connection``...).
 
 You should then provide the list of parameters within this section, ie. what 
 `Ansible documentation <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_ describes
@@ -478,21 +478,25 @@ describing how Ansible interacts with remote hosts.
 For example, for Ansible to use python3 on remote hosts, you should provide the
 following configuration in Yaml:
 
+
 .. code-block:: YAML
 
-ansible:
-  inventory:
-    "target_hosts:vars":
-    - ansible_python_interpreter=/usr/bin/python3
+  ansible:
+    inventory:
+      "target_hosts:vars":
+      - ansible_python_interpreter=/usr/bin/python3
 
 By default, the Orchestrator will define :
 
   * an inventory group ``target_hosts`` containing the list of remote hosts, and its
     associated variable group ``target_hosts:vars`` configuring this behavioral parameter:
-    * ansible_ssh_common_args="-o ConnectionAttempts=20"
+
+    * ``ansible_ssh_common_args="-o ConnectionAttempts=20"``
+  
   * an inventory group ``hosted_operations``  and its associated variable group ``hosted_operations:vars``
     for operations that are executed on the orchestrator host, configuring this behavioral parameter:
-    * ansible_python_interpreter=/usr/bin/env python
+  
+    * ``ansible_python_interpreter=/usr/bin/env python``
 
 .. warning::
     Settings defined by the user take precedence over settings defined by the
