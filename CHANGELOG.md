@@ -2,6 +2,15 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Unexpected deployment deletion during topology unmarshalling ([GH-375](https://github.com/ystia/yorc/issues/375))
+* Parsing of a description field of an TOSCA interface is interpreted as an operation ([GH-372](https://github.com/ystia/yorc/issues/372))
+
+### ENHANCEMENTS
+
+* Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
+
 ## 3.2.0-M5 (April 19, 2019)
 
 ### FEATURES

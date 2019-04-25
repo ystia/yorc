@@ -39,6 +39,8 @@ func TestInterfaceSimpleGrammar(t *testing.T) {
 func TestInterfaceComplexGrammar(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
+description: >
+  The lifecycle interfaces define the essential, normative operations that each TOSCA Relationship Types may support.
 start:
   inputs:
     X: "Y"
@@ -54,6 +56,7 @@ start:
 	require.Contains(t, opDef.Inputs, "X")
 	require.Equal(t, "Y", fmt.Sprint(opDef.Inputs["X"].ValueAssign.String()))
 	require.Equal(t, "scripts/start_server.sh", opDef.Implementation.Primary)
+	require.Equal(t, "The lifecycle interfaces define the essential, normative operations that each TOSCA Relationship Types may support.\n", ifDef.Description)
 }
 
 func TestInterfaceExpressionInputs(t *testing.T) {
