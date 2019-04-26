@@ -21,7 +21,7 @@ ADD rootfs /
 RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev && \
     python3 -m ensurepip && \
     if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
-    if [[ ! -e /usr/bin/python ]]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
+    if [ ! -e /usr/bin/python ]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
     mkdir /tmp/docker && apk fetch -o /tmp/docker docker && \
     tar xzf /tmp/docker/*.apk -C / usr/bin/docker && \
     pip install ansible==${ANSIBLE_VERSION} docker-py netaddr jmespath && \
