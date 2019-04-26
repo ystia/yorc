@@ -47,7 +47,11 @@ func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, prop
 	if !isProp {
 		tType = "attributes"
 	}
-	propertyDefinitionPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, tType, propertyName)
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return "", err
+	}
+	propertyDefinitionPath := path.Join(typePath, tType, propertyName)
 	kvp, _, err := kv.Get(path.Join(propertyDefinitionPath, "type"), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)

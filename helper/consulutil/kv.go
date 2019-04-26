@@ -12,24 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !testing
-
-package resources
+package consulutil
 
 import (
-	"log"
-
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	resources, err := getToscaResources()
+// HasChildrenKeys checks if a given keyPath exists and contains sub-keys
+func HasChildrenKeys(kv *api.KV, keyPath string) (bool, error) {
+	kvps, _, err := kv.Keys(keyPath+"/", "/", nil)
 	if err != nil {
-		log.Panicf("Failed to load builtin Tosca definition. %v", err)
+		return false, errors.Wrap(err, ConsulGenericErrMsg)
 	}
-	for defName, defContent := range resources {
-		// TODO(loicalbertin): This is deprecated remove it in 4.0.0
-		reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
+	if kvps != nil && len(kvps) > 0 {
+		return true, nil
 	}
+	return false, nil
 }

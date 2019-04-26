@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !testing
-
-package resources
+package internal
 
 import (
-	"log"
+	"context"
 
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	resources, err := getToscaResources()
-	if err != nil {
-		log.Panicf("Failed to load builtin Tosca definition. %v", err)
-	}
-	for defName, defContent := range resources {
-		// TODO(loicalbertin): This is deprecated remove it in 4.0.0
-		reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
-	}
+// storeAttributeDefinition stores an attribute definition
+func storeAttributeDefinition(ctx context.Context, consulStore consulutil.ConsulStore, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
+	consulStore.StoreConsulKeyAsString(attrPrefix+"/type", attrDefinition.Type)
+	consulStore.StoreConsulKeyAsString(attrPrefix+"/entry_schema", attrDefinition.EntrySchema.Type)
+	StoreValueAssignment(consulStore, attrPrefix+"/default", attrDefinition.Default)
+	consulStore.StoreConsulKeyAsString(attrPrefix+"/status", attrDefinition.Status)
 }

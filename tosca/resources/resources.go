@@ -15,12 +15,34 @@
 package resources
 
 import (
+	"context"
 	"io/ioutil"
 	"path"
 
 	"github.com/pkg/errors"
 	resources "gopkg.in/cookieo9/resources-go.v2"
+
+	"github.com/ystia/yorc/v3/deployments/store"
+	"github.com/ystia/yorc/v3/log"
 )
+
+// StoreBuiltinTOSCAResources retrieves TOSCA definition within the Yorc binary and register them into Consul
+//
+// Note that the consulpublisher should be initialized with a KV before running this function
+func StoreBuiltinTOSCAResources() error {
+	resources, err := getToscaResources()
+	if err != nil {
+		log.Panicf("Failed to load builtin Tosca definition. %v", err)
+	}
+	ctx := context.Background()
+	for defName, defContent := range resources {
+		err = store.BuiltinDefinition(ctx, defName, defContent)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func getToscaResources() (map[string][]byte, error) {
 	// try to get resources from Yorc executable

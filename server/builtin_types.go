@@ -14,22 +14,12 @@
 
 // +build !testing
 
-package resources
+package server
 
 import (
-	"log"
-
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/tosca/resources"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	resources, err := getToscaResources()
-	if err != nil {
-		log.Panicf("Failed to load builtin Tosca definition. %v", err)
-	}
-	for defName, defContent := range resources {
-		// TODO(loicalbertin): This is deprecated remove it in 4.0.0
-		reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
-	}
+func registerBuiltinTOSCATypes() error {
+	return resources.StoreBuiltinTOSCAResources()
 }

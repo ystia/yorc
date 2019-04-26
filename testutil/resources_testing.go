@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build testing
-
-package tosca
+package testutil
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path"
@@ -26,18 +25,20 @@ import (
 	"github.com/pkg/errors"
 	resources "gopkg.in/cookieo9/resources-go.v2"
 
+	"github.com/ystia/yorc/v3/deployments/store"
 	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/registry"
 )
 
-func init() {
-	reg := registry.GetRegistry()
+func storeBuiltinDefinitions() {
+	// reg := registry.GetRegistry()
 	resources, err := getToscaResources()
 	if err != nil {
 		log.Panicf("Failed to load builtin Tosca definition. %v", err)
 	}
+	ctx := context.Background()
 	for defName, defContent := range resources {
-		reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
+		// reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
+		store.BuiltinDefinition(ctx, defName, defContent)
 	}
 }
 

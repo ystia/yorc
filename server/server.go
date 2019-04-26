@@ -67,6 +67,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
+	err = registerBuiltinTOSCATypes()
+
+	if err != nil {
+		return err
+	}
+
 	err = setupConsulDBSchema(client)
 	if err != nil {
 		return err

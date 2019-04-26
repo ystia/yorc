@@ -19,7 +19,7 @@ data_types:
         default: ComplexDataTypeDefault
       mymap:
         type: map
-        entry_schema: 
+        entry_schema:
           type: integer
   yorc.tests.datatypes.SubComplexType:
     derived_from: yorc.tests.datatypes.ComplexType
@@ -38,11 +38,11 @@ data_types:
       listofcomplex:
         type: list
         entry_schema:
-          type: yorc.tests.datatypes.ComplexType 
+          type: yorc.tests.datatypes.ComplexType
       mapofcomplex:
         type: map
         entry_schema:
-          type: yorc.tests.datatypes.ComplexType       
+          type: yorc.tests.datatypes.ComplexType
 
 node_types:
   yorc.tests.nodes.ValueAssignmentNode:
@@ -97,7 +97,7 @@ node_types:
               - literal: 43
                 mymap: {"nested": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 52
                 mymap: {"nested": 3}
     attributes:
@@ -144,11 +144,11 @@ node_types:
               - literal: 43
                 mymap: {"nested": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 52
                 mymap: {"nested": 3}
     capabilities:
-      host: 
+      host:
         type: yorc.tests.capabilities.ValueAssignmentContainer
     requirements:
       - host:
@@ -165,7 +165,7 @@ node_types:
               required: true
           implementation: scripts/publisher_publish.sh
       Standard:
-        create: 
+        create:
           inputs:
             litteral: "testLiteral"
             list: ["l1", "l2"]
@@ -194,7 +194,7 @@ capability_types:
         default: "capDefault"
       mapPropDefault:
         type: map
-        default: 
+        default:
           capProp1: capPropVal1
           capProp2: capPropVal2
       listPropDefault:
@@ -224,7 +224,7 @@ capability_types:
               - literal: 43
                 mymap: {"capnested": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 52
                 mymap: {"capnested": 3}
     attributes:
@@ -239,7 +239,7 @@ capability_types:
         default: "capDefault"
       mapAttrDefault:
         type: map
-        default: 
+        default:
           capAttr1: capAttrVal1
           capAttr2: capAttrVal2
       listAttrDefault:
@@ -269,7 +269,7 @@ capability_types:
               - literal: 43
                 mymap: {"capnested": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 52
                 mymap: {"capnested": 3}
 relationship_types:
@@ -287,7 +287,7 @@ relationship_types:
         default: "relDefault"
       mapPropDefault:
         type: map
-        default: 
+        default:
           relProp1: relPropVal1
           relProp2: relPropVal2
       listPropDefault:
@@ -317,7 +317,7 @@ relationship_types:
               - literal: 43
                 mymap: {"relnested": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 52
                 mymap: {"relnested": 3}
     attributes:
@@ -332,7 +332,7 @@ relationship_types:
         default: "relDefault"
       mapAttrDefault:
         type: map
-        default: 
+        default:
           relAttr1: relAttrVal1
           relAttr2: relAttrVal2
       listAttrDefault:
@@ -362,7 +362,7 @@ relationship_types:
               - literal: 43
                 mymap: {"relnested": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 52
                 mymap: {"relnested": 3}
 
@@ -396,7 +396,7 @@ topology_template:
             - literal: 3
               mymap: {"Input": 2}
           mapofcomplex:
-            m1: 
+            m1:
               literal: 4
               mymap: {"Input": 3}
     baseComplexDef:
@@ -412,7 +412,7 @@ topology_template:
             - literal: 43
               mymap: {"Inputnested": 2}
           mapofcomplex:
-            m1: 
+            m1:
               literal: 52
               mymap: {"Inputnested": 3}
   node_templates:
@@ -446,7 +446,7 @@ topology_template:
                   - literal: 3
                     mymap: {"CapNode1": 2}
                 mapofcomplex:
-                  m1: 
+                  m1:
                     literal: 4
                     mymap: {"CapNode1": 3}
 
@@ -455,12 +455,12 @@ topology_template:
       properties:
         port: "80"
         literal: 1
-        list: 
+        list:
           - "http://"
           - "yorc"
           - ".io"
-        map: 
-          one: "1" 
+        map:
+          one: "1"
           two: "2"
         baseComplex:
           nestedType:
@@ -473,7 +473,7 @@ topology_template:
               - literal: 3
                 mymap: {"VANode2": 2}
             mapofcomplex:
-              m1: 
+              m1:
                 literal: 4
                 mymap: {"VANode2": 3}
       requirements:
@@ -499,7 +499,7 @@ topology_template:
                     - literal: 3
                       mymap: {"VANode2ToVANode1": 2}
                   mapofcomplex:
-                    m1: 
+                    m1:
                       literal: 4
                       mymap: {"VANode2ToVANode1": 3}
 
@@ -534,7 +534,7 @@ topology_template:
             - literal: 3
               mymap: {"Output": 2}
           mapofcomplex:
-            m1: 
+            m1:
               literal: 4
               mymap: {"Output": 3}
     baseComplexDef:
@@ -550,7 +550,7 @@ topology_template:
             - literal: 43
               mymap: {"Outputnested": 2}
           mapofcomplex:
-            m1: 
+            m1:
               literal: 52
               mymap: {"Outputnested": 3}
     node1Lit:

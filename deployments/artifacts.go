@@ -43,7 +43,12 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 	} else {
 		artifacts = make(map[string]string)
 	}
-	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, "artifacts")
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+
+	artifactsPath := path.Join(typePath, "artifacts")
 	importPath, err := GetTypeImportPath(kv, deploymentID, typeName)
 	if err != nil {
 		return nil, err
@@ -97,7 +102,11 @@ func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsP
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.
 // If the artifact doesn't define any extension then a nil slice is returned
 func GetArtifactTypeExtensions(kv *api.KV, deploymentID, artifactType string) ([]string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", artifactType, "file_ext"), nil)
+	typePath, err := locateTypePath(kv, deploymentID, artifactType)
+	if err != nil {
+		return nil, err
+	}
+	kvp, _, err := kv.Get(path.Join(typePath, "file_ext"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

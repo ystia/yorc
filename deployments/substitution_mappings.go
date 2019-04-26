@@ -15,7 +15,6 @@
 package deployments
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -66,97 +65,6 @@ func isSubstitutableNode(kv *api.KV, deploymentID, nodeName string) (bool, error
 		}
 	}
 	return substitutable, nil
-}
-
-func storeSubstitutionMappings(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
-	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	substitutionPrefix := path.Join(topologyPrefix, "substitution_mappings")
-	substitution := topology.TopologyTemplate.SubstitionMappings
-	if substitution != nil {
-		consulStore.StoreConsulKeyAsString(path.Join(substitutionPrefix, "node_type"),
-			substitution.NodeType)
-		storePropAttrMappings(consulStore, path.Join(substitutionPrefix, "properties"),
-			substitution.Properties)
-		storePropAttrMappings(consulStore, path.Join(substitutionPrefix, "attributes"),
-			substitution.Attributes)
-		storeCapReqMappings(consulStore, path.Join(substitutionPrefix, "capabilities"),
-			substitution.Capabilities)
-		storeCapReqMappings(consulStore, path.Join(substitutionPrefix, "requirements"),
-			substitution.Requirements)
-		storeInterfaceMappings(consulStore, path.Join(substitutionPrefix, "interfaces"),
-			substitution.Interfaces)
-	}
-}
-
-func storePropAttrMappings(
-	consulStore consulutil.ConsulStore,
-	prefix string,
-	mappings map[string]tosca.PropAttrMapping) {
-
-	if mappings != nil {
-
-		for name, propAttrMapping := range mappings {
-
-			propAttrPrefix := path.Join(prefix, name)
-			if propAttrMapping.Mapping != nil {
-				consulStore.StoreConsulKeyAsString(
-					path.Join(propAttrPrefix, "mapping"),
-					strings.Join(propAttrMapping.Mapping, ","))
-			} else {
-				storeValueAssignment(consulStore, path.Join(propAttrPrefix, "value"), propAttrMapping.Value)
-			}
-		}
-	}
-}
-
-func storeCapReqMappings(
-	consulStore consulutil.ConsulStore,
-	prefix string,
-	mappings map[string]tosca.CapReqMapping) {
-
-	if mappings != nil {
-
-		for name, capReqMapping := range mappings {
-
-			capReqPrefix := path.Join(prefix, name)
-
-			if capReqMapping.Mapping != nil {
-				consulStore.StoreConsulKeyAsString(
-					path.Join(capReqPrefix, "mapping"),
-					strings.Join(capReqMapping.Mapping, ","))
-			}
-
-			if capReqMapping.Properties != nil {
-				propPrefix := path.Join(capReqPrefix, "properties")
-				for name, value := range capReqMapping.Properties {
-					storeValueAssignment(
-						consulStore, path.Join(propPrefix, name),
-						value)
-				}
-			}
-
-			if capReqMapping.Attributes != nil {
-				attrPrefix := path.Join(capReqPrefix, "attributes")
-				for name, value := range capReqMapping.Attributes {
-					storeValueAssignment(
-						consulStore, path.Join(attrPrefix, name),
-						value)
-				}
-			}
-		}
-	}
-}
-
-func storeInterfaceMappings(
-	consulStore consulutil.ConsulStore,
-	prefix string,
-	mappings map[string]string) {
-
-	if mappings != nil {
-		for operationName, workflowName := range mappings {
-			consulStore.StoreConsulKeyAsString(path.Join(prefix, operationName), workflowName)
-		}
-	}
 }
 
 func getDeploymentSubstitutionMapping(kv *api.KV, deploymentID string) (tosca.SubstitutionMapping, error) {

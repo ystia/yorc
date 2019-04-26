@@ -19,6 +19,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/blang/semver"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
@@ -43,6 +44,69 @@ func IsTypeMissingError(err error) bool {
 	return ok
 }
 
+func getLatestBuiltinTypesPaths(kv *api.KV) ([]string, error) {
+	keys, _, err := kv.Keys(consulutil.BuiltinTypesKVPrefix+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	paths := make([]string, 0, len(keys))
+	for _, builtinTypesPath := range keys {
+		versions, _, err := kv.Keys(builtinTypesPath, "/", nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+
+		if len(versions) == 0 {
+			continue
+		}
+		typePath := path.Join(versions[0], "types")
+		if len(versions) >= 1 {
+			var maxVersion semver.Version
+			for _, v := range versions {
+				version, err := semver.Make(path.Base(v))
+				if err == nil && version.GTE(maxVersion) {
+					maxVersion = version
+				}
+			}
+			typePath = path.Join(builtinTypesPath, maxVersion.String(), "types")
+		}
+
+		paths = append(paths, typePath)
+	}
+	return paths, nil
+}
+
+func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
+	// First check for type in deployment
+	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
+	// Check if node type exist
+	exists, err := consulutil.HasChildrenKeys(kv, typePath)
+	if err != nil {
+		return "", err
+	}
+	if exists {
+		return typePath, nil
+	}
+
+	builtinTypesPaths, err := getLatestBuiltinTypesPaths(kv)
+	if err != nil {
+		return "", err
+	}
+
+	for _, builtinTypesPath := range builtinTypesPaths {
+		typePath = path.Join(builtinTypesPath, typeName)
+		exists, err := consulutil.HasChildrenKeys(kv, typePath)
+		if err != nil {
+			return "", err
+		}
+		if exists {
+			return typePath, nil
+		}
+	}
+
+	return "", errors.WithStack(typeMissingError{name: typeName, deploymentID: deploymentID})
+}
+
 // GetParentType returns the direct parent type of a given type using the 'derived_from' attributes
 //
 // An empty string denotes a root type
@@ -50,12 +114,9 @@ func GetParentType(kv *api.KV, deploymentID, typeName string) (string, error) {
 	if tosca.IsBuiltinType(typeName) {
 		return "", nil
 	}
-	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
-	// Check if node type exist
-	if kvps, _, err := kv.List(typePath+"/", nil); err != nil {
-		return "", errors.Wrap(err, "Consul access error: ")
-	} else if kvps == nil || len(kvps) == 0 {
-		return "", errors.WithStack(typeMissingError{name: typeName, deploymentID: deploymentID})
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return "", err
 	}
 
 	kvp, _, err := kv.Get(path.Join(typePath, "derived_from"), nil)
@@ -90,6 +151,21 @@ func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
 	for _, t := range types {
 		names = append(names, path.Base(t))
 	}
+
+	builtinPaths, err := getLatestBuiltinTypesPaths(kv)
+	if err != nil {
+		return names, err
+	}
+	for _, builtinPath := range builtinPaths {
+		types, _, err := kv.Keys(builtinPath+"/", "/", nil)
+		if err != nil {
+			return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		for _, t := range types {
+			names = append(names, path.Base(t))
+		}
+	}
+
 	return names, nil
 }
 
@@ -108,7 +184,14 @@ func GetTypeAttributes(kv *api.KV, deploymentID, typeName string, exploreParents
 }
 
 func getTypeAttributesOrProperties(kv *api.KV, deploymentID, typeName, paramType string, exploreParents bool) ([]string, error) {
-	result, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, paramType)+"/", "/", nil)
+	if tosca.IsBuiltinType(typeName) {
+		return nil, nil
+	}
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+	result, _, err := kv.Keys(path.Join(typePath, paramType)+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -189,7 +272,10 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, prope
 		return nil, false, err
 	}
 	if hasProp {
-		typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
+		typePath, err := locateTypePath(kv, deploymentID, typeName)
+		if err != nil {
+			return nil, false, err
+		}
 		var t string
 		if isProperty {
 			t = "properties"
@@ -261,7 +347,11 @@ func isTypePropOrAttrRequired(kv *api.KV, deploymentID, typeName, originalTypeNa
 	} else {
 		t = "attributes"
 	}
-	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName, t, elemName, "required")
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return false, err
+	}
+	reqPath := path.Join(typePath, t, elemName, "required")
 	kvp, _, err := kv.Get(reqPath, nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -276,12 +366,19 @@ func isTypePropOrAttrRequired(kv *api.KV, deploymentID, typeName, originalTypeNa
 
 // GetTypeImportPath returns the import path relative to the root of a CSAR of a given TOSCA type.
 //
-// This is particulary useful for resolving artifacts and implementation
+// This is particularly useful for resolving artifacts and implementation
 func GetTypeImportPath(kv *api.KV, deploymentID, typeName string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, "importPath"), nil)
-	if err != nil || kvp == nil {
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return "", err
+	}
+	kvp, _, err := kv.Get(path.Join(typePath, "importPath"), nil)
+	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	// Can be empty if type is definied into the root topology
+	// Can be empty if type is defined into the root topology
+	if kvp == nil {
+		return "", nil
+	}
 	return string(kvp.Value), nil
 }

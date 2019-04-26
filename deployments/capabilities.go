@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v3/deployments/internal"
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
@@ -48,7 +49,10 @@ func TypeHasCapability(kv *api.KV, deploymentID, typeName, capabilityTypeName st
 // GetCapabilitiesOfType returns names of all capabilities in a given type hierarchy that derives from a given capability type
 func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeName string) ([]string, error) {
 	capabilities := make([]string, 0)
-	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return capabilities, err
+	}
 	capabilitiesKeys, _, err := kv.Keys(typePath+"/capabilities/", "/", nil)
 	if err != nil {
 		return capabilities, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -353,7 +357,7 @@ func SetInstanceCapabilityAttribute(deploymentID, nodeName, instanceName, capabi
 func SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
-	storeComplexType(store, attrPath, attributeValue)
+	internal.StoreComplexType(store, attrPath, attributeValue)
 	err := notifyAndPublishCapabilityAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
 	if err != nil {
 		return err
@@ -381,7 +385,7 @@ func SetCapabilityAttributeComplexForAllInstances(kv *api.KV, deploymentID, node
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-		storeComplexType(store, attrPath, attributeValue)
+		internal.StoreComplexType(store, attrPath, attributeValue)
 		err = notifyAndPublishCapabilityAttributeValueChange(kv, deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
 		if err != nil {
 			return err
@@ -407,8 +411,11 @@ func GetNodeCapabilityType(kv *api.KV, deploymentID, nodeName, capabilityName st
 // It explores the type hierarchy (derived_from) to found the given capability.
 // It may return an empty string if the capability is not found in the type hierarchy
 func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityName string) (string, error) {
-
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "capabilities", capabilityName, "type"), nil)
+	typePath, err := locateTypePath(kv, deploymentID, nodeType)
+	if err != nil {
+		return "", err
+	}
+	kvp, _, err := kv.Get(path.Join(typePath, "capabilities", capabilityName, "type"), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -429,7 +436,11 @@ func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityNam
 //
 // It explores the type hierarchy (derived_from) to found the given capability.
 func GetNodeTypeCapabilityPropertyValue(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (*TOSCAValue, error) {
-	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "capabilities", capabilityName, "properties", propertyName)
+	typePath, err := locateTypePath(kv, deploymentID, nodeType)
+	if err != nil {
+		return nil, err
+	}
+	capPropPath := path.Join(typePath, "capabilities", capabilityName, "properties", propertyName)
 	result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, "", "", "", propDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)

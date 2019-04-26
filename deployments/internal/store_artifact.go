@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !testing
-
-package resources
+package internal
 
 import (
-	"log"
-
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	resources, err := getToscaResources()
-	if err != nil {
-		log.Panicf("Failed to load builtin Tosca definition. %v", err)
-	}
-	for defName, defContent := range resources {
-		// TODO(loicalbertin): This is deprecated remove it in 4.0.0
-		reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
+func storeArtifacts(consulStore consulutil.ConsulStore, artifacts tosca.ArtifactDefMap, prefix string) {
+	for artName, artDef := range artifacts {
+		artPrefix := prefix + "/" + artName
+		consulStore.StoreConsulKeyAsString(artPrefix+"/file", artDef.File)
+		consulStore.StoreConsulKeyAsString(artPrefix+"/type", artDef.Type)
+		consulStore.StoreConsulKeyAsString(artPrefix+"/repository", artDef.Repository)
+		consulStore.StoreConsulKeyAsString(artPrefix+"/deploy_path", artDef.DeployPath)
 	}
 }

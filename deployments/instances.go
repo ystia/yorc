@@ -16,9 +16,11 @@ package deployments
 
 import (
 	"context"
-	"github.com/ystia/yorc/v3/log"
 	"path"
 	"time"
+
+	"github.com/ystia/yorc/v3/deployments/internal"
+	"github.com/ystia/yorc/v3/log"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -218,7 +220,7 @@ func SetInstanceListAttributes(attributes []*AttributeData) error {
 func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
-	storeComplexType(store, attrPath, attributeValue)
+	internal.StoreComplexType(store, attrPath, attributeValue)
 	err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, attributeName, attributeValue)
 	if err != nil {
 		return err
@@ -233,7 +235,7 @@ func SetInstanceListAttributesComplex(attributes []*AttributeData) error {
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, attribute := range attributes {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
-		storeComplexType(store, attrPath, attribute.Value)
+		internal.StoreComplexType(store, attrPath, attribute.Value)
 	}
 	for _, attribute := range attributes {
 		err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), attribute.DeploymentID, attribute.NodeName, attribute.InstanceName, attribute.Name, attribute.Value)
@@ -263,7 +265,7 @@ func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attr
 	}
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
-		storeComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
+		internal.StoreComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
 		err = notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName, attributeValue)
 		if err != nil {
 			return err

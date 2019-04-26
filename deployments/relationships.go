@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v3/deployments/internal"
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
@@ -159,7 +160,7 @@ func SetInstanceRelationshipAttribute(deploymentID, nodeName, instanceName, requ
 func SetInstanceRelationshipAttributeComplex(deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
-	storeComplexType(store, attrPath, attributeValue)
+	internal.StoreComplexType(store, attrPath, attributeValue)
 	err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 	if err != nil {
 		return err
@@ -188,7 +189,7 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-		storeComplexType(store, attrPath, attributeValue)
+		internal.StoreComplexType(store, attrPath, attributeValue)
 		err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 		if err != nil {
 			return err
