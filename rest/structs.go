@@ -166,6 +166,7 @@ type Attribute struct {
 // CustomCommandRequest is the representation of a request to process a Custom Command
 type CustomCommandRequest struct {
 	NodeName          string                            `json:"node"`
+	Instances         []string                          `json:"instances"`
 	CustomCommandName string                            `json:"name"`
 	InterfaceName     string                            `json:"interface,omitempty"`
 	Inputs            map[string]*tosca.ValueAssignment `json:"inputs"`

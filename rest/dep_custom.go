@@ -63,9 +63,12 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	data := make(map[string]string)
-
-	// For now custom commands are for all instances
-	instances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), id, ccRequest.NodeName)
+	// Get selected instances
+	instances := ccRequest.Instances
+	if instances == nil {
+		// Execute custom command on all instances if no selection provided
+		instances, err = deployments.GetNodeInstancesIds(s.consulClient.KV(), id, ccRequest.NodeName)
+	}
 	data[path.Join("nodes", ccRequest.NodeName)] = strings.Join(instances, ",")
 	data["commandName"] = ccRequest.CustomCommandName
 	data["interfaceName"] = ccRequest.InterfaceName
