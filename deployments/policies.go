@@ -23,8 +23,8 @@ import (
 	"strings"
 )
 
-// GetPoliciesForTypeAndNode retrieves all policies with or derived from policyTypeName and with nodeName as target
-func GetPoliciesForTypeAndNode(kv *api.KV, deploymentID, policyTypeName, nodeName string) ([]string, error) {
+// GetPoliciesForType retrieves all policies with or derived from policyTypeName
+func GetPoliciesForType(kv *api.KV, deploymentID, policyTypeName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies")
 	keys, _, err := kv.Keys(p+"/", "/", nil)
 	if err != nil {
@@ -49,13 +49,26 @@ func GetPoliciesForTypeAndNode(kv *api.KV, deploymentID, policyTypeName, nodeNam
 		}
 		// Check policy targets
 		if isType {
-			is, err := IsTargetForPolicy(kv, deploymentID, policyName, nodeName, false)
-			if err != nil {
-				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
-			if is {
-				policies = append(policies, policyName)
-			}
+			policies = append(policies, policyName)
+		}
+	}
+	return policies, nil
+}
+
+// GetPoliciesForTypeAndNode retrieves all policies with or derived from policyTypeName and with nodeName as target
+func GetPoliciesForTypeAndNode(kv *api.KV, deploymentID, policyTypeName, nodeName string) ([]string, error) {
+	policiesForType, err := GetPoliciesForType(kv, deploymentID, policyTypeName)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	policies := make([]string, 0)
+	for _, policy := range policiesForType {
+		is, err := IsTargetForPolicy(kv, deploymentID, policy, nodeName, false)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if is {
+			policies = append(policies, policy)
 		}
 	}
 	return policies, nil
@@ -151,7 +164,7 @@ func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string, re
 }
 
 // GetPolicyTargets retrieves the policy template targets
-// this targets are node names
+// these targets are node names
 func GetPolicyTargets(kv *api.KV, deploymentID, policyName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName, "targets")
 	kvp, _, err := kv.Get(p, nil)
