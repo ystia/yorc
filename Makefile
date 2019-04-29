@@ -32,6 +32,8 @@ TF_OPENSTACK_PLUGIN_VERSION=$(shell grep "tf_openstack_plugin_version" versions.
 TF_GOOGLE_PLUGIN_VERSION=$(shell grep "tf_google_plugin_version" versions.yaml | awk '{print $$2}')
 YORC_VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 
+export GO111MODULE=off
+
 build: test
 	@echo "--> Running go build"
 	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags "-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH) \
