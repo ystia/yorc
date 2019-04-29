@@ -29,6 +29,10 @@ before_script:
   - "./cc-test-reporter before-build"
 
 script:
+  - echo "${GOPATH}"
+  - pwd
+  - go env
+  - "ls -l ${GOPATH} ; ls -l ${GOPATH}/src; ls -l ${GOPATH}/src/github/ystia "
   # Go1.10 is required to have proper use of coverprofile for multiple packages
   - TESTARGS="-coverprofile coverage.txt" make dist
   - cp coverage.txt c.out
