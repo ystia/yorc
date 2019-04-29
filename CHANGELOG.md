@@ -6,6 +6,7 @@
 
 * Unexpected deployment deletion during topology unmarshalling ([GH-375](https://github.com/ystia/yorc/issues/375))
 * Parsing of a description field of an TOSCA interface is interpreted as an operation ([GH-372](https://github.com/ystia/yorc/issues/372))
+* Yorc does not support python3 ([GH-319](https://github.com/ystia/yorc/issues/319))
 
 ### ENHANCEMENTS
 

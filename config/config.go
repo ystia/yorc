@@ -130,6 +130,7 @@ type Ansible struct {
 	HostedOperations        HostedOperations             `yaml:"hosted_operations,omitempty" mapstructure:"hosted_operations" json:"hosted_operations,omitempty"`
 	JobsChecksPeriod        time.Duration                `yaml:"job_monitoring_time_interval,omitempty" mapstructure:"job_monitoring_time_interval" json:"job_monitoring_time_interval,omitempty"`
 	Config                  map[string]map[string]string `yaml:"config,omitempty" mapstructure:"config"`
+	Inventory               map[string][]string          `yaml:"inventory,omitempty" mapstructure:"inventory"`
 }
 
 // Consul configuration

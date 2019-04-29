@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,7 +36,9 @@ import (
 // AnsibleConfiguration provides Ansible user-defined settings
 type AnsibleConfiguration struct {
 	Version              string
-	PackageRepositoryURL string `yaml:"extra_package_repository_url" mapstructure:"extra_package_repository_url"`
+	PackageRepositoryURL string              `yaml:"extra_package_repository_url" mapstructure:"extra_package_repository_url"`
+	UseOpenSSH           bool                `yaml:"use_openssh,omitempty" mapstructure:"use_openssh" json:"use_open_ssh,omitempty"`
+	Inventory            map[string][]string `yaml:"inventory,omitempty" mapstructure:"inventory"`
 }
 
 // YorcConfiguration provides Yorc user-defined settings
@@ -139,9 +142,21 @@ func formatAsYAML(data interface{}, indentations int) (string, error) {
 	return result, err
 }
 
-// formatAsformatOnDemandResourceCredsAsYAMLYAML is a function used in
+// formatAsJSON is a function used in templates to output the json representation
+// of a variable
+func formatAsJSON(data interface{}) (string, error) {
+
+	result := ""
+	bSlice, err := json.Marshal(data)
+	if err == nil {
+		result = string(bSlice)
+	}
+	return result, err
+}
+
+// formatOnDemandResourceCredsAsYAML is a function used in
 // on-demand resources templates to output the yaml representation
-// of crednetials
+// of credentials
 func formatOnDemandResourceCredsAsYAML(creds *CredentialsConfiguration, indentations int) (string, error) {
 
 	var onDemandCreds CredentialsConfiguration
@@ -299,6 +314,7 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
 		"formatAsYAML":                             formatAsYAML,
+		"formatAsJSON":                             formatAsJSON,
 		"formatOnDemandResourceCredsAsYAML":        formatOnDemandResourceCredsAsYAML,
 		"indent":                                   indent,
 		"getFile":                                  getFile,
