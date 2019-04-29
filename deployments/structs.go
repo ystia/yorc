@@ -16,7 +16,7 @@ package deployments
 
 import "encoding/json"
 
-//go:generate go-enum --noprefix -f=structs.go
+//go:generate go-enum --nocamel --noprefix -f=structs.go
 
 // DeploymentStatus x ENUM(
 // INITIAL,
