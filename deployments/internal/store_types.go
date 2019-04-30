@@ -26,7 +26,10 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
+const TypeExistsFlagName = ".existFlag"
+
 func storeCommonType(consulStore consulutil.ConsulStore, commonType tosca.Type, typePrefix, importPath string) {
+	consulStore.StoreConsulKeyWithFlags(path.Join(typePrefix, TypeExistsFlagName), nil, 0)
 	// TODO(loicalbertin) Consul mem footprint optimizations: May be empty consider not always storing it, but be careful at least one key is required for now to check if type exist
 	// may be problematic on normative types
 	consulStore.StoreConsulKeyAsString(path.Join(typePrefix, "derived_from"), commonType.DerivedFrom)

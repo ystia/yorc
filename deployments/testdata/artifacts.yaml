@@ -1,0 +1,47 @@
+tosca_definitions_version: alien_dsl_1_3_0
+description: Alien4Cloud generated service template
+metadata:
+  template_name: Test2
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+imports:
+  - normative-types: <yorc-types.yml>
+
+
+node_types:
+  yorc.types.A:
+    derived_from: yorc.types.ParentA
+    artifacts:
+      art1: 
+        file: TypeA 
+      art2: 
+        file: TypeA 
+      art6: 
+        file: TypeA 
+  yorc.types.ParentA:
+    derived_from: root
+    artifacts:
+      art1: 
+        file: ParentA 
+      art3: 
+        file: ParentA
+      art5: 
+        file: ParentA
+  root:
+
+topology_template:
+  node_templates:
+    NodeB:
+      type: root
+    NodeA:
+      type: yorc.types.A
+      artifacts:
+        art1: 
+          file: artifacts.yaml 
+        art2: 
+          file: artifacts.yaml
+        art3: 
+          file: artifacts.yaml
+        art4: 
+          file: artifacts.yaml

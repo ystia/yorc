@@ -19,10 +19,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/blang/semver"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v3/deployments/internal"
+	"github.com/ystia/yorc/v3/deployments/store"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/tosca"
@@ -44,34 +45,18 @@ func IsTypeMissingError(err error) bool {
 	return ok
 }
 
-func getLatestBuiltinTypesPaths(kv *api.KV) ([]string, error) {
-	keys, _, err := kv.Keys(consulutil.BuiltinTypesKVPrefix+"/", "/", nil)
+func checkIfTypeExists(kv *api.KV, typePath string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(typePath, internal.TypeExistsFlagName), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	paths := make([]string, 0, len(keys))
-	for _, builtinTypesPath := range keys {
-		versions, _, err := kv.Keys(builtinTypesPath, "/", nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
+	return kvp != nil, nil
+}
 
-		if len(versions) == 0 {
-			continue
-		}
-		typePath := path.Join(versions[0], "types")
-		if len(versions) >= 1 {
-			var maxVersion semver.Version
-			for _, v := range versions {
-				version, err := semver.Make(path.Base(v))
-				if err == nil && version.GTE(maxVersion) {
-					maxVersion = version
-				}
-			}
-			typePath = path.Join(builtinTypesPath, maxVersion.String(), "types")
-		}
-
-		paths = append(paths, typePath)
+func getLatestBuiltinTypesPaths(kv *api.KV) ([]string, error) {
+	paths := store.GetBuiltinTypesPaths()
+	for i := range paths {
+		paths[i] = path.Join(paths[i], "types")
 	}
 	return paths, nil
 }
@@ -80,11 +65,12 @@ func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
 	// First check for type in deployment
 	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
 	// Check if node type exist
-	exists, err := consulutil.HasChildrenKeys(kv, typePath)
+	exits, err := checkIfTypeExists(kv, typePath)
+	//exists, err := consulutil.HasChildrenKeys(kv, typePath)
 	if err != nil {
 		return "", err
 	}
-	if exists {
+	if exits {
 		return typePath, nil
 	}
 
@@ -95,11 +81,12 @@ func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
 
 	for _, builtinTypesPath := range builtinTypesPaths {
 		typePath = path.Join(builtinTypesPath, typeName)
-		exists, err := consulutil.HasChildrenKeys(kv, typePath)
+		exits, err := checkIfTypeExists(kv, typePath)
+		//exists, err := consulutil.HasChildrenKeys(kv, typePath)
 		if err != nil {
 			return "", err
 		}
-		if exists {
+		if exits {
 			return typePath, nil
 		}
 	}

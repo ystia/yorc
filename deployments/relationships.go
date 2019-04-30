@@ -136,17 +136,18 @@ func GetRelationshipAttributeValueFromRequirement(kv *api.KV, deploymentID, node
 		return result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
 	}
 	// Now look at relationship type for default
-	result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
-	if err != nil {
-		return nil, err
-	}
-	if result != nil {
-		if !isFunction {
-			return result, nil
+	if relationshipType != "" {
+		result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
+		if err != nil {
+			return nil, err
 		}
-		return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
+		if result != nil {
+			if !isFunction {
+				return result, nil
+			}
+			return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
+		}
 	}
-
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	return GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, attributeName, nestedKeys...)
 }

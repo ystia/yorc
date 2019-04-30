@@ -15,6 +15,8 @@
 package deployments
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
@@ -28,42 +30,26 @@ import (
 func testArtifacts(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	log.SetDebug(true)
 
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/artifacts.yaml")
+	require.Nil(t, err)
+
 	srv1.PopulateKV(t, map[string][]byte{
-
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/derived_from":        []byte("yorc.types.ParentA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/importPath":          []byte("path/to/typeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art1/file": []byte("TypeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art2/file": []byte("TypeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art6/file": []byte("TypeA"),
-
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/derived_from":        []byte("root"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art1/file": []byte("ParentA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art3/file": []byte("ParentA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.ParentA/artifacts/art5/file": []byte("ParentA"),
-
-		consulutil.DeploymentKVPrefix + "/t1/topology/types/root/name": []byte("root"),
-
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/type":                []byte("yorc.types.A"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/file": []byte("NodeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/file": []byte("NodeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/file": []byte("NodeA"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/file": []byte("NodeA"),
-
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeB/type": []byte("root"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/yorc.types.A/importPath": []byte("path/to/typeA"),
 	})
 
 	t.Run("groupDeploymentArtifacts", func(t *testing.T) {
 		t.Run("TestGetArtifactsForType", func(t *testing.T) {
-			testGetArtifactsForType(t, kv)
+			testGetArtifactsForType(t, kv, deploymentID)
 		})
 		t.Run("TestGetArtifactsForNode", func(t *testing.T) {
-			testGetArtifactsForNode(t, kv)
+			testGetArtifactsForNode(t, kv, deploymentID)
 		})
 	})
 }
 
-func testGetArtifactsForType(t *testing.T, kv *api.KV) {
-	artifacts, err := GetArtifactsForType(kv, "t1", "yorc.types.A")
+func testGetArtifactsForType(t *testing.T, kv *api.KV, deploymentID string) {
+	artifacts, err := GetArtifactsForType(kv, deploymentID, "yorc.types.A")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 5)
@@ -78,7 +64,7 @@ func testGetArtifactsForType(t *testing.T, kv *api.KV) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetArtifactsForType(kv, "t1", "yorc.types.ParentA")
+	artifacts, err = GetArtifactsForType(kv, deploymentID, "yorc.types.ParentA")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 3)
@@ -89,32 +75,32 @@ func testGetArtifactsForType(t *testing.T, kv *api.KV) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetArtifactsForType(kv, "t1", "root")
+	artifacts, err = GetArtifactsForType(kv, deploymentID, "root")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)
 
 }
-func testGetArtifactsForNode(t *testing.T, kv *api.KV) {
-	artifacts, err := GetArtifactsForNode(kv, "t1", "NodeA")
+func testGetArtifactsForNode(t *testing.T, kv *api.KV, deploymentID string) {
+	artifacts, err := GetArtifactsForNode(kv, deploymentID, "NodeA")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 6)
 
 	require.Contains(t, artifacts, "art1")
-	require.Equal(t, "NodeA", artifacts["art1"])
+	require.Equal(t, "artifacts.yaml", artifacts["art1"])
 	require.Contains(t, artifacts, "art2")
-	require.Equal(t, "NodeA", artifacts["art2"])
+	require.Equal(t, "artifacts.yaml", artifacts["art2"])
 	require.Contains(t, artifacts, "art3")
-	require.Equal(t, "NodeA", artifacts["art3"])
+	require.Equal(t, "artifacts.yaml", artifacts["art3"])
 	require.Contains(t, artifacts, "art4")
-	require.Equal(t, "NodeA", artifacts["art4"])
+	require.Equal(t, "artifacts.yaml", artifacts["art4"])
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 	require.Contains(t, artifacts, "art6")
 	require.Equal(t, "path/to/typeA/TypeA", artifacts["art6"])
 
-	artifacts, err = GetArtifactsForNode(kv, "t1", "NodeB")
+	artifacts, err = GetArtifactsForNode(kv, deploymentID, "NodeB")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)

@@ -283,24 +283,25 @@ func GetInstanceCapabilityAttributeValue(kv *api.KV, deploymentID, nodeName, ins
 		}
 	}
 
-	isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
-		tosca.EndpointCapability)
-	if err != nil {
-		return nil, err
-	}
+	if capabilityType != "" {
+		isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
+			tosca.EndpointCapability)
+		if err != nil {
+			return nil, err
+		}
 
-	// TOSCA specification at :
-	// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
-	// describes that the ip_address attribute of an endpoint is the IP address
-	// as propagated up by the associated node’s host (Compute) container.
-	if isEndpoint && attributeName == "ip_address" && host != "" {
-		result, err = getIPAddressFromHost(kv, deploymentID, host,
-			hostInstance, nodeName, instanceName, capabilityName)
-		if err != nil || result != nil {
-			return result, err
+		// TOSCA specification at :
+		// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
+		// describes that the ip_address attribute of an endpoint is the IP address
+		// as propagated up by the associated node’s host (Compute) container.
+		if isEndpoint && attributeName == "ip_address" && host != "" {
+			result, err = getIPAddressFromHost(kv, deploymentID, host,
+				hostInstance, nodeName, instanceName, capabilityName)
+			if err != nil || result != nil {
+				return result, err
+			}
 		}
 	}
-
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	return GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
 }

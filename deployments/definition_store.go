@@ -297,6 +297,9 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 		if err != nil {
 			return err
 		}
+		if relationshipType == "" {
+			continue
+		}
 		relTypePath, err := locateTypePath(kv, deploymentID, relationshipType)
 		if err != nil {
 			return err

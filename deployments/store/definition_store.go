@@ -17,15 +17,73 @@ package store
 import (
 	"context"
 	"path"
+	"sync"
 
+	"github.com/blang/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v3/deployments/internal"
+	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tosca"
 )
+
+var lock sync.Mutex
+
+var builtinTypes = make([]string, 0)
+
+func getLatestBuiltinTypesPaths() ([]string, error) {
+	kv := consulutil.GetKV()
+	keys, _, err := kv.Keys(consulutil.BuiltinTypesKVPrefix+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	paths := make([]string, 0, len(keys))
+	for _, builtinTypesPath := range keys {
+		versions, _, err := kv.Keys(builtinTypesPath, "/", nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+
+		if len(versions) == 0 {
+			continue
+		}
+		typePath := path.Join(versions[0], "types")
+		if len(versions) >= 1 {
+			var maxVersion semver.Version
+			for _, v := range versions {
+				version, err := semver.Make(path.Base(v))
+				if err == nil && version.GTE(maxVersion) {
+					maxVersion = version
+				}
+			}
+			typePath = path.Join(builtinTypesPath, maxVersion.String(), "types")
+		}
+
+		paths = append(paths, typePath)
+	}
+	return paths, nil
+}
+
+// GetBuiltinTypesPaths returns the path of builtin types supported by this instance of Yorc
+//
+// Returned keys are formatted as <consulutil.BuiltinTypesKVPrefix>/<name>/<version>
+// If this is used from outside a Yorc instance typically a plugin or another app then the latest
+// version of each builtin type stored in Consul is assumed
+func GetBuiltinTypesPaths() []string {
+	lock.Lock()
+	defer lock.Unlock()
+	if len(builtinTypes) == 0 {
+		// Not provided at system startup we are probably in an external application used as a lib
+		// So let use latest values of each stored builtin types in Consul
+		builtinTypes, _ = getLatestBuiltinTypesPaths()
+	}
+	res := make([]string, len(builtinTypes))
+	copy(res, builtinTypes)
+	return res
+}
 
 // BuiltinDefinition stores a TOSCA definition to the common place
 func BuiltinDefinition(ctx context.Context, definitionName string, definitionContent []byte) error {
@@ -44,7 +102,16 @@ func BuiltinDefinition(ctx context.Context, definitionName string, definitionCon
 	if version == "" {
 		return errors.Errorf("Can't store builtin TOSCA definition %q, template_version is missing", definitionName)
 	}
+
 	topologyPrefix := path.Join(consulutil.BuiltinTypesKVPrefix, name, version)
+
+	func() {
+		lock.Lock()
+		defer lock.Unlock()
+		if !collections.ContainsString(builtinTypes, topologyPrefix) {
+			builtinTypes = append(builtinTypes, topologyPrefix)
+		}
+	}()
 
 	keys, _, err := kv.Keys(topologyPrefix+"/", "/", nil)
 	if err != nil {
