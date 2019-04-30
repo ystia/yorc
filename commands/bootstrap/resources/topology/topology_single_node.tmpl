@@ -136,6 +136,7 @@ topology_template:
       type: org.ystia.ansible.linux.ansible.nodes.AnsibleRuntime
       properties:
         component_version: "{{.Ansible.Version}}"
+        extra_package_repository_url: "{{.Ansible.PackageRepositoryURL}}"
       requirements:
         - hostedOnComputeHost:
             type_requirement: host
@@ -263,6 +264,17 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     Infrastructure: {{block "Infrastructure" .}} {{end}}
+    YorcAnsibleConfig:
+      type: org.ystia.yorc.ansible.Config
+      properties:
+        use_openssh: {{.Ansible.UseOpenSSH}}
+        inventory: {{formatAsJSON .Ansible.Inventory}}
+      requirements:
+        - ansibleYorcServer:
+            type_requirement: host
+            node: YorcServer
+            capability: org.ystia.yorc.pub.capabilities.YorcConfigContainer
+            relationship: org.ystia.yorc.linux.ansible.relationships.YorcConfigAnsible
     {{if not .Address}}
     YorcCompute: {{block "Compute" .}} {{end}}
     {{else}}
@@ -304,6 +316,12 @@ topology_template:
             - set_state: initial
           on_success:
             - Infrastructure_creating
+        YorcAnsibleConfig_initial:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: initial
+          on_success:
+            - YorcAnsibleConfig_creating
         YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source:
           target: YorcServer
           target_relationship: dependsOnTerraformRuntimeTerraformRuntimeFeature
@@ -315,6 +333,7 @@ topology_template:
             {{if not .Insecure}}
             - Infrastructure_infraSecretsHostedOnVault_post_configure_source
             {{end}}
+            - YorcAnsibleConfig_yorcConfigAnsibleHostedOnYorcYorcServerConfig_post_configure_target
             - YorcServer_configured
         {{if not .Insecure}}
         VaultServer_created:
@@ -469,6 +488,12 @@ topology_template:
           on_success:
             - Infrastructure_started
 		    {{end}}
+        YorcAnsibleConfig_starting:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcAnsibleConfig_started
         Alien4Cloud_starting:
           target: Alien4Cloud
           activities:
@@ -535,6 +560,7 @@ topology_template:
             - set_state: started
           on_success:
             - Infrastructure_initial
+            - YorcAnsibleConfig_initial
             - YorcPlugin_initial
         TerraformRuntime_created:
           target: TerraformRuntime
@@ -578,6 +604,12 @@ topology_template:
             - set_state: configuring
           on_success:
             - Infrastructure_configured
+        YorcAnsibleConfig_configuring:
+          target: Infrastructure
+          activities:
+            - set_state: configuring
+          on_success:
+            - YorcAnsibleConfig_configured
         YorcOnDemandLocationResources_start:
           target: YorcOnDemandLocationResources
           activities:
@@ -602,6 +634,12 @@ topology_template:
             - set_state: created
           on_success:
             - Infrastructure_configuring
+        YorcAnsibleConfig_created:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: created
+          on_success:
+            - YorcAnsibleConfig_configuring
         Alien4Cloud_created:
           target: Alien4Cloud
           activities:
@@ -610,6 +648,10 @@ topology_template:
             - Alien4Cloud_configuring
         Infrastructure_started:
           target: Infrastructure
+          activities:
+            - set_state: started
+        YorcAnsibleConfig_started:
+          target: YorcAnsibleConfig
           activities:
             - set_state: started
         YorcPlugin_connectsToYorcYorcServerRest_pre_configure_source:
@@ -688,6 +730,12 @@ topology_template:
             - set_state: configured
           on_success:
             - Infrastructure_starting
+        YorcAnsibleConfig_configured:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: configured
+          on_success:
+            - YorcAnsibleConfig_starting
         ConsulServer_creating:
           target: ConsulServer
           activities:
@@ -718,6 +766,12 @@ topology_template:
             - set_state: creating
           on_success:
             - Infrastructure_created
+        YorcAnsibleConfig_creating:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: creating
+          on_success:
+            - YorcAnsibleConfig_created
         {{if not .Insecure}}
         YorcServer_connectToVaultServer_post_configure_source:
           target: YorcServer
@@ -817,6 +871,14 @@ topology_template:
           on_success:
             - YorcServer_configured
         {{end}}
+        YorcAnsibleConfig_yorcConfigAnsibleHostedOnYorcYorcServerConfig_post_configure_target:
+          target: YorcAnsibleConfig
+          target_relationship: ansibleYorcServer
+          operation_host: TARGET
+          activities:
+            - call_operation: Configure.post_configure_target
+          on_success:
+            - YorcServer_configured
         YorcOnDemandLocationResources_initial:
           target: YorcOnDemandLocationResources
           activities:
@@ -924,6 +986,12 @@ topology_template:
             - set_state: deleted
           on_success:
             - YorcServer_stopping
+        YorcAnsibleConfig_deleted:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: deleted
+          on_success:
+            - YorcServer_stopping
         JDK_deleted:
           target: JDK
           activities:
@@ -976,6 +1044,12 @@ topology_template:
             - set_state: stopped
           on_success:
             - Infrastructure_deleting
+        YorcAnsibleConfig_stopped:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcAnsibleConfig_deleting
         ConsulServer_stop:
           target: ConsulServer
           activities:
@@ -1097,6 +1171,12 @@ topology_template:
             - set_state: stopping
           on_success:
             - Infrastructure_stopped
+        YorcAnsibleConfig_stopping:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcAnsibleConfig_stopped
         YorcOnDemandLocationResources_deleting:
           target: YorcOnDemandLocationResources
           activities:
@@ -1200,6 +1280,12 @@ topology_template:
             - set_state: deleting
           on_success:
             - Infrastructure_deleted
+        YorcAnsibleConfig_deleting:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: deleting
+          on_success:
+            - YorcAnsibleConfig_deleted
         TerraformRuntime_stopping:
           target: TerraformRuntime
           activities:
@@ -1277,6 +1363,12 @@ topology_template:
           on_success:
             - Infrastructure_started
 		    {{end}}
+        YorcAnsibleConfig_starting:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcAnsibleConfig_started
         Alien4Cloud_starting:
           target: Alien4Cloud
           activities:
@@ -1285,6 +1377,10 @@ topology_template:
             - Alien4Cloud_start
         Infrastructure_started:
           target: Infrastructure
+          activities:
+            - set_state: started
+        YorcAnsibleConfig_started:
+          target: YorcAnsibleConfig
           activities:
             - set_state: started
         YorcOnDemandLocationResources_starting:
@@ -1381,6 +1477,7 @@ topology_template:
           on_success:
             - YorcPlugin_starting
             - Infrastructure_starting
+            - YorcAnsibleConfig_starting
         ConsulServer_starting:
           target: ConsulServer
           activities:
@@ -1421,6 +1518,12 @@ topology_template:
             - set_state: stopping
           on_success:
             - Infrastructure_stopped
+        YorcAnsibleConfig_stopping:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcAnsibleConfig_stopped
         Alien4Cloud_stopping:
           target: Alien4Cloud
           activities:
@@ -1459,6 +1562,12 @@ topology_template:
             - JDK_stopped
         Infrastructure_stopped:
           target: Infrastructure
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcServer_stopping
+        YorcAnsibleConfig_stopped:
+          target: YorcAnsibleConfig
           activities:
             - set_state: stopped
           on_success:
@@ -1585,6 +1694,12 @@ topology_template:
             - set_state: submitted
           on_success:
             - Infrastructure_executed
+        YorcAnsibleConfig_submitted:
+          target: YorcAnsibleConfig
+          activities:
+            - set_state: submitted
+          on_success:
+            - YorcAnsibleConfig_executed
         YorcPlugin_submitted:
           target: YorcPlugin
           activities:
@@ -1611,6 +1726,7 @@ topology_template:
             - set_state: executed
           on_success:
             - Infrastructure_submitted
+            - YorcAnsibleConfig_submitted
             - YorcPlugin_submitted
         {{if not .Insecure}}
         VaultServer_executed:
@@ -1674,6 +1790,10 @@ topology_template:
             - JDK_executed
         Infrastructure_executed:
           target: Infrastructure
+          activities:
+            - set_state: executed
+        YorcAnsibleConfig_executed:
+          target: YorcAnsibleConfig
           activities:
             - set_state: executed
         AnsibleRuntime_submitted:

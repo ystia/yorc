@@ -32,7 +32,13 @@ Hosts
 The local host from where the command ``yorc bootstrap`` will be run, as well as
 remote hosts where the full stack will be deployed, should be Linux x86_64 systems
 operating with at least 2 CPUs and 4 Go of RAM.
-The bootstrap was validated on CentOS 7 and Red Hat Enterprise Linux 7.5.
+The bootstrap was validated on :
+  * CentOS 7,
+  * Red Hat Enterprise Linux 7.5,
+  * Ubuntu 18.10 (which is installing python3 by default, see 
+    :ref:`bootstrap configuration file <yorc_google_example_ubuntu_section>`
+    example below for specific Ansible configuration settings needed for remote 
+    hosts using python3).
 
 Packages
 ~~~~~~~~
@@ -41,8 +47,7 @@ The bootstrap operation will install a basic Yorc setup on the local host.
 
 It requires the following packages to be installed on the local host:
 
-  * python
-  * python-pip
+  * python and python-pip (or python3/python3-pip)
   * zip/unzip
   * openssh-client
   * openssl (to generate certificates when they are not provided)
@@ -189,6 +194,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--alien4cloud_port`` Alien4Cloud port (default 8088)
   * ``--alien4cloud_user`` Alien4Cloud user (default, admin)
   * ``--ansible_extra_package_repository_url`` URL of package indexes where to find the ansible package, instead of the default Python Package repository
+  * ``--ansible_use_openssh`` Prefer OpenSSH over Paramiko, python implementation of SSH
   * ``--ansible_version`` Ansible version (default \ |ansible_version|\ )
   * ``--config_only`` Makes the bootstrapping abort right after exporting the inputs
   * ``--consul_download_url`` Consul download URL (default, Consul version compatible with this Yorc, under https://releases.hashicorp.com/consul/)
@@ -271,6 +277,28 @@ for example :
     openstack:
       auth_url: http://10.1.2.3:5000/v2.0
 
+
+The bootstrap configuration file can be also be used to define Ansible Inventory
+configuration parameters.
+This is needed for example if remote hosts have python3 installed by default and not python,
+like on Ubuntu 18+.
+
+In this case, you can add in the bootstrap configuration file, a section allowing
+to configure an Ansible behavioral inventory parameter that will allow to specify
+which python interpreter could be used by Ansible on remote hosts, as described in
+:ref:`Ansible Inventory Configuration section <option_ansible_inventory_cfg>`.
+
+This would give for example in the bootstrap configuration file:
+
+.. code-block:: YAML
+
+  ansible:
+    inventory:
+      "target_hosts:vars":
+      - ansible_python_interpreter=/usr/bin/python3
+
+See later below a :ref:`full example of bootstrap configuration file <yorc_google_example_ubuntu_section>` defining such a parameter.
+
 Sections below provide examples of configuration files for each type of infrastructure.
 
 .. _yorc_google_example_section:
@@ -302,6 +330,60 @@ Example of a Google Cloud deployment configuration file
   compute:
     image_project: centos-cloud
     image_family: centos-7
+    machine_type: n1-standard-2
+    zone: europe-west1-b
+    # User and public key to define on created compute instance
+    metadata: "ssh-keys=user1:ssh-ed25519 AAAABCd/gV/C+b3h3r5K011evEELMD72S4..."
+    tags: a4c
+  credentials:
+    # User on compute instance created on demand
+    user: user1
+
+
+.. _yorc_google_example_ubuntu_section:
+
+Example of a Google Cloud deployment configuration with Ubuntu 18.10 on-demand compute
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this example, on-demand compute instances run Ubuntu 18.10 on which python3
+is installed by default (and not python).
+In this case, a specific Ansible behavioral inventory parameter 
+``ansible_python_interpreter`` must be defined so that Ansible is able to find 
+this python interpreter on the remote hosts.
+
+.. code-block:: YAML
+
+  yorc:
+    # Path to private key file on local host
+    # used to connect to hosts on the bootstrapped setup
+    private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
+  infrastructures:
+    google:
+      # Path on local host to file containing Google service account private keys
+      application_credentials: /home/myuser/gcp/myproject-a90a&bf599ef.json
+      project: myproject
+  ansible:
+    inventory:
+      # Remote host run Ubuntu 18.10, using python3.
+      # Defining here the Ansible behavioral inventory parameter ansible_python_interpreter
+      # pointing to python3.
+      # This is required or Ansible will attempt to use python on the remote host
+      # which will fail as python is not installed by default. 
+      "target_hosts:vars":
+      - ansible_python_interpreter=/usr/bin/python3
+  address:
+    region: europe-west1
+  compute:
+    image_project: ubuntu-os-cloud
+    image_family: ubuntu-1810
     machine_type: n1-standard-2
     zone: europe-west1-b
     # User and public key to define on created compute instance
