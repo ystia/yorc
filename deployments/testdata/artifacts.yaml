@@ -13,20 +13,20 @@ node_types:
   yorc.types.A:
     derived_from: yorc.types.ParentA
     artifacts:
-      art1: 
-        file: TypeA 
-      art2: 
-        file: TypeA 
-      art6: 
-        file: TypeA 
+      art1:
+        file: TypeA
+      art2:
+        file: TypeA
+      art6:
+        file: TypeA
   yorc.types.ParentA:
     derived_from: root
     artifacts:
-      art1: 
-        file: ParentA 
-      art3: 
+      art1:
         file: ParentA
-      art5: 
+      art3:
+        file: ParentA
+      art5:
         file: ParentA
   root:
 
@@ -37,11 +37,11 @@ topology_template:
     NodeA:
       type: yorc.types.A
       artifacts:
-        art1: 
-          file: artifacts.yaml 
-        art2: 
+        art1:
           file: artifacts.yaml
-        art3: 
+        art2:
           file: artifacts.yaml
-        art4: 
+        art3:
+          file: artifacts.yaml
+        art4:
           file: artifacts.yaml

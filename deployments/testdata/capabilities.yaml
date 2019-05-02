@@ -13,7 +13,7 @@ node_types:
   yorc.type.1:
     derived_from: yorc.type.2
     capabilities:
-      endpoint: 
+      endpoint:
         type: yorc.test.capabilities.Endpoint
         properties:
           credentials:
@@ -30,7 +30,7 @@ node_types:
   yorc.type.WithUndefCap:
     capabilities:
       # Use a known capability here then change it to an unknown type after storage
-      # This is because we do extra verification on capabilities, that said it makes 
+      # This is because we do extra verification on capabilities, that said it makes
       # testcase  very unlikely to happen
       udef: yorc.test.capabilities.Endpoint
   yorc.type.SuperScalable:
