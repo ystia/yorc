@@ -81,21 +81,11 @@ func storeCapReqMappings(
 			}
 
 			if capReqMapping.Properties != nil {
-				propPrefix := path.Join(capReqPrefix, "properties")
-				for name, value := range capReqMapping.Properties {
-					StoreValueAssignment(
-						consulStore, path.Join(propPrefix, name),
-						value)
-				}
+				storeMapValueAssignment(consulStore, path.Join(capReqPrefix, "properties"), capReqMapping.Properties)
 			}
 
 			if capReqMapping.Attributes != nil {
-				attrPrefix := path.Join(capReqPrefix, "attributes")
-				for name, value := range capReqMapping.Attributes {
-					StoreValueAssignment(
-						consulStore, path.Join(attrPrefix, name),
-						value)
-				}
+				storeMapValueAssignment(consulStore, path.Join(capReqPrefix, "attributes"), capReqMapping.Attributes)
 			}
 		}
 	}

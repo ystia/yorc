@@ -15,7 +15,7 @@
 package internal
 
 import (
-	"net/url"
+	"path"
 
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/tosca"
@@ -28,7 +28,5 @@ func StoreRequirementAssignment(consulStore consulutil.ConsulStore, requirement 
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/relationship", requirement.Relationship)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/type_requirement", requirement.TypeRequirement)
-	for propName, propValue := range requirement.RelationshipProps {
-		StoreValueAssignment(consulStore, requirementPrefix+"/properties/"+url.QueryEscape(propName), propValue)
-	}
+	storeMapValueAssignment(consulStore, path.Join(requirementPrefix, "properties"), requirement.RelationshipProps)
 }

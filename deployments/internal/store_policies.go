@@ -16,7 +16,6 @@ package internal
 
 import (
 	"context"
-	"net/url"
 	"path"
 	"strings"
 
@@ -36,10 +35,7 @@ func storePolicies(ctx context.Context, consulStore consulutil.ConsulStore, topo
 				targetPrefix := nodePrefix + "/targets"
 				consulStore.StoreConsulKeyAsString(targetPrefix, strings.Join(policy.Targets, ","))
 			}
-			propertiesPrefix := nodePrefix + "/properties"
-			for propName, propValue := range policy.Properties {
-				StoreValueAssignment(consulStore, propertiesPrefix+"/"+url.QueryEscape(propName), propValue)
-			}
+			storeMapValueAssignment(consulStore, path.Join(nodePrefix, "properties"), policy.Properties)
 			metadataPrefix := nodePrefix + "/metadata/"
 			for metaName, metaValue := range policy.Metadata {
 				consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)

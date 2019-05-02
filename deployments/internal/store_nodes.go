@@ -16,7 +16,6 @@ package internal
 
 import (
 	"context"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -39,25 +38,13 @@ func storeNodes(ctx context.Context, consulStore consulutil.ConsulStore, topolog
 				path.Join(nodePrefix, "directives"),
 				strings.Join(node.Directives, ","))
 		}
-		propertiesPrefix := nodePrefix + "/properties"
-		for propName, propValue := range node.Properties {
-			StoreValueAssignment(consulStore, propertiesPrefix+"/"+url.QueryEscape(propName), propValue)
-		}
-		attributesPrefix := nodePrefix + "/attributes"
-		for attrName, attrValue := range node.Attributes {
-			StoreValueAssignment(consulStore, attributesPrefix+"/"+url.QueryEscape(attrName), attrValue)
-		}
+		storeMapValueAssignment(consulStore, path.Join(nodePrefix, "properties"), node.Properties)
+		storeMapValueAssignment(consulStore, path.Join(nodePrefix, "attributes"), node.Attributes)
 		capabilitiesPrefix := nodePrefix + "/capabilities"
 		for capName, capability := range node.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
-			capabilityPropsPrefix := capabilityPrefix + "/properties"
-			for propName, propValue := range capability.Properties {
-				StoreValueAssignment(consulStore, capabilityPropsPrefix+"/"+url.QueryEscape(propName), propValue)
-			}
-			capabilityAttrPrefix := capabilityPrefix + "/attributes"
-			for attrName, attrValue := range capability.Attributes {
-				StoreValueAssignment(consulStore, capabilityAttrPrefix+"/"+url.QueryEscape(attrName), attrValue)
-			}
+			storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "properties"), capability.Properties)
+			storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "attributes"), capability.Attributes)
 		}
 		requirementsPrefix := nodePrefix + "/requirements"
 		for reqIndex, reqValueMap := range node.Requirements {

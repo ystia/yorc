@@ -105,14 +105,9 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
-			capabilityPropsPrefix := capabilityPrefix + "/properties"
-			for propName, propValue := range capability.Properties {
-				StoreValueAssignment(consulStore, capabilityPropsPrefix+"/"+url.QueryEscape(propName), propValue)
-			}
-			capabilityAttrPrefix := capabilityPrefix + "/attributes"
-			for attrName, attrValue := range capability.Attributes {
-				StoreValueAssignment(consulStore, capabilityAttrPrefix+"/"+url.QueryEscape(attrName), attrValue)
-			}
+
+			storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "properties"), capability.Properties)
+			storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "attributes"), capability.Attributes)
 		}
 
 		err := storeInterfaces(consulStore, nodeType.Interfaces, nodeTypePrefix, false)

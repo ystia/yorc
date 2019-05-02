@@ -67,11 +67,9 @@ func StoreValueAssignment(consulStore consulutil.ConsulStore, vaPrefix string, v
 	}
 }
 
-func storeMapValueAssignment(consulStore consulutil.ConsulStore, prefix string,
-	mapValueAssignment map[string]*tosca.ValueAssignment) {
-
+func storeMapValueAssignment(consulStore consulutil.ConsulStore, prefix string, mapValueAssignment map[string]*tosca.ValueAssignment) {
 	for name, value := range mapValueAssignment {
-		StoreValueAssignment(consulStore, path.Join(prefix, name), value)
+		StoreValueAssignment(consulStore, path.Join(prefix, url.QueryEscape(name)), value)
 	}
 }
 
