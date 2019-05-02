@@ -31,6 +31,21 @@ import (
 // This key doesn't contain any value and allow to detect types even if there is no other values stored for them into consul
 const TypeExistsFlagName = ".existFlag"
 
+// StoreAllTypes stores all types of a given topology
+func StoreAllTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+	storeDataTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+	if err := storeNodeTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+		return err
+	}
+	if err := storeRelationshipTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+		return err
+	}
+	storeCapabilityTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+	storeArtifactTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+	storePolicyTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+	return nil
+}
+
 func storeCommonType(consulStore consulutil.ConsulStore, commonType tosca.Type, typePrefix, importPath string) {
 	consulStore.StoreConsulKeyWithFlags(path.Join(typePrefix, TypeExistsFlagName), nil, 0)
 	// TODO(loicalbertin) Consul mem footprint optimizations: May be empty consider not always storing it, but be careful at least one key is required for now to check if type exist
@@ -43,8 +58,8 @@ func storeCommonType(consulStore consulutil.ConsulStore, commonType tosca.Type, 
 	}
 }
 
-// StoreDataTypes store data types
-func StoreDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+// storeDataTypes store data types
+func storeDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
 	dataTypesPrefix := path.Join(topologyPrefix, "types")
 	for dataTypeName, dataType := range topology.DataTypes {
 		dtPrefix := path.Join(dataTypesPrefix, dataTypeName)
@@ -57,8 +72,8 @@ func StoreDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 	return nil
 }
 
-// StoreNodeTypes stores topology types
-func StoreNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+// storeNodeTypes stores topology types
+func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
@@ -122,8 +137,8 @@ func StoreNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 	return nil
 }
 
-// StoreRelationshipTypes stores topology relationships types
-func StoreRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+// storeRelationshipTypes stores topology relationships types
+func storeRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
 	for relationName, relationType := range topology.RelationshipTypes {
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		storeCommonType(consulStore, relationType.Type, relationTypePrefix, importPath)
@@ -166,8 +181,8 @@ func StoreRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulSt
 	return nil
 }
 
-// StoreCapabilityTypes stores topology capabilities types
-func StoreCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
+// storeCapabilityTypes stores topology capabilities types
+func storeCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
 	for capabilityTypeName, capabilityType := range topology.CapabilityTypes {
 		capabilityTypePrefix := path.Join(topologyPrefix, "types", capabilityTypeName)
 		storeCommonType(consulStore, capabilityType.Type, capabilityTypePrefix, importPath)
@@ -185,8 +200,8 @@ func StoreCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStor
 	}
 }
 
-// StoreArtifactTypes stores topology artifacts types
-func StoreArtifactTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
+// storeArtifactTypes stores topology artifacts types
+func storeArtifactTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for artTypeName, artType := range topology.ArtifactTypes {
 		artTypePrefix := path.Join(typesPrefix, artTypeName)

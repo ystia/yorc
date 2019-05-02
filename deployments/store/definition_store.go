@@ -129,25 +129,7 @@ func BuiltinDefinition(ctx context.Context, definitionName string, definitionCon
 		return internal.StoreRepositories(ctx, consulStore, topology, topologyPrefix)
 	})
 	errGroup.Go(func() error {
-		return internal.StoreDataTypes(ctx, consulStore, topology, topologyPrefix, "")
-	})
-	errGroup.Go(func() error {
-		return internal.StoreNodeTypes(ctx, consulStore, topology, topologyPrefix, "")
-	})
-	errGroup.Go(func() error {
-		return internal.StoreRelationshipTypes(ctx, consulStore, topology, topologyPrefix, "")
-	})
-	errGroup.Go(func() error {
-		internal.StoreCapabilityTypes(ctx, consulStore, topology, topologyPrefix, "")
-		return nil
-	})
-	errGroup.Go(func() error {
-		internal.StoreArtifactTypes(ctx, consulStore, topology, topologyPrefix, "")
-		return nil
-	})
-	errGroup.Go(func() error {
-		internal.StorePolicyTypes(ctx, consulStore, topology, topologyPrefix, "")
-		return nil
+		return internal.StoreAllTypes(ctx, consulStore, topology, topologyPrefix, "")
 	})
 	return errGroup.Wait()
 }

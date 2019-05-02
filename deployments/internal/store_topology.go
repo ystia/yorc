@@ -39,8 +39,10 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 	if err := storeImports(ctx, consulStore, errGroup, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
 		return err
 	}
+
+	StoreAllTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+
 	StoreRepositories(ctx, consulStore, topology, topologyPrefix)
-	StoreDataTypes(ctx, consulStore, topology, topologyPrefix, importPath)
 
 	// There is no need to parse a topology template if this topology template
 	// is declared in an import.
@@ -58,16 +60,6 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 		storeSubstitutionMappings(ctx, consulStore, topology,
 			path.Join(topologyPrefix, importPrefix))
 	}
-
-	if err := StoreNodeTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
-		return err
-	}
-	if err := StoreRelationshipTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
-		return err
-	}
-	StoreCapabilityTypes(ctx, consulStore, topology, topologyPrefix, importPath)
-	StoreArtifactTypes(ctx, consulStore, topology, topologyPrefix, importPath)
-	StorePolicyTypes(ctx, consulStore, topology, topologyPrefix, importPath)
 
 	// Detect potential cycles in inline workflows
 	if err := checkNestedWorkflows(topology); err != nil {

@@ -48,8 +48,8 @@ func storePolicies(ctx context.Context, consulStore consulutil.ConsulStore, topo
 	}
 }
 
-// StorePolicyTypes stores topology policy types
-func StorePolicyTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
+// storePolicyTypes stores topology policy types
+func storePolicyTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
 	for policyName, policyType := range topology.PolicyTypes {
 		key := path.Join(topologyPrefix, "types", policyName)
 		storeCommonType(consulStore, policyType.Type, key, importPath)
