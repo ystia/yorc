@@ -527,34 +527,6 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 	return true, bsName, nil
 }
 
-func checkOperationHost(operationHost string, isRelationshipType bool) error {
-	operationHostUpper := strings.ToUpper(operationHost)
-	if isRelationshipType {
-		// Allowed values are SOURCE, TARGET and ORCHESTRATOR
-		switch operationHostUpper {
-		case "ORCHESTRATOR":
-		case "SOURCE":
-		case "TARGET":
-			return nil
-		default:
-			return errors.Errorf("Invalid value for Implementation operation_host property associated to a relationship type :%q", operationHost)
-
-		}
-	} else {
-		// Allowed values are SELF, HOST and ORCHESTRATOR
-		switch operationHostUpper {
-		case "HOST":
-		case "ORCHESTRATOR":
-		case "SELF":
-			return nil
-		default:
-			return errors.Errorf("Invalid value for Implementation operation_host property associated to non-relationship type:%q", operationHost)
-
-		}
-	}
-	return nil
-}
-
 func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {
 	wf, err := ReadWorkflow(kv, deploymentID, "run")
 	if err != nil {
