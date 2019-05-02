@@ -74,11 +74,7 @@ func storeNodes(ctx context.Context, consulStore consulutil.ConsulStore, topolog
 				log.Printf("Warning: Artifact %q for node %q with computed path %q doesn't exists on filesystem, ignoring it.", artName, nodeName, artFile)
 				continue
 			}
-			artPrefix := artifactsPrefix + "/" + artName
-			consulStore.StoreConsulKeyAsString(artPrefix+"/file", artDef.File)
-			consulStore.StoreConsulKeyAsString(artPrefix+"/type", artDef.Type)
-			consulStore.StoreConsulKeyAsString(artPrefix+"/repository", artDef.Repository)
-			consulStore.StoreConsulKeyAsString(artPrefix+"/deploy_path", artDef.DeployPath)
+			storeArtifact(consulStore, artDef, path.Join(artifactsPrefix, artName))
 		}
 
 		metadataPrefix := nodePrefix + "/metadata/"

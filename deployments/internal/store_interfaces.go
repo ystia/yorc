@@ -75,6 +75,34 @@ func storeInputDefinition(consulStore consulutil.ConsulStore, inputPrefix, opera
 	return nil
 }
 
+func storeOperations(consulStore consulutil.ConsulStore, operations map[string]tosca.OperationDefinition, interfacePrefix string, isRelationshipType bool) error {
+	for opName, operationDef := range operations {
+		opName = strings.ToLower(opName)
+		operationPrefix := path.Join(interfacePrefix, opName)
+
+		for inputName, inputDef := range operationDef.Inputs {
+			inputPrefix := path.Join(operationPrefix, "inputs", inputName)
+			err := storeInputDefinition(consulStore, inputPrefix, interfacePrefix, inputDef)
+			if err != nil {
+				return err
+			}
+		}
+		if operationDef.Implementation.Artifact != (tosca.ArtifactDefinition{}) {
+			storeArtifact(consulStore, operationDef.Implementation.Artifact, path.Join(operationPrefix, "implementation"))
+		} else {
+			consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/primary", operationDef.Implementation.Primary)
+			consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/dependencies", strings.Join(operationDef.Implementation.Dependencies, ","))
+		}
+		if operationDef.Implementation.OperationHost != "" {
+			if err := checkOperationHost(operationDef.Implementation.OperationHost, isRelationshipType); err != nil {
+				return err
+			}
+			consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/operation_host", strings.ToUpper(operationDef.Implementation.OperationHost))
+		}
+	}
+	return nil
+}
+
 func storeInterfaces(consulStore consulutil.ConsulStore, interfaces map[string]tosca.InterfaceDefinition, prefix string, isRelationshipType bool) error {
 	for intTypeName, intMap := range interfaces {
 		intTypeName = strings.ToLower(intTypeName)
@@ -88,33 +116,9 @@ func storeInterfaces(consulStore consulutil.ConsulStore, interfaces map[string]t
 			}
 		}
 
-		for opName, operationDef := range intMap.Operations {
-			opName = strings.ToLower(opName)
-			operationPrefix := path.Join(interfacePrefix, opName)
-
-			for inputName, inputDef := range operationDef.Inputs {
-				inputPrefix := path.Join(operationPrefix, "inputs", inputName)
-				err := storeInputDefinition(consulStore, inputPrefix, interfacePrefix, inputDef)
-				if err != nil {
-					return err
-				}
-			}
-			if operationDef.Implementation.Artifact != (tosca.ArtifactDefinition{}) {
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/file", operationDef.Implementation.Artifact.File)
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/type", operationDef.Implementation.Artifact.Type)
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/repository", operationDef.Implementation.Artifact.Repository)
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/deploy_path", operationDef.Implementation.Artifact.DeployPath)
-
-			} else {
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/primary", operationDef.Implementation.Primary)
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/dependencies", strings.Join(operationDef.Implementation.Dependencies, ","))
-			}
-			if operationDef.Implementation.OperationHost != "" {
-				if err := checkOperationHost(operationDef.Implementation.OperationHost, isRelationshipType); err != nil {
-					return err
-				}
-				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/operation_host", strings.ToUpper(operationDef.Implementation.OperationHost))
-			}
+		err := storeOperations(consulStore, intMap.Operations, interfacePrefix, isRelationshipType)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

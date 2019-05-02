@@ -22,9 +22,12 @@ import (
 func storeArtifacts(consulStore consulutil.ConsulStore, artifacts tosca.ArtifactDefMap, prefix string) {
 	for artName, artDef := range artifacts {
 		artPrefix := prefix + "/" + artName
-		consulStore.StoreConsulKeyAsString(artPrefix+"/file", artDef.File)
-		consulStore.StoreConsulKeyAsString(artPrefix+"/type", artDef.Type)
-		consulStore.StoreConsulKeyAsString(artPrefix+"/repository", artDef.Repository)
-		consulStore.StoreConsulKeyAsString(artPrefix+"/deploy_path", artDef.DeployPath)
+		storeArtifact(consulStore, artDef, artPrefix)
 	}
+}
+func storeArtifact(consulStore consulutil.ConsulStore, artifact tosca.ArtifactDefinition, artifactPrefix string) {
+	consulStore.StoreConsulKeyAsString(artifactPrefix+"/file", artifact.File)
+	consulStore.StoreConsulKeyAsString(artifactPrefix+"/type", artifact.Type)
+	consulStore.StoreConsulKeyAsString(artifactPrefix+"/repository", artifact.Repository)
+	consulStore.StoreConsulKeyAsString(artifactPrefix+"/deploy_path", artifact.DeployPath)
 }
