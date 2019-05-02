@@ -244,6 +244,7 @@ Trigger a workflow on deployment <DeploymentId>.
      yorc deployments workflows execute <DeploymentId> [flags]
 
 Flags:
+  * ``-d``, ``--data``: Provide the JSON format of the node instances selection
   * ``--continue-on-error``: By default if an error occurs in a step of a workflow then other running steps are cancelled and the workflow is stopped. This flag allows to continue to the next steps even if an error occurs.
   * ``-e``, ``--stream-events``: Stream events after riggering a workflow.
   * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
