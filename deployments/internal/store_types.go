@@ -109,20 +109,9 @@ func StoreNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 			attrPrefix := attributesPrefix + "/" + attrName
 			storeAttributeDefinition(ctx, consulStore, attrPrefix, attrName, attrDefinition)
 			if attrDefinition.Default != nil && attrDefinition.Default.Type == tosca.ValueAssignmentFunction {
-				f := attrDefinition.Default.GetFunction()
-				opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-				for _, oof := range opOutputFuncs {
-					if len(oof.Operands) != 4 {
-						return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-					}
-					entityName := url.QueryEscape(oof.Operands[0].String())
-					if entityName == "TARGET" || entityName == "SOURCE" {
-						return errors.Errorf("Can't use SOURCE or TARGET keyword in a %q in node type context: %v", tosca.GetOperationOutputOperator, oof)
-					}
-					interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-					operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-					outputVariableName := url.QueryEscape(oof.Operands[3].String())
-					consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+interfaceName+"/"+operationName+"/outputs/"+entityName+"/"+outputVariableName+"/expression", oof.String())
+				err := storeOperationOutput(consulStore, attrDefinition.Default, path.Join(nodeTypePrefix, "interfaces"))
+				if err != nil {
+					return err
 				}
 			}
 		}

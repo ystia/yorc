@@ -312,15 +312,12 @@ func GetOperationImplementationType(kv *api.KV, deploymentID, nodeTemplateImpl, 
 
 }
 
-// GetOperationImplementationFile allows you when the implementation of an operation is an artifact to retrieve the file of this artifact
-//
-// The returned file is the raw value. To have a file with a path relative to the root of the deployment use GetOperationImplementationFileWithRelativePath()
-func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, error) {
+func getOperationImplementation(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName, implementationType string) (string, error) {
 	operationPath, err := getOperationPath(kv, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName)
 	if err != nil {
 		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
 	}
-	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/file"), nil)
+	kvp, _, err := kv.Get(path.Join(operationPath, "implementation", implementationType), nil)
 	if err != nil {
 		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
 	}
@@ -330,6 +327,18 @@ func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeTemplateImpl, 
 	}
 
 	return string(kvp.Value), nil
+}
+
+// GetOperationImplementationFile allows you when the implementation of an operation is an artifact to retrieve the file of this artifact
+//
+// The returned file is the raw value. To have a file with a path relative to the root of the deployment use GetOperationImplementationFileWithRelativePath()
+func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, error) {
+	return getOperationImplementation(kv, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName, "file")
+}
+
+// GetOperationImplementationRepository allows you when the implementation of an operation is an artifact to retrieve the repository of this artifact
+func GetOperationImplementationRepository(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, error) {
+	return getOperationImplementation(kv, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName, "repository")
 }
 
 // GetOperationImplementationFileWithRelativePath allows you when the implementation of an operation
@@ -347,24 +356,6 @@ func GetOperationImplementationFileWithRelativePath(kv *api.KV, deploymentID, no
 	// If implementation is a node type, import path must be resolved
 	importPath, err := GetTypeImportPath(kv, deploymentID, nodeTypeImpl)
 	return path.Join(importPath, file), err
-}
-
-// GetOperationImplementationRepository allows you when the implementation of an operation is an artifact to retrieve the repository of this artifact
-func GetOperationImplementationRepository(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, error) {
-	operationPath, err := getOperationPath(kv, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName)
-	if err != nil {
-		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
-	}
-	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/repository"), nil)
-	if err != nil {
-		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
-	}
-
-	if kvp == nil {
-		return "", errors.Errorf("Operation type not found for %q", operationName)
-	}
-
-	return string(kvp.Value), nil
 }
 
 // GetOperationOutputForNode return a map with in index the instance number and in value the result of the output

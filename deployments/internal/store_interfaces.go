@@ -25,6 +25,25 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
+func storeOperationOutput(consulStore consulutil.ConsulStore, valueAssign *tosca.ValueAssignment, operationOutputPrefix string) error {
+	f := valueAssign.GetFunction()
+	opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+	for _, oof := range opOutputFuncs {
+		if len(oof.Operands) != 4 {
+			return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
+		}
+		entityName := url.QueryEscape(oof.Operands[0].String())
+		if entityName == "TARGET" || entityName == "SOURCE" {
+			return errors.Errorf("Can't use SOURCE or TARGET keyword in a %q in node type context: %v", tosca.GetOperationOutputOperator, oof)
+		}
+		interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
+		operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
+		outputVariableName := url.QueryEscape(oof.Operands[3].String())
+		consulStore.StoreConsulKeyAsString(path.Join(operationOutputPrefix, interfaceName, operationName, "outputs", entityName, outputVariableName, "expression"), oof.String())
+	}
+	return nil
+}
+
 func storeInputDefinition(consulStore consulutil.ConsulStore, inputPrefix, operationOutputPrefix string, inputDef tosca.Input) error {
 	isValueAssignment := false
 	isPropertyDefinition := false
@@ -32,20 +51,9 @@ func storeInputDefinition(consulStore consulutil.ConsulStore, inputPrefix, opera
 		StoreValueAssignment(consulStore, inputPrefix+"/data", inputDef.ValueAssign)
 		isValueAssignment = true
 		if inputDef.ValueAssign.Type == tosca.ValueAssignmentFunction {
-			f := inputDef.ValueAssign.GetFunction()
-			opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-			for _, oof := range opOutputFuncs {
-				if len(oof.Operands) != 4 {
-					return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-				}
-				entityName := url.QueryEscape(oof.Operands[0].String())
-				if entityName == "TARGET" || entityName == "SOURCE" {
-					return errors.Errorf("Can't use SOURCE or TARGET keyword in a %q in node type context: %v", tosca.GetOperationOutputOperator, oof)
-				}
-				interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-				operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-				outputVariableName := url.QueryEscape(oof.Operands[3].String())
-				consulStore.StoreConsulKeyAsString(operationOutputPrefix+"/"+interfaceName+"/"+operationName+"/outputs/"+entityName+"/"+outputVariableName+"/expression", oof.String())
+			err := storeOperationOutput(consulStore, inputDef.ValueAssign, operationOutputPrefix)
+			if err != nil {
+				return err
 			}
 		}
 	}
