@@ -89,38 +89,27 @@ func StoreTopologyTopLevelKeyNames(ctx context.Context, consulStore consulutil.C
 
 // storeOutputs stores topology outputs
 func storeOutputs(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
-	outputsPrefix := path.Join(topologyPrefix, "outputs")
-	for outputName, output := range topology.TopologyTemplate.Outputs {
-		outputPrefix := path.Join(outputsPrefix, outputName)
-		StoreValueAssignment(consulStore, path.Join(outputPrefix, "default"), output.Default)
-		if output.Required == nil {
-			// Required by default
-			consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "required"), "true")
-		} else {
-			consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "required"), strconv.FormatBool(*output.Required))
-		}
-		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "status"), output.Status)
-		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "type"), output.Type)
-		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "entry_schema"), output.EntrySchema.Type)
-		StoreValueAssignment(consulStore, path.Join(outputPrefix, "value"), output.Value)
-	}
+	storeParameterDefinition(ctx, consulStore, path.Join(topologyPrefix, "outputs"), topology.TopologyTemplate.Outputs)
 }
 
 // storeInputs stores topology outputs
 func storeInputs(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
-	inputsPrefix := path.Join(topologyPrefix, "inputs")
-	for inputName, input := range topology.TopologyTemplate.Inputs {
-		inputPrefix := path.Join(inputsPrefix, inputName)
-		StoreValueAssignment(consulStore, path.Join(inputPrefix, "default"), input.Default)
-		if input.Required == nil {
+	storeParameterDefinition(ctx, consulStore, path.Join(topologyPrefix, "inputs"), topology.TopologyTemplate.Inputs)
+}
+
+func storeParameterDefinition(ctx context.Context, consulStore consulutil.ConsulStore, paramsPrefix string, paramDefsMap map[string]tosca.ParameterDefinition) {
+	for paramName, paramDef := range paramDefsMap {
+		paramDefPrefix := path.Join(paramsPrefix, paramName)
+		StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "default"), paramDef.Default)
+		if paramDef.Required == nil {
 			// Required by default
-			consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "required"), "true")
+			consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), "true")
 		} else {
-			consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "required"), strconv.FormatBool(*input.Required))
+			consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), strconv.FormatBool(*paramDef.Required))
 		}
-		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "status"), input.Status)
-		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "type"), input.Type)
-		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "entry_schema"), input.EntrySchema.Type)
-		StoreValueAssignment(consulStore, path.Join(inputPrefix, "value"), input.Value)
+		consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "status"), paramDef.Status)
+		consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "type"), paramDef.Type)
+		consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "entry_schema"), paramDef.EntrySchema.Type)
+		StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "value"), paramDef.Value)
 	}
 }
