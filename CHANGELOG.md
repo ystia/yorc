@@ -12,6 +12,7 @@
 
 * Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
 * Policies API update ([GH-380](https://github.com/ystia/yorc/issues/380))
+* Execute custom workflows and custom commands on selected instances ([GH-107](https://github.com/ystia/yorc/issues/107))
 
 ## 3.2.0-M5 (April 19, 2019)
 

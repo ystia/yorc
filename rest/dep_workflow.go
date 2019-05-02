@@ -15,10 +15,13 @@
 package rest
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -61,7 +64,21 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		data["continueOnError"] = strconv.FormatBool(false)
 	}
-
+	// Get instances selection if provided in the request body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Panic(err)
+	}
+	var wfRequest WorkflowRequest
+	if err = json.Unmarshal(body, &wfRequest); err != nil {
+		log.Debugf("Custom workflow %s request body error : %s (probably no body as no instances selected)", workflowName, err)
+	} else {
+		for _, nodeInstances := range wfRequest.NodesInstances {
+			nodeName := nodeInstances.NodeName
+			instances := strings.Join(nodeInstances.Instances, ",")
+			data["nodes/"+nodeName] = instances
+		}
+	}
 	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {

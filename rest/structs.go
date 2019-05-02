@@ -172,6 +172,16 @@ type CustomCommandRequest struct {
 	Inputs            map[string]*tosca.ValueAssignment `json:"inputs"`
 }
 
+// The instances corresponding to a Node
+type NodeInstances struct {
+	NodeName  string   `json:"name"`
+	Instances []string `json:"instances"`
+}
+
+type WorkflowRequest struct {
+	NodesInstances []NodeInstances `json:"nodesinstances"`
+}
+
 // WorkflowsCollection is a collection of workflows links
 //
 // Links are all of type LinkRelWorkflow.
