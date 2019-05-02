@@ -25,6 +25,9 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
+// StoreComplexType stores a TOSCA value into a given path.
+//
+// This value can be a literal or a complex value composed by maps and lists
 func StoreComplexType(consulStore consulutil.ConsulStore, valuePath string, value interface{}) {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
@@ -46,6 +49,7 @@ func StoreComplexType(consulStore consulutil.ConsulStore, valuePath string, valu
 	}
 }
 
+// StoreValueAssignment stores a TOSCA value assignment under a given path
 func StoreValueAssignment(consulStore consulutil.ConsulStore, vaPrefix string, va *tosca.ValueAssignment) {
 	if va == nil {
 		return

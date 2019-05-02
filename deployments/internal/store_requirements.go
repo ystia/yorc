@@ -21,6 +21,7 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
+// StoreRequirementAssignment stores a TOSCA RequirementAssignment under a given prefix
 func StoreRequirementAssignment(consulStore consulutil.ConsulStore, requirement tosca.RequirementAssignment, requirementPrefix, requirementName string) {
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/node", requirement.Node)
