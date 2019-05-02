@@ -15,19 +15,17 @@
 package testutil
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
-
-	"github.com/ystia/yorc/v3/registry"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v3/deployments/store"
 )
 
 func TestAssets(t *testing.T) {
-	return
-	NewTestConsulInstance(t)
+
+	srv, _ := NewTestConsulInstance(t)
+	defer srv.Stop()
 	t.Run("TestAssets", func(t *testing.T) {
 		t.Run("NormativeTypes", testAssetNormativeParsing)
 		t.Run("OpenstackTypes", testAssetYorcOpenStackParsing)
@@ -40,98 +38,53 @@ func TestAssets(t *testing.T) {
 	})
 }
 
+func checkBuiltinTypesPath(t *testing.T, defName string) {
+	paths := store.GetBuiltinTypesPaths()
+
+	for _, p := range paths {
+		if strings.Contains(p, fmt.Sprintf("/%s/", defName)) {
+			return
+		}
+	}
+	t.Errorf("%s Types missing", defName)
+}
+
 func testAssetNormativeParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("normative-types.yml")
-	assert.Nil(t, err, "Can't load normative types")
-	assert.NotNil(t, data, "Can't load normative types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse normative types")
+	checkBuiltinTypesPath(t, "tosca-normative-types")
 }
 
 func testAssetYorcOpenStackParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-openstack-types.yml")
-	assert.Nil(t, err, "Can't load yorc openstack types")
-	assert.NotNil(t, data, "Can't load yorc openstack types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc openstack types")
+	checkBuiltinTypesPath(t, "yorc-openstack-types")
 }
 
 func testAssetYorcAwsParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-aws-types.yml")
-	assert.Nil(t, err, "Can't load yorc aws types")
-	assert.NotNil(t, data, "Can't load yorc aws types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc aws types")
+	checkBuiltinTypesPath(t, "yorc-aws-types")
 }
 
 func testAssetYorcGoogleParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-google-types.yml")
-	require.NoError(t, err, "Can't load yorc google types")
-	assert.NotNil(t, data, "Can't load yorc google types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc google types")
+	checkBuiltinTypesPath(t, "yorc-google-types")
 }
 
 func testAssetYorcParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-types.yml")
-	require.NoError(t, err, "Can't load yorc types")
-	assert.NotNil(t, data, "Can't load yorc types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc types")
+	checkBuiltinTypesPath(t, "yorc-types")
 }
 
 func testAssetYorcSlurmParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-slurm-types.yml")
-	require.NoError(t, err, "Can't load yorc Slurm types")
-	assert.NotNil(t, data, "Can't load yorc Slurm types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc Slurm types")
+	checkBuiltinTypesPath(t, "yorc-slurm-types")
 }
 
 func testAssetYorcHostsPoolParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-hostspool-types.yml")
-	require.NoError(t, err, "Can't load yorc hostspool types")
-	assert.NotNil(t, data, "Can't load yorc hostspool types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc hostspool types")
+	checkBuiltinTypesPath(t, "yorc-hostspool-types")
 }
 
 func testAssetYorcDockerParsing(t *testing.T) {
 	t.Parallel()
-	reg := registry.GetRegistry()
-	data, err := reg.GetToscaDefinition("yorc-docker-types.yml")
-	require.NoError(t, err, "Can't load yorc docker types")
-	assert.NotNil(t, data, "Can't load yorc docker types")
-	var topo tosca.Topology
-
-	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse yorc docker types")
+	checkBuiltinTypesPath(t, "yorc-docker-types")
 }
