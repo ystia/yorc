@@ -59,6 +59,10 @@ var (
 			description: "URL of package indexes where to find the ansible package, instead of the default Python Package repository",
 			value:       "",
 		},
+		"ansible.use_openssh": defaultInputType{
+			description: "Prefer OpenSSH over Paramiko, python implementation of SSH",
+			value:       false,
+		},
 	}
 
 	yorcDefaultInputs = map[string]defaultInputType{
@@ -259,6 +263,8 @@ func setBootstrapExtraParams(args []string, cmd *cobra.Command) error {
 				bootstrapCmd.PersistentFlags().String(flatKey, input.value.(string), input.description)
 			case int:
 				bootstrapCmd.PersistentFlags().Int(flatKey, input.value.(int), input.description)
+			case bool:
+				bootstrapCmd.PersistentFlags().Bool(flatKey, input.value.(bool), input.description)
 			case []string:
 				bootstrapCmd.PersistentFlags().StringSlice(flatKey, input.value.([]string), input.description)
 			default:

@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-types
   template_author: yorc
-  template_version: 1.0.0
+  template_version: 1.1.0
 
 imports:
   - normative: <normative-types.yml>
@@ -36,6 +36,27 @@ data_types:
         type: string
         required: true
         description: The user (name or ID) used as a credential for authorization or access to a networked resource.
+  yorc.datatypes.TLSClientConfig:
+    derived_from: tosca.datatypes.Root
+    properties:
+      client_cert:
+        type: string
+        required: false
+        description: PEM-encoded client certificate content used for TLS configuration.
+      client_key:
+        type: string
+        required: false
+        description: PEM-encoded client private key content used for TLS configuration.
+      ca_cert:
+        type: string
+        required: false
+        description: PEM-encoded client certificate authority content used for TLS configuration.
+      skip_verify:
+        type: boolean
+        required: false
+        description: >
+          Controls whether a client verifies the server’s certificate chain and host name.
+          If set to true, TLS accepts any certificate presented by the server and any host name in that certificate
 
 capability_types:
   yorc.capabilities.Endpoint.ProvisioningAdmin:
@@ -100,4 +121,63 @@ node_types:
           description: Monitor a submitted job for completion.
         cancel:
           description: Cancel a submitted job.
+
+policy_types:
+  yorc.policies.Monitoring:
+    abstract: true
+    derived_from: tosca.policies.Root
+    description: The yorc TOSCA Policy Type definition that is used to monitor computes and applications.
+    properties:
+      time_interval:
+        type: string
+        description: >
+          Time interval duration used for monitoring as "5s" or "300ms"
+          Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+        required: true
+        default: "5s"
+  yorc.policies.monitoring.HTTPMonitoring:
+    derived_from: yorc.policies.Monitoring
+    description: The yorc TOSCA Policy that is used to monitor applications with HTTP checks.
+    targets: [ tosca.nodes.SoftwareComponent ]
+    properties:
+      scheme:
+        type: string
+        description: Scheme to use for connecting to the target endpoint. Defaults to HTTP.
+        required: true
+        default: http
+        constraints:
+          - valid_values: [ http, https ]
+      port:
+        type: integer
+        description: Port to use for connecting the target endpoint.
+        required: true
+        default: 80
+        constraints:
+          - in_range: [ 1, 65535 ]
+      path:
+        type: string
+        description: Path to access on the target endpoint.
+        required: false
+      http_headers:
+        type: map
+        description: Custom headers to set in the request.
+        required: false
+        entry_schema:
+          type: string
+      tls_client:
+        type: yorc.datatypes.TLSClientConfig
+        description: TLS client configuration used for HTTP checks.
+        required: false
+
+  yorc.policies.monitoring.TCPMonitoring:
+    derived_from: yorc.policies.Monitoring
+    description: The yorc TOSCA Policy that is used to monitor computes and applications with TCP checks.
+    targets: [ tosca.nodes.Compute, tosca.nodes.SoftwareComponent ]
+    properties:
+      port:
+        type: integer
+        description: Port to use for opening a socket.
+        required: true
+        constraints:
+          - in_range: [ 1, 65535 ]
           

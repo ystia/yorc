@@ -44,7 +44,7 @@ type Topology struct {
 	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
 	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty"`
 	// TODO Group Types
-	// TODO Policy Types
+	PolicyTypes map[string]PolicyType `yaml:"policy_types,omitempty"`
 
 	TopologyTemplate TopologyTemplate `yaml:"topology_template"`
 }
@@ -59,9 +59,9 @@ type TopologyTemplate struct {
 	Outputs            map[string]ParameterDefinition `yaml:"outputs,omitempty"`
 	SubstitionMappings *SubstitutionMapping           `yaml:"substitution_mappings,omitempty"`
 	Workflows          map[string]Workflow
+	Policies           []PolicyMap `yaml:"policies,omitempty"`
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
-	//Policies              []Policy                 `yaml:",omitempty"`
 }
 
 // An NodeTemplate is the representation of a TOSCA Node Template
@@ -98,3 +98,17 @@ type Credential struct {
 	Protocol  string            `yaml:"protocol,omitempty"`
 	Keys      map[string]string `yaml:"keys,omitempty"`
 }
+
+// A Policy represents a Tosca Policy definition
+// See https://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/os/TOSCA-Simple-Profile-YAML-v1.2-os.html#DEFN_ELEMENT_POLICY_DEF
+// for the first implementation, we don't handle triggers
+type Policy struct {
+	Type        string                      `yaml:"type"`
+	Description string                      `yaml:"description,omitempty"`
+	Targets     []string                    `yaml:"targets,omitempty"`
+	Properties  map[string]*ValueAssignment `yaml:"properties,omitempty"`
+	Metadata    map[string]string           `yaml:"metadata,omitempty"`
+}
+
+// PolicyMap is a map of Policy indexed by policy name
+type PolicyMap map[string]Policy

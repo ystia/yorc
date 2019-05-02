@@ -331,8 +331,11 @@ Below is an example of configuration file with Ansible configuration options.
             "display_skipped_hosts": "False",
             "special_context_filesystems": "nfs,vboxsf,fuse,ramfs,myspecialfs",
             "timeout": "60"
-          }            
-        }  
+          }
+        },
+        "inventory":{
+          "target_hosts:vars": ["ansible_python_interpreter=/usr/bin/python3"]
+        }
       }
     }
 
@@ -406,14 +409,27 @@ All available configuration options for Ansible are:
 
       * ``env``: An optional list environment variables to set when creating the container. The format of each variable is ``var_name=value``.
 
+      * ``config`` and ``inventory`` are complex structure allowing to configure
+        Ansible behavior, these options are described in more details in next section.
+
 .. _option_ansible_config_cfg:
 
-  * ``config``: This is a complex structure allowing to define `Ansible configuration settings <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_  if you need a specific Ansible Configuration.
+Ansible config option
+^^^^^^^^^^^^^^^^^^^^^
+
+``config`` is a complex structure allowing to define `Ansible configuration settings
+<https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_  if
+you need a specific Ansible Configuration.
     
-    * You should first provide the Ansible Configuration section (for example ``defaults``, ``inventory``, ``ssh_connection``...).
-    * You should then provide the list of parameters within this section, ie. what `Ansible documentation <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_ describes as the ``Ini key`` within the ``Ini Section``.
-      Each parameter value must be provided here as a string : for a boolean parameter, you would provide the string ``False`` or ``True`` as expected in Ansible Confiugration.
-      For example, it would give in Yaml:
+You should first provide the Ansible Configuration section (for example ``defaults``,
+``ssh_connection``...).
+
+You should then provide the list of parameters within this section, ie. what 
+`Ansible documentation <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_ describes
+as the ``Ini key`` within the ``Ini Section``.
+Each parameter value must be provided here as a string : for a boolean parameter,
+you would provide the string ``False`` or ``True`` as expected in Ansible Confiugration.
+For example, it would give in Yaml:
 
 .. code-block:: YAML
 
@@ -426,17 +442,67 @@ All available configuration options for Ansible are:
 
 By default, the Orchestrator will define these Ansible Configuration settings :
 
-  * ``host_key_checking: "False"``, to avoid host key checking by the underlying tools Ansible uses to connect to the host
+  * ``host_key_checking: "False"``, to avoid host key checking by the underlying
+    tools Ansible uses to connect to the host
   * ``timeout: "30"``, to set the connection timeout to 30 seconds
   * ``stdout_callback: "yaml"``, to display ansible output in yaml format
-  * ``nocows: "1"``, to disable cowsay messages that can cause parsing issues in the Orchestrator
+  * ``nocows: "1"``, to disable cowsay messages that can cause parsing issues in
+    the Orchestrator
 
-And when :ref:`ansible fact caching <option_ansible_cache_facts_cmd>` is enabled, the Orchestrator adds these settings :
+And when :ref:`ansible fact caching <option_ansible_cache_facts_cmd>` is enabled,
+the Orchestrator adds these settings :
 
-  * ``gathering: "smart"``, to set Ansible fact gathering to smart: each new host that has no facts discovered will be scanned
+  * ``gathering: "smart"``, to set Ansible fact gathering to smart: each new host
+    that has no facts discovered will be scanned
   * ``fact_caching: "jsonfile"``, to use a json file-based cache plugin
 	
 .. warning::
+    Be careful when overriding these settings defined by default by the Orchestrator,
+    as it might lead to unpredictable results.
+
+.. _option_ansible_inventory_cfg:
+
+Ansible inventory option
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+``inventory`` is a structure allowing to configure `Ansible inventory settings 
+<https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html>`_  if
+you need to define variables for hosts or groups.
+
+You should first provide the Ansible Inventory group name.
+You should then provide the list of parameters to define for this group, which
+can be any parameter specific to your ansible playbooks, or `behavioral inventory
+parameters <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#list-of-behavioral-inventory-parameters>`_
+describing how Ansible interacts with remote hosts.
+
+For example, for Ansible to use python3 on remote hosts, you must define
+the Ansible behavioral inventory parameter ``ansible_python_interpreter``
+in the Ansible inventory Yorc configuration, like below in Yaml:
+
+.. code-block:: YAML
+
+  ansible:
+    inventory:
+      "target_hosts:vars":
+      - ansible_python_interpreter=/usr/bin/python3
+
+By default, the Orchestrator will define :
+
+  * an inventory group ``target_hosts`` containing the list of remote hosts, and its
+    associated variable group ``target_hosts:vars`` configuring by default this
+    behavioral parameter:
+
+    * ``ansible_ssh_common_args="-o ConnectionAttempts=20"``
+  
+  * an inventory group ``hosted_operations``  and its associated variable group ``hosted_operations:vars``
+    for operations that are executed on the orchestrator host, configuring by default
+    this behavioral parameter:
+  
+    * ``ansible_python_interpreter=/usr/bin/env python``
+
+.. warning::
+    Settings defined by the user take precedence over settings defined by the
+    Orchestrator.
     Be careful when overriding these settings defined by default by the Orchestrator,
     as it might lead to unpredictable results.
 

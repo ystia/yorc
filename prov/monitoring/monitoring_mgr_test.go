@@ -90,16 +90,16 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	require.Len(t, defaultMonManager.checks, 0, "0 check is expected in work map")
 }
 
-func testIsMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client) {
+func testIsMonitoringRequiredWithNoPolicy(t *testing.T, client *api.Client) {
 	t.Parallel()
-	is, _, err := defaultMonManager.isMonitoringRequired("monitoring2", "Compute1")
+	is, _, err := checkExistingMonitoringPolicy(client.KV(), "monitoring2", "Compute1")
 	require.Nil(t, err, "Unexpected error during isMonitoringRequired function")
 	require.Equal(t, false, is, "unexpected monitoring required")
 }
 
-func testIsMonitoringRequiredWithZeroTimeInterval(t *testing.T, client *api.Client) {
+func testIsMonitoringRequiredWithNoPolicyForTarget(t *testing.T, client *api.Client) {
 	t.Parallel()
-	is, _, err := defaultMonManager.isMonitoringRequired("monitoring3", "Compute1")
+	is, _, err := checkExistingMonitoringPolicy(client.KV(), "monitoring3", "Compute1")
 	require.Nil(t, err, "Unexpected error during isMonitoringRequired function")
 	require.Equal(t, false, is, "unexpected monitoring required")
 }
@@ -112,7 +112,7 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 	instance := "0"
 	expectedCheck := NewCheck(dep, node, instance)
 
-	err := defaultMonManager.registerCheck(dep, node, instance, "1.2.3.4", 22, 1*time.Second)
+	err := defaultMonManager.registerTCPCheck(dep, node, instance, "1.2.3.4", 22, 1*time.Second)
 	require.Nil(t, err, "Unexpected error while adding check")
 
 	time.Sleep(2 * time.Second)

@@ -145,6 +145,10 @@ func BuiltinDefinition(ctx context.Context, definitionName string, definitionCon
 		internal.StoreArtifactTypes(ctx, consulStore, topology, topologyPrefix, "")
 		return nil
 	})
+	errGroup.Go(func() error {
+		internal.StorePolicyTypes(ctx, consulStore, topology, topologyPrefix, "")
+		return nil
+	})
 	return errGroup.Wait()
 }
 

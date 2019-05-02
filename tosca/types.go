@@ -108,3 +108,14 @@ type DataType struct {
 	// Constraints not enforced in Yorc so we don't parse them
 	// Constraints []ConstraintClause
 }
+
+// A PolicyType is the representation of a TOSCA Policy Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_POLICY_TYPE
+// Triggers are not supported
+// for more details
+type PolicyType struct {
+	Type       `yaml:",inline"`
+	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
+	Targets    []string                      `yaml:"targets,omitempty,flow"`
+}

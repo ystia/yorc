@@ -101,7 +101,7 @@ with open(outFile, 'w') as csvfile:
 		sys.exit("Error: {0} doesn't define the required output value '[[[print (cut $outName)]]]'".format(fName))
 	writer.writerow([ '[[[print $outName]]]', gVar['[[[print (cut $outName)]]]'] ])
 	[[[end]]]
-	chmod(outFile, 0777)
+	chmod(outFile, 0o777)
 [[[end]]]
 
 `
@@ -145,6 +145,10 @@ const shellAnsiblePlaybook = `
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[printf "  when: (not %s) or result.failed" $.ArchiveArtifacts]]]
     [[[end]]]
+    - replace:
+    [[[printf  "    path: \"{{ ansible_env.HOME}}/%s/wrapper\"" $.OperationRemotePath]]]
+        regexp: "#!/usr/bin/env python"
+        replace: "#!{{ ansible_python.executable}}"
     [[[printf "- shell: \"/bin/bash -l -c %s\"" (getWrappedCommand)]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]

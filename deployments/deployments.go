@@ -43,6 +43,26 @@ func IsDeploymentNotFoundError(err error) bool {
 	return ok
 }
 
+type inconsistentDeploymentError struct {
+	deploymentID string
+}
+
+func (t inconsistentDeploymentError) Error() string {
+	return fmt.Sprintf("Inconsistent deployment with ID %q", t.deploymentID)
+}
+
+// IsInconsistentDeploymentError checks if an error is an inconsistent deployment error
+func IsInconsistentDeploymentError(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(inconsistentDeploymentError)
+	return ok
+}
+
+// NewInconsistentDeploymentError allows to create a new inconsistentDeploymentError error
+func NewInconsistentDeploymentError(deploymentID string) error {
+	return inconsistentDeploymentError{deploymentID: deploymentID}
+}
+
 // DeploymentStatusFromString returns a DeploymentStatus from its textual representation.
 //
 // If ignoreCase is 'true' the given status is upper cased to match the generated status strings.
@@ -118,28 +138,37 @@ RETRY:
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	if kvp == nil || len(kvp.Value) == 0 || meta == nil {
-		return errors.WithStack(&deploymentNotFound{deploymentID})
-	}
+	if status != INITIAL {
+		if kvp == nil || len(kvp.Value) == 0 || meta == nil {
+			return errors.WithStack(&deploymentNotFound{deploymentID})
+		}
 
-	currentStatus, err := DeploymentStatusFromString(string(kvp.Value), true)
-	if err != nil {
-		return err
-	}
-
-	if status != currentStatus {
-		kvp.Value = []byte(status.String())
-		kvp.ModifyIndex = meta.LastIndex
-		ok, _, err := kv.CAS(kvp, nil)
+		currentStatus, err := DeploymentStatusFromString(string(kvp.Value), true)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
+			return err
 		}
-		if !ok {
-			goto RETRY
+
+		if status != currentStatus {
+			kvp.Value = []byte(status.String())
+			kvp.ModifyIndex = meta.LastIndex
+			ok, _, err := kv.CAS(kvp, nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
+			}
+			if !ok {
+				goto RETRY
+			}
+			log.Debugf("Deployment status change for %s from %s to %s",
+				deploymentID, currentStatus.String(), status.String())
+			events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 		}
-		log.Debugf("Deployment status change for %s from %s to %s",
-			deploymentID, currentStatus.String(), status.String())
-		events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
+		return nil
 	}
+
+	// Set the status to INITIAL: no need to handle concurrency and to check previous status
+	if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), status.String()); err != nil {
+		return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
+	}
+	events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 	return nil
 }

@@ -41,38 +41,42 @@ var reg = registry.GetRegistry()
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
 func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID string, defPath string) error {
+	if err := SetDeploymentStatus(ctx, kv, deploymentID, INITIAL); err != nil {
+		return handleDeploymentStatus(ctx, kv, deploymentID, err)
+	}
+
 	topology := tosca.Topology{}
 	definition, err := os.Open(defPath)
 	if err != nil {
-		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
+		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
 	}
 	defBytes, err := ioutil.ReadAll(definition)
 	if err != nil {
-		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
+		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
 	}
 
 	err = yaml.Unmarshal(defBytes, &topology)
 	if err != nil {
-		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath))
+		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath))
 	}
 
 	consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(INITIAL))
 
 	err = store.Deployment(ctx, topology, deploymentID, filepath.Dir(defPath))
 	if err != nil {
-		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
+		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
 	}
 	err = registerImplementationTypes(ctx, kv, deploymentID)
 	if err != nil {
-		return handleDeploymentStatus(deploymentID, err)
+		return handleDeploymentStatus(ctx, kv, deploymentID, err)
 	}
 
-	return handleDeploymentStatus(deploymentID, enhanceNodes(ctx, kv, deploymentID))
+	return handleDeploymentStatus(ctx, kv, deploymentID, enhanceNodes(ctx, kv, deploymentID))
 }
 
-func handleDeploymentStatus(deploymentID string, err error) error {
+func handleDeploymentStatus(ctx context.Context, kv *api.KV, deploymentID string, err error) error {
 	if err != nil {
-		consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(DEPLOYMENT_FAILED))
+		SetDeploymentStatus(ctx, kv, deploymentID, DEPLOYMENT_FAILED)
 	}
 	return err
 }

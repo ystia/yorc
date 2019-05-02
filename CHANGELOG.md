@@ -2,15 +2,34 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Unexpected deployment deletion during topology unmarshalling ([GH-375](https://github.com/ystia/yorc/issues/375))
+* Parsing of a description field of an TOSCA interface is interpreted as an operation ([GH-372](https://github.com/ystia/yorc/issues/372))
+* Yorc does not support python3 ([GH-319](https://github.com/ystia/yorc/issues/319))
+
+### ENHANCEMENTS
+
+* Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
+* Policies API update ([GH-380](https://github.com/ystia/yorc/issues/380))
+
+## 3.2.0-M5 (April 19, 2019)
+
 ### FEATURES
 
 * Implement an anti-affinity placement policy for Openstack ([GH-84](https://github.com/ystia/yorc/issues/84))
 * Allow to configure Ansible configuration file ([GH-346](https://github.com/ystia/yorc/issues/346))
+* Monitor deployed services liveness ([GH-104](https://github.com/ystia/yorc/issues/104))
 
 ### ENHANCEMENTS
 
+* Add job status feedback for slurm and k8s jobs ([GH-351](https://github.com/ystia/yorc/issues/351))
 * Upgrade Ansible to 2.7.9 ([GH-364](https://github.com/ystia/yorc/issues/364))
 * Reduce the volume of data stored in Consul part 1 ([GH-361](https://github.com/ystia/yorc/issues/361))
+
+### BUG FIXES
+
+* Unable to delete a deployment with non-conform topology ([GH-368](https://github.com/ystia/yorc/issues/368))
 
 ## 3.2.0-M4 (March 29, 2019)
 

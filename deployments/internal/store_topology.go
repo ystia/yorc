@@ -51,6 +51,7 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 		storeOutputs(ctx, consulStore, topology, topologyPrefix)
 		storeSubstitutionMappings(ctx, consulStore, topology, topologyPrefix)
 		storeNodes(ctx, consulStore, topology, topologyPrefix, importPath, rootDefPath)
+		storePolicies(ctx, consulStore, topology, topologyPrefix)
 	} else {
 		// For imported templates, storing substitution mappings if any
 		// as they contain details on service to application/node type mapping
@@ -66,6 +67,7 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 	}
 	StoreCapabilityTypes(ctx, consulStore, topology, topologyPrefix, importPath)
 	StoreArtifactTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+	StorePolicyTypes(ctx, consulStore, topology, topologyPrefix, importPath)
 
 	// Detect potential cycles in inline workflows
 	if err := checkNestedWorkflows(topology); err != nil {
