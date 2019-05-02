@@ -16,6 +16,7 @@ package internal
 
 import (
 	"path"
+	"strconv"
 
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/tosca"
@@ -29,4 +30,22 @@ func StoreRequirementAssignment(consulStore consulutil.ConsulStore, requirement 
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/type_requirement", requirement.TypeRequirement)
 	storeMapValueAssignment(consulStore, path.Join(requirementPrefix, "properties"), requirement.RelationshipProps)
+}
+
+func storeRequirementDefinition(consulStore consulutil.ConsulStore, reqDefinition tosca.RequirementDefinition, reqName, reqPrefix string) {
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqDefinition.Node)
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
+	consulStore.StoreConsulKeyAsString(reqPrefix+"/capability_name", reqDefinition.CapabilityName)
+}
+
+func storeRequirementDefinitionMap(consulStore consulutil.ConsulStore, requirements []tosca.RequirementDefinitionMap, requirementsPrefix string) {
+	for reqIndex, reqMap := range requirements {
+		for reqName, reqDefinition := range reqMap {
+			storeRequirementDefinition(consulStore, reqDefinition, reqName, path.Join(requirementsPrefix, strconv.Itoa(reqIndex)))
+		}
+	}
 }

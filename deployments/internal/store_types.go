@@ -84,19 +84,7 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 			storePropertyDefinition(ctx, consulStore, propPrefix, propName, propDefinition)
 		}
 
-		requirementsPrefix := nodeTypePrefix + "/requirements"
-		for reqIndex, reqMap := range nodeType.Requirements {
-			for reqName, reqDefinition := range reqMap {
-				reqPrefix := requirementsPrefix + "/" + strconv.Itoa(reqIndex)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqDefinition.Node)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability_name", reqDefinition.CapabilityName)
-			}
-		}
+		storeRequirementDefinitionMap(consulStore, nodeType.Requirements, path.Join(nodeTypePrefix, "requirements"))
 		capabilitiesPrefix := nodeTypePrefix + "/capabilities"
 		for capName, capability := range nodeType.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
