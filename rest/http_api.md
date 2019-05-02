@@ -672,9 +672,9 @@ This endpoint will failed with an error "400 Bad Request" if:
 Submit a custom workflow for a given deployment. By adding the optional 'continueOnError' url parameter to your request, workflow will
 not stop at the first encountered error and will run to its end.
 
-If the workflow's nodes have several running instances, the workflow steps' executions are applied to all the instances by default.
-It is possible to select instances for the workflow's nodes by adding selection data in the request body as shown in the example below.
-For the workflow's nodes that have no selected instances specified, the execution steps take place on all the node's instances.
+By default the execution of the workflow's steps take place on all the instances of the workflow's nodes.
+It is possible to select instances for the workflow's nodes by adding selection data in the request body.
+For nodes that have no selected instances specified, the execution steps take place on all instances.
 
 `POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
 
