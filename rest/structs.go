@@ -172,12 +172,13 @@ type CustomCommandRequest struct {
 	Inputs            map[string]*tosca.ValueAssignment `json:"inputs"`
 }
 
-// The instances corresponding to a Node
+// NodeInstances represents a given node's instances selected for a custom execution
 type NodeInstances struct {
 	NodeName  string   `json:"name"`
 	Instances []string `json:"instances"`
 }
 
+// WorkflowRequest allows to provide instances selection for nodes in a workflow
 type WorkflowRequest struct {
 	NodesInstances []NodeInstances `json:"nodesinstances"`
 }
