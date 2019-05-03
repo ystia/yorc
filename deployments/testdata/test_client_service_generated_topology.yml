@@ -14,7 +14,7 @@ topology_template:
       appA_capA: [ AppAInstance, appA_capA ]
       appA_capA: [ AppAInstance, appA_capA ]
     requirements:
-      hosted: [ AppAInstance, hostedOnComputeHost ]
+      - hosted: [ AppAInstance, hostedOnComputeHost ]
   node_templates:
     Compute:
       type: yorc.nodes.hostspool.Compute

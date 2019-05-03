@@ -221,8 +221,8 @@ node_types:
         required: false
         entry_schema:
           type: yorc.datatypes.google.ScratchDisk
-          constraints:
-            - greater_or_equal: 0
+        constraints: # must be applied to the list type instead of list entries of ScratchDisk type, isn't it?
+            # - greater_or_equal: 0 # can't be applied to a list, isn't it?
             - max_length: 8
     requirements:
       - assignment:

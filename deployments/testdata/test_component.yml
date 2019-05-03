@@ -7,7 +7,7 @@ imports: []
 description: |
   Test Component definition. Contains types as well as a template definition
 data_types:
-yorc.test.ComplexDataType:
+  yorc.test.ComplexDataType:
     derived_from: tosca.datatypes.Root
     properties:
       nested: {type: string}

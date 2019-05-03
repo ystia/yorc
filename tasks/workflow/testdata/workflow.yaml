@@ -10,9 +10,9 @@ description: ""
 imports:
 - normative-types: <yorc-types.yml>
 
-artifacts_types:
+artifact_types:
   ystia.yorc.tests.artifacts.Implementation.Custom:
-    derived_from: tosca.artifact.Implementation
+    derived_from: tosca.artifacts.Implementation
 
 node_types:
   ystia.yorc.tests.nodes.WFCompute:
