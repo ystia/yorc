@@ -12,6 +12,7 @@
 
 * Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
 * Policies API update ([GH-380](https://github.com/ystia/yorc/issues/380))
+* Reduce the volume of data stored in Consul by removing builtin types duplicates on deployments ([GH-371](https://github.com/ystia/yorc/issues/371))
 
 ## 3.2.0-M5 (April 19, 2019)
 
@@ -315,7 +316,7 @@ This release brings a tech preview support of jobs scheduling. It allows to desi
 
 In this release we mainly focused on the integration with Slurm for supporting this feature (but we are also working on Kubernetes for the next release :smile:). Bellow are new supported TOSCA types and implementations:
 
-* SlurmJobs: will lead to issuing a srun command with a given executable file.  
+* SlurmJobs: will lead to issuing a srun command with a given executable file.
 * SlurmBatch: will lead to issuing a sbatch command with a given batch file and associated executables
 * Singularity integration: allows to execute a Singularity container instead of an executable file.
 
