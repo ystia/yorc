@@ -110,6 +110,9 @@ func (c *Check) Stop() {
 }
 
 func (c *Check) disable() {
+	c.enabledLock.Lock()
+	defer c.enabledLock.Unlock()
+
 	if c.enabled {
 		c.enabled = false
 		close(c.chDisable)
@@ -117,6 +120,9 @@ func (c *Check) disable() {
 }
 
 func (c *Check) enable() {
+	c.enabledLock.Lock()
+	defer c.enabledLock.Unlock()
+
 	if !c.enabled {
 		// instantiate channel to close the check ticker
 		c.chDisable = make(chan struct{})
