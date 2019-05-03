@@ -53,8 +53,8 @@ func checkIfTypeExists(kv *api.KV, typePath string) (bool, error) {
 	return kvp != nil, nil
 }
 
-func getLatestBuiltinTypesPaths(kv *api.KV) ([]string, error) {
-	paths := store.GetBuiltinTypesPaths()
+func getLatestCommonsTypesPaths(kv *api.KV) ([]string, error) {
+	paths := store.GetCommonsTypesPaths()
 	for i := range paths {
 		paths[i] = path.Join(paths[i], "types")
 	}
@@ -74,7 +74,7 @@ func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
 		return typePath, nil
 	}
 
-	builtinTypesPaths, err := getLatestBuiltinTypesPaths(kv)
+	builtinTypesPaths, err := getLatestCommonsTypesPaths(kv)
 	if err != nil {
 		return "", err
 	}
@@ -139,7 +139,7 @@ func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
 		names = append(names, path.Base(t))
 	}
 
-	builtinPaths, err := getLatestBuiltinTypesPaths(kv)
+	builtinPaths, err := getLatestCommonsTypesPaths(kv)
 	if err != nil {
 		return names, err
 	}

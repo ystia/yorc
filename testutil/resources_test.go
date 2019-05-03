@@ -39,7 +39,7 @@ func TestAssets(t *testing.T) {
 }
 
 func checkBuiltinTypesPath(t *testing.T, defName string) {
-	paths := store.GetBuiltinTypesPaths()
+	paths := store.GetCommonsTypesPaths()
 
 	for _, p := range paths {
 		if strings.Contains(p, fmt.Sprintf("/%s/", defName)) {

@@ -58,7 +58,7 @@ func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
 
-	storeBuiltinDefinitions()
+	storeCommonDefinitions()
 
 	return srv1, client
 }

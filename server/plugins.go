@@ -176,9 +176,7 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			if len(definitions) > 0 {
 				for defName, defContent := range definitions {
 					log.Debugf("Registering TOSCA definition %q into registry for plugin %q", defName, pluginID)
-					// TODO(loicalbertin): This is deprecated remove it in 4.0.0
-					reg.AddToscaDefinition(defName, pluginID, defContent)
-					store.BuiltinDefinition(ctx, defName, defContent)
+					store.CommonDefinition(ctx, defName, pluginID, defContent)
 				}
 			}
 		} else {

@@ -39,15 +39,6 @@ type Registry interface {
 	// ListDelegateExecutors returns a map of node types matches to prov.DelegateExecutor origin
 	ListDelegateExecutors() []DelegateMatch
 
-	// Register a TOSCA definition file. Origin is the origin of the executor (builtin for builtin executors or the plugin name in case of a plugin)
-	AddToscaDefinition(name, origin string, data []byte)
-	// GetToscaDefinition retruns the definitions for the given name.
-	//
-	// If the given definition name can't match any definition an error is returned
-	GetToscaDefinition(name string) ([]byte, error)
-	// ListToscaDefinitions returns a map of definitions names to their origin
-	ListToscaDefinitions() []Definition
-
 	// RegisterOperationExecutor register a list of implementation artifact type that should be used along with the given
 	// prov.OperationExecutor. Origin is the origin of the executor (builtin for builtin executors or the plugin name in case of a plugin)
 	RegisterOperationExecutor(artifacts []string, executor prov.OperationExecutor, origin string)
@@ -88,6 +79,26 @@ type Registry interface {
 	GetActionOperator(actionType string) (prov.ActionOperator, error)
 	// ListActionOperators returns a map of actionTypes matches to prov.ActionOperator origin
 	ListActionOperators() []ActionTypeMatch
+
+	// Deprecated
+
+	// Register a TOSCA definition file. Origin is the origin of the executor (builtin for builtin executors or the plugin name in case of a plugin)
+	//
+	// Deprecated: use store.CommonDefinition instead
+	//             will be removed in Yorc 4.0
+	AddToscaDefinition(name, origin string, data []byte)
+	// GetToscaDefinition retruns the definitions for the given name.
+	//
+	// If the given definition name can't match any definition an error is returned
+	//
+	// Deprecated: use store.GetCommonsTypesPaths instead to know supported definitions
+	//             will be removed in Yorc 4.0
+	GetToscaDefinition(name string) ([]byte, error)
+	// ListToscaDefinitions returns a map of definitions names to their origin
+	//
+	// Deprecated: use store.GetCommonsTypesPaths instead to know supported definitions
+	//             will be removed in Yorc 4.0
+	ListToscaDefinitions() []Definition
 }
 
 var defaultReg Registry
@@ -120,13 +131,6 @@ type ActionTypeMatch struct {
 	ActionType string              `json:"action_type"`
 	Operator   prov.ActionOperator `json:"-"`
 	Origin     string              `json:"origin"`
-}
-
-// Definition represents a TOSCA definition with its Name, Origin and Data content
-type Definition struct {
-	Name   string `json:"name"`
-	Origin string `json:"origin"`
-	Data   []byte `json:"-"`
 }
 
 // VaultClientBuilder represents a vault client builder with its ID, Origin and Data content
@@ -191,32 +195,6 @@ func (r *defaultRegistry) ListDelegateExecutors() []DelegateMatch {
 	defer r.delegatesLock.RUnlock()
 	result := make([]DelegateMatch, len(r.delegateMatches))
 	copy(result, r.delegateMatches)
-	return result
-}
-
-func (r *defaultRegistry) AddToscaDefinition(name, origin string, data []byte) {
-	r.definitionsLock.Lock()
-	defer r.definitionsLock.Unlock()
-	// Insert as first
-	r.definitions = append([]Definition{Definition{name, origin, data}}, r.definitions...)
-}
-
-func (r *defaultRegistry) GetToscaDefinition(name string) ([]byte, error) {
-	r.definitionsLock.RLock()
-	defer r.definitionsLock.RUnlock()
-	for _, def := range r.definitions {
-		if def.Name == name {
-			return def.Data, nil
-		}
-	}
-	return nil, errors.Errorf("Unknown definition: %q", name)
-}
-
-func (r *defaultRegistry) ListToscaDefinitions() []Definition {
-	r.definitionsLock.RLock()
-	defer r.definitionsLock.RUnlock()
-	result := make([]Definition, len(r.definitions))
-	copy(result, r.definitions)
 	return result
 }
 

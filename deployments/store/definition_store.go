@@ -30,13 +30,18 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
+// BuiltinOrigin is the origin for Yorc builtin
+const BuiltinOrigin = "builtin"
+
+const yorcOriginConsulKey = "yorc_origin"
+
 var lock sync.Mutex
 
 var builtinTypes = make([]string, 0)
 
-func getLatestBuiltinTypesPaths() ([]string, error) {
+func getLatestCommonsTypesPaths() ([]string, error) {
 	kv := consulutil.GetKV()
-	keys, _, err := kv.Keys(consulutil.BuiltinTypesKVPrefix+"/", "/", nil)
+	keys, _, err := kv.Keys(consulutil.CommonsTypesKVPrefix+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -67,26 +72,26 @@ func getLatestBuiltinTypesPaths() ([]string, error) {
 	return paths, nil
 }
 
-// GetBuiltinTypesPaths returns the path of builtin types supported by this instance of Yorc
+// GetCommonsTypesPaths returns the path of builtin types supported by this instance of Yorc
 //
-// Returned keys are formatted as <consulutil.BuiltinTypesKVPrefix>/<name>/<version>
+// Returned keys are formatted as <consulutil.CommonsTypesKVPrefix>/<name>/<version>
 // If this is used from outside a Yorc instance typically a plugin or another app then the latest
 // version of each builtin type stored in Consul is assumed
-func GetBuiltinTypesPaths() []string {
+func GetCommonsTypesPaths() []string {
 	lock.Lock()
 	defer lock.Unlock()
 	if len(builtinTypes) == 0 {
 		// Not provided at system startup we are probably in an external application used as a lib
 		// So let use latest values of each stored builtin types in Consul
-		builtinTypes, _ = getLatestBuiltinTypesPaths()
+		builtinTypes, _ = getLatestCommonsTypesPaths()
 	}
 	res := make([]string, len(builtinTypes))
 	copy(res, builtinTypes)
 	return res
 }
 
-// BuiltinDefinition stores a TOSCA definition to the common place
-func BuiltinDefinition(ctx context.Context, definitionName string, definitionContent []byte) error {
+// CommonDefinition stores a TOSCA definition to the common place
+func CommonDefinition(ctx context.Context, definitionName, origin string, definitionContent []byte) error {
 	topology := tosca.Topology{}
 	err := yaml.Unmarshal(definitionContent, &topology)
 	if err != nil {
@@ -103,7 +108,9 @@ func BuiltinDefinition(ctx context.Context, definitionName string, definitionCon
 		return errors.Errorf("Can't store builtin TOSCA definition %q, template_version is missing", definitionName)
 	}
 
-	topologyPrefix := path.Join(consulutil.BuiltinTypesKVPrefix, name, version)
+	topology.Metadata[yorcOriginConsulKey] = origin
+
+	topologyPrefix := path.Join(consulutil.CommonsTypesKVPrefix, name, version)
 
 	func() {
 		lock.Lock()
@@ -143,4 +150,39 @@ func Deployment(ctx context.Context, topology tosca.Topology, deploymentID, root
 	})
 
 	return errGroup.Wait()
+}
+
+// Definition is TOSCA Definition registered in the Yorc as builtin could be comming from Yorc itself or a plugin
+type Definition struct {
+	Name    string `json:"name"`
+	Origin  string `json:"origin"`
+	Version string `json:"version"`
+}
+
+// GetCommonsDefinitionsList returns the list of commons definitions within Yorc
+func GetCommonsDefinitionsList() ([]Definition, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	if len(builtinTypes) == 0 {
+		// Not provided at system startup we are probably in an external application used as a lib
+		// So let use latest values of each stored builtin types in Consul
+		builtinTypes, _ = getLatestCommonsTypesPaths()
+	}
+	kv := consulutil.GetKV()
+	res := make([]Definition, len(builtinTypes))
+	for _, p := range builtinTypes {
+		d := Definition{}
+		d.Version = path.Base(p)
+		p = path.Dir(p)
+		d.Name = path.Base(p)
+		res = append(res, d)
+		kvp, _, err := kv.Get(path.Join(p, "metadata", yorcOriginConsulKey), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil {
+			d.Version = string(kvp.Value)
+		}
+	}
+	return res, nil
 }

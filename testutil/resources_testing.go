@@ -16,29 +16,26 @@ package testutil
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 
 	"github.com/pkg/errors"
-	resources "gopkg.in/cookieo9/resources-go.v2"
+	res "gopkg.in/cookieo9/resources-go.v2"
 
 	"github.com/ystia/yorc/v3/deployments/store"
 	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/resources"
 )
 
-func storeBuiltinDefinitions() {
-	// reg := registry.GetRegistry()
+func storeCommonDefinitions() {
 	resources, err := getToscaResources()
 	if err != nil {
 		log.Panicf("Failed to load builtin Tosca definition. %v", err)
 	}
 	ctx := context.Background()
 	for defName, defContent := range resources {
-		// reg.AddToscaDefinition(defName, registry.BuiltinOrigin, defContent)
-		store.BuiltinDefinition(ctx, defName, defContent)
+		store.CommonDefinition(ctx, defName, store.BuiltinOrigin, defContent)
 	}
 }
 
@@ -51,28 +48,13 @@ func getToscaResources() (map[string][]byte, error) {
 	if _, err := os.Stat(toscaDirPath); err != nil && os.IsNotExist(err) {
 		return nil, errors.Errorf("can't find local TOSCA resources, %s does not exit", toscaDirPath)
 	}
-	bundle := resources.OpenFS(toscaDirPath)
+	bundle := res.OpenFS(toscaDirPath)
 	defer bundle.Close()
 
-	searcher := bundle.(resources.Searcher)
+	searcher := bundle.(res.Searcher)
 	toscaResources, err := searcher.Glob("*.yml")
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't find local TOSCA resources in %s", toscaDirPath)
 	}
-	res := make(map[string][]byte, len(toscaResources))
-	for _, r := range toscaResources {
-		// Use path instead of filepath as it is platform independent
-		rName := path.Base(r.Path())
-		reader, err := r.Open()
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't open local TOSCA resource %s", rName)
-		}
-		rContent, err := ioutil.ReadAll(reader)
-		reader.Close()
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't read local TOSCA resource %s", rName)
-		}
-		res[rName] = rContent
-	}
-	return res, nil
+	return resources.ReadResources(toscaResources)
 }

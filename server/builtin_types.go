@@ -17,7 +17,7 @@
 package server
 
 import (
-	"github.com/ystia/yorc/v3/tosca/resources"
+	"github.com/ystia/yorc/v3/resources"
 )
 
 func registerBuiltinTOSCATypes() error {
