@@ -14,7 +14,6 @@
 * Policies API update ([GH-380](https://github.com/ystia/yorc/issues/380))
 <<<<<<< HEAD
 * Execute custom workflows and custom commands on selected instances ([GH-107](https://github.com/ystia/yorc/issues/107))
-=======
 * Support OpenStack authentication with user domain ([GH-355](https://github.com/ystia/yorc/issues/355))
 >>>>>>> develop
 
