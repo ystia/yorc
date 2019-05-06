@@ -69,6 +69,9 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	cmdEnv := []string{
 		fmt.Sprintf("OS_USERNAME=%s", cfg.Infrastructures[infrastructureName].GetString("user_name")),
 		fmt.Sprintf("OS_PASSWORD=%s", cfg.Infrastructures[infrastructureName].GetString("password")),
+		fmt.Sprintf("OS_PROJECT_NAME=%s", cfg.Infrastructures[infrastructureName].GetString("project_name")),
+		fmt.Sprintf("OS_PROJECT_ID=%s", cfg.Infrastructures[infrastructureName].GetString("project_id")),
+		fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", cfg.Infrastructures[infrastructureName].GetString("user_domain_name")),
 		fmt.Sprintf("OS_AUTH_URL=%s", cfg.Infrastructures[infrastructureName].GetString("auth_url")),
 	}
 
