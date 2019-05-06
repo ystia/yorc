@@ -187,6 +187,13 @@ func storeCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStor
 func storeArtifactTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for artTypeName, artType := range topology.ArtifactTypes {
+		// TODO(loicalbertin): remove it when migrating to Alien 2.2. Currently alien-base-types has org.alien4cloud.artifacts.AnsiblePlaybook types that do not derives from tosca.artifacts.Implementation
+		// as with the change on commons types this types is not overridden by builtin types anymore. This is because we first check on deployments types
+		// then on commons types.
+		if !strings.HasPrefix(typesPrefix, consulutil.CommonsTypesKVPrefix) && artTypeName == "org.alien4cloud.artifacts.AnsiblePlaybook" {
+			continue
+		}
+
 		artTypePrefix := path.Join(typesPrefix, artTypeName)
 		storeCommonType(consulStore, artType.Type, artTypePrefix, importPath)
 		consulStore.StoreConsulKeyAsString(artTypePrefix+"/mime_type", artType.MimeType)
