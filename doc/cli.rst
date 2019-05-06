@@ -225,6 +225,13 @@ Example using ``--data`` flag:
      yorc deployments custom deployID --data '{"name":"cmdName","interface":"interfaceName",""node":"nodeName","inputs":{"key1":["value1","value2"],"key2":"value3"}}'
 
 
+Example using ``--data`` flag with instances selection:
+
+.. code-block:: bash
+
+     yorc deployments custom deployID --data '{"name":"cmdName","interface":"interfaceName",""node":"nodeName","instances":["0"], "inputs":{"key1":["value1","value2"],"key2":"value3"}}'
+
+
 List workflows of a given deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -249,6 +256,14 @@ Flags:
   * ``-e``, ``--stream-events``: Stream events after riggering a workflow.
   * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
   * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+
+Example using ``--data`` flag with instances selection:
+
+Trigger execution of workflow <workflowName> with instance "1" selected for node "node1", and no instances selected for the other nodes.
+
+.. code-block:: bash
+
+     yorc deployments workflows execute deployID -w workflowName --data '{ "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }]}'
 
 Show a workflow on a given deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
