@@ -43,7 +43,42 @@ func getCommonsTypesList(kv *api.KV) ([]string, error) {
 
 }
 
-func up111RemoveCommonsTypes(kv *api.KV) error {
+func up111RemoveCommonsImports(kv *api.KV, deploymentPrefix string) error {
+	iKeys, _, err := kv.Keys(path.Join(deploymentPrefix, "topology/imports")+"/", "/", nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, importPrefix := range iKeys {
+		importName := path.Base(importPrefix)
+		if strings.HasPrefix(importName, "<") && strings.HasSuffix(importName, ">") {
+			_, err = kv.DeleteTree(importPrefix, nil)
+			if err != nil {
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+		}
+	}
+	return nil
+}
+
+func up111RemoveCommonsTypes(kv *api.KV, commons []string, deploymentPrefix string) error {
+	tKeys, _, err := kv.Keys(path.Join(deploymentPrefix, "topology/types")+"/", "/", nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, tPrefix := range tKeys {
+		if collections.ContainsString(commons, path.Base(tPrefix)) {
+			log.Debugf("\tRemoving type %q from deployment %q", path.Base(tPrefix), path.Base(deploymentPrefix))
+			_, err := kv.DeleteTree(tPrefix, nil)
+			if err != nil {
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+		} else {
+			consulutil.StoreConsulKeyWithFlags(path.Join(tPrefix, ".existFlag"), nil, 0)
+		}
+	}
+	return nil
+}
+func up111UpgradeCommonsTypes(kv *api.KV) error {
 	log.Print("\tRemoving commons types...")
 	commons, err := getCommonsTypesList(kv)
 	if err != nil {
@@ -54,34 +89,15 @@ func up111RemoveCommonsTypes(kv *api.KV) error {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, deploymentPrefix := range depKeys {
-		tKeys, _, err := kv.Keys(path.Join(deploymentPrefix, "topology/types")+"/", "/", nil)
+		err = up111RemoveCommonsTypes(kv, commons, deploymentPrefix)
 		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			return err
 		}
-		for _, tPrefix := range tKeys {
-			if collections.ContainsString(commons, path.Base(tPrefix)) {
-				log.Debugf("\tRemoving type %q from deployment %q", path.Base(tPrefix), path.Base(deploymentPrefix))
-				_, err := kv.DeleteTree(tPrefix, nil)
-				if err != nil {
-					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-				}
-			} else {
-				consulutil.StoreConsulKeyWithFlags(path.Join(tPrefix, ".existFlag"), nil, 0)
-			}
-		}
-		iKeys, _, err := kv.Keys(path.Join(deploymentPrefix, "topology/imports")+"/", "/", nil)
+		err = up111RemoveCommonsImports(kv, deploymentPrefix)
 		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			return err
 		}
-		for _, importPrefix := range iKeys {
-			importName := path.Base(importPrefix)
-			if strings.HasPrefix(importName, "<") && strings.HasSuffix(importName, ">") {
-				_, err = kv.DeleteTree(importPrefix, nil)
-				if err != nil {
-					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-				}
-			}
-		}
+
 	}
 	return nil
 }
@@ -89,5 +105,5 @@ func up111RemoveCommonsTypes(kv *api.KV) error {
 // UpgradeTo111 allows to upgrade Consul schema from 1.1.0 to 1.1.1
 func UpgradeTo111(kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Upgrading to database version 1.1.1...")
-	return up111RemoveCommonsTypes(kv)
+	return up111UpgradeCommonsTypes(kv)
 }
