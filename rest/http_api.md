@@ -631,7 +631,7 @@ Request body allowing to execute command on some selected node instances:
     "node": "NodeName",
     "name": "Custom_Command_Name",
     "interface": "fully.qualified.interface.name",
-    "instances": "[ "0", "1" ]",
+    "instances": [ "0", "1" ],
     "inputs": {
       "index":"",
       "nb_replicas":"2"
@@ -693,7 +693,7 @@ Request body allowing to execute a workflow's steps on selected node instances :
     "nodeinstances": [
        {
          "node": "Node_Name",
-         "instances": "[ "0", "2" ]"
+         "instances": [ "0", "2" ]
        }
     ]
 }
