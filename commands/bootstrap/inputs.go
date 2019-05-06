@@ -170,11 +170,11 @@ var (
 	jdkDefaultInputs = map[string]defaultInputType{
 		"jdk.download_url": defaultInputType{
 			description: "Java Development Kit download URL",
-			value:       "https://download.oracle.com/otn-pub/java/jdk/8u202-b08/1961070e4c9b4e26a04e7f5a083f551e/jdk-8u202-linux-x64.tar.gz",
+			value:       "https://api.adoptopenjdk.net/v2/binary/releases/openjdk8?openjdk_impl=hotspot&os=linux&arch=x64&release=jdk8u212-b03&type=jdk",
 		},
 		"jdk.version": defaultInputType{
 			description: "Java Development Kit version",
-			value:       "1.8.0-202-b08",
+			value:       "1.8.0-212-b03",
 		},
 	}
 
