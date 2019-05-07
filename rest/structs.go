@@ -166,9 +166,21 @@ type Attribute struct {
 // CustomCommandRequest is the representation of a request to process a Custom Command
 type CustomCommandRequest struct {
 	NodeName          string                            `json:"node"`
+	Instances         []string                          `json:"instances"`
 	CustomCommandName string                            `json:"name"`
 	InterfaceName     string                            `json:"interface,omitempty"`
 	Inputs            map[string]*tosca.ValueAssignment `json:"inputs"`
+}
+
+// NodeInstances represents a given node's instances selected for a custom execution
+type NodeInstances struct {
+	NodeName  string   `json:"name"`
+	Instances []string `json:"instances"`
+}
+
+// WorkflowRequest allows to provide instances selection for nodes in a workflow
+type WorkflowRequest struct {
+	NodesInstances []NodeInstances `json:"nodesinstances"`
 }
 
 // WorkflowsCollection is a collection of workflows links
