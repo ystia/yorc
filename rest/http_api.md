@@ -211,7 +211,7 @@ Content-Type: application/json
 
 ### Get the deployment information about a given node instance <a name="instance-info"></a>
 
-Retrieve a node instance's status. 
+Retrieve a node instance's status.
 Get the list (as Atom links) of the attributes for this instance.
 
 'Accept' header should be set to 'application/json'.
@@ -584,7 +584,7 @@ Content-Length: 0
 
 ### Resume a task <a name="task-resume"></a>
 
-Resume a task for a given deployment. 
+Resume a task for a given deployment.
 The task should be in status "FAILED" to be resumed.
 Otherwise an HTTP 400 (Bad request) error is returned.
 
@@ -599,7 +599,7 @@ Content-Length: 0
 
 ### Execute a custom command <a name="custom-cmd-exec"></a>
 
-Submit a custom command for a given deployment. 
+Submit a custom command for a given deployment.
 
 The command corresponds to an operation defined in a node type interface.
 The operation is executed by default on all the node type instances.
@@ -676,7 +676,7 @@ This endpoint will failed with an error "400 Bad Request" if:
 
 ### Execute a workflow <a name="workflow-exec"></a>
 
-Submit a custom workflow for a given deployment. 
+Submit a custom workflow for a given deployment.
 By adding the optional 'continueOnError' url parameter to your request, 
 workflow will not stop at the first encountered error and will run to its end.
 
