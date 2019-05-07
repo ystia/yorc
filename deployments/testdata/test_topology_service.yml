@@ -22,7 +22,7 @@ topology_template:
         properties:
           network_name: PRIVATE
     requirements:
-      - hosted: [ AppAInstance, hostedOnComputeHost ]
+      hosted: [ AppAInstance, hostedOnComputeHost ]
     properties:
       aProp: [ AppAInstance, appA_propBString ]
     attributes:
