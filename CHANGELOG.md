@@ -4,6 +4,7 @@
 
 ### BUG FIXES
 
+* Can't deploy applications using compute instances filters on Hosts Pools ([GH-385](https://github.com/ystia/yorc/issues/385))
 * Unexpected deployment deletion during topology unmarshalling ([GH-375](https://github.com/ystia/yorc/issues/375))
 * Parsing of a description field of an TOSCA interface is interpreted as an operation ([GH-372](https://github.com/ystia/yorc/issues/372))
 * Yorc does not support python3 ([GH-319](https://github.com/ystia/yorc/issues/319))
@@ -13,6 +14,7 @@
 
 * Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
 * Policies API update ([GH-380](https://github.com/ystia/yorc/issues/380))
+* Support OpenStack authentication with user domain ([GH-355](https://github.com/ystia/yorc/issues/355))
 
 ## 3.2.0-M5 (April 19, 2019)
 
