@@ -86,7 +86,6 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 			if err != nil {
 				return err
 			}
-			defer dest.Close()
 
 			if _, err := io.Copy(dest, src); err != nil {
 				return err
@@ -97,6 +96,16 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 				if _, err := ziputil.Unzip(destinationPath, filepath.Dir(destinationPath)); err != nil {
 					return err
 				}
+			}
+
+			// Close src and dest
+			err = src.Close()
+			if err != nil {
+				return err
+			}
+			err = dest.Close()
+			if err != nil {
+				return err
 			}
 
 		}
@@ -163,7 +172,6 @@ func getVersionFromTOSCATypes(path string) string {
 			fmt.Println("Failed to open tosca types zip in bundled resources", err)
 			return version
 		}
-		defer src.Close()
 
 		allRead, err := ioutil.ReadAll(src)
 		if err != nil {
@@ -174,6 +182,11 @@ func getVersionFromTOSCATypes(path string) string {
 		match := re.FindStringSubmatch(string(allRead[:]))
 		if match != nil {
 			version = match[1]
+			return version
+		}
+		err = src.Close()
+		if err != nil {
+			fmt.Println("Failed to close tosca types zip in bundled resources", err)
 			return version
 		}
 	}
