@@ -25,7 +25,6 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/log"
@@ -70,10 +69,13 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
-	var wfRequest WorkflowRequest
-	if err = json.Unmarshal(body, &wfRequest); err != nil {
-		log.Debugf("Custom workflow %s request body error : %s (probably no body as no instances selected)", workflowName, err)
-	} else {
+
+	if len(body) > 0 {
+		var wfRequest WorkflowRequest
+		err = json.Unmarshal(body, &wfRequest)
+		if err != nil {
+			log.Panic(err)
+		}
 		for _, nodeInstances := range wfRequest.NodesInstances {
 			nodeName := nodeInstances.NodeName
 			// Check that provided node exists
