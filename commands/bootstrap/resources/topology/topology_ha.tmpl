@@ -95,7 +95,7 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     JDK:
-      type: org.alien4cloud.java.jdk.linux.nodes.OpenJDK
+      type: org.alien4cloud.java.jdk.linux.nodes.OracleJDK
       properties:
         java_url: "{{.Jdk.DownloadURL}}"
         java_home: "/opt/java"
