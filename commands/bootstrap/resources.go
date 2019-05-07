@@ -76,7 +76,6 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 			if err != nil {
 				return err
 			}
-			defer src.Close()
 
 			if err := os.MkdirAll(filepath.Dir(destinationPath), 0700); err != nil {
 				return err
