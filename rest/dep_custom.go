@@ -23,6 +23,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/ystia/yorc/v3/helper/collections"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 
@@ -150,14 +152,7 @@ func (s *Server) checkInstances(deploymentID, nodeName string, provInstances []s
 	}
 	// Check that provided instances exist
 	for _, provInstance := range provInstances {
-		var found bool
-		for _, instance := range allInstances {
-			if provInstance == instance {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !collections.ContainsString(allInstances, provInstance) {
 			return false, provInstance
 		}
 	}
