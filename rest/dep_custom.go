@@ -23,7 +23,10 @@ import (
 	"path"
 	"strings"
 
+	"github.com/ystia/yorc/v3/helper/collections"
+
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/log"
@@ -55,18 +58,43 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	if err = json.Unmarshal(body, &ccRequest); err != nil {
 		log.Panic(err)
 	}
-	ccRequest.InterfaceName = strings.ToLower(ccRequest.InterfaceName)
+	// Check that provided node exists
+	nodeName := ccRequest.NodeName
+	nodeExists, err := deployments.DoesNodeExist(s.consulClient.KV(), id, nodeName)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !nodeExists {
+		writeError(w, r, newBadRequestParameter("node", errors.Errorf("Node %q must exist", nodeName)))
+		return
+	}
 
-	inputsName, err := s.getInputNameFromCustom(id, ccRequest.NodeName, ccRequest.InterfaceName, ccRequest.CustomCommandName)
+	// Get node instances on which the command is to be applied
+	var instances []string
+	if ccRequest.Instances == nil {
+		// Apply command on all the instances
+		instances, err = deployments.GetNodeInstancesIds(s.consulClient.KV(), id, nodeName)
+		if err != nil {
+			log.Panic(err)
+		}
+	} else {
+		checked, inexistent := s.checkInstances(id, nodeName, ccRequest.Instances)
+		if checked {
+			instances = ccRequest.Instances
+		} else {
+			writeError(w, r, newBadRequestParameter("instance", errors.Errorf("Instance %q must exist", inexistent)))
+			return
+		}
+	}
+
+	ccRequest.InterfaceName = strings.ToLower(ccRequest.InterfaceName)
+	inputsName, err := s.getInputNameFromCustom(id, nodeName, ccRequest.InterfaceName, ccRequest.CustomCommandName)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	data := make(map[string]string)
-
-	// For now custom commands are for all instances
-	instances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), id, ccRequest.NodeName)
-	data[path.Join("nodes", ccRequest.NodeName)] = strings.Join(instances, ",")
+	data[path.Join("nodes", nodeName)] = strings.Join(instances, ",")
 	data["commandName"] = ccRequest.CustomCommandName
 	data["interfaceName"] = ccRequest.InterfaceName
 
@@ -112,4 +140,21 @@ func (s *Server) getInputNameFromCustom(deploymentID, nodeName, interfaceName, c
 		}
 	}
 	return result, nil
+}
+
+// checkInstances checks if provided instances exist and returns true in this case.
+// If a provided instance does not exists, returns false and the inexistent instance name
+func (s *Server) checkInstances(deploymentID, nodeName string, provInstances []string) (bool, string) {
+	// Get known instances for the provided node
+	allInstances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), deploymentID, nodeName)
+	if err != nil {
+		log.Panic(err)
+	}
+	// Check that provided instances exist
+	for _, provInstance := range provInstances {
+		if !collections.ContainsString(allInstances, provInstance) {
+			return false, provInstance
+		}
+	}
+	return true, ""
 }

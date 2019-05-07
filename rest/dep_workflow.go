@@ -15,13 +15,16 @@
 package rest
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
-
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/log"
@@ -60,6 +63,39 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		data["continueOnError"] = strconv.FormatBool(true)
 	} else {
 		data["continueOnError"] = strconv.FormatBool(false)
+	}
+	// Get instances selection if provided in the request body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	if len(body) > 0 {
+		var wfRequest WorkflowRequest
+		err = json.Unmarshal(body, &wfRequest)
+		if err != nil {
+			log.Panic(err)
+		}
+		for _, nodeInstances := range wfRequest.NodesInstances {
+			nodeName := nodeInstances.NodeName
+			// Check that provided node exists
+			nodeExists, err := deployments.DoesNodeExist(s.consulClient.KV(), deploymentID, nodeName)
+			if err != nil {
+				log.Panicf("%v", err)
+			}
+			if !nodeExists {
+				writeError(w, r, newBadRequestParameter("node", errors.Errorf("Node %q must exist", nodeName)))
+				return
+			}
+			// Check that provided instances exist
+			checked, inexistent := s.checkInstances(deploymentID, nodeName, nodeInstances.Instances)
+			if !checked {
+				writeError(w, r, newBadRequestParameter("instance", errors.Errorf("Instance %q must exist", inexistent)))
+				return
+			}
+			instances := strings.Join(nodeInstances.Instances, ",")
+			data["nodes/"+nodeName] = instances
+		}
 	}
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)

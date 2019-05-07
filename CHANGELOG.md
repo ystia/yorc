@@ -8,12 +8,15 @@
 * Unexpected deployment deletion during topology unmarshalling ([GH-375](https://github.com/ystia/yorc/issues/375))
 * Parsing of a description field of an TOSCA interface is interpreted as an operation ([GH-372](https://github.com/ystia/yorc/issues/372))
 * Yorc does not support python3 ([GH-319](https://github.com/ystia/yorc/issues/319))
+* Migrate from Oracle JDK to OpenJDK when bootstrapping Yorc/Alien4Cloud ([GH-383](https://github.com/ystia/yorc/issues/383))
+* Monitoring causes Yorc and Consul CPU over consumption ([GH-388](https://github.com/ystia/yorc/issues/388))
 
 ### ENHANCEMENTS
 
 * Add a note on ansible upgrade in documentation ([GH-373](https://github.com/ystia/yorc/issues/373))
 * Policies API update ([GH-380](https://github.com/ystia/yorc/issues/380))
 * Reduce the volume of data stored in Consul by removing builtin types duplicates on deployments ([GH-371](https://github.com/ystia/yorc/issues/371))
+* Execute custom workflows and custom commands on selected instances ([GH-107](https://github.com/ystia/yorc/issues/107))
 * Support OpenStack authentication with user domain ([GH-355](https://github.com/ystia/yorc/issues/355))
 
 ## 3.2.0-M5 (April 19, 2019)
