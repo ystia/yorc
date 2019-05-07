@@ -62,34 +62,40 @@ func (c *Check) Start() {
 	c.chStop = make(chan struct{})
 	c.stop = false
 
-	// initially, running check is disabled : it's enabled in function of node state
-	c.enabled = false
+	// check if initially the node can be monitored according to its node state
+	if c.isNodeStateOKForMonitoring() {
+		c.enable()
+	}
 
 	go func() {
+		// time interval for polling node state needs to be inferior than time interval for checks to detect when checks must be disabled
+		ticker := time.NewTicker(c.TimeInterval / 2)
 		for {
 			select {
 			case <-c.chStop:
+				ticker.Stop()
 				log.Debugf("Stop monitoring check with id:%s", c.ID)
 				c.disable()
 				return
-			default:
-			}
-
-			instanceState, err := deployments.GetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
-			if err != nil || instanceState != tosca.NodeStateStarted && instanceState != tosca.NodeStateError {
-				// Disable check
-				c.disable()
-				continue
-			}
-			// Enable check
-			if c.enabled == false {
-				// instantiate channel to close the check ticker
-				c.chDisable = make(chan struct{})
-				c.enabled = true
-				go c.run()
+			case <-ticker.C:
+				if !c.isNodeStateOKForMonitoring() {
+					// Disable check
+					c.disable()
+					continue
+				}
+				// Enable check
+				c.enable()
 			}
 		}
 	}()
+}
+
+func (c *Check) isNodeStateOKForMonitoring() bool {
+	instanceState, err := deployments.GetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
+	if err != nil || instanceState != tosca.NodeStateStarted && instanceState != tosca.NodeStateError {
+		return false
+	}
+	return true
 }
 
 // Stop allows to stop a TCP check
@@ -104,9 +110,24 @@ func (c *Check) Stop() {
 }
 
 func (c *Check) disable() {
+	c.enabledLock.Lock()
+	defer c.enabledLock.Unlock()
+
 	if c.enabled {
 		c.enabled = false
 		close(c.chDisable)
+	}
+}
+
+func (c *Check) enable() {
+	c.enabledLock.Lock()
+	defer c.enabledLock.Unlock()
+
+	if !c.enabled {
+		// instantiate channel to close the check ticker
+		c.chDisable = make(chan struct{})
+		c.enabled = true
+		go c.run()
 	}
 }
 

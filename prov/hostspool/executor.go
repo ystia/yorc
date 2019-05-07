@@ -248,7 +248,23 @@ func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propNam
 		return filters, err
 	}
 	if p != nil && p.RawString() != "" {
-		f, err := labelsutil.CreateFilter(capName + "." + propName + " " + op + " " + p.RawString())
+		var sb strings.Builder
+		sb.WriteString(capName)
+		sb.WriteString(".")
+		sb.WriteString(propName)
+		sb.WriteString(" ")
+		sb.WriteString(op)
+		sb.WriteString(" ")
+		switch t := p.Value.(type) {
+		case string:
+			// Strings need to be quoted in filters
+			sb.WriteString("'")
+			sb.WriteString(t)
+			sb.WriteString("'")
+		default:
+			sb.WriteString(p.RawString())
+		}
+		f, err := labelsutil.CreateFilter(sb.String())
 		if err != nil {
 			return filters, err
 		}

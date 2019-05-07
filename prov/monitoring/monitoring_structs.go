@@ -43,14 +43,15 @@ type Check struct {
 	Report       CheckReport
 	CheckType    CheckType
 
-	stop      bool
-	enabled   bool
-	stopLock  sync.Mutex
-	chStop    chan struct{}
-	chDisable chan struct{}
-	timeout   time.Duration
-	ctx       context.Context
-	execution checkExecution
+	stop        bool
+	enabled     bool
+	enabledLock sync.Mutex
+	stopLock    sync.Mutex
+	chStop      chan struct{}
+	chDisable   chan struct{}
+	timeout     time.Duration
+	ctx         context.Context
+	execution   checkExecution
 }
 
 // CheckReport represents a node check report including its status
