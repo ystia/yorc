@@ -31,95 +31,41 @@ import (
 func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	log.SetDebug(true)
 
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/capabilities.yaml")
+	require.Nil(t, err)
+
 	srv1.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/derived_from": []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/name":         []byte("yorc.type.1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/derived_from": []byte("yorc.type.3"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/name":         []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.3/name":         []byte("yorc.type.3"),
+		// overwrite type to an non-existing one now we have passed StoreDeploymentDefinition verifications
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/yorc.type.WithUndefCap/capabilities/udef/type": []byte("yorc.capabilities.Undefined"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.WithUndefCap/name":                   []byte("yorc.type.WithUndefCap"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.WithUndefCap/capabilities/udef/name": []byte("udef"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.WithUndefCap/capabilities/udef/type": []byte("yorc.capabilities.Undefined"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.SuperScalable/name":                   []byte("yorc.type.SuperScalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.SuperScalable/capabilities/sups/name": []byte("sups"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.SuperScalable/capabilities/sups/type": []byte("yorc.capabilities.SuperScalable"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/name": []byte("endpoint"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/type": []byte("tosca.capabilities.Endpoint"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/properties/credentials":       []byte("credentials"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/properties/credentials/token": []byte(""),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/capabilities/scalable/name": []byte("scalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.3/capabilities/binding/name": []byte("binding"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.3/capabilities/binding/type": []byte("tosca.capabilities.network.Bindable"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.network.Bindable/name":                     []byte("tosca.capabilities.network.Bindable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.network.Bindable/derived_from":             []byte("tosca.capabilities.Endpoint"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.network.Bindable/attributes/bind1/default": []byte("bind1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Endpoint/name":                             []byte("tosca.capabilities.Endpoint"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Endpoint/attributes/attr2/default":         []byte("attr2"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Scalable/name":                                 []byte("tosca.capabilities.Scalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Scalable/properties/min_instances/default":     []byte("1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Scalable/properties/max_instances/default":     []byte("100"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Scalable/properties/default_instances/default": []byte("1"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.capabilities.SuperScalable/name":         []byte("yorc.capabilities.SuperScalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.capabilities.SuperScalable/derived_from": []byte("tosca.capabilities.Scalable"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/name":                                           []byte("node1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/type":                                           []byte("yorc.type.1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/scalable/properties/min_instances": []byte("10"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/endpoint/attributes/attr1":         []byte("attr1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/endpoint/properties/credentials":   []byte("credentials"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/name":                                               []byte("node2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/type":                                               []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/capabilities/scalable/properties/default_instances": []byte("5"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node3/name": []byte("node3"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node3/type": []byte("yorc.type.3"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/SuperScalableNode/name": []byte("SuperScalableNode"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/SuperScalableNode/type": []byte("yorc.type.SuperScalable"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/name": []byte("NodeWithUndefCap"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/type": []byte("yorc.type.WithUndefCap"),
-
-		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":       []byte("0.0.0.0"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/credentials/user": []byte("ubuntu"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":       []byte("0.0.0.0"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/credentials/user": []byte("ubuntu"),
 	})
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
 		t.Run("TestHasScalableCapability", func(t *testing.T) {
-			testHasScalableCapability(t, kv)
+			testHasScalableCapability(t, kv, deploymentID)
 		})
 		t.Run("TestGetCapabilitiesOfType", func(t *testing.T) {
-			testGetCapabilitiesOfType(t, kv)
+			testGetCapabilitiesOfType(t, kv, deploymentID)
 		})
 		t.Run("TestGetNodeCapabilityType", func(t *testing.T) {
-			testGetNodeCapabilityType(t, kv)
+			testGetNodeCapabilityType(t, kv, deploymentID)
 		})
 		t.Run("TestGetCapabilityProperty", func(t *testing.T) {
-			testGetCapabilityProperty(t, kv)
+			testGetCapabilityProperty(t, kv, deploymentID)
 		})
 		t.Run("TestGetInstanceCapabilityAttribute", func(t *testing.T) {
-			testGetInstanceCapabilityAttribute(t, kv)
+			testGetInstanceCapabilityAttribute(t, kv, deploymentID)
 		})
 
 	})
 }
 
-func testHasScalableCapability(t *testing.T, kv *api.KV) {
+func testHasScalableCapability(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
-		kv           *api.KV
-		deploymentID string
-		nodeName     string
+		nodeName string
 	}
 	tests := []struct {
 		name    string
@@ -127,15 +73,15 @@ func testHasScalableCapability(t *testing.T, kv *api.KV) {
 		want    bool
 		wantErr bool
 	}{
-		{"NodeHasExactCapInInheritance", args{kv, "cap1", "node1"}, true, false},
-		{"NodeHasExactCapInSelfType", args{kv, "cap1", "node2"}, true, false},
-		{"NodeHasNotCap", args{kv, "cap1", "node3"}, false, false},
-		{"NodeHasInheritedCapInSelfType", args{kv, "cap1", "SuperScalableNode"}, true, false},
-		{"NodeWithUndefCap", args{kv, "cap1", "NodeWithUndefCap"}, false, true},
+		{"NodeHasExactCapInInheritance", args{"node1"}, true, false},
+		{"NodeHasExactCapInSelfType", args{"node2"}, true, false},
+		{"NodeHasNotCap", args{"node3"}, false, false},
+		{"NodeHasInheritedCapInSelfType", args{"SuperScalableNode"}, true, false},
+		{"NodeWithUndefCap", args{"NodeWithUndefCap"}, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := HasScalableCapability(tt.args.kv, tt.args.deploymentID, tt.args.nodeName)
+			got, err := HasScalableCapability(kv, deploymentID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("HasScalableCapability() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -147,10 +93,8 @@ func testHasScalableCapability(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetCapabilitiesOfType(t *testing.T, kv *api.KV) {
+func testGetCapabilitiesOfType(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
-		kv                 *api.KV
-		deploymentID       string
 		typeName           string
 		capabilityTypeName string
 	}
@@ -160,16 +104,16 @@ func testGetCapabilitiesOfType(t *testing.T, kv *api.KV) {
 		want    []string
 		wantErr bool
 	}{
-		{"TypeScalableWithInheritance", args{kv, "cap1", "yorc.type.1", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
-		{"TypeScalableInType", args{kv, "cap1", "yorc.type.2", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
-		{"TypeNotFound", args{kv, "cap1", "yorc.type.3", "tosca.capabilities.Scalable"}, []string{}, false},
-		{"EndpointWithInheritance", args{kv, "cap1", "yorc.type.1", "tosca.capabilities.Endpoint"}, []string{"endpoint", "binding"}, false},
-		{"EndpointSingleWithInheritance", args{kv, "cap1", "yorc.type.2", "tosca.capabilities.Endpoint"}, []string{"binding"}, false},
-		{"EndpointSingle", args{kv, "cap1", "yorc.type.3", "tosca.capabilities.Endpoint"}, []string{"binding"}, false},
+		{"TypeScalableWithInheritance", args{"yorc.type.1", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
+		{"TypeScalableInType", args{"yorc.type.2", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
+		{"TypeNotFound", args{"yorc.type.3", "tosca.capabilities.Scalable"}, []string{}, false},
+		{"EndpointWithInheritance", args{"yorc.type.1", "yorc.test.capabilities.Endpoint"}, []string{"endpoint", "binding"}, false},
+		{"EndpointSingleWithInheritance", args{"yorc.type.2", "yorc.test.capabilities.Endpoint"}, []string{"binding"}, false},
+		{"EndpointSingle", args{"yorc.type.3", "yorc.test.capabilities.Endpoint"}, []string{"binding"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilitiesOfType(tt.args.kv, tt.args.deploymentID, tt.args.typeName, tt.args.capabilityTypeName)
+			got, err := GetCapabilitiesOfType(kv, deploymentID, tt.args.typeName, tt.args.capabilityTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilitiesOfType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -181,10 +125,8 @@ func testGetCapabilitiesOfType(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetCapabilityProperty(t *testing.T, kv *api.KV) {
+func testGetCapabilityProperty(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
-		kv             *api.KV
-		deploymentID   string
 		nodeName       string
 		capabilityName string
 		propertyName   string
@@ -196,15 +138,15 @@ func testGetCapabilityProperty(t *testing.T, kv *api.KV) {
 		propValue string
 		wantErr   bool
 	}{
-		{"GetCapabilityPropertyDefinedInNode", args{kv, "cap1", "node1", "scalable", "min_instances"}, true, "10", false},
-		{"GetCapabilityPropertyDefinedInNodeOfInheritedType", args{kv, "cap1", "node1", "scalable", "default_instances"}, true, "1", false},
-		{"GetCapabilityPropertyDefinedAsCapTypeDefault", args{kv, "cap1", "node1", "scalable", "max_instances"}, true, "100", false},
-		{"GetCapabilityPropertyUndefinedProp", args{kv, "cap1", "node1", "scalable", "udef"}, false, "", false},
-		{"GetCapabilityPropertyUndefinedCap", args{kv, "cap1", "node1", "udef", "udef"}, false, "", false},
+		{"GetCapabilityPropertyDefinedInNode", args{"node1", "scalable", "min_instances"}, true, "10", false},
+		{"GetCapabilityPropertyDefinedInNodeOfInheritedType", args{"node1", "scalable", "default_instances"}, true, "1", false},
+		{"GetCapabilityPropertyDefinedAsCapTypeDefault", args{"node1", "scalable", "max_instances"}, true, "100", false},
+		{"GetCapabilityPropertyUndefinedProp", args{"node1", "scalable", "udef"}, false, "", false},
+		{"GetCapabilityPropertyUndefinedCap", args{"node1", "udef", "udef"}, false, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilityPropertyValue(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
+			got, err := GetCapabilityPropertyValue(kv, deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilityProperty() %q error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return
@@ -221,10 +163,8 @@ func testGetCapabilityProperty(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
+func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
-		kv             *api.KV
-		deploymentID   string
 		nodeName       string
 		instanceName   string
 		capabilityName string
@@ -238,25 +178,25 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
 		want      string
 		wantErr   bool
 	}{
-		{"GetCapabilityAttributeInstancesScopped", args{kv, "cap1", "node1", "0", "endpoint", "ip_address", nil}, true, "0.0.0.0", false},
-		{"GetCapabilityAttributeNodeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr1", nil}, true, "attr1", false},
-		{"GetCapabilityAttributeNodeTypeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr2", nil}, true, "attr2", false},
-		{"GetCapabilityAttributeNodeTypeScoppedInInheritance", args{kv, "cap1", "node1", "0", "binding", "bind1", nil}, true, "bind1", false},
+		{"GetCapabilityAttributeInstancesScopped", args{"node1", "0", "endpoint", "ip_address", nil}, true, "0.0.0.0", false},
+		{"GetCapabilityAttributeNodeScopped", args{"node1", "0", "endpoint", "attr1", nil}, true, "attr1", false},
+		{"GetCapabilityAttributeNodeTypeScopped", args{"node1", "0", "endpoint", "attr2", nil}, true, "attr2", false},
+		{"GetCapabilityAttributeNodeTypeScoppedInInheritance", args{"node1", "0", "binding", "bind1", nil}, true, "bind1", false},
 
 		// Test cases for properties as attributes mapping
-		{"GetCapabilityAttributeFromPropertyDefinedInNode", args{kv, "cap1", "node1", "0", "scalable", "min_instances", nil}, true, "10", false},
-		{"GetCapabilityAttributeFromPropertyDefinedInNodeOfInheritedType", args{kv, "cap1", "node1", "0", "scalable", "default_instances", nil}, true, "1", false},
-		{"GetCapabilityAttributeFromPropertyDefinedAsCapTypeDefault", args{kv, "cap1", "node1", "0", "scalable", "max_instances", nil}, true, "100", false},
-		{"GetCapabilityAttributeFromPropertyUndefinedProp", args{kv, "cap1", "node1", "0", "scalable", "udef", nil}, false, "", false},
-		{"GetCapabilityAttributeFromPropertyUndefinedCap", args{kv, "cap1", "node1", "0", "udef", "udef", nil}, false, "", false},
+		{"GetCapabilityAttributeFromPropertyDefinedInNode", args{"node1", "0", "scalable", "min_instances", nil}, true, "10", false},
+		{"GetCapabilityAttributeFromPropertyDefinedInNodeOfInheritedType", args{"node1", "0", "scalable", "default_instances", nil}, true, "1", false},
+		{"GetCapabilityAttributeFromPropertyDefinedAsCapTypeDefault", args{"node1", "0", "scalable", "max_instances", nil}, true, "100", false},
+		{"GetCapabilityAttributeFromPropertyUndefinedProp", args{"node1", "0", "scalable", "udef", nil}, false, "", false},
+		{"GetCapabilityAttributeFromPropertyUndefinedCap", args{"node1", "0", "udef", "udef", nil}, false, "", false},
 
 		// Test cases for properties as attributes mapping
-		{"GetCapabilityAttributeKeyFromPropertyDefinedInInstance", args{kv, "cap1", "node1", "0", "endpoint", "credentials", []string{"user"}}, true, "ubuntu", false},
-		{"GetEmptyCapabilityAttributeKeyFromNotSetProperty", args{kv, "cap1", "node1", "0", "endpoint", "credentials", []string{"token"}}, true, "", false},
+		{"GetCapabilityAttributeKeyFromPropertyDefinedInInstance", args{"node1", "0", "endpoint", "credentials", []string{"user"}}, true, "ubuntu", false},
+		{"GetEmptyCapabilityAttributeKeyFromNotSetProperty", args{"node1", "0", "endpoint", "credentials", []string{"token"}}, true, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstanceCapabilityAttributeValue(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetInstanceCapabilityAttributeValue(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -271,10 +211,8 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetNodeCapabilityType(t *testing.T, kv *api.KV) {
+func testGetNodeCapabilityType(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
-		kv             *api.KV
-		deploymentID   string
 		nodeName       string
 		capabilityName string
 	}
@@ -284,17 +222,17 @@ func testGetNodeCapabilityType(t *testing.T, kv *api.KV) {
 		want    string
 		wantErr bool
 	}{
-		{"GetScalableCapTypeOnNode1", args{kv, "cap1", "node1", "scalable"}, "tosca.capabilities.Scalable", false},
-		{"GetScalableCapTypeOnNode2", args{kv, "cap1", "node2", "scalable"}, "tosca.capabilities.Scalable", false},
-		{"CapNotFoundOnNode3", args{kv, "cap1", "node3", "scalable"}, "", false},
-		{"GetEndpointCapTypeOnNode1", args{kv, "cap1", "node1", "endpoint"}, "tosca.capabilities.Endpoint", false},
-		{"GetEndpointCapTypeOnNode2", args{kv, "cap1", "node2", "binding"}, "tosca.capabilities.network.Bindable", false},
-		{"UndefCapOnNodeWithUndefCap", args{kv, "cap1", "NodeWithUndefCap", "udef"}, "yorc.capabilities.Undefined", false},
-		{"CapWithInheritance", args{kv, "cap1", "SuperScalableNode", "sups"}, "yorc.capabilities.SuperScalable", false},
+		{"GetScalableCapTypeOnNode1", args{"node1", "scalable"}, "yorc.test.capabilities.Scalable", false},
+		{"GetScalableCapTypeOnNode2", args{"node2", "scalable"}, "yorc.test.capabilities.Scalable", false},
+		{"CapNotFoundOnNode3", args{"node3", "scalable"}, "", false},
+		{"GetEndpointCapTypeOnNode1", args{"node1", "endpoint"}, "yorc.test.capabilities.Endpoint", false},
+		{"GetEndpointCapTypeOnNode2", args{"node2", "binding"}, "yorc.test.capabilities.network.Bindable", false},
+		{"UndefCapOnNodeWithUndefCap", args{"NodeWithUndefCap", "udef"}, "yorc.capabilities.Undefined", false},
+		{"CapWithInheritance", args{"SuperScalableNode", "sups"}, "yorc.capabilities.SuperScalable", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetNodeCapabilityType(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.capabilityName)
+			got, err := GetNodeCapabilityType(kv, deploymentID, tt.args.nodeName, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetNodeCapabilityType() error = %v, wantErr %v", err, tt.wantErr)
 				return

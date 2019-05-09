@@ -39,8 +39,11 @@ import (
 )
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+
+	"github.com/ystia/yorc/v3/deployments/store"
 
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
@@ -93,6 +96,7 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 		}
 	}
 	reg := registry.GetRegistry()
+	ctx := context.Background()
 	for _, pFile := range plugins {
 		log.Debugf("Loading plugin %q...", pFile)
 		// OK the idea here is to _try_ to load the plugin if we can't we give up with this plugin and try the others
@@ -172,7 +176,7 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			if len(definitions) > 0 {
 				for defName, defContent := range definitions {
 					log.Debugf("Registering TOSCA definition %q into registry for plugin %q", defName, pluginID)
-					reg.AddToscaDefinition(defName, pluginID, defContent)
+					store.CommonDefinition(ctx, defName, pluginID, defContent)
 				}
 			}
 		} else {

@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: tosca-normative-types
   template_author: TOSCA TC
-  template_version: 1.0.0
+  template_version: 1.2.0
 
 description: >
   Contains the normative types definition as currently supported in yorc.

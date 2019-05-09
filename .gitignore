@@ -27,6 +27,8 @@ build/bin
 /dist
 /plugin/testdata/plugin-sample/plugin-sample
 build/coverprofiles/*
+/coverage.txt
+/c.out
 
 # Terraform infra
 /testdata/infra/yorc

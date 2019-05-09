@@ -590,7 +590,13 @@ func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string
 			attributesSet[attr] = struct{}{}
 		}
 	}
-	err = storeSubKeysInSet(kv, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName, "attributes"), attributesSet)
+
+	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+
+	err = storeSubKeysInSet(kv, path.Join(typePath, "attributes"), attributesSet)
 	if err != nil {
 		return nil, err
 	}

@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package consulutil
 
 import (
-	"github.com/ystia/yorc/v3/commands"
-	_ "github.com/ystia/yorc/v3/commands/bootstrap"
-	_ "github.com/ystia/yorc/v3/commands/deployments"
-	_ "github.com/ystia/yorc/v3/commands/deployments/tasks"
-	_ "github.com/ystia/yorc/v3/commands/deployments/workflows"
-	_ "github.com/ystia/yorc/v3/commands/hostspool"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 )
 
-func main() {
-	if err := commands.RootCmd.Execute(); err != nil {
-		log.Fatal(err)
+// HasChildrenKeys checks if a given keyPath exists and contains sub-keys
+func HasChildrenKeys(kv *api.KV, keyPath string) (bool, error) {
+	kvps, _, err := kv.Keys(keyPath+"/", "/", nil)
+	if err != nil {
+		return false, errors.Wrap(err, ConsulGenericErrMsg)
 	}
-	log.Debug("Exiting main...")
+	if kvps != nil && len(kvps) > 0 {
+		return true, nil
+	}
+	return false, nil
 }

@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package internal
 
 import (
-	"github.com/ystia/yorc/v3/commands"
-	_ "github.com/ystia/yorc/v3/commands/bootstrap"
-	_ "github.com/ystia/yorc/v3/commands/deployments"
-	_ "github.com/ystia/yorc/v3/commands/deployments/tasks"
-	_ "github.com/ystia/yorc/v3/commands/deployments/workflows"
-	_ "github.com/ystia/yorc/v3/commands/hostspool"
-	"github.com/ystia/yorc/v3/log"
+	"context"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
-func main() {
-	if err := commands.RootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
-	log.Debug("Exiting main...")
+// storeAttributeDefinition stores an attribute definition
+func storeAttributeDefinition(ctx context.Context, consulStore consulutil.ConsulStore, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
+	consulStore.StoreConsulKeyAsString(attrPrefix+"/type", attrDefinition.Type)
+	consulStore.StoreConsulKeyAsString(attrPrefix+"/entry_schema", attrDefinition.EntrySchema.Type)
+	StoreValueAssignment(consulStore, attrPrefix+"/default", attrDefinition.Default)
+	consulStore.StoreConsulKeyAsString(attrPrefix+"/status", attrDefinition.Status)
 }

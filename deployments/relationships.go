@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v3/deployments/internal"
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
@@ -135,17 +136,18 @@ func GetRelationshipAttributeValueFromRequirement(kv *api.KV, deploymentID, node
 		return result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
 	}
 	// Now look at relationship type for default
-	result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
-	if err != nil {
-		return nil, err
-	}
-	if result != nil {
-		if !isFunction {
-			return result, nil
+	if relationshipType != "" {
+		result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
+		if err != nil {
+			return nil, err
 		}
-		return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
+		if result != nil {
+			if !isFunction {
+				return result, nil
+			}
+			return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
+		}
 	}
-
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	return GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, attributeName, nestedKeys...)
 }
@@ -159,7 +161,7 @@ func SetInstanceRelationshipAttribute(deploymentID, nodeName, instanceName, requ
 func SetInstanceRelationshipAttributeComplex(deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
-	storeComplexType(store, attrPath, attributeValue)
+	internal.StoreComplexType(store, attrPath, attributeValue)
 	err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 	if err != nil {
 		return err
@@ -188,7 +190,7 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-		storeComplexType(store, attrPath, attributeValue)
+		internal.StoreComplexType(store, attrPath, attributeValue)
 		err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 		if err != nil {
 			return err

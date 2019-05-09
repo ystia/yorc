@@ -1,0 +1,96 @@
+tosca_definitions_version: alien_dsl_1_3_0
+description: Alien4Cloud generated service template
+metadata:
+  template_name: Test2
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+imports:
+  - normative-types: <yorc-types.yml>
+
+
+node_types:
+  yorc.type.1:
+    derived_from: yorc.type.2
+    capabilities:
+      endpoint:
+        type: yorc.test.capabilities.Endpoint
+        properties:
+          credentials:
+            token: ""
+
+  yorc.type.2:
+    derived_from: yorc.type.3
+    capabilities:
+      scalable: yorc.test.capabilities.Scalable
+
+  yorc.type.3:
+    capabilities:
+      binding: yorc.test.capabilities.network.Bindable
+  yorc.type.WithUndefCap:
+    capabilities:
+      # Use a known capability here then change it to an unknown type after storage
+      # This is because we do extra verification on capabilities, that said it makes
+      # testcase  very unlikely to happen
+      udef: yorc.test.capabilities.Endpoint
+  yorc.type.SuperScalable:
+    capabilities:
+      sups: yorc.capabilities.SuperScalable
+
+capability_types:
+  yorc.test.capabilities.network.Bindable:
+    derived_from: yorc.test.capabilities.Endpoint
+    attributes:
+      bind1:
+        type: string
+        default: "bind1"
+  yorc.test.capabilities.Endpoint:
+    attributes:
+      attr2:
+        type: string
+        default: "attr2"
+  yorc.test.capabilities.Scalable:
+    derived_from: tosca.capabilities.Scalable
+    properties:
+      min_instances:
+        type: integer
+        default: 1
+      max_instances:
+        type: integer
+        default: 100
+      default_instances:
+        type: integer
+        default: 1
+  yorc.capabilities.SuperScalable:
+    derived_from: yorc.test.capabilities.Scalable
+
+topology_template:
+  node_templates:
+    node1:
+      type: yorc.type.1
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 10
+        endpoint:
+          # properties:
+          #   credentials:
+          #     token: credentials
+          attributes:
+            attr1: "attr1"
+    node2:
+      type: yorc.type.2
+      capabilities:
+        scalable:
+          properties:
+            default_instances: 5
+    node3:
+      type: yorc.type.3
+      capabilities:
+        scalable:
+          properties:
+            default_instances: 5
+    SuperScalableNode:
+      type: yorc.type.SuperScalable
+    NodeWithUndefCap:
+      type: yorc.type.WithUndefCap

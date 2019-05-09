@@ -27,6 +27,7 @@ import (
 var upgradeToMap = map[string]func(*api.KV, <-chan struct{}) error{
 	"1.0.0": upgradeschema.UpgradeFromPre31,
 	"1.1.0": upgradeschema.UpgradeTo110,
+	"1.1.1": upgradeschema.UpgradeTo111,
 }
 
 var orderedUpgradesVersions []semver.Version

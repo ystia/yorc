@@ -15,12 +15,13 @@
 package deployments
 
 import (
+	"path"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
-	"path"
-	"strings"
 )
 
 // GetPoliciesForType retrieves all policies with or derived from policyTypeName
@@ -180,7 +181,11 @@ func GetPolicyTargets(kv *api.KV, deploymentID, policyName string) ([]string, er
 // GetPolicyTargetsForType retrieves the policy type targets
 // this targets are node types
 func GetPolicyTargetsForType(kv *api.KV, deploymentID, policyType string) ([]string, error) {
-	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", policyType, "targets")
+	typePath, err := locateTypePath(kv, deploymentID, policyType)
+	if err != nil {
+		return nil, err
+	}
+	p := path.Join(typePath, "targets")
 	kvp, _, err := kv.Get(p, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)

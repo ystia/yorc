@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 
+	"github.com/ystia/yorc/v3/deployments/store"
 	"github.com/ystia/yorc/v3/prov/hostspool"
 	"github.com/ystia/yorc/v3/registry"
 	"github.com/ystia/yorc/v3/tosca"
@@ -280,7 +281,7 @@ type RegistryImplementationsCollection struct {
 
 // RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Yorc registry
 type RegistryDefinitionsCollection struct {
-	Definitions []registry.Definition `json:"definitions"`
+	Definitions []store.Definition `json:"definitions"`
 }
 
 // RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Yorc registry

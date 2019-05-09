@@ -12,21 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// +build testing
 
-import (
-	"github.com/ystia/yorc/v3/commands"
-	_ "github.com/ystia/yorc/v3/commands/bootstrap"
-	_ "github.com/ystia/yorc/v3/commands/deployments"
-	_ "github.com/ystia/yorc/v3/commands/deployments/tasks"
-	_ "github.com/ystia/yorc/v3/commands/deployments/workflows"
-	_ "github.com/ystia/yorc/v3/commands/hostspool"
-	"github.com/ystia/yorc/v3/log"
-)
+package server
 
-func main() {
-	if err := commands.RootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
-	log.Debug("Exiting main...")
+func registerBuiltinTOSCATypes() error {
+	// In testing those types are registered by the testutil package
+	return nil
 }

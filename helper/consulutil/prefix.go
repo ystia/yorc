@@ -19,6 +19,9 @@ const yorcPrefix string = "_yorc"
 // DeploymentKVPrefix is the prefix in Consul KV store for deployments
 const DeploymentKVPrefix string = yorcPrefix + "/deployments"
 
+// CommonsTypesKVPrefix is the prefix in Consul KV store for commons types
+const CommonsTypesKVPrefix string = yorcPrefix + "/commons_types"
+
 // TasksPrefix is the prefix in Consul KV store for tasks
 const TasksPrefix = yorcPrefix + "/tasks"
 
