@@ -71,34 +71,35 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 				continue
 			}
 
-			// This is a file to copy
-			src, err := resource.Open()
-			if err != nil {
-				return err
-			}
-			defer src.Close()
-
-			if err := os.MkdirAll(filepath.Dir(destinationPath), 0700); err != nil {
-				return err
-			}
-
-			dest, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-			if err != nil {
-				return err
-			}
-			defer dest.Close()
-
-			if _, err := io.Copy(dest, src); err != nil {
-				return err
-			}
-
-			// If the copied file is a zip, unzipping it
-			if filepath.Ext(destinationPath) == ".zip" {
-				if _, err := ziputil.Unzip(destinationPath, filepath.Dir(destinationPath)); err != nil {
+			err = func() error {
+				// This is a file to copy
+				src, err := resource.Open()
+				if err != nil {
 					return err
 				}
+				defer src.Close()
+				if err := os.MkdirAll(filepath.Dir(destinationPath), 0700); err != nil {
+					return err
+				}
+				dest, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+				if err != nil {
+					return err
+				}
+				defer dest.Close()
+				if _, err := io.Copy(dest, src); err != nil {
+					return err
+				}
+				// If the copied file is a zip, unzipping it
+				if filepath.Ext(destinationPath) == ".zip" {
+					if _, err := ziputil.Unzip(destinationPath, filepath.Dir(destinationPath)); err != nil {
+						return err
+					}
+				}
+				return nil
+			}()
+			if err != nil {
+				return err
 			}
-
 		}
 
 		return nil
@@ -163,9 +164,9 @@ func getVersionFromTOSCATypes(path string) string {
 			fmt.Println("Failed to open tosca types zip in bundled resources", err)
 			return version
 		}
-		defer src.Close()
 
 		allRead, err := ioutil.ReadAll(src)
+		src.Close()
 		if err != nil {
 			fmt.Println("Failed to read tosca types zip in bundled resources", err)
 			return version
