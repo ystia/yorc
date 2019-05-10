@@ -10,6 +10,7 @@
 * Yorc does not support python3 ([GH-319](https://github.com/ystia/yorc/issues/319))
 * Migrate from Oracle JDK to OpenJDK when bootstrapping Yorc/Alien4Cloud ([GH-383](https://github.com/ystia/yorc/issues/383))
 * Monitoring causes Yorc and Consul CPU over consumption ([GH-388](https://github.com/ystia/yorc/issues/388))
+* Bootstrap step YorcOnDemandLocationResources fails on setup with http proxy defined ([GH-384](https://github.com/ystia/yorc/issues/384))
 
 ### ENHANCEMENTS
 
