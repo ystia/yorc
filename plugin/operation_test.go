@@ -69,11 +69,14 @@ func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.C
 func TestOperationExecutorExecOperation(t *testing.T) {
 	t.Parallel()
 	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)
@@ -113,11 +116,14 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 	t.Parallel()
 	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)
@@ -150,11 +156,14 @@ func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 	t.Parallel()
 	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)
@@ -183,13 +192,16 @@ func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 
 func TestOperationGetSupportedArtifactTypes(t *testing.T) {
 	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{
-			F: func() prov.OperationExecutor {
-				return mock
-			},
-			SupportedTypes: []string{"tosca.my.types", "test"}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			OperationPluginName: &OperationPlugin{
+				F: func() prov.OperationExecutor {
+					return mock
+				},
+				SupportedTypes: []string{"tosca.my.types", "test"}},
+		},
+		nil)
 	defer client.Close()
 	raw, err := client.Dispense(OperationPluginName)
 	require.Nil(t, err)

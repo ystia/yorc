@@ -26,6 +26,7 @@ import (
 // NewClient returns a properly configured plugin client for a given plugin path
 func NewClient(pluginPath string) *gplugin.Client {
 
+	// Filtering logs coming from plugin according to Yorc parent process log level
 	var logLevel hclog.Level
 	if log.IsDebug() {
 		logLevel = hclog.Debug

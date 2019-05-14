@@ -67,11 +67,14 @@ func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.
 func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 	t.Parallel()
 	mock := new(mockInfraUsageCollector)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(InfraUsageCollectorPluginName)
@@ -114,11 +117,14 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 	t.Parallel()
 	mock := new(mockInfraUsageCollector)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(InfraUsageCollectorPluginName)
@@ -143,11 +149,14 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 	t.Parallel()
 	mock := new(mockInfraUsageCollector)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(InfraUsageCollectorPluginName)
@@ -178,14 +187,17 @@ func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 func TestGetSupportedInfra(t *testing.T) {
 	t.Parallel()
 	mock := new(mockInfraUsageCollector)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{
-			F: func() prov.InfraUsageCollector {
-				return mock
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{
+				F: func() prov.InfraUsageCollector {
+					return mock
+				},
+				SupportedInfras: []string{"myInfra"},
 			},
-			SupportedInfras: []string{"myInfra"},
 		},
-	})
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(InfraUsageCollectorPluginName)

@@ -43,9 +43,12 @@ func (m *mockConfigManager) SetupConfig(cfg config.Configuration) error {
 func TestConfigManagerSetupConfig(t *testing.T) {
 	t.Parallel()
 	mock := new(mockConfigManager)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		ConfigManagerPluginName: &ConfigManagerPlugin{mock},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			ConfigManagerPluginName: &ConfigManagerPlugin{mock},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(ConfigManagerPluginName)
@@ -63,9 +66,12 @@ func TestConfigManagerSetupConfig(t *testing.T) {
 func TestConfigManagerSetupConfigWithFailure(t *testing.T) {
 	t.Parallel()
 	mock := new(mockConfigManager)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		ConfigManagerPluginName: &ConfigManagerPlugin{mock},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			ConfigManagerPluginName: &ConfigManagerPlugin{mock},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(ConfigManagerPluginName)

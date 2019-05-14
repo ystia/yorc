@@ -23,7 +23,7 @@ import (
 )
 
 func createClientServer(t *testing.T, opts *ServeOpts) (*plugin.RPCClient, *plugin.RPCServer) {
-	return plugin.TestPluginRPCConn(t, getPlugins(opts))
+	return plugin.TestPluginRPCConn(t, getPlugins(opts), nil)
 }
 
 func TestDefinitionsClient_GetDefinitions(t *testing.T) {

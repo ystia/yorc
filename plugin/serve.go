@@ -84,7 +84,6 @@ func Serve(opts *ServeOpts) {
 		// Plugin logs have to go to stderr in order to be shown in the parent process
 		Output: os.Stderr,
 		Level:  hclog.Debug,
-		// TimeFormat: "2006/01/02 15:04:05",
 		// Parent process expect child log in JSON format to be able to parse them
 		JSONFormat: true,
 	})

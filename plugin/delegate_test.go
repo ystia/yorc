@@ -65,11 +65,14 @@ func (m *mockDelegateExecutor) ExecDelegate(ctx context.Context, conf config.Con
 func TestDelegateExecutorExecDelegate(t *testing.T) {
 	t.Parallel()
 	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(DelegatePluginName)
@@ -101,11 +104,14 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
 	t.Parallel()
 	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(DelegatePluginName)
@@ -130,11 +136,14 @@ func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
 func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 	t.Parallel()
 	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-			return mock
-		}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
+				return mock
+			}},
+		},
+		nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(DelegatePluginName)
@@ -164,13 +173,16 @@ func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 
 func TestDelegateGetSupportedTypes(t *testing.T) {
 	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{
-			F: func() prov.DelegateExecutor {
-				return mock
-			},
-			SupportedTypes: []string{"tosca.my.types", "test"}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			DelegatePluginName: &DelegatePlugin{
+				F: func() prov.DelegateExecutor {
+					return mock
+				},
+				SupportedTypes: []string{"tosca.my.types", "test"}},
+		},
+		nil)
 	defer client.Close()
 	raw, err := client.Dispense(DelegatePluginName)
 	require.Nil(t, err)
