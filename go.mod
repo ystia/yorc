@@ -57,16 +57,15 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190203031600-7a902570cb17 // indirect
 	github.com/hashicorp/consul v1.2.3
 	github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d
-	github.com/hashicorp/go-hclog v0.0.0-20190109152822-4783caec6f2e // indirect
+	github.com/hashicorp/go-hclog v0.8.0
 	github.com/hashicorp/go-memdb v0.0.0-20181108192425-032f93b25bec // indirect
 	github.com/hashicorp/go-multierror v1.0.0
-	github.com/hashicorp/go-plugin v0.0.0-20170419161244-1ffca25a1118
+	github.com/hashicorp/go-plugin v1.0.0
 	github.com/hashicorp/go-rootcerts v1.0.0
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/memberlist v0.1.3 // indirect
 	github.com/hashicorp/serf v0.0.0-20170419221626-65c2babe73c7a096cd24e9eeec67613eb4e436c9 // indirect
 	github.com/hashicorp/vault v0.9.0
-	github.com/hashicorp/yamux v0.0.0-20160720233140-d1caa6c97c9fc1cc9e83bbe34d0603f9ff0ce8bd // indirect
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c // indirect
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
@@ -91,7 +90,6 @@ require (
 	github.com/mgutz/logxi v0.0.0-20161027140823-aebf8a7d67ab // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
-	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee // indirect
 	github.com/mkideal/cli v0.0.2 // indirect
 	github.com/mkideal/pkg v0.0.0-20170503154153-3e188c9e7ecc // indirect
@@ -124,7 +122,7 @@ require (
 	github.com/spf13/pflag v1.0.1 // indirect
 	github.com/spf13/viper v1.0.2
 	github.com/stevedomin/termtable v0.0.0-20150929082024-09d29f3fd628
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.3.0
 	github.com/tmc/dot v0.0.0-20140217084426-2ca5f650b7700041dd0a689af81eb8e46c5158d1
 	github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 // indirect
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2

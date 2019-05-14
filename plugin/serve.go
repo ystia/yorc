@@ -19,6 +19,7 @@ import (
 	"os"
 	"text/template"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/ystia/yorc/v3/config"
@@ -76,11 +77,28 @@ type ServeOpts struct {
 func Serve(opts *ServeOpts) {
 	SetupPluginCommunication()
 
-	// As a plugin configure yorc logs to go to stderr in order to be show in the parent process
-	log.SetOutput(os.Stderr)
+	// Creating a hclog logger so that Hashicorp go plugin logs can be correctly
+	// parsed by Yorc Server parent process, and filtered appropriately,
+	// according to the parent process log level.
+	logger := hclog.New(&hclog.LoggerOptions{
+		// Plugin logs have to go to stderr in order to be shown in the parent process
+		Output: os.Stderr,
+		Level:  hclog.Debug,
+		// TimeFormat: "2006/01/02 15:04:05",
+		// Parent process expect child log in JSON format to be able to parse them
+		JSONFormat: true,
+	})
+
+	// Configuring Yorc logs to use hclog in the plugin
+	stdWriter := logger.StandardWriter(&hclog.StandardLoggerOptions{InferLevels: true})
+	log.SetOutput(stdWriter)
+	log.SetPrefix("")
+	log.SetFlags(0)
+
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         getPlugins(opts),
+		Logger:          logger,
 	})
 }
 
