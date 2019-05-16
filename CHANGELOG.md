@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Print plugin logs in higher level than DEBUG ([GH-329](https://github.com/ystia/yorc/issues/329))
+
 ## 3.2.0-RC1 (May 10, 2019)
 
 ### BUG FIXES
