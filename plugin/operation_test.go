@@ -66,7 +66,9 @@ func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.C
 	return nil
 }
 
-func TestOperationExecutorExecOperation(t *testing.T) {
+func setupExecOperationTestEnv(t *testing.T) (*mockOperationExecutor, *plugin.RPCClient,
+	prov.OperationExecutor, prov.Operation, events.LogOptionalFields, context.Context) {
+
 	t.Parallel()
 	mock := new(mockOperationExecutor)
 	client, _ := plugin.TestPluginRPCConn(
@@ -77,7 +79,6 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 			}},
 		},
 		nil)
-	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)
 	require.Nil(t, err)
@@ -98,7 +99,14 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 		events.OperationName: "myTest",
 	}
 	ctx := events.NewContext(context.Background(), lof)
-	err = plugin.ExecOperation(
+
+	return mock, client, plugin, op, lof, ctx
+
+}
+func TestOperationExecutorExecOperation(t *testing.T) {
+	mock, client, plugin, op, lof, ctx := setupExecOperationTestEnv(t)
+	defer client.Close()
+	err := plugin.ExecOperation(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestDepID", "TestNodeName", op)
@@ -114,41 +122,13 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 }
 
 func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
-	t.Parallel()
-	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(
-		t,
-		map[string]plugin.Plugin{
-			OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-				return mock
-			}},
-		},
-		nil)
+	mock, client, plugin, op, _, ctx := setupExecOperationTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(OperationPluginName)
-	require.Nil(t, err)
-
-	plugin := raw.(prov.OperationExecutor)
-	op := prov.Operation{
-		Name:                   "myOps",
-		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
-		RelOp: prov.RelationshipOperation{
-			IsRelationshipOperation: true,
-			RequirementIndex:        "1",
-			TargetNodeName:          "AnotherNode",
-		},
-	}
-	lof := events.LogOptionalFields{
-		events.WorkFlowID:    "testWF",
-		events.InterfaceName: "delegate",
-		events.OperationName: "myTest",
-	}
-	ctx := events.NewContext(context.Background(), lof)
-	err = plugin.ExecOperation(
+	err := plugin.ExecOperation(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestFailure", "TestNodeName", op)
+	require.True(t, mock.execoperationCalled)
 	require.Error(t, err, "An error was expected during executing plugin operation")
 	require.EqualError(t, err, "a failure occurred during plugin exec operation")
 }

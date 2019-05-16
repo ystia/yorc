@@ -64,7 +64,9 @@ func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.
 	return res, nil
 }
 
-func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
+func setupInfraUsageCollectorTestEnv(t *testing.T) (*mockInfraUsageCollector, *plugin.RPCClient,
+	prov.InfraUsageCollector, events.LogOptionalFields, context.Context) {
+
 	t.Parallel()
 	mock := new(mockInfraUsageCollector)
 	client, _ := plugin.TestPluginRPCConn(
@@ -75,7 +77,6 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 			}},
 		},
 		nil)
-	defer client.Close()
 
 	raw, err := client.Dispense(InfraUsageCollectorPluginName)
 	require.Nil(t, err)
@@ -88,6 +89,13 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 		events.OperationName: "myTest",
 	}
 	ctx := events.NewContext(context.Background(), lof)
+
+	return mock, client, plugin, lof, ctx
+
+}
+func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
+	mock, client, plugin, lof, ctx := setupInfraUsageCollectorTestEnv(t)
+	defer client.Close()
 	info, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
@@ -115,30 +123,9 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 }
 
 func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
-	t.Parallel()
-	mock := new(mockInfraUsageCollector)
-	client, _ := plugin.TestPluginRPCConn(
-		t,
-		map[string]plugin.Plugin{
-			InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
-				return mock
-			}},
-		},
-		nil)
+	_, client, plugin, _, ctx := setupInfraUsageCollectorTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(InfraUsageCollectorPluginName)
-	require.Nil(t, err)
-
-	plugin := raw.(prov.InfraUsageCollector)
-
-	lof := events.LogOptionalFields{
-		events.WorkFlowID:    "testWF",
-		events.InterfaceName: "delegate",
-		events.OperationName: "myTest",
-	}
-	ctx := events.NewContext(context.Background(), lof)
-	_, err = plugin.GetUsageInfo(
+	_, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestFailure", "myInfra")
@@ -147,32 +134,11 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 }
 
 func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
-	t.Parallel()
-	mock := new(mockInfraUsageCollector)
-	client, _ := plugin.TestPluginRPCConn(
-		t,
-		map[string]plugin.Plugin{
-			InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: func() prov.InfraUsageCollector {
-				return mock
-			}},
-		},
-		nil)
+	mock, client, plugin, _, ctx := setupInfraUsageCollectorTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(InfraUsageCollectorPluginName)
-	require.Nil(t, err)
-
-	plugin := raw.(prov.InfraUsageCollector)
-
-	lof := events.LogOptionalFields{
-		events.WorkFlowID:    "testWF",
-		events.InterfaceName: "delegate",
-		events.OperationName: "myTest",
-	}
-	ctx := events.NewContext(context.Background(), lof)
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
-		_, err = plugin.GetUsageInfo(
+		_, err := plugin.GetUsageInfo(
 			ctx,
 			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 			"TestCancel", "myInfra")

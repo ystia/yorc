@@ -62,7 +62,9 @@ func (m *mockDelegateExecutor) ExecDelegate(ctx context.Context, conf config.Con
 	return nil
 }
 
-func TestDelegateExecutorExecDelegate(t *testing.T) {
+func setupExecDelegateTestEnv(t *testing.T) (*mockDelegateExecutor, *plugin.RPCClient,
+	prov.DelegateExecutor, events.LogOptionalFields, context.Context) {
+
 	t.Parallel()
 	mock := new(mockDelegateExecutor)
 	client, _ := plugin.TestPluginRPCConn(
@@ -73,7 +75,6 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 			}},
 		},
 		nil)
-	defer client.Close()
 
 	raw, err := client.Dispense(DelegatePluginName)
 	require.Nil(t, err)
@@ -86,7 +87,14 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 		events.OperationName: "myTest",
 	}
 	ctx := events.NewContext(context.Background(), lof)
-	err = delegate.ExecDelegate(
+
+	return mock, client, delegate, lof, ctx
+}
+
+func TestDelegateExecutorExecDelegate(t *testing.T) {
+	mock, client, delegate, lof, ctx := setupExecDelegateTestEnv(t)
+	defer client.Close()
+	err := delegate.ExecDelegate(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestDepID", "TestNodeName", "TestDelegateOP")
@@ -102,30 +110,9 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 }
 
 func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
-	t.Parallel()
-	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(
-		t,
-		map[string]plugin.Plugin{
-			DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-				return mock
-			}},
-		},
-		nil)
+	_, client, delegate, _, ctx := setupExecDelegateTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(DelegatePluginName)
-	require.Nil(t, err)
-
-	delegate := raw.(prov.DelegateExecutor)
-
-	lof := events.LogOptionalFields{
-		events.WorkFlowID:    "testWF",
-		events.InterfaceName: "delegate",
-		events.OperationName: "myTest",
-	}
-	ctx := events.NewContext(context.Background(), lof)
-	err = delegate.ExecDelegate(
+	err := delegate.ExecDelegate(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestFailure", "TestNodeName", "TestDelegateOP")
