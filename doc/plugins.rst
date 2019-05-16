@@ -346,6 +346,28 @@ Again, this could be done by altering ``ServeOpts`` in your main function.
     })
   }
 
+Logging
+~~~~~~~
+
+Using the `log` standard library or Yorc log module `github.com/ystia/yorc/v3/log`
+in plugin code, log data from the plugin will be automatically sent to the Yorc
+Server parent process.
+Yorc will parse these plugin logs to infer their log level and filter
+them according to its enabled log level. It will then display these messages,
+prefixed by the plugin name and suffixed by the timestamp of their creation on the plugin.
+
+Plugin log messages levels are inferred this way by Yorc Server :
+
+  * A message sent by the plugin using Yorc log module `github.com/ystia/yorc/v3/log`
+    function `log.Debug()`, `log.Debugf()` or `log.Debugln()` will have the level
+    `DEBUG`, all other messages will have the level `INFO` on Yorc server.
+
+  * A message sent by the plugin using the `log` standard library will have the
+    level INFO, except if this message is prefixed by one of these values:
+    [DEBUG], [INFO], [WARN], [ERROR], in which case the message will have the log
+    level corresponding to this value on Yorc server.
+
+See an example in next section of a plugin logs with debug logging enabled on Yorc server.
 
 Using Your Plugin
 ~~~~~~~~~~~~~~~~~
@@ -354,7 +376,9 @@ First your plugin should be dropped into Yorc's plugins directory before startin
 directory is configurable <option_terraform_plugins_dir_cmd>` but by default it's a directory named ``plugins`` in
 the current directory when Yorc is launched.
 
-By exporting an environment variable ``YORC_LOG=1`` before running Yorc, debug logs will be displayed.
+By exporting an environment variable ``YORC_LOG=1`` before running Yorc, plugin
+debug logs will be displayed, else these debug logs will be filtered and other
+plugin logs will be displayed, as described in previous section.
 
 .. code-block:: Bash
 
@@ -369,8 +393,8 @@ By exporting an environment variable ``YORC_LOG=1`` before running Yorc, debug l
   2019/02/12 14:28:23 [INFO]  30 workers started
   2019/02/12 14:28:23 [DEBUG] plugin: starting plugin: /tmp/yorc/plugins/my-custom-plugin []string{"/tmp/yorc/plugins/my-custom-plugin"}
   2019/02/12 14:28:23 [DEBUG] plugin: waiting for RPC address for: /tmp/yorc/plugins/my-custom-plugin
-  2019/02/12 14:28:23 [DEBUG] plugin: my-custom-plugin: 2019/02/12 14:28:23 [DEBUG] plugin: plugin address: unix /tmp/plugin262069315
-  2019/02/12 14:28:23 [DEBUG] plugin: my-custom-plugin: 2019/02/12 14:28:23 [DEBUG] Consul Publisher created with a maximum of 500 parallel routines.
+  2019/02/12 14:28:23 [DEBUG] plugin: my-custom-plugin: 2019/02/12 14:28:23 [DEBUG] plugin: plugin address: unix /tmp/plugin262069315 timestamp=2019-02-12T14:28:23.499Z
+  2019/02/12 14:28:23 [DEBUG] plugin: my-custom-plugin: 2019/02/12 14:28:23 [DEBUG] Consul Publisher created with a maximum of 500 parallel routines. timestamp=2019-02-12T14:28:23.499Z
   2019/02/12 14:28:23 [DEBUG] Registering supported node types [mytosca\.types\..*] into registry for plugin "my-custom-plugin"
   2019/02/12 14:28:23 [DEBUG] Registering supported implementation artifact types [mytosca.artifacts.Implementation.MyImplementation] into registry for plugin "my-custom-plugin"
   2019/02/12 14:28:23 [DEBUG] Registering TOSCA definition "mycustom-types.yml" into registry for plugin "my-custom-plugin"
