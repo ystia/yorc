@@ -66,10 +66,7 @@ func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.C
 	return nil
 }
 
-func setupExecOperationTestEnv(t *testing.T) (*mockOperationExecutor, *plugin.RPCClient,
-	prov.OperationExecutor, prov.Operation, events.LogOptionalFields, context.Context) {
-
-	t.Parallel()
+func createMockOperationExecutorClient(t *testing.T) (*mockOperationExecutor, *plugin.RPCClient) {
 	mock := new(mockOperationExecutor)
 	client, _ := plugin.TestPluginRPCConn(
 		t,
@@ -79,6 +76,13 @@ func setupExecOperationTestEnv(t *testing.T) (*mockOperationExecutor, *plugin.RP
 			}},
 		},
 		nil)
+	return mock, client
+}
+
+func setupExecOperationTestEnv(t *testing.T) (*mockOperationExecutor, *plugin.RPCClient,
+	prov.OperationExecutor, prov.Operation, events.LogOptionalFields, context.Context) {
+
+	mock, client := createMockOperationExecutorClient(t)
 
 	raw, err := client.Dispense(OperationPluginName)
 	require.Nil(t, err)
@@ -104,6 +108,7 @@ func setupExecOperationTestEnv(t *testing.T) (*mockOperationExecutor, *plugin.RP
 
 }
 func TestOperationExecutorExecOperation(t *testing.T) {
+	t.Parallel()
 	mock, client, plugin, op, lof, ctx := setupExecOperationTestEnv(t)
 	defer client.Close()
 	err := plugin.ExecOperation(
@@ -122,6 +127,7 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 }
 
 func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
+	t.Parallel()
 	mock, client, plugin, op, _, ctx := setupExecOperationTestEnv(t)
 	defer client.Close()
 	err := plugin.ExecOperation(
@@ -135,15 +141,7 @@ func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 
 func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 	t.Parallel()
-	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(
-		t,
-		map[string]plugin.Plugin{
-			OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-				return mock
-			}},
-		},
-		nil)
+	mock, client := createMockOperationExecutorClient(t)
 	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)

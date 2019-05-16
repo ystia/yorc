@@ -43,7 +43,6 @@ func (m *mockConfigManager) SetupConfig(cfg config.Configuration) error {
 func setupConfigManagerTestEnv(t *testing.T) (*mockConfigManager, *plugin.RPCClient,
 	ConfigManager) {
 
-	t.Parallel()
 	mock := new(mockConfigManager)
 	client, _ := plugin.TestPluginRPCConn(
 		t,
@@ -61,6 +60,7 @@ func setupConfigManagerTestEnv(t *testing.T) (*mockConfigManager, *plugin.RPCCli
 
 }
 func TestConfigManagerSetupConfig(t *testing.T) {
+	t.Parallel()
 	mock, client, cm := setupConfigManagerTestEnv(t)
 	defer client.Close()
 	err := cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}})
@@ -71,6 +71,7 @@ func TestConfigManagerSetupConfig(t *testing.T) {
 }
 
 func TestConfigManagerSetupConfigWithFailure(t *testing.T) {
+	t.Parallel()
 	_, client, cm := setupConfigManagerTestEnv(t)
 	defer client.Close()
 	err := cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "testFailure", Datacenter: "testdc"}})
