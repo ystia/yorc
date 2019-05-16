@@ -17,6 +17,8 @@ package kubernetes
 import (
 	"context"
 	"os"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -53,7 +55,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 		return nil, 0, err
 	}
 
-	if e.clientset == nil {
+	if isNilValue(e.clientset) {
 		e.clientset, err = initClientSet(conf)
 		if err != nil {
 			return nil, 0, err
@@ -69,7 +71,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	if e.clientset == nil {
+	if isNilValue(e.clientset) {
 		e.clientset, err = initClientSet(conf)
 		if err != nil {
 			return err
@@ -77,6 +79,10 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	}
 
 	return exec.execute(ctx, e.clientset)
+}
+
+func isNilValue(i interface{}) bool {
+	return i == nil || reflect.ValueOf(i).IsNil()
 }
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
@@ -113,6 +119,10 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 				return nil, errors.Wrap(err, "Failed to get Kubernetes config file")
 			}
 			if !wasPath {
+				// check if content contains required K8s information
+				if !strings.Contains(kubeConfigPathOrContent, "apiVersion") || !strings.Contains(kubeConfigPathOrContent, "kind") {
+					return nil, errors.Errorf("Bad \"kubeconfig\" path/content provided in Yorc configuration (%q)", kubeConfigPathOrContent)
+				}
 				defer os.Remove(kubeConfigPath)
 			}
 		}
