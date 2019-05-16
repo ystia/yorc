@@ -353,7 +353,7 @@ Using the `log` standard library or Yorc log module `github.com/ystia/yorc/v3/lo
 in plugin code, log data from the plugin will be automatically sent to the Yorc
 Server parent process.
 Yorc will parse these plugin logs to infer their log level and filter
-them according to its enabled log level. It will then display these messages,
+them if these are debug messages and debug logging is disabled. It will then display messages,
 prefixed by the plugin name and suffixed by the timestamp of their creation on the plugin.
 
 Plugin log messages levels are inferred this way by Yorc Server :
