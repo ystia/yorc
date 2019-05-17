@@ -608,14 +608,14 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		}
 	}
 	// Delete events tree corresponding to the deployment TaskExecution
-	_, err = kv.DeleteTree(path.Join(consulutil.EventsPrefix, t.targetID), nil)
+	err = events.PurgeDeploymentEvents(kv, t.targetID)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return err
 	}
 	// Delete logs tree corresponding to the deployment
-	_, err = kv.DeleteTree(path.Join(consulutil.LogsPrefix, t.targetID), nil)
+	err = events.PurgeDeploymentEvents(kv, t.targetID)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return err
 	}
 	overlayPath := filepath.Join(w.cfg.WorkingDirectory, "deployments", t.targetID)
 	err = os.RemoveAll(overlayPath)
@@ -628,7 +628,11 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	// Just Publish an event that the deployment is successfully
+	// This event will stay into consul even if the deployment is actually purged...
+	// To prevent unexpected errors
+	_, err = events.PublishAndLogDeploymentStatusChange(ctx, t.cc.KV(), t.targetID, strings.ToLower(deployments.PURGED.String()))
+	return err
 }
 
 func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
