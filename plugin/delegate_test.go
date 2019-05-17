@@ -62,16 +62,23 @@ func (m *mockDelegateExecutor) ExecDelegate(ctx context.Context, conf config.Con
 	return nil
 }
 
-func TestDelegateExecutorExecDelegate(t *testing.T) {
-	t.Parallel()
+func createMockDelegateExecutorClient(t *testing.T) (*mockDelegateExecutor, *plugin.RPCClient) {
 	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-			return mock
-		}},
-	})
-	defer client.Close()
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
+				return mock
+			}},
+		},
+		nil)
+	return mock, client
+}
 
+func setupExecDelegateTestEnv(t *testing.T) (*mockDelegateExecutor, *plugin.RPCClient,
+	prov.DelegateExecutor, events.LogOptionalFields, context.Context) {
+
+	mock, client := createMockDelegateExecutorClient(t)
 	raw, err := client.Dispense(DelegatePluginName)
 	require.Nil(t, err)
 
@@ -83,7 +90,15 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 		events.OperationName: "myTest",
 	}
 	ctx := events.NewContext(context.Background(), lof)
-	err = delegate.ExecDelegate(
+
+	return mock, client, delegate, lof, ctx
+}
+
+func TestDelegateExecutorExecDelegate(t *testing.T) {
+	t.Parallel()
+	mock, client, delegate, lof, ctx := setupExecDelegateTestEnv(t)
+	defer client.Close()
+	err := delegate.ExecDelegate(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestDepID", "TestNodeName", "TestDelegateOP")
@@ -100,26 +115,9 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 
 func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
 	t.Parallel()
-	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-			return mock
-		}},
-	})
+	_, client, delegate, _, ctx := setupExecDelegateTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(DelegatePluginName)
-	require.Nil(t, err)
-
-	delegate := raw.(prov.DelegateExecutor)
-
-	lof := events.LogOptionalFields{
-		events.WorkFlowID:    "testWF",
-		events.InterfaceName: "delegate",
-		events.OperationName: "myTest",
-	}
-	ctx := events.NewContext(context.Background(), lof)
-	err = delegate.ExecDelegate(
+	err := delegate.ExecDelegate(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestFailure", "TestNodeName", "TestDelegateOP")
@@ -129,12 +127,7 @@ func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
 
 func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 	t.Parallel()
-	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
-			return mock
-		}},
-	})
+	mock, client := createMockDelegateExecutorClient(t)
 	defer client.Close()
 
 	raw, err := client.Dispense(DelegatePluginName)
@@ -164,13 +157,16 @@ func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 
 func TestDelegateGetSupportedTypes(t *testing.T) {
 	mock := new(mockDelegateExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		DelegatePluginName: &DelegatePlugin{
-			F: func() prov.DelegateExecutor {
-				return mock
-			},
-			SupportedTypes: []string{"tosca.my.types", "test"}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			DelegatePluginName: &DelegatePlugin{
+				F: func() prov.DelegateExecutor {
+					return mock
+				},
+				SupportedTypes: []string{"tosca.my.types", "test"}},
+		},
+		nil)
 	defer client.Close()
 	raw, err := client.Dispense(DelegatePluginName)
 	require.Nil(t, err)

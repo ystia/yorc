@@ -23,7 +23,7 @@ import (
 
 func TestServeDefaultOpts(t *testing.T) {
 	t.Parallel()
-	client, _ := plugin.TestPluginRPCConn(t, getPlugins(nil))
+	client, _ := plugin.TestPluginRPCConn(t, getPlugins(nil), nil)
 	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)
