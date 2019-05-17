@@ -11,6 +11,7 @@
 ### BUG FIXES
 
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
+* Emit a persistent event on deployment purge ([GH-402](https://github.com/ystia/yorc/issues/402))
 
 ## 3.2.0-RC1 (May 10, 2019)
 
