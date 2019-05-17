@@ -98,6 +98,10 @@ var (
 			description: "Number of Yorc workers handling bootstrap deployment tasks",
 			value:       config.DefaultWorkersNumber,
 		},
+		"yorc.resources_prefix": defaultInputType{
+			description: "Prefix used to create resources (like Computes and so on)",
+			value:       "yorc-",
+		},
 	}
 
 	yorcPluginDefaultInputs = map[string]defaultInputType{

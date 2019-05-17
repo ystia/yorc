@@ -6,6 +6,10 @@
 
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
 
+### ENHANCEMENTS
+
+* Allow to configure resources prefix for bootstrapped Yorc ([GH-399](https://github.com/ystia/yorc/issues/399))
+
 ## 3.2.0-RC1 (May 10, 2019)
 
 ### BUG FIXES
