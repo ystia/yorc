@@ -37,6 +37,12 @@ type defaultConfigManager struct {
 }
 
 func (cm *defaultConfigManager) SetupConfig(cfg config.Configuration) error {
+
+	// Configuring standard log to use Hashicorp hclog within the plugin so that
+	// these standard logs can be parsed and filtered in the Yorc server according
+	// to their log level
+	initPluginStdLog()
+
 	// Currently we only use this plugin part to initialize the Consul publisher
 	cClient, err := cfg.GetNewConsulClient()
 	if err != nil {

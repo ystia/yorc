@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Print plugin logs in higher level than DEBUG ([GH-329](https://github.com/ystia/yorc/issues/329))
+
 ### BUG FIXES
 
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))

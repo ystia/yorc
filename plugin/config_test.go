@@ -40,20 +40,30 @@ func (m *mockConfigManager) SetupConfig(cfg config.Configuration) error {
 	return nil
 }
 
-func TestConfigManagerSetupConfig(t *testing.T) {
-	t.Parallel()
+func setupConfigManagerTestEnv(t *testing.T) (*mockConfigManager, *plugin.RPCClient,
+	ConfigManager) {
+
 	mock := new(mockConfigManager)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		ConfigManagerPluginName: &ConfigManagerPlugin{mock},
-	})
-	defer client.Close()
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			ConfigManagerPluginName: &ConfigManagerPlugin{mock},
+		},
+		nil)
 
 	raw, err := client.Dispense(ConfigManagerPluginName)
 	require.Nil(t, err)
 
 	cm := raw.(ConfigManager)
 
-	err = cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}})
+	return mock, client, cm
+
+}
+func TestConfigManagerSetupConfig(t *testing.T) {
+	t.Parallel()
+	mock, client, cm := setupConfigManagerTestEnv(t)
+	defer client.Close()
+	err := cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}})
 	require.Nil(t, err)
 	require.True(t, mock.setupConfigCalled)
 	require.Equal(t, "test", mock.conf.Consul.Address)
@@ -62,17 +72,8 @@ func TestConfigManagerSetupConfig(t *testing.T) {
 
 func TestConfigManagerSetupConfigWithFailure(t *testing.T) {
 	t.Parallel()
-	mock := new(mockConfigManager)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		ConfigManagerPluginName: &ConfigManagerPlugin{mock},
-	})
+	_, client, cm := setupConfigManagerTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(ConfigManagerPluginName)
-	require.Nil(t, err)
-
-	cm := raw.(ConfigManager)
-
-	err = cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "testFailure", Datacenter: "testdc"}})
+	err := cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "testFailure", Datacenter: "testdc"}})
 	require.Error(t, err, "An error was expected during executing plugin operation")
 }

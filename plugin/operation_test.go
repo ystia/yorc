@@ -66,15 +66,23 @@ func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.C
 	return nil
 }
 
-func TestOperationExecutorExecOperation(t *testing.T) {
-	t.Parallel()
+func createMockOperationExecutorClient(t *testing.T) (*mockOperationExecutor, *plugin.RPCClient) {
 	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-			return mock
-		}},
-	})
-	defer client.Close()
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
+				return mock
+			}},
+		},
+		nil)
+	return mock, client
+}
+
+func setupExecOperationTestEnv(t *testing.T) (*mockOperationExecutor, *plugin.RPCClient,
+	prov.OperationExecutor, prov.Operation, events.LogOptionalFields, context.Context) {
+
+	mock, client := createMockOperationExecutorClient(t)
 
 	raw, err := client.Dispense(OperationPluginName)
 	require.Nil(t, err)
@@ -95,7 +103,15 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 		events.OperationName: "myTest",
 	}
 	ctx := events.NewContext(context.Background(), lof)
-	err = plugin.ExecOperation(
+
+	return mock, client, plugin, op, lof, ctx
+
+}
+func TestOperationExecutorExecOperation(t *testing.T) {
+	t.Parallel()
+	mock, client, plugin, op, lof, ctx := setupExecOperationTestEnv(t)
+	defer client.Close()
+	err := plugin.ExecOperation(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestDepID", "TestNodeName", op)
@@ -112,49 +128,20 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 
 func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 	t.Parallel()
-	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-			return mock
-		}},
-	})
+	mock, client, plugin, op, _, ctx := setupExecOperationTestEnv(t)
 	defer client.Close()
-
-	raw, err := client.Dispense(OperationPluginName)
-	require.Nil(t, err)
-
-	plugin := raw.(prov.OperationExecutor)
-	op := prov.Operation{
-		Name:                   "myOps",
-		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
-		RelOp: prov.RelationshipOperation{
-			IsRelationshipOperation: true,
-			RequirementIndex:        "1",
-			TargetNodeName:          "AnotherNode",
-		},
-	}
-	lof := events.LogOptionalFields{
-		events.WorkFlowID:    "testWF",
-		events.InterfaceName: "delegate",
-		events.OperationName: "myTest",
-	}
-	ctx := events.NewContext(context.Background(), lof)
-	err = plugin.ExecOperation(
+	err := plugin.ExecOperation(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestFailure", "TestNodeName", op)
+	require.True(t, mock.execoperationCalled)
 	require.Error(t, err, "An error was expected during executing plugin operation")
 	require.EqualError(t, err, "a failure occurred during plugin exec operation")
 }
 
 func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 	t.Parallel()
-	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{F: func() prov.OperationExecutor {
-			return mock
-		}},
-	})
+	mock, client := createMockOperationExecutorClient(t)
 	defer client.Close()
 
 	raw, err := client.Dispense(OperationPluginName)
@@ -183,13 +170,16 @@ func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 
 func TestOperationGetSupportedArtifactTypes(t *testing.T) {
 	mock := new(mockOperationExecutor)
-	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
-		OperationPluginName: &OperationPlugin{
-			F: func() prov.OperationExecutor {
-				return mock
-			},
-			SupportedTypes: []string{"tosca.my.types", "test"}},
-	})
+	client, _ := plugin.TestPluginRPCConn(
+		t,
+		map[string]plugin.Plugin{
+			OperationPluginName: &OperationPlugin{
+				F: func() prov.OperationExecutor {
+					return mock
+				},
+				SupportedTypes: []string{"tosca.my.types", "test"}},
+		},
+		nil)
 	defer client.Close()
 	raw, err := client.Dispense(OperationPluginName)
 	require.Nil(t, err)

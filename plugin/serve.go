@@ -16,14 +16,12 @@ package plugin
 
 import (
 	"encoding/gob"
-	"os"
 	"text/template"
 
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 	"github.com/ystia/yorc/v3/vault"
 )
@@ -76,11 +74,19 @@ type ServeOpts struct {
 func Serve(opts *ServeOpts) {
 	SetupPluginCommunication()
 
-	// As a plugin configure yorc logs to go to stderr in order to be show in the parent process
-	log.SetOutput(os.Stderr)
+	// Configuring Yorc logs to use Hashicorp hclog in the plugin so that
+	// these logs can be parsed and filtered in the Yorc server  according to their
+	// log level
+	initPluginYorcLog()
+
+	// Cannot configure here standard log to use Hashicorp hclog, as next call
+	// plugin.Serve() is setting standard log output to os.Stderr.
+	// This will be done in config.go by the defaultConfigManager
+
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         getPlugins(opts),
+		Logger:          hclogger,
 	})
 }
 

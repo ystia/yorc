@@ -15,20 +15,34 @@
 package plugin
 
 import (
-	"io/ioutil"
-	stdlog "log"
+	"os"
 	"os/exec"
 
+	hclog "github.com/hashicorp/go-hclog"
 	gplugin "github.com/hashicorp/go-plugin"
-
 	"github.com/ystia/yorc/v3/log"
 )
 
 // NewClient returns a properly configured plugin client for a given plugin path
 func NewClient(pluginPath string) *gplugin.Client {
-	if !log.IsDebug() {
-		stdlog.SetOutput(ioutil.Discard)
+
+	// Filtering logs coming from plugin according to Yorc parent process log level
+	var logLevel hclog.Level
+	if log.IsDebug() {
+		logLevel = hclog.Debug
+	} else {
+		logLevel = hclog.Info
 	}
+
+	// Create an hclog.Logger to be able to infer plugin logs level
+	logger := hclog.New(&hclog.LoggerOptions{
+		Output: os.Stdout,
+		Level:  logLevel,
+		// Using the same time format as standard logs, instead of hclog default
+		// format which is a version of RFC3339
+		TimeFormat: "2006/01/02 15:04:05",
+	})
+
 	// Setup RPC communication
 	SetupPluginCommunication()
 
@@ -36,5 +50,6 @@ func NewClient(pluginPath string) *gplugin.Client {
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         getPlugins(nil),
 		Cmd:             exec.Command(pluginPath),
+		Logger:          logger,
 	})
 }
