@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -29,6 +30,7 @@ import (
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/scheduling"
 )
 
 type actionOperator struct {
@@ -113,19 +115,19 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	stdOut, existStdOut := info["StdOut"]
 	stdErr, existStdErr := info["StdErr"]
 	if existStdOut && existStdErr && stdOut == stdErr {
-		o.logFile(ctx, deploymentID, stdOut, "StdOut/StdErr", sshClient)
+		o.logFile(ctx, cfg, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
 	} else {
 		if existStdOut {
-			o.logFile(ctx, deploymentID, stdOut, "StdOut", sshClient)
+			o.logFile(ctx, cfg, action, deploymentID, stdOut, "StdOut", sshClient)
 		}
 		if existStdErr {
-			o.logFile(ctx, deploymentID, stdErr, "StdErr", sshClient)
+			o.logFile(ctx, cfg, action, deploymentID, stdErr, "StdErr", sshClient)
 		}
 	}
 
 	// See default output if nothing is specified here
 	if !existStdOut && !existStdErr {
-		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
+		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
 	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
@@ -177,8 +179,16 @@ func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshu
 	}
 }
 
-func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath, fileType string, sshClient *sshutil.SSHClient) {
-	cmd := fmt.Sprintf("cat %s", filePath)
+func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, action *prov.Action, deploymentID, filePath, fileType string, sshClient *sshutil.SSHClient) {
+	fileTypeKey := fmt.Sprintf("lastIndex%s", strings.Replace(fileType, "/", "", -1))
+	// Get the log last index
+	lastInd, err := o.getLogLastIndex(action, fileTypeKey)
+	if err != nil {
+		log.Debugf("fail to get log last index for log file (%s)due to error:%+v:", filePath, err)
+		return
+	}
+
+	cmd := fmt.Sprintf("tail -n +%d %s", lastInd+1, filePath)
 	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("fail to log file (%s)due to error:%+v:", filePath, err)
@@ -189,4 +199,31 @@ func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath, fi
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("%s %s:", fileType, filePath))
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("\n" + output)
 	}
+
+	// Update the last index
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		log.Debugf("fail to retrieve consul client due to error:%+v:", err)
+		return
+	}
+
+	newInd := strconv.Itoa(lastInd + strings.Count(output, "\n"))
+	err = scheduling.UpdateActionData(cc, action.ID, fileTypeKey, newInd)
+	if err != nil {
+		log.Debugf("fail to update action data due to error:%+v:", err)
+		return
+	}
+}
+
+func (o *actionOperator) getLogLastIndex(action *prov.Action, fileTypeKey string) (int, error) {
+	lastIndex, ok := action.Data[fileTypeKey]
+	if !ok {
+		return 0, nil
+	}
+
+	lastInd, err := strconv.Atoi(lastIndex)
+	if err != nil {
+		return 0, err
+	}
+	return lastInd, nil
 }
