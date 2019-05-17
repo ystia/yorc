@@ -203,7 +203,7 @@ func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, 
 	// Update the last index
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
-		log.Debugf("fail to retrieve consul client due to error:%+v:", filePath, err)
+		log.Debugf("fail to retrieve consul client due to error:%+v:", err)
 		return
 	}
 
