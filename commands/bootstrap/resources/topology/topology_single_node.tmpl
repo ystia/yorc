@@ -150,6 +150,7 @@ topology_template:
         install_dir: "/usr/local/bin"
         config_dir: "/etc/yorc"
         data_dir: "{{.Yorc.DataDir}}"
+        resources_prefix: "{{.Yorc.ResourcesPrefix}}"
         private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
         ca_pem: |{{indent .Yorc.CAPEMContent 10}}
         ca_key: |{{indent .Yorc.CAKeyContent 10}}

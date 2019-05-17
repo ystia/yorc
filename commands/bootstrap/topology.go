@@ -55,6 +55,7 @@ type YorcConfiguration struct {
 	CAPassPhrase      string `yaml:"ca_passphrase" mapstructure:"ca_passphrase"`
 	DataDir           string `yaml:"data_dir" mapstructure:"data_dir"`
 	WorkersNumber     int    `yaml:"workers_number" mapstructure:"workers_number"`
+	ResourcesPrefix   string `yaml:"resources_prefix" mapstructure:"resources_prefix"`
 }
 
 // YorcPluginConfiguration provides Yorc plugin user-defined settings
