@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-set -x
+#set -x
 
 function help () {
     echo "$0 [-e <Yorc_Engine_PR_Number>] [-p <Plugin_PR_number>] [-v <values_file>] [-y]
@@ -31,7 +31,7 @@ function confirmOrExit ()  {
     fi
 
     while true ; do
-        read -p "${msg}? (Y/n)" confirm
+        read -r -p "${msg}? (Y/n)" confirm
         case "${confirm}" in
             "" | "y" | "Y")
                 return
@@ -53,17 +53,17 @@ function getURLFromPart () {
 }
 
 function getYorcURLFromPart () {
-    getURLFromPart $1 'yorc-[0-9].*?.tgz'
+    getURLFromPart "$1" 'yorc-[0-9].*?.tgz'
 }
 
 function getYorcPluginURLFromPart () {
-    getURLFromPart $1 'alien4cloud-yorc-plugin-[0-9].*?.zip'
+    getURLFromPart "$1" 'alien4cloud-yorc-plugin-[0-9].*?.zip'
 }
 
 while getopts ":yv:e:p:" opt; do
   case $opt in
     v)
-      VALUES_FILE="--values ${OPTARG}"
+      VALUES_FILE=(--values "${OPTARG}")
       ;;
     p)
       PLUGIN_PR=${OPTARG}
@@ -117,4 +117,4 @@ curl "${YORC_DOWNLOAD_URL}" -o work/yorc.tgz
 
 tar xzvf work/yorc.tgz -C work
 
-./work/yorc bootstrap ${VALUES_FILE} --yorc_download_url "${YORC_DOWNLOAD_URL}" --yorc_plugin_download_url "${YORC_PLUGIN_DOWNLOAD_URL}"
+./work/yorc bootstrap "${VALUES_FILE[@]}" --yorc_download_url "${YORC_DOWNLOAD_URL}" --yorc_plugin_download_url "${YORC_PLUGIN_DOWNLOAD_URL}"
