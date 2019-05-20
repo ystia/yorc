@@ -628,11 +628,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
-	// Just Publish an event that the deployment is successfully
-	// This event will stay into consul even if the deployment is actually purged...
-	// To prevent unexpected errors
-	_, err = events.PublishAndLogDeploymentStatusChange(ctx, t.cc.KV(), t.targetID, strings.ToLower(deployments.PURGED.String()))
-	return err
+	return deployments.TagDeploymentAsPurged(ctx, t.cc, t.targetID)
 }
 
 func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {

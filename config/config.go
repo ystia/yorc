@@ -66,6 +66,9 @@ const DefaultCacheFacts = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
+// DefaultPurgedDeploymentsEvictionTimeout is the default timeout after which final events and logs for a purged deployment are actually deleted.
+const DefaultPurgedDeploymentsEvictionTimeout = 30 * time.Minute
+
 // DefaultAnsibleJobMonInterval is the default monitoring interval for Jobs handled by Ansible
 const DefaultAnsibleJobMonInterval = 15 * time.Second
 
@@ -89,6 +92,7 @@ type Configuration struct {
 	Infrastructures                  map[string]DynamicMap `yaml:"infrastructures,omitempty" mapstructure:"infrastructures"`
 	Vault                            DynamicMap            `yaml:"vault,omitempty" mapstructure:"vault"`
 	WfStepGracefulTerminationTimeout time.Duration         `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
+	PurgedDeploymentsEvictionTimeout time.Duration         `yaml:"purged_deployments_eviction_timeout,omitempty" mapstructure:"purged_deployments_eviction_timeout"`
 	ServerID                         string                `yaml:"server_id,omitempty" mapstructure:"server_id"`
 	Terraform                        Terraform             `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool                  `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`

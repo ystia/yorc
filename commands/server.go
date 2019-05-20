@@ -263,6 +263,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits.")
 	serverCmd.PersistentFlags().StringP("resources_prefix", "x", "", "Prefix created resources (like Computes and so on)")
 	serverCmd.PersistentFlags().Duration("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout, "Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error.")
+	serverCmd.PersistentFlags().Duration("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout, "When a deployment is purged an event is keep to trace that the purge was actually done, this timeout controls the retention time of such events.")
 	serverCmd.PersistentFlags().String("server_id", host, "The server ID used to identify the server node in a cluster.")
 	serverCmd.PersistentFlags().Bool("disable_ssh_agent", false, "Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.")
 
@@ -321,6 +322,7 @@ func setConfig() {
 	viper.BindPFlag("server_graceful_shutdown_timeout", serverCmd.PersistentFlags().Lookup("graceful_shutdown_timeout"))
 	viper.BindPFlag("resources_prefix", serverCmd.PersistentFlags().Lookup("resources_prefix"))
 	viper.BindPFlag("wf_step_graceful_termination_timeout", serverCmd.PersistentFlags().Lookup("wf_step_graceful_termination_timeout"))
+	viper.BindPFlag("purged_deployments_eviction_timeout", serverCmd.PersistentFlags().Lookup("purged_deployments_eviction_timeout"))
 	viper.BindPFlag("server_id", serverCmd.PersistentFlags().Lookup("server_id"))
 	viper.BindPFlag("disable_ssh_agent", serverCmd.PersistentFlags().Lookup("disable_ssh_agent"))
 
@@ -367,6 +369,7 @@ func setConfig() {
 	}
 
 	viper.BindEnv("wf_step_graceful_termination_timeout")
+	viper.BindEnv("purged_deployments_eviction_timeout")
 
 	//Bind Ansible environment variables flags
 	for key := range ansibleConfiguration {
@@ -387,6 +390,7 @@ func setConfig() {
 	viper.SetDefault("resources_prefix", "yorc-")
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
+	viper.SetDefault("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout)
 	viper.SetDefault("server_id", host)
 	viper.SetDefault("disable_ssh_agent", false)
 

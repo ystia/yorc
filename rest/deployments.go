@@ -16,6 +16,7 @@ package rest
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,8 +26,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/ystia/yorc/v3/events"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
@@ -195,16 +194,10 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete events & logs tree corresponding to the deployment
-	// This is useful when redeploying an application that has been previously purged
-	// as it may still have the purged event and log.
-	err := events.PurgeDeploymentEvents(s.consulClient.KV(), uid)
+	ctx := context.Background()
+	err := deployments.CleanupPurgedDeployments(ctx, s.consulClient, s.config.PurgedDeploymentsEvictionTimeout, uid)
 	if err != nil {
-		log.Panicf("%v", errors.Wrap(err, consulutil.ConsulGenericErrMsg))
-	}
-	err = events.PurgeDeploymentLogs(s.consulClient.KV(), uid)
-	if err != nil {
-		log.Panicf("%v", errors.Wrap(err, consulutil.ConsulGenericErrMsg))
+		log.Panicf("%v", err)
 	}
 
 	if err := deployments.StoreDeploymentDefinition(r.Context(), s.consulClient.KV(), uid, yamlFile); err != nil {
