@@ -10,6 +10,7 @@
 
 ### BUG FIXES
 
+* Secure bootstrap on Hosts Pool fails configuring infra, error "playbooks must be a list of plays" ([GH-396](https://github.com/ystia/yorc/issues/396))
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
 
 ## 3.2.0-RC1 (May 10, 2019)
