@@ -1093,12 +1093,6 @@ topology_template:
             - set_state: deleting
           on_success:
             - JDK_deleted
-        AnsibleRuntime_delete:
-          target: AnsibleRuntime
-          activities:
-            - call_operation: Standard.delete
-          on_success:
-            - AnsibleRuntime_deleted
         YorcServer_deleting:
           target: YorcServer
           activities:
@@ -1293,18 +1287,24 @@ topology_template:
             - set_state: stopping
           on_success:
             - TerraformRuntime_stopped
+        ConsulServer_delete:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - ConsulServer_deleted
         ConsulServer_deleting:
           target: ConsulServer
           activities:
             - set_state: deleting
           on_success:
-            - ConsulServer_deleted
+            - ConsulServer_delete
         AnsibleRuntime_deleting:
           target: AnsibleRuntime
           activities:
             - set_state: deleting
           on_success:
-            - AnsibleRuntime_delete
+            - AnsibleRuntime_deleted
     start:
       steps:
         Alien4Cloud_started:
