@@ -93,6 +93,33 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 	return capabilities, nil
 }
 
+// GetCapabilityPropertyType retrieves the type for a given property in a given node capability
+// It returns false if there is no such property
+func GetCapabilityPropertyType(kv *api.KV, deploymentID, nodeName, capabilityName,
+	propertyName string) (bool, string, error) {
+
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return false, "", err
+	}
+	var propDataType string
+	var hasProp bool
+	if capabilityType != "" {
+		hasProp, err = TypeHasProperty(kv, deploymentID, capabilityType, propertyName, true)
+		if err != nil {
+			return false, "", err
+		}
+		if hasProp {
+			propDataType, err = GetTypePropertyDataType(kv, deploymentID, capabilityType, propertyName)
+			if err != nil {
+				return true, "", err
+			}
+		}
+	}
+
+	return hasProp, propDataType, err
+}
+
 // GetCapabilityPropertyValue retrieves the value for a given property in a given node capability
 //
 // It returns true if a value is found false otherwise as first return parameter.
@@ -103,19 +130,10 @@ func GetCapabilityPropertyValue(kv *api.KV, deploymentID, nodeName, capabilityNa
 		return nil, err
 	}
 
-	var propDataType string
-	var hasProp bool
-	if capabilityType != "" {
-		hasProp, err = TypeHasProperty(kv, deploymentID, capabilityType, propertyName, true)
-		if err != nil {
-			return nil, err
-		}
-		if hasProp {
-			propDataType, err = GetTypePropertyDataType(kv, deploymentID, capabilityType, propertyName)
-			if err != nil {
-				return nil, err
-			}
-		}
+	hasProp, propDataType, err := GetCapabilityPropertyType(kv, deploymentID, nodeName,
+		capabilityName, propertyName)
+	if err != nil {
+		return nil, err
 	}
 
 	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "properties", propertyName)
