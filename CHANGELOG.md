@@ -10,6 +10,7 @@
 
 ### BUG FIXES
 
+* Undeployment of a Hosts Pool bootstrapped setup doesn't clean correctly Hosts Pool ([GH-406](https://github.com/ystia/yorc/issues/406))
 * Secure bootstrap on Hosts Pool fails configuring infra, error "playbooks must be a list of plays" ([GH-396](https://github.com/ystia/yorc/issues/396))
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
 
