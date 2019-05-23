@@ -10,6 +10,7 @@
 
 ### BUG FIXES
 
+* Failure to deploy an application with Compute resources constraints on Hosts Pool ([GH-409](https://github.com/ystia/yorc/issues/409))
 * Secure bootstrap on Hosts Pool fails configuring infra, error "playbooks must be a list of plays" ([GH-396](https://github.com/ystia/yorc/issues/396))
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
 
