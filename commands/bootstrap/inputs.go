@@ -188,6 +188,8 @@ var (
 			value:       "",
 		},
 	}
+
+	mandatoryHostPoolLabels = []string{"public_address", "private_address"}
 )
 
 // Infrastructure inputs, which when missing, will have to be provided interactively
@@ -605,10 +607,24 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 				return err
 			}
 		} else {
+
 			// The private SSH key used to connect to each host is the Yorc private key
+			// Initializing this private key and checking as well mandatory
+			// labels are defined
 			privateKeyPath := filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
-			for i := range inputValues.Hosts {
-				inputValues.Hosts[i].Connection.PrivateKey = privateKeyPath
+			for _, host := range inputValues.Hosts {
+				host.Connection.PrivateKey = privateKeyPath
+				// Checking labels
+				if host.Labels == nil {
+					return fmt.Errorf("Missing mandatory labels %s for host %s",
+						strings.Join(mandatoryHostPoolLabels, ", "), host.Name)
+				}
+				for _, label := range mandatoryHostPoolLabels {
+					if _, found := host.Labels[label]; !found {
+						return fmt.Errorf("Missing mandatory label %s for host %s",
+							label, host.Name)
+					}
+				}
 			}
 		}
 	}
@@ -1108,23 +1124,27 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			hostConfig.Connection.Port = 22
 		}
 
-		//asking public address first
-		fmt.Println("Defining key/value labels for this host. Defining public_address value is mandatory")
+		//asking public/private address first
+		fmt.Println("Defining key/value labels for this host")
+		fmt.Printf("Inputs for labels %s are mandatory\n",
+			strings.Join(mandatoryHostPoolLabels, ", "))
 		hostConfig.Labels = make(map[string]string)
 
-		prompt = &survey.Input{
-			Message: "public_address value:"}
+		for _, label := range mandatoryHostPoolLabels {
+			prompt = &survey.Input{
+				Message: label + " value:"}
 
-		question = &survey.Question{
-			Name:     "value",
-			Prompt:   prompt,
-			Validate: survey.Required,
-		}
-		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
-			return nil, err
-		}
+			question = &survey.Question{
+				Name:     "value",
+				Prompt:   prompt,
+				Validate: survey.Required,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return nil, err
+			}
 
-		hostConfig.Labels["public_address"] = answer.Value
+			hostConfig.Labels[label] = answer.Value
+		}
 
 		//asking for additional key values labels
 		for {
