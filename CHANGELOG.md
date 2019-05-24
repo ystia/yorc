@@ -10,6 +10,7 @@
 
 ### BUG FIXES
 
+* Yorc bootstrap on HostPool in interactive mode should ask for hosts private IP addresses also ([GH-411](https://github.com/ystia/yorc/issues/411))
 * Secure bootstrap on Hosts Pool fails configuring infra, error "playbooks must be a list of plays" ([GH-396](https://github.com/ystia/yorc/issues/396))
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
 
