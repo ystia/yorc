@@ -16,6 +16,9 @@ package consulutil
 
 import (
 	"context"
+	"os"
+	"sync"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -23,6 +26,19 @@ import (
 
 	"github.com/ystia/yorc/v3/log"
 )
+
+var envTimeoutDuration time.Duration
+
+func init() {
+	envTimeoutDurationString := os.Getenv("YORC_CONSUL_STORE_TXN_TIMEOUT")
+	if envTimeoutDurationString != "" {
+		var err error
+		envTimeoutDuration, err = time.ParseDuration(envTimeoutDurationString)
+		if err != nil {
+			log.Panicf("%v", errors.Wrap(err, "invalid duration format for 'YORC_CONSUL_STORE_TXN_TIMEOUT' env var"))
+		}
+	}
+}
 
 // Internal type used to uniquely identify the errorgroup in a context
 type ctxErrGroupKey struct{}
@@ -44,7 +60,11 @@ type ConsulStore interface {
 // consulStore is the default implementation for ConsulStore.
 // It allows to use a context and an errgroup.Group to store several keys in parallel in Consul but with a defined parallelism.
 type consulStore struct {
-	ctx context.Context
+	ctx              context.Context
+	l                sync.Mutex
+	tx               api.KVTxnOps
+	close            chan struct{}
+	txPackingTimeout time.Duration
 }
 
 // GetKV returns the KV associated to the consul publisher
@@ -65,12 +85,17 @@ func GetKV() *api.KV {
 //	consulStore.StoreConsulKey(keyN, valN)
 //	err := errGroup.Wait()
 func WithContext(ctx context.Context) (context.Context, *errgroup.Group, ConsulStore) {
+	return withContext(ctx)
+}
+
+func withContext(ctx context.Context) (context.Context, *errgroup.Group, *consulStore) {
 	if ctx == nil {
 		log.Panic(errors.New("Context can't be nil"))
 	}
 	errGroup, errCtx := errgroup.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGroupKey, errGroup)
-	return errCtx, errGroup, &consulStore{ctx: errCtx}
+
+	return errCtx, errGroup, &consulStore{ctx: errCtx, tx: make(api.KVTxnOps, 0, 64), close: make(chan struct{}), txPackingTimeout: envTimeoutDuration}
 }
 
 // StoreConsulKeyAsString is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
@@ -85,9 +110,7 @@ func StoreConsulKeyAsStringWithFlags(key, value string, flags uint64) error {
 
 // StoreConsulKey is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
 func StoreConsulKey(key string, value []byte) error {
-	_, errGroup, store := WithContext(context.Background())
-	store.StoreConsulKey(key, value)
-	return errGroup.Wait()
+	return StoreConsulKeyWithFlags(key, value, 0)
 }
 
 // StoreConsulKeyWithFlags stores a Consul key without the use of a ConsulStore you should avoid to use it when storing several keys that could be
@@ -95,7 +118,9 @@ func StoreConsulKey(key string, value []byte) error {
 // waiting for the key to be store in Consul using errGroup.Wait()
 // The given flags mask is associated to the K/V (See Flags in api.KVPair).
 func StoreConsulKeyWithFlags(key string, value []byte, flags uint64) error {
-	_, errGroup, store := WithContext(context.Background())
+	_, errGroup, store := withContext(context.Background())
+	// As we store only one key do not use a transaction
+	store.txPackingTimeout = 0
 	store.StoreConsulKeyWithFlags(key, value, flags)
 	return errGroup.Wait()
 }
@@ -126,9 +151,94 @@ func (cs *consulStore) StoreConsulKeyWithFlags(key string, value []byte, flags u
 		return
 	default:
 	}
+	if cs.txPackingTimeout == 0 {
+		cs.publishWithoutTx(key, value, flags)
+	} else {
+		cs.publishWithinTx(key, value, flags)
+	}
+}
+
+func (cs *consulStore) publishWithoutTx(key string, value []byte, flags uint64) {
+	// cs.publishWithinTx(key, value, flags)
 	p := &api.KVPair{Key: key, Value: value, Flags: flags}
-	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
-	consulPub.publish(cs.ctx, p)
+	// // Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
+	consulPub.publish(cs.ctx, func(kv *api.KV) error {
+		_, err := kv.Put(p, nil)
+		return errors.Wrap(err, ConsulGenericErrMsg)
+	})
+}
+
+func executeKVTxn(kv *api.KV, ops api.KVTxnOps) error {
+	_, response, _, err := kv.Txn(ops, nil)
+
+	if err != nil {
+		return err
+	}
+	if len(response.Errors) > 0 {
+		errs := ""
+		for i, e := range response.Errors {
+			if i != 0 {
+				errs = errs + ", "
+			}
+			errs = errs + e.What
+		}
+		return errors.New(errs)
+	}
+	return nil
+}
+
+func (cs *consulStore) publishTxn() {
+	// Copy slice to reuse it
+	ops := make(api.KVTxnOps, len(cs.tx))
+	copy(ops, cs.tx)
+	consulPub.publish(cs.ctx, func(kv *api.KV) error {
+		return executeKVTxn(kv, ops)
+	})
+	// reset slice
+	cs.tx = make(api.KVTxnOps, 0, 64)
+	//  Release others
+	close(cs.close)
+	cs.close = make(chan struct{})
+}
+
+func (cs *consulStore) publishWithinTx(key string, value []byte, flags uint64) {
+	cs.l.Lock()
+	defer cs.l.Unlock()
+	cs.tx = append(cs.tx, &api.KVTxnOp{
+		Verb:  api.KVSet,
+		Key:   key,
+		Value: value,
+		Flags: flags,
+	})
+
+	closeCh := cs.close
+	errGroup := cs.ctx.Value(errGroupKey).(*errgroup.Group)
+	if len(cs.tx) == 1 {
+		errGroup.Go(func() error {
+			select {
+			case <-time.After(cs.txPackingTimeout):
+				cs.l.Lock()
+				defer cs.l.Unlock()
+				select {
+				case <-closeCh:
+					// chanel was close while waiting for the lock so its published
+					return nil
+				default:
+				}
+				cs.publishTxn()
+			case <-closeCh:
+			}
+			return nil
+		})
+	} else if len(cs.tx) == 64 {
+		cs.publishTxn()
+	} else {
+		closeCh := cs.close
+		errGroup.Go(func() error {
+			<-closeCh
+			return nil
+		})
+	}
 }
 
 // rateLimitedConsulPublisher is used to store Consul keys.
@@ -150,7 +260,7 @@ func InitConsulPublisher(maxItems int, kv *api.KV) {
 
 }
 
-func (c *rateLimitedConsulPublisher) publish(ctx context.Context, kvp *api.KVPair) {
+func (c *rateLimitedConsulPublisher) publish(ctx context.Context, f func(kv *api.KV) error) {
 	select {
 	case <-ctx.Done():
 		return
@@ -164,9 +274,6 @@ func (c *rateLimitedConsulPublisher) publish(ctx context.Context, kvp *api.KVPai
 			// Release semaphore
 			<-c.sem
 		}()
-		if _, err := c.kv.Put(kvp, nil); err != nil {
-			return errors.Wrapf(err, "Failed to store consul key %q", kvp.Key)
-		}
-		return nil
+		return f(c.kv)
 	})
 }
