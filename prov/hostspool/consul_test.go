@@ -15,8 +15,13 @@
 package hostspool
 
 import (
+	"context"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/testutil"
 )
@@ -25,7 +30,13 @@ import (
 func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
+	kv := client.KV()
 	log.SetDebug(true)
+
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
+	require.NoError(t, err)
+
 	t.Run("TestConsulManagerAdd", func(t *testing.T) {
 		testConsulManagerAdd(t, client)
 	})
@@ -79,5 +90,8 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	})
 	t.Run("testConsulManagerAddLabelsWithAllocation", func(t *testing.T) {
 		testConsulManagerAddLabelsWithAllocation(t, client)
+	})
+	t.Run("testCreateFiltersFromComputeCapabilities", func(t *testing.T) {
+		testCreateFiltersFromComputeCapabilities(t, kv, deploymentID)
 	})
 }

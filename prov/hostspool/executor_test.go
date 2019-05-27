@@ -15,9 +15,14 @@
 package hostspool
 
 import (
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v3/helper/labelsutil"
 )
 
 func TestUpdateHostResourcesLabels(t *testing.T) {
@@ -58,4 +63,53 @@ func TestUpdateHostResourcesLabels(t *testing.T) {
 			require.Equal(t, tt.want, labels)
 		})
 	}
+}
+
+// testCreateFiltersFromComputeCapabilities expects a deployment stored in Consul
+// so it is called in consul_test.go in this package
+func testCreateFiltersFromComputeCapabilities(t *testing.T, kv *api.KV, deploymentID string) {
+
+	// See corresponding deployment at testdata/topology_hp_compute.yaml
+	// It defines one node Compute with :
+	// - 1 CPU
+	// - 20 GB of disk
+	// - a linux OS
+	filters, err := createFiltersFromComputeCapabilities(kv, deploymentID, "Compute")
+	require.NoError(t, err, "Unexpected error creating filters for Compute node")
+
+	// Creating Host labels declaring more resources than required,
+	// so it is expected to match the filters defined in deployment
+	labels := map[string]string{
+		"host.num_cpus":  "2",
+		"host.disk_size": "40 GB",
+		"os.type":        "linux",
+	}
+
+	matches, matchErr := labelsutil.MatchesAll(labels, filters...)
+
+	require.NoError(t, matchErr, "Unexpected error matching %+v", labels)
+	assert.True(t, matches, "Filters not matching, unexpected error %+v", matchErr)
+
+	// Declaring less disk resources than required
+	labels["host.disk_size"] = "5 GB"
+
+	matches, matchErr = labelsutil.MatchesAll(labels, filters...)
+	require.NoError(t, matchErr, "Unexpected error matching %+v", labels)
+	assert.False(t, matches, "Filters wrongly matching as host has not enough disk size")
+
+	// Declaring less CPU resources than required
+	labels["host.disk_size"] = "21 GB"
+	labels["host.num_cpus"] = "0"
+
+	matches, matchErr = labelsutil.MatchesAll(labels, filters...)
+	require.NoError(t, matchErr, "Unexpected error matching %+v", labels)
+	assert.False(t, matches, "Filters wrongly matching as host has not enough CPUs")
+
+	//  Checking a wrong os type is detected
+	labels["host.num_cpus"] = "2"
+	labels["os.type"] = "Windows"
+
+	matches, matchErr = labelsutil.MatchesAll(labels, filters...)
+	require.NoError(t, matchErr, "Unexpected error matching %+v", labels)
+	assert.False(t, matches, "Filters wrongly matching as host has not linux as os type ")
 }
