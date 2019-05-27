@@ -36,7 +36,7 @@ The bootstrap was validated on:
 
   * CentOS 7,
   * Red Hat Enterprise Linux 7.5,
-  * Ubuntu 18.10 (which is installing python3 by default, see 
+  * Ubuntu 19.04 (which is installing python3 by default, see 
     :ref:`bootstrap configuration file <yorc_google_example_ubuntu_section>`
     example below for specific Ansible configuration settings needed for remote 
     hosts using python3).
@@ -343,10 +343,10 @@ Example of a Google Cloud deployment configuration file
 
 .. _yorc_google_example_ubuntu_section:
 
-Example of a Google Cloud deployment configuration with Ubuntu 18.10 on-demand compute
+Example of a Google Cloud deployment configuration with Ubuntu 19.04 on-demand compute
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In this example, on-demand compute instances run Ubuntu 18.10 on which python3
+In this example, on-demand compute instances run Ubuntu 19.04 on which python3
 is installed by default (and not python).
 In this case, a specific Ansible behavioral inventory parameter 
 ``ansible_python_interpreter`` must be defined so that Ansible is able to find 
@@ -373,7 +373,7 @@ this python interpreter on the remote hosts.
       project: myproject
   ansible:
     inventory:
-      # Remote host run Ubuntu 18.10, using python3.
+      # Remote host run Ubuntu 19.04, using python3.
       # Defining here the Ansible behavioral inventory parameter ansible_python_interpreter
       # pointing to python3.
       # This is required or Ansible will attempt to use python on the remote host
@@ -384,7 +384,7 @@ this python interpreter on the remote hosts.
     region: europe-west1
   compute:
     image_project: ubuntu-os-cloud
-    image_family: ubuntu-1810
+    image_family: ubuntu-1904
     machine_type: n1-standard-2
     zone: europe-west1-b
     # User and public key to define on created compute instance
