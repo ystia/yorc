@@ -4,6 +4,7 @@
 
 ### ENHANCEMENTS
 
+* Bootstrap support of Ubuntu 1904 ([GH-419](https://github.com/ystia/yorc/issues/419))
 * Print plugin logs in higher level than DEBUG ([GH-329](https://github.com/ystia/yorc/issues/329))
 * Slurm job logs are displayed many time ([GH-397](https://github.com/ystia/yorc/issues/397))
 * Allow to configure resources prefix for bootstrapped Yorc ([GH-399](https://github.com/ystia/yorc/issues/399))
