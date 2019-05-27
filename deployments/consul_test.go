@@ -105,5 +105,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testTopologyUpdate", func(t *testing.T) {
 			testTopologyUpdate(t, kv)
 		})
+		t.Run("testPurgedDeployments", func(t *testing.T) {
+			testPurgedDeployments(t, client)
+		})
 	})
 }

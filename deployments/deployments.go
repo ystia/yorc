@@ -19,6 +19,9 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
+
+	"github.com/ystia/yorc/v3/helper/collections"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -171,4 +174,97 @@ RETRY:
 	}
 	events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 	return nil
+}
+
+// TagDeploymentAsPurged registers current purge time and emit a deployment status change event and a log for the given deployment
+//
+// The timestamp will be used to evict purged deployments after an given delay.
+func TagDeploymentAsPurged(ctx context.Context, cc *api.Client, deploymentID string) error {
+	lock, _, err := acquirePurgedDeploymentsLock(ctx, cc)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+	consulutil.StoreConsulKeyAsString(path.Join(consulutil.PurgedDeploymentKVPrefix, deploymentID), time.Now().Format(time.RFC3339Nano))
+
+	// Just Publish an event that the deployment is successfully
+	// This event will stay into consul even if the deployment is actually purged...
+	// To prevent unexpected errors
+	_, err = events.PublishAndLogDeploymentStatusChange(ctx, cc.KV(), deploymentID, strings.ToLower(PURGED.String()))
+	return err
+}
+
+// CleanupPurgedDeployments definitively removes purged deployments
+//
+// Deployment are cleaned-up if they have been purged for at least evictionTimeout or
+// if the are in the extraDeployments list
+func CleanupPurgedDeployments(ctx context.Context, cc *api.Client, evictionTimeout time.Duration, extraDeployments ...string) error {
+	lock, _, err := acquirePurgedDeploymentsLock(ctx, cc)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+	kvpList, _, err := cc.KV().List(consulutil.PurgedDeploymentKVPrefix, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, kvp := range kvpList {
+		deploymentID := path.Base(kvp.Key)
+		if collections.ContainsString(extraDeployments, deploymentID) {
+			err = cleanupPurgedDeployment(ctx, cc.KV(), deploymentID)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		purgeDate, err := time.Parse(time.RFC3339Nano, string(kvp.Value))
+		if err != nil {
+			log.Print("WARN failed to parse %q for purged timestamp of deployment %q", string(kvp.Value), deploymentID)
+			continue
+		}
+		if purgeDate.Add(evictionTimeout).Before(time.Now()) {
+			err = cleanupPurgedDeployment(ctx, cc.KV(), deploymentID)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+	}
+	return nil
+}
+
+func cleanupPurgedDeployment(ctx context.Context, kv *api.KV, deploymentID string) error {
+	// Delete events & logs tree corresponding to the deployment
+	// This is useful when redeploying an application that has been previously purged
+	// as it may still have the purged event and log.
+	err := events.PurgeDeploymentEvents(kv, deploymentID)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	err = events.PurgeDeploymentLogs(kv, deploymentID)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	_, err = kv.Delete(path.Join(consulutil.PurgedDeploymentKVPrefix, deploymentID), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Lock, <-chan struct{}, error) {
+	lock, err := cc.LockKey(consulutil.PurgedDeploymentKVPrefix + ".lock")
+	if err != nil {
+		return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	var leaderCh <-chan struct{}
+	for leaderCh == nil {
+		leaderCh, err = lock.Lock(ctx.Done())
+		if err != nil {
+			return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, nil, errors.Wrap(ctx.Err(), "failed to acquire lock on purged deployments")
+		default:
+		}
+	}
+	return lock, leaderCh, nil
 }

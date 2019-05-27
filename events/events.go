@@ -349,6 +349,18 @@ func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 	return qm.LastIndex, nil
 }
 
+// PurgeDeploymentEvents deletes all events for a given deployment
+func PurgeDeploymentEvents(kv *api.KV, deploymentID string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.EventsPrefix, deploymentID), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+// PurgeDeploymentLogs deletes all logs for a given deployment
+func PurgeDeploymentLogs(kv *api.KV, deploymentID string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.LogsPrefix, deploymentID), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 func buildInfoFromContext(ctx context.Context) Info {
 	infoUp := make(Info)
 
