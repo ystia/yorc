@@ -159,9 +159,8 @@ func (cs *consulStore) StoreConsulKeyWithFlags(key string, value []byte, flags u
 }
 
 func (cs *consulStore) publishWithoutTx(key string, value []byte, flags uint64) {
-	// cs.publishWithinTx(key, value, flags)
 	p := &api.KVPair{Key: key, Value: value, Flags: flags}
-	// // Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
+	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
 	consulPub.publish(cs.ctx, func(kv *api.KV) error {
 		_, err := kv.Put(p, nil)
 		return errors.Wrap(err, ConsulGenericErrMsg)
