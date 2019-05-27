@@ -25,6 +25,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 
@@ -115,6 +116,9 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	})
 	t.Run("testExecutionGenerateAnsibleConfig", func(t *testing.T) {
 		testExecutionGenerateAnsibleConfig(t)
+	})
+	t.Run("testConcurrentExecutionGenerateAnsibleConfig", func(t *testing.T) {
+		testConcurrentExecutionGenerateAnsibleConfig(t)
 	})
 
 	var operationTestCases = []string{
@@ -614,9 +618,71 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
+// testConcurrentExecutionGenerateAnsibleConfig tests the concurrent execution
+// of the function generating the ansible configuration file
+func testConcurrentExecutionGenerateAnsibleConfig(t *testing.T) {
+	nbConcurrents := 100
+	var waitGroup sync.WaitGroup
+	errors := make(chan error, nbConcurrents)
+
+	// Additional config parameters to define in Ansible config
+	tunables := make(map[string]string, 1000)
+	for v := 0; v < 1000; v++ {
+		str := strconv.Itoa(v)
+		tunables[str] = str
+	}
+
+	for i := 0; i < nbConcurrents; i++ {
+		waitGroup.Add(1)
+		go routineGenerateAnsibleConfig(t, i, &waitGroup, tunables, errors)
+	}
+	waitGroup.Wait()
+
+	// Check no error occured
+	select {
+	case err := <-errors:
+		require.NoError(t, err, "Unexpected error generating ansible config concurrently")
+	default:
+	}
+
+}
+
+func routineGenerateAnsibleConfig(t *testing.T, id int, waitGroup *sync.WaitGroup,
+	tunables map[string]string, errors chan<- error) {
+
+	defer waitGroup.Done()
+
+	tempdir, err := ioutil.TempDir("", path.Base(t.Name()+strconv.Itoa(id)))
+	if err != nil {
+		fmt.Printf("Concurrent %d failed to to create temporary directory\n", id)
+		errors <- err
+		return
+	}
+	defer os.RemoveAll(tempdir)
+
+	ansibleAdditionalConfig := map[string]map[string]string{
+		ansibleInventoryHostsHeader: tunables,
+	}
+
+	yorcConfig := config.Configuration{
+		WorkingDirectory: tempdir,
+		Ansible: config.Ansible{
+			Config: ansibleAdditionalConfig,
+		},
+	}
+	execution := &executionCommon{cfg: yorcConfig}
+	err = execution.generateAnsibleConfigurationFile("ansiblePath", tempdir)
+
+	if err != nil {
+		fmt.Printf("Concurrent %d failed to generateAnsibleConfigurationFile\n", id)
+		errors <- err
+	}
+
+}
+
 func testExecutionGenerateAnsibleConfig(t *testing.T) {
 
-	// Create a tmeprariy directory where to create the ansible config file
+	// Create a temporary directory where to create the ansible config file
 	tempdir, err := ioutil.TempDir("", path.Base(t.Name()))
 	require.NoError(t, err, "Failed to create temporary directory")
 	defer os.RemoveAll(tempdir)
@@ -635,22 +701,29 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 	cfgPath := path.Join(yorcConfig.WorkingDirectory, "ansible.cfg")
 	resultMap, content := readAnsibleConfigSettings(t, cfgPath)
 
+	// An additional entry for retry_files_save_path should be added to default
+	// values
 	assert.Equal(t,
-		len(ansibleConfig[ansibleConfigDefaultsHeader]),
+		len(ansibleDefaultConfig[ansibleConfigDefaultsHeader])+1,
 		len(resultMap[ansibleConfigDefaultsHeader]),
 		"Missing entries in ansible config file, content: %q", content)
-	for k, v := range resultMap[ansibleConfigDefaultsHeader] {
-		assert.Equal(t, ansibleConfig[ansibleConfigDefaultsHeader][k], v, "Wrong ansible config value for %s", k)
+
+	for k, v := range ansibleDefaultConfig[ansibleConfigDefaultsHeader] {
+		assert.Equal(t, resultMap[ansibleConfigDefaultsHeader][k], v,
+			"Wrong ansible config value for %s", k)
 	}
+	v, ok := resultMap[ansibleConfigDefaultsHeader]["retry_files_save_path"]
+	assert.True(t, ok, "Found no entry for retry_files_save_path in ansible config")
+	assert.Equal(t, tempdir, v, "Unexpected value for retry_files_save_path value")
 
 	// Test enabling fact caching, it should add configuration settings
 	execution.CacheFacts = true
-	initialConfigMapLength := len(ansibleConfig[ansibleConfigDefaultsHeader])
+	initialConfigMapLength := len(ansibleDefaultConfig[ansibleConfigDefaultsHeader])
 	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
 	require.NoError(t, err, "Error generating ansible config file")
 	resultMap, content = readAnsibleConfigSettings(t, cfgPath)
 	assert.Equal(t,
-		initialConfigMapLength+len(ansibleFactCaching),
+		initialConfigMapLength+len(ansibleFactCaching)+1,
 		len(resultMap[ansibleConfigDefaultsHeader]),
 		"Missing entries in ansible config file with fact caching, content: %q", content)
 
@@ -671,14 +744,13 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 	execution = &executionCommon{
 		cfg: yorcConfig}
 
-	initialConfigMapLength = len(ansibleConfig[ansibleConfigDefaultsHeader])
 	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
 	require.NoError(t, err, "Error generating ansible config file")
 
 	resultMap, content = readAnsibleConfigSettings(t, cfgPath)
 
 	assert.Equal(t,
-		initialConfigMapLength+1,
+		initialConfigMapLength+2,
 		len(resultMap[ansibleConfigDefaultsHeader]),
 		"Missing entries in ansible config file with user-defined values, content: %q", content)
 
