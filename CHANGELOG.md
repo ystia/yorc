@@ -15,6 +15,7 @@
 * Secure bootstrap on Hosts Pool fails configuring infra, error "playbooks must be a list of plays" ([GH-396](https://github.com/ystia/yorc/issues/396))
 * Kubernetes infrastructure configuration support in Yorc is not able to detect erroneous config file path ([GH-378](https://github.com/ystia/yorc/issues/378))
 * Emit a persistent event on deployment purge ([GH-402](https://github.com/ystia/yorc/issues/402))
+* Invalid memory address panic appends on a workflow with non-existent on success step reference ([GH-417](https://github.com/ystia/yorc/issues/417))
 
 ## 3.2.0-RC1 (May 10, 2019)
 
