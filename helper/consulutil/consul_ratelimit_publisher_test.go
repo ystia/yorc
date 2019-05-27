@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v3/config"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestConsulStore(t *testing.T) {
@@ -272,6 +274,108 @@ func testExecuteKVTxn(t *testing.T, kv *api.KV) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := executeKVTxn(kv, tt.args.ops); (err != nil) != tt.wantErr {
 				t.Errorf("executeKVTxn() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadConsulStoreTxnEnv(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name             string
+		env              string
+		expectedDuration time.Duration
+		expectingPanic   bool
+	}{
+		{"NoEnv", "", 0, false},
+		{"EnvValid", "15s", 15 * time.Second, false},
+		{"EnvInvalid", "azerty", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt := tt
+			defer func() {
+				if tt.expectingPanic {
+					if r := recover(); r == nil {
+						t.Error("loadConsulStoreTxnEnv() panic expected")
+					}
+				}
+			}()
+			if tt.env != "" {
+				os.Setenv(ConsulStoreTxnTimeoutEnvName, tt.env)
+			} else {
+				os.Unsetenv(ConsulStoreTxnTimeoutEnvName)
+			}
+
+			loadConsulStoreTxnEnv()
+
+			if envTimeoutDuration != tt.expectedDuration {
+				t.Errorf("loadConsulStoreTxnEnv() expected duration %s actual %s", tt.expectedDuration, envTimeoutDuration)
+			}
+
+		})
+	}
+}
+
+func TestWithContext(t *testing.T) {
+
+	tests := []struct {
+		name           string
+		ctx            context.Context
+		expectingPanic bool
+	}{
+		{"BasicContext", context.Background(), false},
+		{"NilContext", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt := tt
+			defer func() {
+				if tt.expectingPanic {
+					if r := recover(); r == nil {
+						t.Error("WithContext() panic expected")
+					}
+				}
+			}()
+			gotContext, gotErrGroup, gotStore := WithContext(tt.ctx)
+			if gotContext == nil {
+				t.Error("WithContext() expecting a Context as return parameter")
+			}
+			if gotErrGroup == nil {
+				t.Error("WithContext() expecting an ErrGroup as return parameter")
+			}
+			if gotStore == nil {
+				t.Error("WithContext() expecting a ConsulStore as return parameter")
+			}
+
+		})
+	}
+}
+
+func Test_withContext(t *testing.T) {
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  context.Context
+		want1 *errgroup.Group
+		want2 *consulStore
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, got2 := withContext(tt.args.ctx)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("withContext() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("withContext() got1 = %v, want %v", got1, tt.want1)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("withContext() got2 = %v, want %v", got2, tt.want2)
 			}
 		})
 	}

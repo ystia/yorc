@@ -27,15 +27,21 @@ import (
 	"github.com/ystia/yorc/v3/log"
 )
 
+const ConsulStoreTxnTimeoutEnvName = "YORC_CONSUL_STORE_TXN_TIMEOUT"
+
 var envTimeoutDuration time.Duration
 
 func init() {
-	envTimeoutDurationString := os.Getenv("YORC_CONSUL_STORE_TXN_TIMEOUT")
+	loadConsulStoreTxnEnv()
+}
+
+func loadConsulStoreTxnEnv() {
+	envTimeoutDurationString := os.Getenv(ConsulStoreTxnTimeoutEnvName)
 	if envTimeoutDurationString != "" {
 		var err error
 		envTimeoutDuration, err = time.ParseDuration(envTimeoutDurationString)
 		if err != nil {
-			log.Panicf("%v", errors.Wrap(err, "invalid duration format for 'YORC_CONSUL_STORE_TXN_TIMEOUT' env var"))
+			log.Panicf("%v", errors.Wrapf(err, "invalid duration format for %q env var", ConsulStoreTxnTimeoutEnvName))
 		}
 	}
 }
