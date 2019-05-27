@@ -99,9 +99,8 @@ func setCancelPath(s *Step) {
 }
 
 func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSteps map[string]*tosca.Step, visitedMap map[string]*visitStep) (*Step, error) {
-	var wfStep *tosca.Step
-	var ok bool
-	if wfStep, ok = wfSteps[stepName]; !ok {
+	wfStep, ok := wfSteps[stepName]
+	if !ok {
 		return nil, errors.Errorf("Referenced step with name:%q doesn't exist in the workflow:%q", stepName, wfName)
 	}
 
@@ -113,6 +112,34 @@ func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSt
 		Target:             wfStep.Target,
 		Activities:         make([]Activity, 0, len(wfStep.Activities)),
 	}
+
+	targetIsMandatory, err := buildStepActivities(s, wfStep)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.Target == "" && targetIsMandatory {
+		return nil, errors.Errorf("Missing target attribute for Step %s", stepName)
+	}
+
+	s.Previous = make([]*Step, 0)
+	s.Next, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnSuccess, visitedMap)
+	if err != nil {
+		return nil, err
+	}
+	s.OnFailure, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnFailure, visitedMap)
+	if err != nil {
+		return nil, err
+	}
+	s.OnCancel, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnCancel, visitedMap)
+	if err != nil {
+		return nil, err
+	}
+	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
+	return s, nil
+}
+
+func buildStepActivities(s *Step, wfStep *tosca.Step) (bool, error) {
 	var targetIsMandatory bool
 	for _, wfActivity := range wfStep.Activities {
 		if wfActivity.Delegate != "" {
@@ -130,30 +157,11 @@ func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSt
 		} else if wfActivity.Inline != "" {
 			s.Activities = append(s.Activities, inlineActivity{inline: wfActivity.Inline})
 		} else {
-			return nil, errors.Errorf("Unsupported activity type for step: %q", stepName)
+			return false, errors.Errorf("Unsupported activity type for step: %q", s.Name)
 		}
 	}
 
-	if s.Target == "" && targetIsMandatory {
-		return nil, errors.Errorf("Missing target attribute for Step %s", stepName)
-	}
-
-	s.Previous = make([]*Step, 0)
-	var err error
-	s.Next, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnSuccess, visitedMap)
-	if err != nil {
-		return nil, err
-	}
-	s.OnFailure, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnFailure, visitedMap)
-	if err != nil {
-		return nil, err
-	}
-	s.OnCancel, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnCancel, visitedMap)
-	if err != nil {
-		return nil, err
-	}
-	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
-	return s, nil
+	return targetIsMandatory, nil
 }
 
 func buildStepsFromList(kv *api.KV, deploymentID, wfName, stepName string, currentStep *Step, wfSteps map[string]*tosca.Step, stepsList []string, visitedMap map[string]*visitStep) ([]*Step, error) {
