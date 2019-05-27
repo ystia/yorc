@@ -56,6 +56,9 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		t.Run("TestGetCapabilityProperty", func(t *testing.T) {
 			testGetCapabilityProperty(t, kv, deploymentID)
 		})
+		t.Run("TestGetCapabilityPropertyType", func(t *testing.T) {
+			testGetCapabilityPropertyType(t, kv, deploymentID)
+		})
 		t.Run("TestGetInstanceCapabilityAttribute", func(t *testing.T) {
 			testGetInstanceCapabilityAttribute(t, kv, deploymentID)
 		})
@@ -157,6 +160,53 @@ func testGetCapabilityProperty(t *testing.T, kv *api.KV, deploymentID string) {
 			}
 			if got != nil && got.RawString() != tt.propValue {
 				t.Fatalf("GetCapabilityProperty() %q propValue got = %v, want %v", tt.name, got.RawString(), tt.propValue)
+				return
+			}
+		})
+	}
+}
+
+func testGetCapabilityPropertyType(t *testing.T, kv *api.KV, deploymentID string) {
+	type args struct {
+		nodeName       string
+		capabilityName string
+		propertyName   string
+	}
+	tests := []struct {
+		name          string
+		args          args
+		propFound     bool
+		propTypeValue string
+		wantErr       bool
+	}{
+		{"GetCapabilityPropertyTypeDefinedInNode",
+			args{"node1", "scalable", "min_instances"}, true, "integer", false},
+		{"GetCapabilityPropertyTypeIntDefinedInNodeOfInheritedType",
+			args{"node1", "scalable", "default_instances"}, true, "integer", false},
+		{"GetCapabilityPropertyTypeStringDefinedInNodeOfInheritedType",
+			args{"node1", "endpoint", "prop1"}, true, "string", false},
+		{"GetCapabilityPropertyUndefinedProp",
+			args{"node1", "scalable", "udef"}, false, "", false},
+		{"GetCapabilityPropertyUndefinedCap",
+			args{"node1", "udef", "udef"}, false, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			propFound, propTypeValue, err := GetCapabilityPropertyType(kv, deploymentID,
+				tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetCapabilityPropertyType() %q error %v, wantErr %v",
+					tt.name, err, tt.wantErr)
+				return
+			}
+			if propFound != tt.propFound {
+				t.Fatalf("GetCapabilityPropertyType() %q propFound got %v, want %v",
+					tt.name, propFound, tt.propFound)
+				return
+			}
+			if propTypeValue != tt.propTypeValue {
+				t.Fatalf("GetCapabilityPropertyType() %q propTypeValue got %v, want %v",
+					tt.name, propTypeValue, tt.propTypeValue)
 				return
 			}
 		})

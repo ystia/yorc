@@ -30,6 +30,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testBuildStepWithNext", func(t *testing.T) {
 			testBuildStepWithNext(t, srv, kv)
 		})
+		t.Run("testBuildStepWithNonExistentNextStep", func(t *testing.T) {
+			testBuildStepWithNonExistentNextStep(t, srv, kv)
+		})
 		t.Run("testBuildStep", func(t *testing.T) {
 			testBuildStep(t, srv, kv)
 		})

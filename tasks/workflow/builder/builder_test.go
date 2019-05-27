@@ -89,6 +89,27 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) 
 
 }
 
+func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+	t.Parallel()
+
+	t.Log("Registering Key")
+	// Create a test key/value pair
+	deploymentID := "dep_" + path.Base(t.Name())
+	wfName := "wf_" + path.Base(t.Name())
+	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
+	data := make(map[string][]byte)
+	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/stepName/next/nonexistent"] = []byte("")
+	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
+
+	srv1.PopulateKV(t, data)
+
+	wfSteps, err := BuildWorkFlow(kv, deploymentID, wfName)
+	require.Errorf(t, err, "non-existent step should raise an error")
+	require.EqualError(t, err, "Referenced step with name:\"nonexistent\" doesn't exist in the workflow:\"wf_testBuildStepWithNonExistentNextStep\"")
+	require.Nil(t, wfSteps)
+}
+
 func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	t.Log("Registering Keys")

@@ -21,14 +21,14 @@ Yorc Server Configuration
 
 Yorc has various configuration options that could be specified either by command-line flags, configuration file or environment variables.
 
-If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file. 
+If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file.
 
 Globals Command-line options
 ----------------------------
 
 .. _option_ansible_ssh_cmd:
 
-  * ``--ansible_use_openssh``: Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts. OpenSSH have several optimization like reusing connections that should improve preformance but may lead to issues on older systems. 
+  * ``--ansible_use_openssh``: Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts. OpenSSH have several optimization like reusing connections that should improve preformance but may lead to issues on older systems.
 
 .. _option_ansible_debug_cmd:
 
@@ -138,6 +138,10 @@ Globals Command-line options
 
   * ``--wf_step_graceful_termination_timeout``: Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error. The default is ``2m``.
 
+.. _option_purged_deployments_eviction_timeout_cmd:
+
+  * ``--purged_deployments_eviction_timeout``: When a deployment is purged an event is kept to let a chance to external systems to detect it via the events API, this timeout controls the retention time of such events. The default is ``30m``.
+
 .. _option_http_addr_cmd:
 
   * ``--http_address``: Restrict the listening interface for the Yorc HTTP REST API. By default Yorc listens on all available interfaces
@@ -178,7 +182,7 @@ Globals Command-line options
 
   * ``--workers_number``: Yorc instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `30` will be used.
 
-.. _option_workdir_cmd: 
+.. _option_workdir_cmd:
 
   * ``--working_directory`` or ``-w``: Specify an alternative working directory for Yorc. The default is to use a directory named *work* in the current directory.
 
@@ -195,14 +199,14 @@ Globals Command-line options
 Configuration files
 -------------------
 
-Configuration files are either JSON or YAML formatted as a single object containing the following configuration options. 
-By default Yorc will look for a file named config.yorc.json in ``/etc/yorc`` directory then if not found in the current directory. 
+Configuration files are either JSON or YAML formatted as a single object containing the following configuration options.
+By default Yorc will look for a file named config.yorc.json in ``/etc/yorc`` directory then if not found in the current directory.
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
 Below is an example of configuration file.
 
 .. code-block:: JSON
-    
+
     {
       "resources_prefix": "yorc1-",
       "infrastructures": {
@@ -221,7 +225,7 @@ Below is an example of configuration file.
 Below is an example of configuration file with TLS enabled.
 
 .. code-block:: JSON
-    
+
     {
       "resources_prefix": "yorc1-",
       "key_file": "/etc/pki/tls/private/yorc.key",
@@ -245,6 +249,10 @@ Below is an example of configuration file with TLS enabled.
 .. _option_wf_step_termination_timeout_cfg:
 
   * ``wf_step_graceful_termination_timeout``: Equivalent to :ref:`--wf_step_graceful_termination_timeout <option_wf_step_termination_timeout_cmd>` command-line flag.
+
+.. _option_purged_deployments_eviction_timeout_cfg:
+
+  * ``purged_deployments_eviction_timeout``: Equivalent to :ref:`--purged_deployments_eviction_timeout <option_purged_deployments_eviction_timeout_cmd>` command-line flag.
 
 .. _option_http_addr_cfg:
 
@@ -282,7 +290,7 @@ Below is an example of configuration file with TLS enabled.
 
   * ``workers_number``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
 
-.. _option_workdir_cfg: 
+.. _option_workdir_cfg:
 
   * ``working_directory``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
 
@@ -302,7 +310,7 @@ Ansible configuration
 Below is an example of configuration file with Ansible configuration options.
 
 .. code-block:: JSON
-    
+
     {
       "resources_prefix": "yorc1-",
       "infrastructures": {
@@ -319,12 +327,12 @@ Below is an example of configuration file with Ansible configuration options.
         "use_openssh": true,
         "connection_retries": 3,
         "hosted_operations": {
-          "unsandboxed_operations_allowed": false,                                     
-          "default_sandbox": {                               
-            "image": "jfloff/alpine-python:2.7-slim",  
+          "unsandboxed_operations_allowed": false,
+          "default_sandbox": {
+            "image": "jfloff/alpine-python:2.7-slim",
             "entrypoint": ["python", "-c"],
-            "command": ["import time;time.sleep(31536000);"]                                                   
-          }            
+            "command": ["import time;time.sleep(31536000);"]
+          }
         },
         "config": {
           "defaults": {
@@ -385,7 +393,7 @@ All available configuration options for Ansible are:
 
     .. _option_ansible_sandbox_hosted_ops_unsandboxed_flag_cfg:
 
-    * ``unsandboxed_operations_allowed``: This option control if operations can be executed directly on the system that hosts Yorc if no default sandbox is defined. **This is not permitted by default.** 
+    * ``unsandboxed_operations_allowed``: This option control if operations can be executed directly on the system that hosts Yorc if no default sandbox is defined. **This is not permitted by default.**
 
     .. _option_ansible_sandbox_hosted_ops_default_sandbox_cfg:
 
@@ -420,11 +428,11 @@ Ansible config option
 ``config`` is a complex structure allowing to define `Ansible configuration settings
 <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_  if
 you need a specific Ansible Configuration.
-    
+
 You should first provide the Ansible Configuration section (for example ``defaults``,
 ``ssh_connection``...).
 
-You should then provide the list of parameters within this section, ie. what 
+You should then provide the list of parameters within this section, ie. what
 `Ansible documentation <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>`_ describes
 as the ``Ini key`` within the ``Ini Section``.
 Each parameter value must be provided here as a string : for a boolean parameter,
@@ -455,7 +463,7 @@ the Orchestrator adds these settings :
   * ``gathering: "smart"``, to set Ansible fact gathering to smart: each new host
     that has no facts discovered will be scanned
   * ``fact_caching: "jsonfile"``, to use a json file-based cache plugin
-	
+
 .. warning::
     Be careful when overriding these settings defined by default by the Orchestrator,
     as it might lead to unpredictable results.
@@ -465,7 +473,7 @@ the Orchestrator adds these settings :
 Ansible inventory option
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-``inventory`` is a structure allowing to configure `Ansible inventory settings 
+``inventory`` is a structure allowing to configure `Ansible inventory settings
 <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html>`_  if
 you need to define variables for hosts or groups.
 
@@ -493,11 +501,11 @@ By default, the Orchestrator will define :
     behavioral parameter:
 
     * ``ansible_ssh_common_args="-o ConnectionAttempts=20"``
-  
+
   * an inventory group ``hosted_operations``  and its associated variable group ``hosted_operations:vars``
     for operations that are executed on the orchestrator host, configuring by default
     this behavioral parameter:
-  
+
     * ``ansible_python_interpreter=/usr/bin/env python``
 
 .. warning::
@@ -527,7 +535,7 @@ Consul configuration
 Below is an example of configuration file with Consul configuration options.
 
 .. code-block:: JSON
-    
+
     {
       "resources_prefix": "yorc1-",
       "infrastructures": {
@@ -658,7 +666,7 @@ See :ref:`yorc_telemetry_section` for more information about telemetry.
 Below is an example of configuration file with telemetry metrics forwarded to a ``Statsd`` instance and with a ``Prometheus`` HTTP endpoint exposed.
 
 .. code-block:: JSON
-    
+
     {
       "resources_prefix": "yorc1-",
       "infrastructures": {
@@ -673,7 +681,7 @@ Below is an example of configuration file with telemetry metrics forwarded to a 
       },
       "telemetry": {
         "statsd_address": "127.0.0.1:8125",
-        "expose_prometheus_endpoint": true  
+        "expose_prometheus_endpoint": true
       }
     }
 
@@ -693,7 +701,7 @@ All available configuration options for telemetry are:
 
 .. _option_telemetry_statsd_cfg:
 
-  * ``statsd_address``: Specify the address (in form <address>:<port>) of a statsd server to forward metrics data to. 
+  * ``statsd_address``: Specify the address (in form <address>:<port>) of a statsd server to forward metrics data to.
 
 
 .. _option_telemetry_statsite_cfg:
@@ -854,6 +862,10 @@ Environment variables
 
   * ``YORC_WF_STEP_GRACEFUL_TERMINATION_TIMEOUT``: Equivalent to :ref:`--wf_step_graceful_termination_timeout <option_wf_step_termination_timeout_cmd>` command-line flag.
 
+.. _option_purged_deployments_eviction_timeout_env:
+
+  * ``YORC_PURGED_DEPLOYMENTS_EVICTION_TIMEOUT``: Equivalent to :ref:`--purged_deployments_eviction_timeout <option_purged_deployments_eviction_timeout_cmd>` command-line flag.
+
 .. _option_http_addr_env:
 
   * ``YORC_HTTP_ADDRESS``: Equivalent to :ref:`--http_address <option_http_addr_cmd>` command-line flag.
@@ -894,7 +906,7 @@ Environment variables
 
   * ``YORC_WORKERS_NUMBER``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
 
-.. _option_workdir_env: 
+.. _option_workdir_env:
 
   * ``YORC_WORKING_DIRECTORY``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
 
@@ -906,7 +918,7 @@ Environment variables
 
   * ``YORC_DISABLE_SSH_AGENT``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
 
-.. _option_log_env: 
+.. _option_log_env:
 
   * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
 
@@ -929,12 +941,12 @@ Environment variables
 .. _option_terraform_openstack_plugin_version_constraint:
 
   * ``YORC_TERRAFORM_OPENSTACK_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
- 
+
 .. _option_terraform_keep_generated_files_env:
 
   * ``YORC_TERRAFORM_KEEP_GENERATED_FILES``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
 
-.. _infrastructures_configuration: 
+.. _infrastructures_configuration:
 
 Infrastructures configuration
 -----------------------------
@@ -946,7 +958,7 @@ or an environment variable.
 The general principle is for a configurable option ``option_1`` for infrastructure ``infra1`` it should be specified in the configuration file as following:
 
 .. code-block:: JSON
-    
+
     {
       "infrastructures": {
         "infra1": {
@@ -954,21 +966,21 @@ The general principle is for a configurable option ``option_1`` for infrastructu
         }
       }
     }
-  
+
 Similarly a command line flag with the name ``--infrastructure_infra1_option_1`` and an environment variable with the name ``YORC_INFRA_INFRA1_OPTION_1`` will be
 automatically supported and recognized. The default order of precedence apply here.
 
 Builtin infrastructures configuration
 -------------------------------------
 
-.. _option_infra_os: 
+.. _option_infra_os:
 
 OpenStack
 ~~~~~~~~~
 
 OpenStack infrastructure key name is ``openstack`` in lower case.
 
-.. 
+..
    MAG - According to:
    https://github.com/sphinx-doc/sphinx/issues/3043
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
@@ -1018,14 +1030,14 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 
 
-.. _option_infra_kubernetes: 
+.. _option_infra_kubernetes:
 
 Kubernetes
 ~~~~~~~~~~
 
 Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 
-.. 
+..
    MAG - According to:
    https://github.com/sphinx-doc/sphinx/issues/3043
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
@@ -1054,8 +1066,8 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 
 * ``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
   cluster configuration file.
-  When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``, 
-  keys or certificates) don't have to be defined here. 
+  When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``,
+  keys or certificates) don't have to be defined here.
 
   If neither ``kubeconfig`` nor ``master_url`` is specified, the Orchestrator will
   consider it is running within a Kubernetes Cluster and will attempt to authenticate
@@ -1142,7 +1154,7 @@ Slurm infrastructure key name is ``slurm`` in lower case.
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 An alternative way to specify user credentials for SSH connection to the Slurm Client's node (user_name, password or private_key), is to provide them as application properties.
-In this case, Yorc gives priority to the application provided properties. 
+In this case, Yorc gives priority to the application provided properties.
 Moreover, if all the applications provide their own user credentials, the configuration properties user_name, password and private_key, can be omitted.
 See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
 
@@ -1156,37 +1168,37 @@ or an environment variable.
 The general principle is for a configurable option ``option_1`` it should be specified in the configuration file as following:
 
 .. code-block:: JSON
-    
+
     {
       "vault": {
         "type": "vault_implementation",
         "option_1": "value"
       }
     }
-  
+
 Similarly a command line flag with the name ``--vault_option_1`` and an environment variable with the name ``YORC_VAULT_OPTION_1`` will be
 automatically supported and recognized. The default order of precedence apply here.
 
 ``type`` is the only mandatory option for all vaults configurations, it allows to select the vault implementation by specifying it's ID. If the
 ``type`` option is not present either in the config file, as a command line flag or as an environment variable, Vault configuration will be ignored.
 
-The integration with a Vault is totally optional and this configuration part may be leave empty.  
+The integration with a Vault is totally optional and this configuration part may be leave empty.
 
 Builtin Vaults configuration
 ----------------------------
 
-.. _option_hashivault: 
+.. _option_hashivault:
 
 HashiCorp's Vault
 ~~~~~~~~~~~~~~~~~
 
-This is the only builtin supported Vault implementation. 
+This is the only builtin supported Vault implementation.
 Implementation ID to use with the vault type configuration parameter is ``hashicorp``.
 
 
 Bellow are recognized configuration options for Vault:
 
-.. 
+..
    MAG - According to:
    https://github.com/sphinx-doc/sphinx/issues/3043
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
@@ -1229,7 +1241,7 @@ above. It focus on configuration options commons to all the commands. Sub comman
 
 Just like for its server part Yorc Client CLI has various configuration options that could be specified either by command-line flags, configuration file or environment variables.
 
-If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file. 
+If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file.
 
 Command-line options
 --------------------
@@ -1270,8 +1282,8 @@ Command-line options
 Configuration files
 -------------------
 
-Configuration files are either JSON or YAML formatted as a single object containing the following configuration options. 
-By default Yorc will look for a file named yorc-client.json or yorc-client.yaml in ``/etc/yorc`` directory then if not found in the current directory. 
+Configuration files are either JSON or YAML formatted as a single object containing the following configuration options.
+By default Yorc will look for a file named yorc-client.json or yorc-client.yaml in ``/etc/yorc`` directory then if not found in the current directory.
 The :ref:`--config <option_client_config_cmd>` command line flag allows to specify an alternative configuration file.
 
 .. _option_client_ca_file_cfg:

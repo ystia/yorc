@@ -16,6 +16,7 @@ package rest
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -191,6 +192,12 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error analyzing archive for deployment %s\n", uid)
 		writeError(w, r, archiveErr)
 		return
+	}
+
+	ctx := context.Background()
+	err := deployments.CleanupPurgedDeployments(ctx, s.consulClient, s.config.PurgedDeploymentsEvictionTimeout, uid)
+	if err != nil {
+		log.Panicf("%v", err)
 	}
 
 	if err := deployments.StoreDeploymentDefinition(r.Context(), s.consulClient.KV(), uid, yamlFile); err != nil {

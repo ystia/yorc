@@ -45,6 +45,10 @@ capability_types:
         type: string
         default: "bind1"
   yorc.test.capabilities.Endpoint:
+    properties:
+      prop1:
+        type: string
+        default: "defaultValue"
     attributes:
       attr2:
         type: string
