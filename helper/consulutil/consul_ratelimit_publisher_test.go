@@ -22,12 +22,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v3/config"
 )
 
@@ -75,8 +73,11 @@ func TestConsulStore(t *testing.T) {
 	t.Run("StoreConsulKeyWithFlags", func(t *testing.T) {
 		testStoreConsulKeyWithFlags(t, kv)
 	})
-	t.Run("consulStore_StoreConsulKeyWithFlags", func(t *testing.T) {
-		testConsulStoreStoreConsulKeyWithFlags(t, kv)
+	t.Run("consulStore_StoreConsulKey", func(t *testing.T) {
+		testConsulStoreStoreConsulKey(t, kv)
+	})
+	t.Run("ExecuteKVTxn", func(t *testing.T) {
+		testExecuteKVTxn(t, kv)
 	})
 }
 
@@ -204,25 +205,24 @@ func testStoreConsulKeyWithFlags(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testConsulStoreStoreConsulKeyWithFlags(t *testing.T, kv *api.KV) {
+func testConsulStoreStoreConsulKey(t *testing.T, kv *api.KV) {
 	deploymentID := buildDeploymentID(t)
 
 	type args struct {
 		nb    int
 		key   string
 		value []byte
-		flags uint64
 	}
 	tests := []struct {
 		name             string
 		txPackingTimeout time.Duration
 		args             args
 	}{
-		{"TestSimpleNoTxn", 0, args{10, "key", []byte("vlae"), 30}},
-		{"TestTxnNotCompleted", 5 * time.Millisecond, args{10, "key", []byte("vlae"), 30}},
-		{"TestTxnExactly64Elem", 10 * time.Millisecond, args{64, "key", []byte("v"), 0}},
-		{"TestTxnMoreThan64Elem", 10 * time.Millisecond, args{65, "key", []byte("v"), 0}},
-		{"TestTxnMuchMoreThan64Elem", 10 * time.Millisecond, args{650, "key", []byte("v"), 0}},
+		{"TestSimpleNoTxn", 0, args{10, "key", []byte("vlae")}},
+		{"TestTxnNotCompleted", 5 * time.Millisecond, args{10, "key", []byte("vlae")}},
+		{"TestTxnExactly64Elem", 10 * time.Millisecond, args{64, "key", []byte("v")}},
+		{"TestTxnMoreThan64Elem", 10 * time.Millisecond, args{65, "key", []byte("v")}},
+		{"TestTxnMuchMoreThan64Elem", 10 * time.Millisecond, args{650, "key", []byte("v")}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -231,7 +231,7 @@ func testConsulStoreStoreConsulKeyWithFlags(t *testing.T, kv *api.KV) {
 			cs.txPackingTimeout = tt.txPackingTimeout
 
 			for i := 1; i <= tt.args.nb; i++ {
-				cs.StoreConsulKeyWithFlags(fmt.Sprintf("%s/%s-%d", deploymentID, tt.args.key, i), tt.args.value, tt.args.flags)
+				cs.StoreConsulKey(fmt.Sprintf("%s/%s-%d", deploymentID, tt.args.key, i), tt.args.value)
 			}
 
 			err := errGrp.Wait()
@@ -243,10 +243,35 @@ func testConsulStoreStoreConsulKeyWithFlags(t *testing.T, kv *api.KV) {
 				assert.NotNil(t, actual)
 
 				assert.Equal(t, tt.args.value, actual.Value, "StoreConsulKeyAsStringWithFlags() value missmatch")
+			}
+		})
+	}
+}
 
-				if actual.Flags != tt.args.flags {
-					t.Errorf("StoreConsulKeyAsStringWithFlags() flags for key: %q, expected %d, actual %d", tt.args.key, tt.args.flags, actual.Flags)
-				}
+func testExecuteKVTxn(t *testing.T, kv *api.KV) {
+	type args struct {
+		ops api.KVTxnOps
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"TestNoError", args{api.KVTxnOps{
+			&api.KVTxnOp{Verb: api.KVSet, Key: "k1", Value: []byte("value1")},
+			&api.KVTxnOp{Verb: api.KVSet, Key: "k2", Value: []byte("value2")},
+		}}, false},
+		{"TestError", args{api.KVTxnOps{
+			&api.KVTxnOp{Verb: api.KVSet, Key: "k3", Value: []byte("value3")},
+			&api.KVTxnOp{Verb: api.KVCheckNotExists, Key: "k2"},
+			&api.KVTxnOp{Verb: api.KVSet, Key: "k3", Value: []byte("value4")},
+			&api.KVTxnOp{Verb: api.KVCheckNotExists, Key: "k1"},
+		}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := executeKVTxn(kv, tt.args.ops); (err != nil) != tt.wantErr {
+				t.Errorf("executeKVTxn() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
