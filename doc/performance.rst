@@ -25,17 +25,16 @@ Consul Storage
 --------------
 
 Yorc heavily relies on Consul to synchronize Yorc instances and store configurations, runtime data and TOSCA data models.
-This lead to generate an important load pressure on Consul, under specific circumstances (thousands of deployments having
+This leads to generate an important load pressure on Consul, under specific circumstances (thousands of deployments having
 each an high number of TOSCA types and templates and poor latency performances on networks between Yorc and Consul server)
-you may experience some performances issues specially during the initialization phase of a deployment. This is because we
-this is when we store most of the data into Consul. To deal with this we recommend to carefully read
+you may experience some performance issues specially during the initialization phase of a deployment. This is because this is when we store most of the data into Consul. To deal with this we recommend to carefully read
 `the Consul documentation on performance <https://www.consul.io/docs/install/performance.html>`_ and update the default
 configuration if needed.
 
-You can find bellow some configuration options that could be adapted to fit your specific use case:
+You can find below some configuration options that could be adapted to fit your specific use case:
 
   * Yorc stores keys into Consul in highly parallel way, to prevent consuming too much connections and specially getting
-    into a ``max open file descriptor issue`` we use a mechanism that limit the number of open connections to Consul.
+    into a ``max open file descriptor issue`` we use a mechanism that limits the number of open connections to Consul.
     The number open connections can be set using :ref:`option_pub_routines_cmd`. The default value of ``500`` was determined
     empirically to fit the default ``1024`` maximum number of open file descriptors. Increasing this value could improve performances
     but you should also update accordingly the maximum number of open file descriptors.
@@ -45,7 +44,7 @@ You can find bellow some configuration options that could be adapted to fit your
     to a valid `Go duration <https://golang.org/pkg/time/#ParseDuration>`_. Consul transactions can contain up to 64 operations,
     ``YORC_CONSUL_STORE_TXN_TIMEOUT`` defines a timeout after which we stop waiting for new operations to pack into a single transaction and submit
     it as it to Consul.
-    We had pretty good results by setting this property to ``10ms``. This feature may became the default in the future after being tested
+    We had pretty good results by setting this property to ``10ms``. This feature may become the default in the future after being tested
     against different use cases and getting some feedback from production deployments.
 
 .. _tosca_operations_performance_section:
