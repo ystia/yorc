@@ -10,6 +10,7 @@
 
 ### BUG FIXES
 
+* Failure to deploy an application with Compute resources constraints on Hosts Pool ([GH-409](https://github.com/ystia/yorc/issues/409))
 * Yorc server crashes on error: fatal error: concurrent map write ([GH-413](https://github.com/ystia/yorc/issues/413))
 * Yorc bootstrap on HostPool in interactive mode should ask for hosts private IP addresses also ([GH-411](https://github.com/ystia/yorc/issues/411))
 * Secure bootstrap on Hosts Pool fails configuring infra, error "playbooks must be a list of plays" ([GH-396](https://github.com/ystia/yorc/issues/396))
