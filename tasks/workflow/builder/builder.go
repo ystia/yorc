@@ -99,7 +99,12 @@ func setCancelPath(s *Step) {
 }
 
 func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSteps map[string]*tosca.Step, visitedMap map[string]*visitStep) (*Step, error) {
-	wfStep := wfSteps[stepName]
+	var wfStep *tosca.Step
+	var ok bool
+	if wfStep, ok = wfSteps[stepName]; !ok {
+		return nil, errors.Errorf("Referenced step with name:%q doesn't exist in the workflow:%q", stepName, wfName)
+	}
+
 	s := &Step{
 		Name:               stepName,
 		WorkflowName:       wfName,
