@@ -68,7 +68,7 @@ const ansibleInventoryHostedHeader = "hosted_operations"
 const ansibleInventoryHostsVarsHeader = ansibleInventoryHostsHeader + ":vars"
 const ansibleInventoryHostedVarsHeader = ansibleInventoryHostedHeader + ":vars"
 
-var ansibleConfig = map[string]map[string]string{
+var ansibleDefaultConfig = map[string]map[string]string{
 	ansibleConfigDefaultsHeader: map[string]string{
 		"host_key_checking": "False",
 		"timeout":           "30",
@@ -1346,6 +1346,8 @@ func (e *executionCommon) vaultEncodeString(s, ansibleRecipePath string) (string
 func (e *executionCommon) generateAnsibleConfigurationFile(
 	ansiblePath, ansibleRecipePath string) error {
 
+	ansibleConfig := getAnsibleConfigFromDefault()
+
 	// Adding settings whose values are known at runtime, related to the deployment
 	// directory path
 	ansibleConfig[ansibleConfigDefaultsHeader]["retry_files_save_path"] = ansibleRecipePath
@@ -1385,4 +1387,16 @@ func (e *executionCommon) generateAnsibleConfigurationFile(
 	}
 
 	return err
+}
+
+func getAnsibleConfigFromDefault() map[string]map[string]string {
+	ansibleConfig := make(map[string]map[string]string, len(ansibleDefaultConfig))
+	for k, mapVal := range ansibleDefaultConfig {
+		newVal := make(map[string]string, len(mapVal))
+		for internalK, internalV := range mapVal {
+			newVal[internalK] = internalV
+		}
+		ansibleConfig[k] = newVal
+	}
+	return ansibleConfig
 }

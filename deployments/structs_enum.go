@@ -44,9 +44,11 @@ const (
 	UPDATED
 	// UPDATE_FAILURE is a DeploymentStatus of type UPDATE_FAILURE
 	UPDATE_FAILURE
+	// PURGED is a DeploymentStatus of type PURGED
+	PURGED
 )
 
-const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILURE"
+const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILUREPURGED"
 
 var _DeploymentStatusMap = map[DeploymentStatus]string{
 	0:  _DeploymentStatusName[0:7],
@@ -60,6 +62,7 @@ var _DeploymentStatusMap = map[DeploymentStatus]string{
 	8:  _DeploymentStatusName[126:144],
 	9:  _DeploymentStatusName[144:151],
 	10: _DeploymentStatusName[151:165],
+	11: _DeploymentStatusName[165:171],
 }
 
 func (i DeploymentStatus) String() string {
@@ -81,6 +84,7 @@ var _DeploymentStatusValue = map[string]DeploymentStatus{
 	_DeploymentStatusName[126:144]: 8,
 	_DeploymentStatusName[144:151]: 9,
 	_DeploymentStatusName[151:165]: 10,
+	_DeploymentStatusName[165:171]: 11,
 }
 
 // ParseDeploymentStatus attempts to convert a string to a DeploymentStatus
