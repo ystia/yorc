@@ -29,7 +29,8 @@ import "encoding/json"
 // SCALING_IN_PROGRESS,
 // UPDATE_IN_PROGRESS,
 // UPDATED,
-// UPDATE_FAILURE
+// UPDATE_FAILURE,
+// PURGED
 // )
 type DeploymentStatus int
 
