@@ -27,6 +27,11 @@ import (
 	"github.com/ystia/yorc/v3/log"
 )
 
+// ConsulStoreTxnTimeoutEnvName is the name of the environment variable that allows to activate the feature that
+// pack ConsulStore operations into transactions. If the variable is empty or not set then the process is the same
+// as usual and operations are sent individually to Consul. Otherwise if set to a valid Go duration then operations
+// are packed into transactions up to 64 ops and this timeout represent the time to wait for new operations before
+// sending an incomplete (less than 64 ops) transaction to Consul.
 const ConsulStoreTxnTimeoutEnvName = "YORC_CONSUL_STORE_TXN_TIMEOUT"
 
 var envTimeoutDuration time.Duration
