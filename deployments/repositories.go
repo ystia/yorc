@@ -30,21 +30,16 @@ const DockerHubURL = "https://hub.docker.com/"
 const SingularityHubURL = "https://singularity-hub.org/"
 
 // GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
-func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (url string, err error) {
+func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "url"), nil)
 	if err != nil {
-		err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		return
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-
 	if res == nil {
-		err = errors.Errorf("The repository %v has been not found", repoName)
-		return
+		return "", errors.Errorf("The repository %v has been not found", repoName)
 	}
-
-	url = string(res.Value)
-	return
+	return string(res.Value), nil
 }
 
 // GetRepositoryTokenTypeFromName retrieves the token_type of credential for a given repoName
@@ -63,31 +58,27 @@ func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (
 }
 
 // GetRepositoryTokenUserFromName This function get the credentials (user/token) for a given repoName
-func GetRepositoryTokenUserFromName(kv *api.KV, deploymentID, repoName string) (token string, user string, err error) {
+func GetRepositoryTokenUserFromName(kv *api.KV, deploymentID, repoName string) (string, string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token"), nil)
 	if err != nil {
-		err = errors.Wrap(err, "An error has occurred when trying to get repository token")
-		return
+		return "", "", errors.Wrap(err, "An error has occurred when trying to get repository token")
 	}
 
 	resUser, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "user"), nil)
 	if err != nil {
-		err = errors.Wrap(err, "An error has occurred when trying to get repository user")
-		return
+		return "", "", errors.Wrap(err, "An error has occurred when trying to get repository user")
 	}
 
 	if res == nil {
-		err = errors.Errorf("The repository %v has been not found", repoName)
-		return
+		return "", "", errors.Errorf("The repository %v has been not found", repoName)
 	}
 
-	token = string(res.Value)
+	token := string(res.Value)
+	var user string
 	if resUser != nil {
 		user = string(resUser.Value)
-	} else {
-		user = ""
 	}
 
-	return
+	return token, user, nil
 }

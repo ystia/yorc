@@ -1,0 +1,24 @@
+tosca_definitions_version: alien_dsl_1_4_0
+description: Alien4Cloud generated service template
+metadata:
+  template_name: Repositories
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+imports:
+  - tosca-normative-types: <normative-types.yml>
+
+repositories:
+  ystia-artifactory-docker:
+    url: ystia-docker.jfrog.io
+    type: docker
+    credential:
+      token_type: password_token
+      token: my_super_secret_passwd
+      user: myuser
+  ystia-artifactory-http:
+    url: "https://ystia.jfrog.io/ystia/binaries/"
+    type: docker
+    credential:
+      token: my_super_secret_passwd
+      user: myuser
