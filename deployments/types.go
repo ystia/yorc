@@ -66,7 +66,6 @@ func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
 	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
 	// Check if node type exist
 	exits, err := checkIfTypeExists(kv, typePath)
-	//exists, err := consulutil.HasChildrenKeys(kv, typePath)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +81,6 @@ func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
 	for _, builtinTypesPath := range builtinTypesPaths {
 		typePath = path.Join(builtinTypesPath, typeName)
 		exits, err := checkIfTypeExists(kv, typePath)
-		//exists, err := consulutil.HasChildrenKeys(kv, typePath)
 		if err != nil {
 			return "", err
 		}
