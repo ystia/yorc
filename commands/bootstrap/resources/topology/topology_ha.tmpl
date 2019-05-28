@@ -1462,24 +1462,36 @@ topology_template:
     uninstall:
       steps:
         {{if not .Insecure}}
+        VaultServer_stop:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - VaultServer_stopped
         VaultServer_stopping:
           target: VaultServer
           activities:
             - set_state: stopping
           on_success:
-            - VaultServer_stopped
+            - VaultServer_stop
         VaultServer_stopped:
           target: VaultServer
           activities:
             - set_state: stopped
           on_success:
             - VaultServer_deleting
+        VaultServer_delete:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - VaultServer_deleted
         VaultServer_deleting:
           target: VaultServer
           activities:
             - set_state: deleting
           on_success:
-            - VaultServer_deleted
+            - VaultServer_delete
         VaultServer_deleted:
           target: VaultServer
           activities:
@@ -1648,12 +1660,18 @@ topology_template:
             - set_state: deleting
           on_success:
             - YorcOnDemandLocationResources_deleted
+        Alien4Cloud_stop:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - Alien4Cloud_stopped
         Alien4Cloud_stopping:
           target: Alien4Cloud
           activities:
             - set_state: stopping
           on_success:
-            - Alien4Cloud_stopped
+            - Alien4Cloud_stop
         ConsulAgentYorcServer_stopping:
           target: ConsulAgentYorcServer
           activities:
@@ -1716,12 +1734,18 @@ topology_template:
             - set_state: deleting
           on_success:
             - Infrastructure_deleted
+        ConsulServer_delete:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - ConsulServer_deleted
         ConsulServer_deleting:
           target: ConsulServer
           activities:
             - set_state: deleting
           on_success:
-            - ConsulServer_deleted
+            - ConsulServer_delete
         NFSServer_stopping:
           target: NFSServer
           activities:
@@ -1733,7 +1757,7 @@ topology_template:
           activities:
             - set_state: deleting
           on_success:
-            - AnsibleRuntime_delete
+            - AnsibleRuntime_deleted
         NFSClient_stopping:
           target: NFSClient
           activities:
@@ -1795,12 +1819,6 @@ topology_template:
             - set_state: deleting
           on_success:
             - JDK_deleted
-        AnsibleRuntime_delete:
-          target: AnsibleRuntime
-          activities:
-            - call_operation: Standard.delete
-          on_success:
-            - AnsibleRuntime_deleted
         YorcServer_deleting:
           target: YorcServer
           activities:
@@ -1914,12 +1932,18 @@ topology_template:
           activities:
             - delegate: uninstall
         {{end}}
+        Alien4Cloud_delete:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - Alien4Cloud_deleted
         Alien4Cloud_deleting:
           target: Alien4Cloud
           activities:
             - set_state: deleting
           on_success:
-            - Alien4Cloud_deleted
+            - Alien4Cloud_delete
         ConsulServer_stopped:
           target: ConsulServer
           activities:
@@ -2262,12 +2286,18 @@ topology_template:
     stop:
       steps:
         {{if not .Insecure}}
+        VaultServer_stop:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - VaultServer_stopped
         VaultServer_stopping:
           target: VaultServer
           activities:
             - set_state: stopping
           on_success:
-            - VaultServer_stopped
+            - VaultServer_stop
         VaultServer_stopped:
           target: VaultServer
           activities:
@@ -2437,12 +2467,18 @@ topology_template:
             - set_state: stopping
           on_success:
             - Infrastructure_stopped
+        Alien4Cloud_stop:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - Alien4Cloud_stopped
         Alien4Cloud_stopping:
           target: Alien4Cloud
           activities:
             - set_state: stopping
           on_success:
-            - Alien4Cloud_stopped
+            - Alien4Cloud_stop
         ConsulAgentYorcServer_stopping:
           target: ConsulAgentYorcServer
           activities:

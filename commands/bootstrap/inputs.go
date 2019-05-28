@@ -743,7 +743,8 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	}
 
 	// In insecure mode, the infrastructure secrets will not be stored in vault
-	if insecure {
+	// (Hosts Pool infrastructure config doesn't have this use_vault property)
+	if insecure && infrastructureType != "hostspool" {
 		inputValues.Infrastructures[infrastructureType].Set("use_vault", false)
 	}
 
