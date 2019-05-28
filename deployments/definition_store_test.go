@@ -16,17 +16,23 @@ package deployments
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	stdlog "log"
 	"path"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	ctu "github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 func testDefinitionStore(t *testing.T, kv *api.KV) {
@@ -743,9 +749,31 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 			if got != nil && got.RawString() != tt.want {
 				t.Errorf("GetTopologyOutput() = %q, want %q", got.RawString(), tt.want)
 			}
+
+			checkTopologyOutputs(t, kv, deploymentID)
 		})
 	}
 
+}
+
+func checkTopologyOutputs(t *testing.T, kv *api.KV, deploymentID string) {
+	got, err := GetTopologyOutputsNames(kv, deploymentID)
+	if err != nil {
+		t.Errorf("GetTopologyOutputsNames() error = %v", err)
+		return
+	}
+	expectedResults := []string{"literal", "literalDefault", "complex", "complexDef", "baseComplex", "baseComplexDef", "node1Lit", "node2BaseComplexPropNestedSubComplexLiteral", "node2BaseComplexPropNestedSubComplexLiteral"}
+	if len(got) != len(expectedResults) {
+		t.Errorf("GetTopologyOutputsNames() expecting = %d results got %d", len(expectedResults), len(got))
+		return
+	}
+
+	for _, o := range expectedResults {
+		if !collections.ContainsString(got, o) {
+			t.Errorf("GetTopologyOutputsNames() output = %q missing", o)
+			return
+		}
+	}
 }
 
 func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
@@ -1047,4 +1075,28 @@ func testAttributeNotifications(t *testing.T, kv *api.KV) {
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
 	}
+}
+
+func BenchmarkDefinitionStore(b *testing.B) {
+	log.SetDebug(false)
+	log.SetOutput(ioutil.Discard)
+	stdlog.SetOutput(ioutil.Discard)
+
+	cb := func(c *ctu.TestServerConfig) {
+		c.LogLevel = "err"
+		c.Stdout = ioutil.Discard
+		c.Stderr = ioutil.Discard
+	}
+
+	srv, client := testutil.NewTestConsulInstanceWithConfig(b, cb)
+	kv := client.KV()
+	defer srv.Stop()
+	deploymentID := testutil.BuildDeploymentID(b)
+	ctx := context.Background()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		StoreDeploymentDefinition(ctx, kv, fmt.Sprintf("%s-%d", deploymentID, i), "testdata/import_many_types.yaml")
+	}
+	b.StopTimer()
+
 }

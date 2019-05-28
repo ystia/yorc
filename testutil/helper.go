@@ -31,16 +31,26 @@ import (
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
 // Warning: You need to defer the server stop command in the caller
-func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
 	}
 
-	srv1, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
+	cb := func(c *testutil.TestServerConfig) {
 		c.Args = []string{"-ui"}
 		c.LogLevel = logLevel
-	})
+	}
+	return NewTestConsulInstanceWithConfig(t, cb)
+}
+
+// NewTestConsulInstanceWithConfig sets up a consul instance for testing
+//
+//  - creates and returns a new Consul server and client
+//  - starts a Consul Publisher
+// Warning: You need to defer the server stop command in the caller
+func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client) {
+	srv1, err := testutil.NewTestServerConfig(cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
@@ -64,6 +74,6 @@ func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 }
 
 // BuildDeploymentID allows to create a deploymentID from the test name value
-func BuildDeploymentID(t *testing.T) string {
+func BuildDeploymentID(t testing.TB) string {
 	return strings.Replace(t.Name(), "/", "_", -1)
 }

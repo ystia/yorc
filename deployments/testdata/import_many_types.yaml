@@ -1,0 +1,45 @@
+tosca_definitions_version: alien_dsl_2_0_0
+description: Alien4Cloud generated service template
+metadata:
+  template_name: ImportMany
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+imports:
+  - ../../data/tosca/normative-types.yml
+  - ../../data/tosca/yorc-aws-types.yml
+  - ../../data/tosca/yorc-docker-types.yml
+  - ../../data/tosca/yorc-google-types.yml
+  - ../../data/tosca/yorc-hostspool-types.yml
+  - ../../data/tosca/yorc-kubernetes-types.yml
+  - ../../data/tosca/yorc-openstack-types.yml
+  - ../../data/tosca/yorc-slurm-types.yml
+  - ../../data/tosca/yorc-types.yml
+  - imports/operation_implementation_artifact.yaml
+
+node_types:
+  yorc.tests.nodes.OpImplementationArtifact:
+    derived_from: tosca.nodes.Root
+    properties:
+      p1:
+        type: string
+        default: "Val1"
+    interfaces:
+      Standard:
+        create:
+          inputs:
+            L1: 1
+            L2: {get_property: [SELF, p1]}
+          implementation:
+            file: scripts/create.sh
+            type: tosca.artifacts.Implementation.Bash
+
+relationship_types:
+  yorc.tests.relationships.OpImplementationArtifact:
+    derived_from: tosca.relationships.Root
+    interfaces:
+      Configure:
+        pre_configure_source:
+          implementation:
+            file: something
+            type: tosca.artifacts.Implementation.Bash

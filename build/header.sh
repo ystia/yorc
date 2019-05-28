@@ -14,7 +14,7 @@
 # limitations under the License.
 
 #set -x
-export GO111MODULE=on 
+export GO111MODULE=on
 
 if [[ -z "$(which addlicense)" ]] ; then
     >&2 echo "addlicense binary not in path. Should perform 'make tools'."
@@ -23,7 +23,7 @@ fi
 
 LICENSE="apache"
 OWNER="Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France."
-YEAR="2018"
+YEAR="2019"
 
 ## Add copyright header for go files (test includes)
 go list -f '{{range $i, $g := .GoFiles}}{{printf "%s/%s " $.Dir $g}}{{end}} {{range $i, $g := .TestGoFiles}}{{printf "%s/%s " $.Dir $g}}{{end}}' ./... | tr '\n' ' ' | xargs addlicense -c "$OWNER" -l "$LICENSE" -y "$YEAR"
