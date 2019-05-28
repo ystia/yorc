@@ -31,6 +31,8 @@ import (
 	"github.com/ystia/yorc/v3/log"
 )
 
+const purgedDeploymentsLock = consulutil.PurgedDeploymentKVPrefix + ".lock"
+
 type deploymentNotFound struct {
 	deploymentID string
 }
@@ -209,6 +211,10 @@ func CleanupPurgedDeployments(ctx context.Context, cc *api.Client, evictionTimeo
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, kvp := range kvpList {
+		if kvp.Key == purgedDeploymentsLock {
+			// ignore lock
+			continue
+		}
 		deploymentID := path.Base(kvp.Key)
 		if collections.ContainsString(extraDeployments, deploymentID) {
 			err = cleanupPurgedDeployment(ctx, cc.KV(), deploymentID)
@@ -219,7 +225,7 @@ func CleanupPurgedDeployments(ctx context.Context, cc *api.Client, evictionTimeo
 		}
 		purgeDate, err := time.Parse(time.RFC3339Nano, string(kvp.Value))
 		if err != nil {
-			log.Print("WARN failed to parse %q for purged timestamp of deployment %q", string(kvp.Value), deploymentID)
+			log.Printf("WARN failed to parse %q for purged timestamp of deployment %q", string(kvp.Value), deploymentID)
 			continue
 		}
 		if purgeDate.Add(evictionTimeout).Before(time.Now()) {
@@ -250,7 +256,7 @@ func cleanupPurgedDeployment(ctx context.Context, kv *api.KV, deploymentID strin
 }
 
 func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Lock, <-chan struct{}, error) {
-	lock, err := cc.LockKey(consulutil.PurgedDeploymentKVPrefix + ".lock")
+	lock, err := cc.LockKey(purgedDeploymentsLock)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
