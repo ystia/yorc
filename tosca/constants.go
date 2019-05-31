@@ -28,3 +28,6 @@ const RunnableCancelOperationName = RunnableInterfaceName + ".cancel"
 
 // StandardInterfaceName is the fully qualified name of the Standard interface
 const StandardInterfaceName = "tosca.interfaces.node.lifecycle.standard"
+
+// StandardInterfaceShortName is the short name of the Standard interface
+const StandardInterfaceShortName = "standard"
