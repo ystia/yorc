@@ -55,6 +55,7 @@ func testOperationImplementationArtifactPrimary(t *testing.T, kv *api.KV, deploy
 		want checks
 	}{
 		{"TestBashOnNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "scripts/create.sh"}},
+		{"TestBashOnNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "tosca.interfaces.node.lifecycle.standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "scripts/create.sh"}},
 		{"TestBashOnRelType", args{"yorc.tests.relationships.OpImplementationArtifact", "configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "something"}},
 		{"TestBashOnImportedRelType", args{"yorc.tests.relationships.imports.OpImplementationArtifact", "configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "imports/something"}},
 		{"TestBashOnImportedNodeType", args{"yorc.tests.nodes.imports.OpImplementationArtifact", "standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "imports/scripts/create.sh"}},
@@ -88,6 +89,7 @@ func testGetOperationImplementationFile(t *testing.T, kv *api.KV, deploymentID s
 		want want
 	}{
 		{"TestOpImplemFileOnImplemArtifactNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "standard.create"}, want{"scripts/create.sh", "scripts/create.sh"}},
+		{"TestOpImplemFileOnImplemArtifactNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "tosca.interfaces.node.lifecycle.standard.create"}, want{"scripts/create.sh", "scripts/create.sh"}},
 		{"TestOpImplemFileOnImplemArtifactRelType", args{"yorc.tests.relationships.OpImplementationArtifact", "configure.pre_configure_source"}, want{"something", "something"}},
 		{"TestOpImplemFileOnImplemArtifactImportedNodeType", args{"yorc.tests.nodes.imports.OpImplementationArtifact", "standard.create"}, want{"scripts/create.sh", "imports/scripts/create.sh"}},
 		{"TestOpImplemFileOnImplemArtifactImportedRelType", args{"yorc.tests.relationships.imports.OpImplementationArtifact", "configure.pre_configure_source"}, want{"something", "imports/something"}},
@@ -125,6 +127,7 @@ func testOperationHost(t *testing.T, kv *api.KV) {
 		wantErr bool
 	}{
 		{"TestOperationHostOnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "create"}, "ORCHESTRATOR", false},
+		{"TestOperationHostOnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "tosca.interfaces.node.lifecycle.standard", "create"}, "ORCHESTRATOR", false},
 		{"TestOperationHostDefault1OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "configure"}, "", false},
 		{"TestOperationHostDefault2OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "start"}, "", false},
 		{"TestOperationHostDefault3OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "stop"}, "", false},
