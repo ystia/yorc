@@ -31,3 +31,9 @@ const StandardInterfaceName = "tosca.interfaces.node.lifecycle.standard"
 
 // StandardInterfaceShortName is the short name of the Standard interface
 const StandardInterfaceShortName = "standard"
+
+// ConfigureInterfaceName is the fully qualified name of the Configure interface
+const ConfigureInterfaceName = "tosca.interfaces.relationships.configure"
+
+// ConfigureInterfaceShortName is the short name of the Configure interface
+const ConfigureInterfaceShortName = "configure"
