@@ -25,6 +25,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -256,6 +257,20 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	data := map[string]string{
 		"workflowName": "uninstall",
 	}
+	// Default is not to stop on error for undeployment
+	stopOnError := false
+	if stopKeys, ok := r.URL.Query()["stopOnError"]; ok {
+		if len(stopKeys) > 0 && len(stopKeys[0]) > 0 {
+			stopOnError, err = strconv.ParseBool(stopKeys[0])
+			if err != nil {
+				writeError(w, r, newBadRequestMessage("stopOnError URL parameter must be a boolean value"))
+				return
+			}
+		} else {
+			stopOnError = true
+		}
+	}
+	data["continueOnError"] = strconv.FormatBool(!stopOnError)
 	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {
 		log.Debugf("register task has returned an err:%q", err.Error())
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {

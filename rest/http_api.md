@@ -104,8 +104,9 @@ Content-Type: application/json
 ### Undeploy  an active deployment <a name="undeploy"></a>
 
 Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the yorc database at the end of the undeployment. A successful call to this endpoint results in a HTTP status code 202 with a 'Location' header relative to the base URI indicating the task URI handling the undeployment process.
+By adding the optional 'stopOnError' url parameter to your request, the un-deployment will stop at the first encountered error. Otherwise, it will continue until the end.
 
-`DELETE /deployments/<deployment_id>[?purge]`
+`DELETE /deployments/<deployment_id>[?purge]&[stopOnError]`
 
 **Response**:
 

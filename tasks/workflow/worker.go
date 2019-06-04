@@ -578,7 +578,16 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 			// Set it to undeployed anyway
 			return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
 		}
-		return w.runWorkflowStep(ctx, t, "uninstall", true)
+		continueOnError, err := tasks.GetTaskData(t.cc.KV(), t.taskID, "continueOnError")
+		if err != nil {
+			return err
+		}
+		bypassErrors, err := strconv.ParseBool(continueOnError)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse \"continueOnError\" flag for custom workflow")
+		}
+
+		return w.runWorkflowStep(ctx, t, "uninstall", bypassErrors)
 	} else if t.taskType == tasks.TaskTypePurge {
 		return w.runPurge(ctx, t)
 	}
