@@ -2,6 +2,7 @@ language: go
 go:
   - stable
 
+dist: trusty
 sudo: required
 
 services:
@@ -37,7 +38,10 @@ script:
   # coverage.txt is for codecov.io while c.out is for codeclimate.com
   - sed -i -e "s@$(go list)/@@g" c.out
   - "./docker_build.sh"
-  -  bash build/deploy_artifactory.sh
+  - bash build/deploy_artifactory.sh
+  # -count is for disabling test cache
+  - go test -tags "testing" -json -count 1 ./... > tests-reports.json
+  - sonar-scanner
 
 after_script:
   - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
@@ -68,3 +72,10 @@ addons:
     - texlive-latex-base
     - texlive-latex-extra
     - texlive-latex-recommended
+
+  sonarcloud:
+    organization: "ystia"
+
+cache:
+  directories:
+    - '$HOME/.sonar/cache'
