@@ -42,7 +42,7 @@ script:
   - "./docker_build.sh"
   - bash build/deploy_artifactory.sh
   - make json-test
-  - git fetch origin develop
+  - git fetch --no-tags origin +refs/heads/develop:refs/remotes/origin/develop
   - git fetch --unshallow --quiet
   - sonar-scanner --define "sonar.projectVersion=$(grep "yorc_version" versions.yaml | awk '{print $2}')"
 
