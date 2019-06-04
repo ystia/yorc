@@ -42,7 +42,8 @@ script:
   - "./docker_build.sh"
   - bash build/deploy_artifactory.sh
   - make json-test
-  - sonar-scanner
+  - git fetch --unshallow --quiet
+  - sonar-scanner --define "sonar.projectVersion=$(grep "yorc_version" versions.yaml | awk '{print $2}')"
 
 after_script:
   - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
