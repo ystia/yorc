@@ -324,7 +324,7 @@ func GetInstanceCapabilityAttributeValue(kv *api.KV, deploymentID, nodeName, ins
 	return GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
 }
 
-func getEndpointCapabilitityHostIpAttributeNameAndNetName(kv *api.KV, deploymentID, nodeName, capabilityName string) (string, *TOSCAValue, error) {
+func getEndpointCapabilitityHostIPAttributeNameAndNetName(kv *api.KV, deploymentID, nodeName, capabilityName string) (string, *TOSCAValue, error) {
 	// First check the network name in the capability property to find the right
 	// IP address attribute (default: private address)
 	ipAddressAttrName := "private_address"
@@ -342,7 +342,7 @@ func getEndpointCapabilitityHostIpAttributeNameAndNetName(kv *api.KV, deployment
 
 func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance,
 	nodeName, instanceName, capabilityName string) (*TOSCAValue, error) {
-	ipAddressAttrName, netName, err := getEndpointCapabilitityHostIpAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
+	ipAddressAttrName, netName, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return nil, err
 	}
