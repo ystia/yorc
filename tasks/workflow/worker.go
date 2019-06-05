@@ -562,21 +562,20 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 	if status != deployments.UNDEPLOYED {
 		deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		t.finalFunction = func() error {
-			defer func() {
-				// in all cases, if purge has been requested, run it at the end
-				if t.taskType == tasks.TaskTypePurge {
-					err := w.runPurge(ctx, t)
-					if err != nil {
-						log.Printf("%+v", err)
-					}
-				}
-			}()
-			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+			taskStatus, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
 				return err
 			}
-			// Set it to undeployed anyway
-			return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
+			if taskStatus != tasks.TaskStatusDONE {
+				return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_FAILED)
+			}
+			deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
+
+			// if purge has been requested, run it at the end except for un-deployment failure
+			if t.taskType == tasks.TaskTypePurge {
+				return w.runPurge(ctx, t)
+			}
+			return nil
 		}
 		continueOnError, err := tasks.GetTaskData(t.cc.KV(), t.taskID, "continueOnError")
 		if err != nil {
