@@ -215,9 +215,9 @@ func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, n
 	return nil
 }
 
-func getNotifierForIpAddressAttributeOfAnEndpoint(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName string) (*AttributeNotifier, error) {
+func getNotifierForIPAddressAttributeOfAnEndpoint(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName string) (*AttributeNotifier, error) {
 	// We need to determine if we should look at the private_address or public_address of the host
-	attrName, _, err := getEndpointCapabilitityHostIpAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
+	attrName, _, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeN
 				return err
 			}
 			if isEndpoint && capAttrName == "ip_address" {
-				notifier, err := getNotifierForIpAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
+				notifier, err := getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
 				if err != nil {
 					return err
 				}
@@ -475,7 +475,7 @@ func (notifiedAttr *notifiedAttribute) findAttributeNotifier(kv *api.KV, operand
 			}
 			if isEndpointCap && attrName == "ip_address" {
 				// So here we are
-				return getNotifierForIpAddressAttributeOfAnEndpoint(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName)
+				return getNotifierForIPAddressAttributeOfAnEndpoint(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName)
 			}
 		}
 
