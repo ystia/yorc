@@ -55,8 +55,11 @@ func testOperationImplementationArtifactPrimary(t *testing.T, kv *api.KV, deploy
 		want checks
 	}{
 		{"TestBashOnNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "scripts/create.sh"}},
+		{"TestBashOnNodeTypeFQInterfaceName", args{"yorc.tests.nodes.OpImplementationArtifact", "tosca.interfaces.node.lifecycle.standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "scripts/create.sh"}},
 		{"TestBashOnRelType", args{"yorc.tests.relationships.OpImplementationArtifact", "configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "something"}},
 		{"TestBashOnImportedRelType", args{"yorc.tests.relationships.imports.OpImplementationArtifact", "configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "imports/something"}},
+		{"TestBashOnRelTypeWithFQInterfaceName", args{"yorc.tests.relationships.OpImplementationArtifact", "tosca.interfaces.relationships.configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "something"}},
+		{"TestBashOnImportedRelTypeFQInterfaceName", args{"yorc.tests.relationships.imports.OpImplementationArtifact", "tosca.interfaces.relationships.configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "imports/something"}},
 		{"TestBashOnImportedNodeType", args{"yorc.tests.nodes.imports.OpImplementationArtifact", "standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "imports/scripts/create.sh"}},
 	}
 
@@ -88,9 +91,11 @@ func testGetOperationImplementationFile(t *testing.T, kv *api.KV, deploymentID s
 		want want
 	}{
 		{"TestOpImplemFileOnImplemArtifactNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "standard.create"}, want{"scripts/create.sh", "scripts/create.sh"}},
+		{"TestOpImplemFileOnImplemArtifactNodeTypeFQInterfaceName", args{"yorc.tests.nodes.OpImplementationArtifact", "tosca.interfaces.node.lifecycle.standard.create"}, want{"scripts/create.sh", "scripts/create.sh"}},
 		{"TestOpImplemFileOnImplemArtifactRelType", args{"yorc.tests.relationships.OpImplementationArtifact", "configure.pre_configure_source"}, want{"something", "something"}},
 		{"TestOpImplemFileOnImplemArtifactImportedNodeType", args{"yorc.tests.nodes.imports.OpImplementationArtifact", "standard.create"}, want{"scripts/create.sh", "imports/scripts/create.sh"}},
 		{"TestOpImplemFileOnImplemArtifactImportedRelType", args{"yorc.tests.relationships.imports.OpImplementationArtifact", "configure.pre_configure_source"}, want{"something", "imports/something"}},
+		{"TestOpImplemFileOnImplemArtifactImportedRelTypeFQInterfaceName", args{"yorc.tests.relationships.imports.OpImplementationArtifact", "tosca.interfaces.relationships.configure.pre_configure_source"}, want{"something", "imports/something"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -125,6 +130,7 @@ func testOperationHost(t *testing.T, kv *api.KV) {
 		wantErr bool
 	}{
 		{"TestOperationHostOnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "create"}, "ORCHESTRATOR", false},
+		{"TestOperationHostOnNodeTypeFQInterfaceName", args{"yorc.tests.OperationHosts.nodes.OHNode", "tosca.interfaces.node.lifecycle.standard", "create"}, "ORCHESTRATOR", false},
 		{"TestOperationHostDefault1OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "configure"}, "", false},
 		{"TestOperationHostDefault2OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "start"}, "", false},
 		{"TestOperationHostDefault3OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "stop"}, "", false},
@@ -132,6 +138,10 @@ func testOperationHost(t *testing.T, kv *api.KV) {
 		{"TestOperationHostDefault1OnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "post_configure_target"}, "", false},
 		{"TestOperationHostDefault2OnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "add_source"}, "", false},
 		{"TestOperationHostDefault3OnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "remove_target"}, "", false},
+		{"TestOperationHostOnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "tosca.interfaces.relationships.configure", "pre_configure_source"}, "ORCHESTRATOR", false},
+		{"TestOperationHostDefault1OnNodeTypeFQInterfaceName", args{"yorc.tests.OperationHosts.relationships.OHRel", "tosca.interfaces.relationships.configure", "post_configure_target"}, "", false},
+		{"TestOperationHostDefault2OnNodeTypeFQInterfaceName", args{"yorc.tests.OperationHosts.relationships.OHRel", "tosca.interfaces.relationships.configure", "add_source"}, "", false},
+		{"TestOperationHostDefault3OnNodeTypeFQInterfaceName", args{"yorc.tests.OperationHosts.relationships.OHRel", "tosca.interfaces.relationships.configure", "remove_target"}, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

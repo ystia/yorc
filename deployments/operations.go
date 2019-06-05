@@ -171,7 +171,13 @@ func getOperationPath(kv *api.KV, deploymentID, nodeTemplate, nodeType, operatio
 func getOperationAndInterfacePath(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, string, error) {
 	var operationPath, interfacePath string
 	opShortName := stringutil.GetLastElement(operationName, ".")
+
 	interfaceName := stringutil.GetAllExceptLastElement(operationName, ".")
+	if strings.HasPrefix(interfaceName, tosca.StandardInterfaceName) {
+		interfaceName = strings.Replace(interfaceName, tosca.StandardInterfaceName, tosca.StandardInterfaceShortName, 1)
+	} else if strings.HasPrefix(interfaceName, tosca.ConfigureInterfaceName) {
+		interfaceName = strings.Replace(interfaceName, tosca.ConfigureInterfaceName, tosca.ConfigureInterfaceShortName, 1)
+	}
 	if nodeTemplateImpl != "" {
 		operationPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeTemplateImpl, "interfaces", interfaceName, opShortName)
 		interfacePath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeTemplateImpl, "interfaces", interfaceName)

@@ -82,9 +82,13 @@ ifndef SKIP_TESTS
 	@go test -tags "testing $(BUILD_TAGS)" $(TESTARGS) -p 1 ./...
 endif
 
+json-test: generate header format
+	@echo "--> Running go test with json output"
+# -count is for disabling test cache
+	@go test -tags "testing $(BUILD_TAGS)" $(TESTARGS) -json -count=1 -p 1 ./... > tests-reports.json
 
 cover:
-	@go test -tags "testing $(BUILD_TAGS)"  -p 1 -cover $(COVERARGS) ./...  
+	@go test -tags "testing $(BUILD_TAGS)"  -p 1 -cover $(COVERARGS) ./...
 
 format:
 	@echo "--> Running go fmt"
