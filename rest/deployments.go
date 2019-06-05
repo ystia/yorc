@@ -236,8 +236,20 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	purge := false
+	if purgeKeys, ok := r.URL.Query()["purge"]; ok {
+		if len(purgeKeys) > 0 && len(purgeKeys[0]) > 0 {
+			purge, err = strconv.ParseBool(purgeKeys[0])
+			if err != nil {
+				writeError(w, r, newBadRequestMessage("purge query parameter must be a boolean value"))
+				return
+			}
+		} else {
+			purge = true
+		}
+	}
 	var taskType tasks.TaskType
-	if _, ok := r.URL.Query()["purge"]; ok {
+	if purge {
 		log.Debugf("A purge task on deployment:%s has been requested", id)
 		taskType = tasks.TaskTypePurge
 	} else {
@@ -263,7 +275,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		if len(stopKeys) > 0 && len(stopKeys[0]) > 0 {
 			stopOnError, err = strconv.ParseBool(stopKeys[0])
 			if err != nil {
-				writeError(w, r, newBadRequestMessage("stopOnError URL parameter must be a boolean value"))
+				writeError(w, r, newBadRequestMessage("stopOnError query parameter must be a boolean value"))
 				return
 			}
 		} else {
