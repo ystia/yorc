@@ -44,6 +44,7 @@ script:
   - make json-test
   - git fetch --no-tags origin +refs/heads/develop:refs/remotes/origin/develop
   - git fetch --unshallow --quiet
+  - cat /home/travis/.sonarscanner/sonar-scanner-*/conf/sonar-scanner.properties
   - sonar-scanner --define "sonar.projectVersion=$(grep "yorc_version" versions.yaml | awk '{print $2}')"
 
 after_script:
