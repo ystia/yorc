@@ -844,5 +844,5 @@ func NodeHasProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ex
 	if err != nil {
 		return false, err
 	}
-	return TypeHasAttribute(kv, deploymentID, typeName, propertyName, exploreParents)
+	return TypeHasProperty(kv, deploymentID, typeName, propertyName, exploreParents)
 }
