@@ -15,7 +15,6 @@
 package deployments
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -26,7 +25,6 @@ import (
 	"github.com/ystia/yorc/v3/deployments/internal"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/testutil"
 )
 
 func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
@@ -233,13 +231,6 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
 		t.Run("TestGetTypeAttributesNames", func(t *testing.T) {
 			testGetTypeAttributesNames(t, kv)
 		})
-	})
-
-	t.Run("TestNodeHasAttribute", func(t *testing.T) {
-		testNodeHasAttribute(t, kv)
-	})
-	t.Run("TestNodeHasProperty", func(t *testing.T) {
-		testNodeHasProperty(t, kv)
 	})
 }
 
@@ -559,10 +550,7 @@ func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
 	require.Equal(t, node2ExpectedResult, instancesIDs)
 }
 
-func testNodeHasAttribute(t *testing.T, kv *api.KV) {
-	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
-	require.NoError(t, err)
+func testNodeHasAttribute(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
 		nodeName       string
 		attributeName  string
@@ -593,10 +581,7 @@ func testNodeHasAttribute(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testNodeHasProperty(t *testing.T, kv *api.KV) {
-	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
-	require.NoError(t, err)
+func testNodeHasProperty(t *testing.T, kv *api.KV, deploymentID string) {
 	type args struct {
 		nodeName       string
 		propertyName   string
@@ -610,7 +595,7 @@ func testNodeHasProperty(t *testing.T, kv *api.KV) {
 	}{
 		{"NodeHasProperty", args{"TestModule", "component_version", true}, true, false},
 		{"NodeDoesntHaveProperty", args{"TestModule", "missing_property", true}, false, false},
-		{"NodeHasPropertyOnlyOnParentType", args{"TestModule", "component_version", true}, false, false},
+		{"NodeHasPropertyOnlyOnParentType", args{"TestModule", "admin_credential", false}, false, false},
 		{"NodeDoesntExist", args{"DoNotExist", "missing_property", true}, false, true},
 	}
 	for _, tt := range tests {
