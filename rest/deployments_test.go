@@ -78,7 +78,7 @@ func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.C
 	t.Parallel()
 	type result struct {
 		statusCode      int
-		errors       *Errors
+		errors          *Errors
 		continueOnError bool
 	}
 
@@ -144,7 +144,7 @@ func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client,
 
 	type result struct {
 		statusCode int
-		errors       *Errors
+		errors     *Errors
 		taskType   tasks.TaskType
 	}
 
@@ -208,25 +208,25 @@ func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.Te
 
 	type result struct {
 		statusCode int
-		errors       *Errors
+		errors     *Errors
 		deployment *Deployment
 	}
 
 	tests := []struct {
-		name       string
+		name         string
 		deploymentID string
-		want       *result
+		want         *result
 	}{
-	//	{"getDeploymentWithBadID", "badDeploymentID", &result{statusCode: http.StatusNotFound, errors: &Errors{[]*Error{errNotFound}}}},
-		{"getDeployment","getDeployment", &result{statusCode: http.StatusOK, errors: nil,
-			deployment:&Deployment{ID: "getDeployment", Status:"DEPLOYED",
-				Links:[]AtomLink{{Href:"/deployments/getDeployment", Rel:"self", LinkType:"application/json" },
-					{Href:"/deployments/getDeployment/nodes/Compute", Rel:"node", LinkType:"application/json" }}}}},
+		//	{"getDeploymentWithBadID", "badDeploymentID", &result{statusCode: http.StatusNotFound, errors: &Errors{[]*Error{errNotFound}}}},
+		{"getDeployment", "getDeployment", &result{statusCode: http.StatusOK, errors: nil,
+			deployment: &Deployment{ID: "getDeployment", Status: "DEPLOYED",
+				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "self", LinkType: "application/json"},
+					{Href: "/deployments/getDeployment/nodes/Compute", Rel: "node", LinkType: "application/json"}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prepareTest(t, tt.name, client, srv)
-			req := httptest.NewRequest("GET", "/deployments/"+ tt.deploymentID, nil)
+			req := httptest.NewRequest("GET", "/deployments/"+tt.deploymentID, nil)
 			req.Header.Set("Accept", "application/json")
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
@@ -261,18 +261,18 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 	//t.Parallel() because conflicts can occurs with other tests
 
 	type result struct {
-		statusCode int
-		errors       *Errors
+		statusCode  int
+		errors      *Errors
 		deployments *DeploymentsCollection
 	}
 
 	tests := []struct {
-		name       string
-		want       *result
+		name string
+		want *result
 	}{
 		{"getDeployment", &result{statusCode: http.StatusOK, errors: nil,
-			deployments:&DeploymentsCollection{[]Deployment{{ID: "getDeployment", Status:"DEPLOYED",
-				Links:[]AtomLink{{Href:"/deployments/getDeployment", Rel:"deployment", LinkType:"application/json" }}}}}}},
+			deployments: &DeploymentsCollection{[]Deployment{{ID: "getDeployment", Status: "DEPLOYED",
+				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "deployment", LinkType: "application/json"}}}}}}},
 		{"noDeployment", &result{statusCode: http.StatusNoContent, errors: nil,
 			deployments: nil}},
 	}
