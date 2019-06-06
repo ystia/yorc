@@ -4,7 +4,10 @@
 
 ### BUG FIXES
 
+* Deleting one host in Pool deletes other hosts having as prefix the deleted hostname ([GH-430](https://github.com/ystia/yorc/issues/430))
 * Yorc should support long standard operation names as well as short ones ([GH-300](https://github.com/ystia/yorc/issues/300))
+
+## 3.2.0 (May 31, 2019)
 
 ### ENHANCEMENTS
 
