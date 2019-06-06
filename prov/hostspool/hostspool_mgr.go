@@ -266,7 +266,7 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 
 	hostKey := path.Join(consulutil.HostsPoolPrefix, hostname)
 	// Need to remove the host key subtree, but not the tree of hosts having a
-	// hostname containg as a prefix the name of the host to delete
+	// hostname containing as a prefix the name of the host to delete
 	hostKeyTreePrexix := hostKey + "/"
 
 	if checkStatus {
