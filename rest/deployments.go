@@ -236,17 +236,10 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	purge := false
-	if purgeKeys, ok := r.URL.Query()["purge"]; ok {
-		if len(purgeKeys) > 0 && len(purgeKeys[0]) > 0 {
-			purge, err = strconv.ParseBool(purgeKeys[0])
-			if err != nil {
-				writeError(w, r, newBadRequestMessage("purge query parameter must be a boolean value"))
-				return
-			}
-		} else {
-			purge = true
-		}
+	purge, err := getBoolQueryParam(r, "purge")
+	if err != nil {
+		writeError(w, r, newBadRequestMessage("purge query parameter must be a boolean value"))
+		return
 	}
 	var taskType tasks.TaskType
 	if purge {
@@ -270,17 +263,10 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		"workflowName": "uninstall",
 	}
 	// Default is not to stop on error for undeployment
-	stopOnError := false
-	if stopKeys, ok := r.URL.Query()["stopOnError"]; ok {
-		if len(stopKeys) > 0 && len(stopKeys[0]) > 0 {
-			stopOnError, err = strconv.ParseBool(stopKeys[0])
-			if err != nil {
-				writeError(w, r, newBadRequestMessage("stopOnError query parameter must be a boolean value"))
-				return
-			}
-		} else {
-			stopOnError = true
-		}
+	stopOnError, err := getBoolQueryParam(r, "stopOnError")
+	if err != nil {
+		writeError(w, r, newBadRequestMessage("stopOnError query parameter must be a boolean value"))
+		return
 	}
 	data["continueOnError"] = strconv.FormatBool(!stopOnError)
 	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {

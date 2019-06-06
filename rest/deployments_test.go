@@ -37,7 +37,7 @@ import (
 )
 
 type ErrorData struct {
-	Id     string `json:"id,omitempty"`
+	ID     string `json:"id,omitempty"`
 	Status int    `json:"status,omitempty"`
 	Title  string `json:"title,omitempty"`
 	Detail string `json:"detail,omitempty"`
@@ -89,7 +89,7 @@ func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.C
 		stopOnErrorParam string
 		want             *result
 	}{
-		{"stopOnErrorWithBadValue", "badValue", &result{statusCode: http.StatusBadRequest, body: &BodyStruct{[]ErrorData{{Id: "bad_request", Status: 400, Title: "Bad Request", Detail: "stopOnError query parameter must be a boolean value"}}}}},
+		{"stopOnErrorWithBadValue", "badValue", &result{statusCode: http.StatusBadRequest, body: &BodyStruct{[]ErrorData{{ID: "bad_request", Status: 400, Title: "Bad Request", Detail: "stopOnError query parameter must be a boolean value"}}}}},
 		{"stopOnErrorWithTrue", "true", &result{continueOnError: false, statusCode: http.StatusAccepted, body: nil}},
 		{"stopOnErrorWithFalse", "false", &result{continueOnError: true, statusCode: http.StatusAccepted, body: nil}},
 		{"stopOnErrorWithNoValue", "", &result{continueOnError: false, statusCode: http.StatusAccepted, body: nil}},
@@ -155,7 +155,7 @@ func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client,
 		purgeParam string
 		want       *result
 	}{
-		{"purgeWithBadValue", "badValue", &result{statusCode: http.StatusBadRequest, body: &BodyStruct{[]ErrorData{{Id: "bad_request", Status: 400, Title: "Bad Request", Detail: "purge query parameter must be a boolean value"}}}}},
+		{"purgeWithBadValue", "badValue", &result{statusCode: http.StatusBadRequest, body: &BodyStruct{[]ErrorData{{ID: "bad_request", Status: 400, Title: "Bad Request", Detail: "purge query parameter must be a boolean value"}}}}},
 		{"purgeWithTrue", "true", &result{taskType: tasks.TaskTypePurge, statusCode: http.StatusAccepted, body: nil}},
 		{"purgeWithFalse", "false", &result{taskType: tasks.TaskTypeUnDeploy, statusCode: http.StatusAccepted, body: nil}},
 		{"purgeWithNoValue", "", &result{taskType: tasks.TaskTypePurge, statusCode: http.StatusAccepted, body: nil}},
