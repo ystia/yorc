@@ -446,18 +446,16 @@ func (notifiedAttr *notifiedAttribute) findOperationOutputNotifier(operands []st
 
 func (notifiedAttr *notifiedAttribute) findAttributeNotifier(kv *api.KV, operands []string) (Notifier, error) {
 	funcString := fmt.Sprintf("get_attribute: [%s]", strings.Join(operands, ", "))
-	if len(operands) < 2 || len(operands) > 3 {
-		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
-	}
-
 	var node, capName, attrName string
 	var err error
 
 	if len(operands) == 2 {
 		attrName = operands[1]
-	} else {
+	} else if len(operands) == 3 {
 		attrName = operands[2]
 		capName = operands[1]
+	} else {
+		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
 	}
 
 	switch operands[0] {
