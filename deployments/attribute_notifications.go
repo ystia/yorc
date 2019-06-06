@@ -235,6 +235,17 @@ func getNotifierForIPAddressAttributeOfAnEndpoint(kv *api.KV, deploymentID, node
 	}, nil
 }
 
+func getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string) (*AttributeNotifier, error) {
+	isEndpointCap, err := isNodeCapabilityOfType(kv, deploymentID, nodeName, capabilityName, tosca.EndpointCapability)
+	if err != nil {
+		return nil, err
+	}
+	if isEndpointCap && attributeName == "ip_address" {
+		return getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
+	}
+	return nil, nil
+}
+
 func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
 	items := strings.Split(attributeName, ".")
 	capabilityName := items[1]
@@ -255,15 +266,11 @@ func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeN
 			attributeName: attributeName,
 		}
 
-		isEndpointCap, err := isNodeCapabilityOfType(kv, deploymentID, nodeName, capabilityName, tosca.EndpointCapability)
+		notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName)
 		if err != nil {
 			return err
 		}
-		if isEndpointCap && capAttrName == "ip_address" {
-			notifier, err := getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
-			if err != nil {
-				return err
-			}
+		if notifier != nil {
 			log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
 			return notifiedAttr.saveNotification(kv, notifier)
 		}
@@ -456,13 +463,9 @@ func (notifiedAttr *notifiedAttribute) findAttributeNotifier(kv *api.KV, operand
 		// is it should come from the host (this is the hard way!)
 		if capName != "" {
 			// Is this an endpoint?
-			isEndpointCap, err := isNodeCapabilityOfType(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, capName, tosca.EndpointCapability)
-			if err != nil {
-				return nil, err
-			}
-			if isEndpointCap && attrName == "ip_address" {
-				// So here we are
-				return getNotifierForIPAddressAttributeOfAnEndpoint(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName)
+			notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName, attrName)
+			if err != nil || notifier != nil {
+				return notifier, err
 			}
 		}
 
