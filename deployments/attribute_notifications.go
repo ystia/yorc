@@ -186,7 +186,7 @@ func nodeHasAttributeOrCapabilityAttribute(kv *api.KV, deploymentID, nodeName, c
 	return NodeHasAttribute(kv, deploymentID, nodeName, attributeName, true)
 }
 
-func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, capabilityType, attributeName string, isEndpoint bool, notifiedAttr *notifiedAttribute) error {
+func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, notifiedAttr *notifiedAttribute) error {
 	hasAttribute, err := nodeHasAttributeOrCapabilityAttribute(kv, deploymentID, nodeName, capabilityName, attributeName)
 	if err != nil {
 		return err
@@ -210,7 +210,7 @@ func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, n
 		return err
 	}
 	if host != "" {
-		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, host, instanceName, capabilityName, capabilityType, attributeName, isEndpoint, notifiedAttr)
+		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, host, instanceName, capabilityName, attributeName, notifiedAttr)
 	}
 	return nil
 }
@@ -255,31 +255,20 @@ func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeN
 			attributeName: attributeName,
 		}
 
-		capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+		isEndpointCap, err := isNodeCapabilityOfType(kv, deploymentID, nodeName, capabilityName, tosca.EndpointCapability)
 		if err != nil {
 			return err
 		}
-		if capabilityType != "" {
-			isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
-				tosca.EndpointCapability)
+		if isEndpointCap && capAttrName == "ip_address" {
+			notifier, err := getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
 			if err != nil {
 				return err
 			}
-			if isEndpoint && capAttrName == "ip_address" {
-				notifier, err := getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
-				if err != nil {
-					return err
-				}
-				log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
-				return notifiedAttr.saveNotification(kv, notifier)
-			}
-
-			// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
-			err = addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capabilityType, capAttrName, isEndpoint, notifiedAttr)
-			if err != nil {
-				return err
-			}
+			log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
+			return notifiedAttr.saveNotification(kv, notifier)
 		}
+		// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
+		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, notifiedAttr)
 	}
 	return nil
 }
