@@ -40,10 +40,17 @@ node_types:
     derived_from: tosca.nodes.SoftwareComponent
     attributes:
       myepip: { get_attribute: [SELF, myep, ip_address] }
+      myepattr: { get_attribute: [SELF, myep, attr2] }
     capabilities:
-      myep: tosca.capabilities.Endpoint
+      myep: yorc.test.capabilities.MyEndpoint
 
 capability_types:
+  yorc.test.capabilities.MyEndpoint:
+    derived_from: tosca.capabilities.Endpoint
+    attributes:
+      attr2:
+        type: string
+        default: "attr2"
   yorc.test.capabilities.network.Bindable:
     derived_from: yorc.test.capabilities.Endpoint
     attributes:

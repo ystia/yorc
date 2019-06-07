@@ -1,0 +1,77 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: testSubstitution-Environment
+  template_version: 1.0.0
+  template_author: yorcTester
+
+description: "Test topology with substitution mappings"
+
+node_types:
+  yorc.tests.nodes.MyService:
+    derived_from: tosca.nodes.SoftwareComponent
+    abstract: true
+    properties:
+      prop1:
+        type: string
+        default: "vp1"
+    attributes:
+      attr1:
+        type: string
+        default: "va1"
+    capabilities:
+      cap1: yorc.tests.capabilities.Cap1
+      cap2: tosca.capabilities.Endpoint
+      cap3: yorc.tests.capabilities.Cap1
+
+
+  yorc.tests.nodes.SrvImpl1:
+    derived_from: yorc.tests.nodes.MyService
+    capabilities:
+      host: tosca.capabilities.Container
+    attributes:
+      a1: {get_attribute: [SELF, attr1]}
+      a2: {get_attribute: [SELF, cap1, cap1_attr1]}
+      a3: {get_attribute: [SELF, cap2, ip_address]}
+
+  yorc.tests.nodes.SrvImpl2:
+    derived_from: tosca.nodes.SoftwareComponent
+    capabilities:
+      cap1: yorc.tests.capabilities.Cap1
+
+capability_types:
+  yorc.tests.capabilities.Cap1:
+    derived_from: tosca.capabilities.Root
+    attributes:
+      cap1_attr1:
+        type: string
+        default: "vc1a1"
+
+topology_template:
+  substitution_mappings:
+    node_type: yorc.tests.MyService
+    capabilities:
+      cap1: [ SrvImpl1Instance, cap1 ]
+      cap2:
+        properties:
+          network_name: PRIVATE
+      cap3: [ SrvImpl2Instance, cap1 ]
+  node_templates:
+    Compute:
+      type: tosca.nodes.Compute
+    SrvImpl1Instance:
+      type: yorc.tests.nodes.SrvImpl1
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    SrvImpl2Instance:
+      type: yorc.tests.nodes.SrvImpl2
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: SrvImpl1Instance
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
