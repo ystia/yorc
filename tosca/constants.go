@@ -37,3 +37,9 @@ const ConfigureInterfaceName = "tosca.interfaces.relationships.configure"
 
 // ConfigureInterfaceShortName is the short name of the Configure interface
 const ConfigureInterfaceShortName = "configure"
+
+// EndpointCapabilityIPAddressAttribute is the name of the attribute containing the ip_address or
+// DNS name of tosca.capabilities.Endpoint
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
+const EndpointCapabilityIPAddressAttribute = "ip_address"

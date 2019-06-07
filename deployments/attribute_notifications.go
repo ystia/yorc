@@ -240,7 +240,7 @@ func getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv *api.KV, deploym
 	if err != nil {
 		return nil, err
 	}
-	if isEndpointCap && attributeName == "ip_address" {
+	if isEndpointCap && attributeName == tosca.EndpointCapabilityIPAddressAttribute {
 		return getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
 	}
 	return nil, nil
