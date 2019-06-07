@@ -132,4 +132,14 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 			testTopologyTemplateMetadata(t, kv, deploymentID)
 		})
 	})
+
+	t.Run("CommonsTestsOn_test_topology_substitution.yml", func(t *testing.T) {
+		deploymentID := testutil.BuildDeploymentID(t)
+		err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology_substitution.yml")
+		require.NoError(t, err)
+
+		t.Run("TestAddSubstitutionMappingAttributeHostNotification", func(t *testing.T) {
+			testAddSubstitutionMappingAttributeHostNotification(t, kv, deploymentID)
+		})
+	})
 }
