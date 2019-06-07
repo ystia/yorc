@@ -38,8 +38,10 @@ node_types:
       sups: yorc.capabilities.SuperScalable
   yorc.type.TypeWithEndpointCap:
     derived_from: tosca.nodes.SoftwareComponent
+    attributes:
+      myepip: { get_attribute: [SELF, myep, ip_address] }
     capabilities:
-      myep: yorc.test.capabilities.Endpoint
+      myep: tosca.capabilities.Endpoint
 
 capability_types:
   yorc.test.capabilities.network.Bindable:
