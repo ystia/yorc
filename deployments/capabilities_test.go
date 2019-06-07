@@ -332,6 +332,7 @@ func testGetIPAddressFromHost(t *testing.T, kv *api.KV, deploymentID string) {
 		{"TestGetPrivateEndpointAddress", args{"Compute", "0", "EPCapNodePrivate", "0", "myep"}, &TOSCAValue{"10.0.0.1", false}, false},
 		{"TestGetPublicEndpointAddress", args{"Compute", "0", "EPCapNodePublic", "0", "myep"}, &TOSCAValue{"10.1.0.1", false}, false},
 		{"TestGetNamedNetworkEndpointAddress", args{"Compute", "0", "EPCapNodeNamedNet", "0", "myep"}, &TOSCAValue{"10.0.0.1", false}, false},
+		{"TestOnNodeThatDoesNotExist", args{"", "", "nodenotexists", "0", "endpoint"}, nil, true},
 		// TODO(loicalbertin) no error on this?
 		{"TestOnNodeNotHosted", args{"", "", "node1", "0", "endpoint"}, nil, true},
 		// Defaults to the private_address anyway even if endpoint doesn't exit
