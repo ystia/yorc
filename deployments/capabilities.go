@@ -340,8 +340,7 @@ func getEndpointCapabilitityHostIPAttributeNameAndNetName(kv *api.KV, deployment
 	return ipAddressAttrName, netName, nil
 }
 
-func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance,
-	nodeName, instanceName, capabilityName string) (*TOSCAValue, error) {
+func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance, nodeName, instanceName, capabilityName string) (*TOSCAValue, error) {
 	ipAddressAttrName, netName, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return nil, err
