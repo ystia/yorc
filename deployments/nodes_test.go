@@ -19,15 +19,15 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
+	ctu "github.com/hashicorp/consul/testutil"
 
+	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v3/deployments/internal"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 )
 
-func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{
@@ -548,4 +548,66 @@ func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
 	instancesIDs, err = GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node2")
 	require.NoError(t, err)
 	require.Equal(t, node2ExpectedResult, instancesIDs)
+}
+
+func testNodeHasAttribute(t *testing.T, kv *api.KV, deploymentID string) {
+	type args struct {
+		nodeName       string
+		attributeName  string
+		exploreParents bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"NodeHasAttribute", args{"TestCompute", "public_address", true}, true, false},
+		{"NodeDoesntHaveAttribute", args{"TestCompute", "missing_attribute", true}, false, false},
+		{"NodeHasAttribute", args{"TestCompute", "public_address", false}, false, false},
+		{"NodeDoesntExist", args{"DoNotExist", "missing_attribute", true}, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NodeHasAttribute(kv, deploymentID, tt.args.nodeName, tt.args.attributeName, tt.args.exploreParents)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeHasAttribute() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("NodeHasAttribute() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testNodeHasProperty(t *testing.T, kv *api.KV, deploymentID string) {
+	type args struct {
+		nodeName       string
+		propertyName   string
+		exploreParents bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"NodeHasProperty", args{"TestModule", "component_version", true}, true, false},
+		{"NodeDoesntHaveProperty", args{"TestModule", "missing_property", true}, false, false},
+		{"NodeHasPropertyOnlyOnParentType", args{"TestModule", "admin_credential", false}, false, false},
+		{"NodeDoesntExist", args{"DoNotExist", "missing_property", true}, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NodeHasProperty(kv, deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.exploreParents)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeHasProperty() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("NodeHasProperty() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

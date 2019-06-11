@@ -15,8 +15,15 @@
 package deployments
 
 import (
+	"path"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+
+	"github.com/hashicorp/consul/api"
 )
 
 func TestBuildAttributeData(t *testing.T) {
@@ -45,4 +52,37 @@ func TestBuildAttributeData(t *testing.T) {
 			}
 		})
 	}
+}
+
+func assertOneConsulKeyExistAndHasValueInList(t *testing.T, kv *api.KV, keyPrefix string, expectedValue []byte) {
+	kvps, _, err := kv.List(keyPrefix, nil)
+	require.NoError(t, err, "Consul error on listing keys under %q", keyPrefix)
+	var found bool
+	for _, kvp := range kvps {
+		if reflect.DeepEqual(kvp.Value, expectedValue) {
+			found = true
+		}
+	}
+	assert.True(t, found, "Cant find key with value %s under prefix %q", expectedValue, keyPrefix)
+}
+
+func testAddSubstitutionMappingAttributeHostNotification(t *testing.T, kv *api.KV, deploymentID string) {
+	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID)
+	instancesPath := path.Join(depPath, "topology/instances")
+	// attr3 of SrvImpl1Instance need to be notified of private_ip due to {get_attribute: [SELF, cap2, ip_address]}
+	assertOneConsulKeyExistAndHasValueInList(t, kv, path.Join(instancesPath, "Compute/0/attribute_notifications/private_address/"), []byte("SrvImpl1Instance/0/attributes/a3"))
+
+	// a1 of SrvImpl1Instance need to be notified of attr1 due to {get_attribute: [SELF, attr1]}
+	assertOneConsulKeyExistAndHasValueInList(t, kv, path.Join(instancesPath, "SrvImpl1Instance/0/attribute_notifications/attr1/"), []byte("SrvImpl1Instance/0/attributes/a1"))
+
+	// a2 of SrvImpl1Instance need to be notified of cap1_attr1 due to {get_attribute: [SELF, cap1, cap1_attr1]}
+	assertOneConsulKeyExistAndHasValueInList(t, kv, path.Join(instancesPath, "SrvImpl1Instance/0/capabilities/cap1/attribute_notifications/cap1_attr1/"), []byte("SrvImpl1Instance/0/attributes/a2"))
+	// capabilities.cap1.cap1_attr1 of SrvImpl1Instance need to be notified of cap1_attr1 due to substition mapping
+	assertOneConsulKeyExistAndHasValueInList(t, kv, path.Join(instancesPath, "SrvImpl1Instance/0/capabilities/cap1/attribute_notifications/cap1_attr1/"), []byte("SrvImpl1Instance/0/attributes/capabilities.cap1.cap1_attr1"))
+	// capabilities.cap1.cap1_attr1 of SrvImpl2Instance need to be notified of cap1_attr1 due to substition mapping
+	assertOneConsulKeyExistAndHasValueInList(t, kv, path.Join(instancesPath, "SrvImpl1Instance/0/capabilities/cap1/attribute_notifications/cap1_attr1/"), []byte("SrvImpl2Instance/0/attributes/capabilities.cap1.cap1_attr1"))
+
+	// capabilities.cap1.cap1_attr1 of SrvImpl2Instance need to be notified of cap1_attr1 due to substition mapping
+	assertOneConsulKeyExistAndHasValueInList(t, kv, path.Join(instancesPath, "SrvImpl2Instance/0/capabilities/cap1/attribute_notifications/cap1_attr1/"), []byte("SrvImpl2Instance/0/attributes/capabilities.cap1.cap1_attr1"))
+
 }

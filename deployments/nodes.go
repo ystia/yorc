@@ -182,7 +182,7 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		// Is this "HostedOn" relationship ?
-		if kvp.Value != nil {
+		if kvp != nil && len(kvp.Value) > 0 {
 			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
 				return "", err
 			} else if ok {
@@ -819,4 +819,30 @@ func GetNodeMetadata(kv *api.KV, deploymentID, nodeName, key string) (bool, stri
 		return false, "", nil
 	}
 	return true, string(kvp.Value), nil
+}
+
+// NodeHasAttribute returns true if the node type has an attribute named attributeName defined
+//
+// exploreParents switch enable attribute check on parent types
+//
+// This is basically a shorthand for GetNodeType then TypeHasAttribute
+func NodeHasAttribute(kv *api.KV, deploymentID, nodeName, attributeName string, exploreParents bool) (bool, error) {
+	typeName, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, err
+	}
+	return TypeHasAttribute(kv, deploymentID, typeName, attributeName, exploreParents)
+}
+
+// NodeHasProperty returns true if the node type has a property named propertyName defined
+//
+// exploreParents switch enable property check on parent types
+//
+// This is basically a shorthand for GetNodeType then TypeHasProperty
+func NodeHasProperty(kv *api.KV, deploymentID, nodeName, propertyName string, exploreParents bool) (bool, error) {
+	typeName, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, err
+	}
+	return TypeHasProperty(kv, deploymentID, typeName, propertyName, exploreParents)
 }

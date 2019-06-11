@@ -15,7 +15,10 @@
 package deployments
 
 import (
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v3/testutil"
 )
@@ -72,12 +75,6 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testGetCapabilityProperties", func(t *testing.T) {
 			testGetCapabilityProperties(t, kv)
 		})
-		t.Run("testImportTopologyTemplate", func(t *testing.T) {
-			testImportTopologyTemplate(t, kv)
-		})
-		t.Run("testTopologyTemplateMetadata", func(t *testing.T) {
-			testTopologyTemplateMetadata(t, kv)
-		})
 		t.Run("testSubstitutionServiceCapabilityMappings", func(t *testing.T) {
 			testSubstitutionServiceCapabilityMappings(t, kv)
 		})
@@ -99,9 +96,7 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
 			testIssueGetEmptyPropOnRelationship(t, kv)
 		})
-		t.Run("testAttributeNotifications", func(t *testing.T) {
-			testAttributeNotifications(t, kv)
-		})
+
 		t.Run("testTopologyUpdate", func(t *testing.T) {
 			testTopologyUpdate(t, kv)
 		})
@@ -110,6 +105,41 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		})
 		t.Run("testPurgedDeployments", func(t *testing.T) {
 			testPurgedDeployments(t, client)
+		})
+	})
+
+	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {
+		deploymentID := testutil.BuildDeploymentID(t)
+		err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
+		require.NoError(t, err)
+
+		t.Run("TestNodeHasAttribute", func(t *testing.T) {
+			testNodeHasAttribute(t, kv, deploymentID)
+		})
+		t.Run("TestNodeHasProperty", func(t *testing.T) {
+			testNodeHasProperty(t, kv, deploymentID)
+		})
+		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
+			testTopologyTemplateMetadata(t, kv, deploymentID)
+		})
+		t.Run("TestAttributeNotifications", func(t *testing.T) {
+			testAttributeNotifications(t, kv, deploymentID)
+		})
+		t.Run("TestImportTopologyTemplate", func(t *testing.T) {
+			testImportTopologyTemplate(t, kv, deploymentID)
+		})
+		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
+			testTopologyTemplateMetadata(t, kv, deploymentID)
+		})
+	})
+
+	t.Run("CommonsTestsOn_test_topology_substitution.yml", func(t *testing.T) {
+		deploymentID := testutil.BuildDeploymentID(t)
+		err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology_substitution.yml")
+		require.NoError(t, err)
+
+		t.Run("TestAddSubstitutionMappingAttributeHostNotification", func(t *testing.T) {
+			testAddSubstitutionMappingAttributeHostNotification(t, kv, deploymentID)
 		})
 	})
 }

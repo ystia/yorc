@@ -312,7 +312,7 @@ func GetInstanceCapabilityAttributeValue(kv *api.KV, deploymentID, nodeName, ins
 		// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
 		// describes that the ip_address attribute of an endpoint is the IP address
 		// as propagated up by the associated node’s host (Compute) container.
-		if isEndpoint && attributeName == "ip_address" && host != "" {
+		if isEndpoint && attributeName == tosca.EndpointCapabilityIPAddressAttribute && host != "" {
 			result, err = getIPAddressFromHost(kv, deploymentID, host,
 				hostInstance, nodeName, instanceName, capabilityName)
 			if err != nil || result != nil {
@@ -324,22 +324,27 @@ func GetInstanceCapabilityAttributeValue(kv *api.KV, deploymentID, nodeName, ins
 	return GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
 }
 
-func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance,
-	nodeName, instanceName, capabilityName string) (*TOSCAValue, error) {
-
+func getEndpointCapabilitityHostIPAttributeNameAndNetName(kv *api.KV, deploymentID, nodeName, capabilityName string) (string, *TOSCAValue, error) {
 	// First check the network name in the capability property to find the right
 	// IP address attribute (default: private address)
 	ipAddressAttrName := "private_address"
 
 	netName, err := GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, "network_name")
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	if netName != nil && strings.ToLower(netName.RawString()) == "public" {
 		ipAddressAttrName = "public_address"
 	}
+	return ipAddressAttrName, netName, nil
+}
 
+func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance, nodeName, instanceName, capabilityName string) (*TOSCAValue, error) {
+	ipAddressAttrName, netName, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return nil, err
+	}
 	result, err := GetInstanceAttributeValue(kv, deploymentID, hostName, hostInstance,
 		ipAddressAttrName)
 
@@ -493,4 +498,15 @@ func notifyAndPublishCapabilityAttributeValueChange(kv *api.KV, deploymentID, no
 		CapabilityName: capabilityName,
 	}
 	return an.NotifyValueChange(kv, deploymentID)
+}
+
+func isNodeCapabilityOfType(kv *api.KV, deploymentID, nodeName, capabilityName, derives string) (bool, error) {
+	capType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return false, err
+	}
+	if capType == "" {
+		return false, nil
+	}
+	return IsTypeDerivedFrom(kv, deploymentID, capType, derives)
 }
