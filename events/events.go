@@ -48,7 +48,7 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Attribute value for node %q, instance %q changed to %q", nodeName, instanceName, value)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Attribute %q value for node %q, instance %q changed to %q", attributeName, nodeName, instanceName, value)
 	return id, nil
 }
 

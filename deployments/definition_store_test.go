@@ -960,13 +960,8 @@ func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
 
 // Testing a Deployment Definition where one of the imports
 // contains a topology template
-func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
+func testImportTopologyTemplate(t *testing.T, kv *api.KV, deploymentID string) {
 	// t.Parallel()
-
-	// Storing the Deployment definition
-	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
-	require.NoError(t, err, "Failed to store test topology deployment definition")
 
 	// Check the stored compute node and network have the expected type
 	expectedKeyValuePairs := map[string]string{
@@ -985,13 +980,8 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
 }
 
 // Testing topology template metadata
-func testTopologyTemplateMetadata(t *testing.T, kv *api.KV) {
+func testTopologyTemplateMetadata(t *testing.T, kv *api.KV, deploymentID string) {
 	t.Parallel()
-
-	// Storing the Deployment definition
-	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
-	require.NoError(t, err, "Failed to store test topology deployment definition")
 
 	// Check the stored template metadata
 	// This topology template imports a tempologuy template with metatadata
@@ -1052,14 +1042,9 @@ func testRunnableWorkflowsAutoCancel(t *testing.T, kv *api.KV) {
 }
 
 // Testing topology template metadata
-func testAttributeNotifications(t *testing.T, kv *api.KV) {
+func testAttributeNotifications(t *testing.T, kv *api.KV, deploymentID string) {
 	t.Parallel()
 	log.SetDebug(true)
-
-	// Storing the Deployment definition
-	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
-	require.NoError(t, err, "Failed to store test topology deployment definition")
 
 	// Check the attributes notifications
 	expectedKeyValuePairs := map[string]string{

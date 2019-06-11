@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 )
@@ -41,6 +40,8 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":       []byte("0.0.0.0"),
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/credentials/user": []byte("ubuntu"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/private_address":                      []byte("10.0.0.1"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/public_address":                       []byte("10.1.0.1"),
 	})
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
@@ -62,7 +63,9 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		t.Run("TestGetInstanceCapabilityAttribute", func(t *testing.T) {
 			testGetInstanceCapabilityAttribute(t, kv, deploymentID)
 		})
-
+		t.Run("TestGetIPAddressFromHost", func(t *testing.T) {
+			testGetIPAddressFromHost(t, kv, deploymentID)
+		})
 	})
 }
 
@@ -310,4 +313,42 @@ func testGetCapabilityProperties(t *testing.T, kv *api.KV) {
 	value, err = GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "network_name")
 	require.NotNil(t, value)
 	require.Equal(t, "PRIVATE", value.RawString())
+}
+
+func testGetIPAddressFromHost(t *testing.T, kv *api.KV, deploymentID string) {
+	type args struct {
+		hostName       string
+		hostInstance   string
+		nodeName       string
+		instanceName   string
+		capabilityName string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *TOSCAValue
+		wantErr bool
+	}{
+		{"TestGetPrivateEndpointAddress", args{"Compute", "0", "EPCapNodePrivate", "0", "myep"}, &TOSCAValue{"10.0.0.1", false}, false},
+		{"TestGetPublicEndpointAddress", args{"Compute", "0", "EPCapNodePublic", "0", "myep"}, &TOSCAValue{"10.1.0.1", false}, false},
+		{"TestGetNamedNetworkEndpointAddress", args{"Compute", "0", "EPCapNodeNamedNet", "0", "myep"}, &TOSCAValue{"10.0.0.1", false}, false},
+		{"TestOnNodeThatDoesNotExist", args{"", "", "nodenotexists", "0", "endpoint"}, nil, true},
+		// TODO(loicalbertin) no error on this?
+		{"TestOnNodeNotHosted", args{"", "", "node1", "0", "endpoint"}, nil, true},
+		// Defaults to the private_address anyway even if endpoint doesn't exit
+		// TODO(loicalbertin) is that a good idea?
+		{"TestEndpointDoesntExist", args{"Compute", "0", "EPCapNodeNamedNet", "0", "myendpoint"}, &TOSCAValue{"10.0.0.1", false}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getIPAddressFromHost(kv, deploymentID, tt.args.hostName, tt.args.hostInstance, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getIPAddressFromHost() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getIPAddressFromHost() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

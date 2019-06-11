@@ -17,18 +17,20 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tosca"
-	"gopkg.in/yaml.v2"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 // AttributeData represents the related attribute data
@@ -156,7 +158,7 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 					return err
 				}
 			}
-			return nil
+			continue
 		}
 
 		value, err := GetInstanceAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
@@ -173,51 +175,75 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 	return nil
 }
 
+func nodeHasAttributeOrCapabilityAttribute(kv *api.KV, deploymentID, nodeName, capabilityName, attributeName string) (bool, error) {
+	if capabilityName != "" {
+		capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+		if err != nil || capabilityType == "" {
+			return false, err
+		}
+		return TypeHasAttribute(kv, deploymentID, capabilityType, attributeName, true)
+	}
+	return NodeHasAttribute(kv, deploymentID, nodeName, attributeName, true)
+}
+
 func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, notifiedAttr *notifiedAttribute) error {
+	hasAttribute, err := nodeHasAttributeOrCapabilityAttribute(kv, deploymentID, nodeName, capabilityName, attributeName)
+	if err != nil {
+		return err
+	}
+	if hasAttribute {
+		notifier := &AttributeNotifier{
+			NodeName:       nodeName,
+			InstanceName:   notifiedAttr.instanceName,
+			AttributeName:  attributeName,
+			CapabilityName: capabilityName,
+		}
+
+		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
+		err = notifiedAttr.saveNotification(kv, notifier)
+		if err != nil {
+			return err
+		}
+	}
 	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if host != "" {
-		var notifier *AttributeNotifier
-		capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
-		if err != nil {
-			return err
-		}
-
-		isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
-			tosca.EndpointCapability)
-		if err != nil {
-			return err
-		}
-
-		// TOSCA specification at :
-		// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
-		// describes that the ip_address attribute of an endpoint is the IP address
-		// as propagated up by the associated node’s host (Compute) container.
-		if isEndpoint && attributeName == "ip_address" {
-			notifier = &AttributeNotifier{
-				NodeName:      host,
-				InstanceName:  notifiedAttr.instanceName,
-				AttributeName: attributeName,
-			}
-		} else {
-			notifier = &AttributeNotifier{
-				NodeName:       host,
-				InstanceName:   notifiedAttr.instanceName,
-				AttributeName:  attributeName,
-				CapabilityName: capabilityName,
-			}
-		}
-
-		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, host, instanceName, notifier)
-		err = notifiedAttr.saveNotification(kv, notifier)
-		if err != nil {
-			return err
-		}
 		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, host, instanceName, capabilityName, attributeName, notifiedAttr)
 	}
 	return nil
+}
+
+func getNotifierForIPAddressAttributeOfAnEndpoint(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName string) (*AttributeNotifier, error) {
+	// We need to determine if we should look at the private_address or public_address of the host
+	attrName, _, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Then we retrieve the node name of the host having this attribute
+	node, err := resolveHostNotifier(kv, deploymentID, nodeName, attrName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AttributeNotifier{
+		NodeName:      node,
+		InstanceName:  instanceName,
+		AttributeName: attrName,
+	}, nil
+}
+
+func getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string) (*AttributeNotifier, error) {
+	isEndpointCap, err := isNodeCapabilityOfType(kv, deploymentID, nodeName, capabilityName, tosca.EndpointCapability)
+	if err != nil {
+		return nil, err
+	}
+	if isEndpointCap && attributeName == tosca.EndpointCapabilityIPAddressAttribute {
+		return getNotifierForIPAddressAttributeOfAnEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName)
+	}
+	return nil, nil
 }
 
 func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
@@ -240,20 +266,16 @@ func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeN
 			attributeName: attributeName,
 		}
 
-		// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
-		err = addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, notifiedAttr)
+		notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName)
 		if err != nil {
 			return err
 		}
-
-		notifier := &AttributeNotifier{
-			NodeName:       nodeName,
-			InstanceName:   notifiedAttr.instanceName,
-			AttributeName:  capAttrName,
-			CapabilityName: capabilityName,
+		if notifier != nil {
+			log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
+			return notifiedAttr.saveNotification(kv, notifier)
 		}
-		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
-		return notifiedAttr.saveNotification(kv, notifier)
+		// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
+		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, notifiedAttr)
 	}
 	return nil
 }
@@ -420,23 +442,33 @@ func (notifiedAttr *notifiedAttribute) findOperationOutputNotifier(operands []st
 
 func (notifiedAttr *notifiedAttribute) findAttributeNotifier(kv *api.KV, operands []string) (Notifier, error) {
 	funcString := fmt.Sprintf("get_attribute: [%s]", strings.Join(operands, ", "))
-	if len(operands) < 2 || len(operands) > 3 {
-		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
-	}
-
 	var node, capName, attrName string
 	var err error
 
 	if len(operands) == 2 {
 		attrName = operands[1]
-	} else {
+	} else if len(operands) == 3 {
 		attrName = operands[2]
 		capName = operands[1]
+	} else {
+		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
 	}
 
 	switch operands[0] {
 	case funcKeywordSELF:
+		// Default case is to look at the node name (easy!)
 		node = notifiedAttr.nodeName
+		// Now check for the famous ip_address attribute of any capabilities derived from tosca.capabilities.Endpoint
+		// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
+		// is it should come from the host (this is the hard way!)
+		if capName != "" {
+			// Is this an endpoint?
+			notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName, attrName)
+			if err != nil || notifier != nil {
+				return notifier, err
+			}
+		}
+
 	case funcKeywordHOST:
 		node, err = resolveHostNotifier(kv, notifiedAttr.deploymentID, notifiedAttr.nodeName, attrName)
 		if err != nil {

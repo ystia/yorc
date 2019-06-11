@@ -36,8 +36,21 @@ node_types:
   yorc.type.SuperScalable:
     capabilities:
       sups: yorc.capabilities.SuperScalable
+  yorc.type.TypeWithEndpointCap:
+    derived_from: tosca.nodes.SoftwareComponent
+    attributes:
+      myepip: { get_attribute: [SELF, myep, ip_address] }
+      myepattr: { get_attribute: [SELF, myep, attr2] }
+    capabilities:
+      myep: yorc.test.capabilities.MyEndpoint
 
 capability_types:
+  yorc.test.capabilities.MyEndpoint:
+    derived_from: tosca.capabilities.Endpoint
+    attributes:
+      attr2:
+        type: string
+        default: "attr2"
   yorc.test.capabilities.network.Bindable:
     derived_from: yorc.test.capabilities.Endpoint
     attributes:
@@ -98,3 +111,43 @@ topology_template:
       type: yorc.type.SuperScalable
     NodeWithUndefCap:
       type: yorc.type.WithUndefCap
+    Compute:
+      type: tosca.nodes.Compute
+    EPCapNodePublic:
+      type: yorc.type.TypeWithEndpointCap
+      capabilities:
+        myep:
+          properties:
+            network_name: PUBLIC
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    EPCapNodePrivate:
+      type: yorc.type.TypeWithEndpointCap
+      capabilities:
+        myep:
+          properties:
+            network_name: PRIVATE
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    EPCapNodeNamedNet:
+      type: yorc.type.TypeWithEndpointCap
+      capabilities:
+        myep:
+          properties:
+            # TODO(loicalbertin) Here we default to the private network but we should try to get the actual
+            # named network instead
+            network_name: named-network
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn

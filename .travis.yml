@@ -2,6 +2,7 @@ language: go
 go:
   - stable
 
+dist: trusty
 sudo: required
 
 services:
@@ -36,8 +37,16 @@ script:
   # Tweak code climate profile as Go modules are not properly supported yet
   # coverage.txt is for codecov.io while c.out is for codeclimate.com
   - sed -i -e "s@$(go list)/@@g" c.out
+  # Start sonar specific stuff
+  - cp coverage.txt coverage-sonar.out
+  - sed -i -e "s@$(go list)@github.com/ystia/yorc@g" coverage-sonar.out
+  - make json-test
+  - git fetch --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" "+refs/heads/release/*:refs/remotes/origin/release/*"
+  - git fetch --unshallow --quiet
+  - sonar-scanner --define "sonar.projectVersion=$(grep "yorc_version" versions.yaml | awk '{print $2}')"
+  # End of sonar specific stuff
   - "./docker_build.sh"
-  -  bash build/deploy_artifactory.sh
+  - bash build/deploy_artifactory.sh
 
 after_script:
   - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
@@ -68,3 +77,10 @@ addons:
     - texlive-latex-base
     - texlive-latex-extra
     - texlive-latex-recommended
+
+  sonarcloud:
+    organization: "ystia"
+
+cache:
+  directories:
+    - '$HOME/.sonar/cache'
