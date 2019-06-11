@@ -81,7 +81,7 @@ func init() {
 
 	DeploymentsCmd.AddCommand(undeployCmd)
 	undeployCmd.PersistentFlags().BoolVarP(&purge, "purge", "p", false, "To use if you want to purge instead of undeploy")
-	undeployCmd.PersistentFlags().BoolVarP(&stopOnError, "stop-on-error", "", false, "By default if an error occurs during the undeployment, the error is bypassed and the un-deployment continues. This flag allows to stop if an error occurs.")
+	undeployCmd.PersistentFlags().BoolVarP(&stopOnError, "stop-on-error", "", false, "By default if an error occurs during the undeployment, the error is bypassed and the undeployment continues. This flag allows to stop if an error occurs.")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after undeploying the application. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after undeploying the CSAR.")
 
