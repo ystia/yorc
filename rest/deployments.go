@@ -25,6 +25,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -235,8 +236,13 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	purge, err := getBoolQueryParam(r, "purge")
+	if err != nil {
+		writeError(w, r, newBadRequestMessage("purge query parameter must be a boolean value"))
+		return
+	}
 	var taskType tasks.TaskType
-	if _, ok := r.URL.Query()["purge"]; ok {
+	if purge {
 		log.Debugf("A purge task on deployment:%s has been requested", id)
 		taskType = tasks.TaskTypePurge
 	} else {
@@ -256,6 +262,13 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	data := map[string]string{
 		"workflowName": "uninstall",
 	}
+	// Default is not to stop on error for undeployment
+	stopOnError, err := getBoolQueryParam(r, "stopOnError")
+	if err != nil {
+		writeError(w, r, newBadRequestMessage("stopOnError query parameter must be a boolean value"))
+		return
+	}
+	data["continueOnError"] = strconv.FormatBool(!stopOnError)
 	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {
 		log.Debugf("register task has returned an err:%q", err.Error())
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {

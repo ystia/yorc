@@ -76,6 +76,7 @@ Flags:
   * ``-p``, ``--purge``: To use if you want to purge instead of undeploy.
   * ``-e``, ``--stream-events``: Stream events after deploying the CSAR.
   * ``-l``, ``--stream-logs``: Stream logs after deploying the CSAR. In this mode logs can't be filtered, to use this feature see the "log" command.
+  * ``--stop-on-error``: By default if an error occurs during the undeployment, the error is bypassed and the undeployment continues. This flag allows to stop if an error occurs.
 
 
 List deployments

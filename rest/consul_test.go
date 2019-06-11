@@ -73,5 +73,8 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 		t.Run("testSSLRest", func(t *testing.T) {
 			testSSLREST(t, client, srv)
 		})
+		t.Run("testDeploymentHandlers", func(t *testing.T) {
+			testDeploymentHandlers(t, client, srv)
+		})
 	})
 }

@@ -17,6 +17,7 @@ package deployments
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -28,6 +29,7 @@ func init() {
 	var purge bool
 	var shouldStreamLogs bool
 	var shouldStreamEvents bool
+	var stopOnError bool
 	var undeployCmd = &cobra.Command{
 		Use:   "undeploy <DeploymentId>",
 		Short: "Undeploy an application",
@@ -41,16 +43,21 @@ func init() {
 				httputil.ErrExit(err)
 			}
 
-			url := "/deployments/" + args[0]
-			if purge {
-				url = url + "?purge=true"
-			}
+			urlStr := "/deployments/" + args[0]
 
-			request, err := client.NewRequest("DELETE", url, nil)
+			q := url.Values{}
+			if purge {
+				q.Add("purge", "true")
+			}
+			if stopOnError {
+				q.Add("stopOnError", "true")
+			}
+			request, err := client.NewRequest("DELETE", urlStr, nil)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
 
+			request.URL.RawQuery = q.Encode()
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
 			if err != nil {
@@ -74,6 +81,7 @@ func init() {
 
 	DeploymentsCmd.AddCommand(undeployCmd)
 	undeployCmd.PersistentFlags().BoolVarP(&purge, "purge", "p", false, "To use if you want to purge instead of undeploy")
+	undeployCmd.PersistentFlags().BoolVarP(&stopOnError, "stop-on-error", "", false, "By default if an error occurs during the undeployment, the error is bypassed and the undeployment continues. This flag allows to stop if an error occurs.")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after undeploying the application. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after undeploying the CSAR.")
 
