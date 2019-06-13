@@ -117,7 +117,7 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 				require.Equal(t, string(kvp.Value), "val3")
 			}
 		}
-		//require.Equal(t, index, depTask, "Unexpected nb of tasks")
+		require.Equal(t, index, depTask, "Unexpected nb of tasks")
 	}
 
 	ind := 0
