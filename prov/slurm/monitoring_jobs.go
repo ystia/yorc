@@ -33,6 +33,13 @@ import (
 	"github.com/ystia/yorc/v3/prov/scheduling"
 )
 
+const bashLogger = `
+if [ -f %s ]; then
+    tail -n +%d %s
+fi
+
+`
+
 type actionOperator struct {
 }
 
@@ -188,7 +195,7 @@ func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, 
 		return
 	}
 
-	cmd := fmt.Sprintf("tail -n +%d %s", lastInd+1, filePath)
+	cmd := fmt.Sprintf(bashLogger, filePath, lastInd+1, filePath)
 	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("fail to log file (%s)due to error:%+v:", filePath, err)

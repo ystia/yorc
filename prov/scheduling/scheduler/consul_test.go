@@ -43,14 +43,14 @@ func TestRunConsulSchedulingPackageTests(t *testing.T) {
 	}()
 
 	t.Run("groupScheduling", func(t *testing.T) {
-		t.Run("testRegisterAction", func(t *testing.T) {
-			testRegisterAction(t, client)
-		})
+		//t.Run("testRegisterAction", func(t *testing.T) {
+		//	testRegisterAction(t, client)
+		//})
 		t.Run("testProceedScheduledAction", func(t *testing.T) {
 			testProceedScheduledAction(t, client)
 		})
-		t.Run("testUnregisterAction", func(t *testing.T) {
-			testUnregisterAction(t, client)
-		})
+		//t.Run("testUnregisterAction", func(t *testing.T) {
+		//	testUnregisterAction(t, client)
+		//})
 	})
 }
