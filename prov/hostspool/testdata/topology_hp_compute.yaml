@@ -31,6 +31,85 @@ topology_template:
           properties:
             num_cpus: 1
             disk_size: "20 GB"
+            mem_size: "1 GB"
+        os:
+          properties:
+            type: linux
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute2:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: true
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: "not significant, set by Yorc itself"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: "20 GB"
+            mem_size: "1 GB"
+        os:
+          properties:
+            type: linux
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute3:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: true
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: "not significant, set by Yorc itself"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: "20 GB"
+            mem_size: "1 GB"
+        os:
+          properties:
+            type: linux
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute4:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: true
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: "not significant, set by Yorc itself"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: "20 GB"
+            mem_size: "1 GB"
         os:
           properties:
             type: linux
@@ -46,9 +125,33 @@ topology_template:
           target: Compute
           activities:
             - delegate: install
+        Compute2_install:
+          target: Compute
+          activities:
+            - delegate: install
+        Compute3_install:
+          target: Compute
+          activities:
+            - delegate: install
+        Compute4_install:
+          target: Compute
+          activities:
+            - delegate: install
     uninstall:
       steps:
         Compute_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+        Compute2_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+        Compute3_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+        Compute4_uninstall:
           target: Compute
           activities:
             - delegate: uninstall
@@ -58,9 +161,33 @@ topology_template:
           target: Compute
           activities:
             - delegate: start
+        Compute2_start:
+          target: Compute
+          activities:
+            - delegate: start
+        Compute3_start:
+          target: Compute
+          activities:
+            - delegate: start
+        Compute4_start:
+          target: Compute
+          activities:
+            - delegate: start
     stop:
       steps:
         Compute_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+        Compute2_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+        Compute3_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+        Compute4_stop:
           target: Compute
           activities:
             - delegate: stop

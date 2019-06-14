@@ -15,13 +15,20 @@
 package hostspool
 
 import (
+	"context"
+	"fmt"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/labelsutil"
 )
 
@@ -82,6 +89,7 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, kv *api.KV, deployme
 	labels := map[string]string{
 		"host.num_cpus":  "2",
 		"host.disk_size": "40 GB",
+		"host.mem_size":  "8 GB",
 		"os.type":        "linux",
 	}
 
@@ -112,4 +120,143 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, kv *api.KV, deployme
 	matches, matchErr = labelsutil.MatchesAll(labels, filters...)
 	require.NoError(t, matchErr, "Unexpected error matching %+v", labels)
 	assert.False(t, matches, "Filters wrongly matching as host has not linux as os type ")
+}
+
+// testConcurrentExecDelegateShareableHost tests concurent attempts to allocate
+// shareable hosts in parallel, and verifies it won't lead to over-allocate a
+// shareable host
+func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer,
+	cc *api.Client, kv *api.KV, deploymentID string) {
+
+	// The topology in testdata/topology_hp_compute.yaml defines 4 compute node
+	// instances, each asking for 1CPU, 1GB of RAM, and 20GB of disk on a
+	// shareable host.
+	// Building a Hosts Pool where the first has enough resources for the first
+	// three compute instances, bu not enough resouces for the last compute
+	// instance which should then be allocated another host
+	cleanupHostsPool(t, cc)
+
+	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	initialResources := map[string]string{
+		"host.num_cpus":  "3",
+		"host.mem_size":  "4 GB",
+		"host.disk_size": "70 GB",
+		"os.type":        "linux"}
+
+	var hostpool = createHostsWithLabels(2, initialResources)
+
+	// Apply this definition
+	var checkpoint uint64
+	err := hpManager.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+
+	// Getting now nodes for which to call the install delegate operation install
+	// which will allocate resources in the Hosts Pool
+
+	allNodes, err := deployments.GetNodes(kv, deploymentID)
+	require.NoError(t, err, "Unexpected error getting nodes for deployment %s",
+		deploymentID)
+
+	var nodeNames []string
+	for _, nodeName := range allNodes {
+		nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+		require.NoError(t, err, "Unexpected error getting type for node %s in deployment %s",
+			nodeName, deploymentID)
+		if nodeType == "yorc.nodes.hostspool.Compute" {
+			nodeNames = append(nodeNames, nodeName)
+		}
+	}
+
+	testExecutor := &defaultExecutor{}
+	ctx := context.Background()
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+
+	// Testing the delegate operation install which will allocate resources
+	// Expected Hosts Pool allocations after this operation:
+	expectedResources := map[string]map[string]string{
+		"host0": map[string]string{
+			"host.num_cpus":  "0",
+			"host.mem_size":  "1 GB",
+			"host.disk_size": "10 GB",
+		},
+		"host1": map[string]string{
+			"host.num_cpus":  "2",
+			"host.mem_size":  "3 GB",
+			"host.disk_size": "50 GB",
+		},
+	}
+	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
+		"install", nodeNames, expectedResources)
+
+	// Testing the delegate operation uninstall which will free resources
+	// Expected Hosts Pool resources after this operation:
+	expectedResources = map[string]map[string]string{
+		"host0": initialResources,
+		"host1": initialResources,
+	}
+	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
+		"uninstall", nodeNames, expectedResources)
+}
+
+func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *defaultExecutor,
+	cc *api.Client,
+	hpManager Manager,
+	cfg config.Configuration,
+	taskID, deploymentID, delegateOperation string,
+	nodeNames []string,
+	expectedResources map[string]map[string]string) {
+
+	// Calling the delegate operation on all nodes in parallel
+	errors := make(chan error, len(nodeNames))
+	var waitGroup sync.WaitGroup
+	for _, nodeName := range nodeNames {
+		waitGroup.Add(1)
+		go routineExecDelegate(ctx, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
+			nodeName, delegateOperation, &waitGroup, errors)
+	}
+	waitGroup.Wait()
+
+	// Check no error occured attempting to execute the delegate operation
+	select {
+	case err := <-errors:
+		require.NoError(t, err, "Unexpected error executing operation %s in parallel", delegateOperation)
+	default:
+	}
+
+	close(errors)
+
+	for k, v := range expectedResources {
+		host, err := hpManager.GetHost(k)
+		require.NoError(t, err, "Could not get host %s", k)
+
+		for label, val := range v {
+			// Rounding sizes for comparison
+			result := strings.Replace(host.Labels[label], ".0 GB", " GB", 1)
+			assert.Equal(t, val, result, "Unexpected value for %s after delegate operation %s on host %s",
+				label, delegateOperation, k)
+		}
+	}
+}
+
+func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client,
+	hpManager Manager,
+	cfg config.Configuration,
+	taskID, deploymentID, nodeName, delegateOperation string,
+	waitGroup *sync.WaitGroup,
+	errors chan<- error) {
+
+	defer waitGroup.Done()
+	fmt.Printf("Executing operation %s on node %s\n", delegateOperation, nodeName)
+	err := e.execDelegateHostsPool(ctx, cc, hpManager, cfg, taskID, deploymentID, nodeName, delegateOperation)
+	if err != nil {
+		fmt.Printf("Error executing operation %s on node %s: %s\n", delegateOperation, nodeName, err.Error())
+		errors <- err
+	} else {
+		fmt.Printf("Executed operation %s on node %s\n", delegateOperation, nodeName)
+	}
 }

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
@@ -36,11 +37,23 @@ import (
 type defaultExecutor struct {
 }
 
+// Mutex to ensure consistency of a host allocations and resources labels
+var hostsPoolAllocMutex sync.Mutex
+
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
 	}
+
+	hpManager := NewManager(cc)
+	return e.execDelegateHostsPool(ctx, cc, hpManager, cfg,
+		taskID, deploymentID, nodeName, delegateOperation)
+}
+
+func (e *defaultExecutor) execDelegateHostsPool(
+	ctx context.Context, cc *api.Client, hpManager Manager, cfg config.Configuration,
+	taskID, deploymentID, nodeName, delegateOperation string) error {
 
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
@@ -55,7 +68,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		}
-		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
+		err = e.hostsPoolCreate(ctx, cc, hpManager, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -67,7 +80,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		}
-		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
+		err = e.hostsPoolDelete(ctx, cc, hpManager, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -79,8 +92,9 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	return errors.Errorf("operation %q not supported", delegateOperation)
 }
 
-func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
-	hpManager := NewManager(cc)
+func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context,
+	cc *api.Client, hpManager Manager, cfg config.Configuration,
+	taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 
 	jsonProp, err := deployments.GetNodePropertyValue(cc.KV(), deploymentID, nodeName, "filters")
 	if err != nil {
@@ -123,7 +137,17 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
 		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: allocatedResources}
+
+		// Protecting the allocation and update of resources labels by a mutex, to
+		// ensure no other worker will attempt to over-allocate resources of a
+		// host if another worker has allocated but not yet updated resources labels
+		hostsPoolAllocMutex.Lock()
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
+		if err == nil {
+			err = hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
+		}
+		hostsPoolAllocMutex.Unlock()
+
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
 				NewLogEntry(events.LogLevelWARN, deploymentID).Registerf(`%v`, warn)
@@ -208,10 +232,9 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 			}
 		}
 
-		return hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
 	}
 
-	return nil
+	return err
 }
 
 func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
@@ -319,8 +342,8 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 	return filters, nil
 }
 
-func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
-	hpManager := NewManager(cc)
+func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client,
+	hpManager Manager, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
