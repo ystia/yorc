@@ -102,10 +102,13 @@ func (sca *scheduledAction) proceed() error {
 	if sca.latestTaskID != "" {
 		status, err := tasks.GetTaskStatus(sca.kv, sca.latestTaskID)
 		// As action task is deleted after being executed asynchronously, we handle if task still exists
-		if err != nil && !tasks.IsTaskNotFoundError(err) {
+		if tasks.IsTaskNotFoundError(err) {
+			return sca.registerNewTask()
+		}
+		if err != nil {
 			return err
 		}
-		if err == nil && (status == tasks.TaskStatusINITIAL || status == tasks.TaskStatusRUNNING) {
+		if status == tasks.TaskStatusINITIAL || status == tasks.TaskStatusRUNNING {
 			ctx := context.Background()
 			if sca.AsyncOperation.TaskID != "" {
 				ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
@@ -122,6 +125,11 @@ func (sca *scheduledAction) proceed() error {
 		}
 	}
 
+	return sca.registerNewTask()
+}
+
+func (sca *scheduledAction) registerNewTask() error {
+	var err error
 	sca.latestTaskID, err = defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
 	if err != nil {
 		return err
