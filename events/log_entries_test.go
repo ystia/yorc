@@ -33,10 +33,11 @@ import (
 
 func TestGenerateValue(t *testing.T) {
 	t.Parallel()
-	logEntry := WithOptionalFields(LogOptionalFields{
+	ctx := context.WithValue(context.Background(), logOptFieldsKey, LogOptionalFields{
 		WorkFlowID:    "my_workflowID",
 		OperationName: "my_operationID",
-	}).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
+	})
+	logEntry := WithContextOptionalFields(ctx).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
 
 	logEntry.timestamp = time.Now()
 
@@ -46,10 +47,11 @@ func TestGenerateValue(t *testing.T) {
 
 func TestGenerateKey(t *testing.T) {
 	t.Parallel()
-	logEntry := WithOptionalFields(LogOptionalFields{
+	ctx := context.WithValue(context.Background(), logOptFieldsKey, LogOptionalFields{
 		WorkFlowID:    "my_workflowID",
 		OperationName: "my_operationID",
-	}).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
+	})
+	logEntry := WithContextOptionalFields(ctx).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
 
 	logEntry.timestamp = time.Now()
 

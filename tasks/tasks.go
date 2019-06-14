@@ -195,13 +195,6 @@ func CancelTask(kv *api.KV, taskID string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), "true")
 }
 
-// ResumeTask marks a task as Initial to allow it being resumed
-//
-// Deprecated: use (c *collector.Collector) ResumeTask instead
-func ResumeTask(kv *api.KV, taskID string) error {
-	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "status"), strconv.Itoa(int(TaskStatusINITIAL)))
-}
-
 // DeleteTask allows to delete a stored task
 func DeleteTask(kv *api.KV, taskID string) error {
 	_, err := kv.DeleteTree(path.Join(consulutil.TasksPrefix, taskID), nil)
@@ -323,13 +316,6 @@ func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return kvp != nil, nil
-}
-
-// EmitTaskEvent emits a task event based on task type
-//
-// Deprecated: use EmitTaskEventWithContextualLogs instead
-func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (string, error) {
-	return EmitTaskEventWithContextualLogs(nil, kv, deploymentID, taskID, taskType, "unknown", status)
 }
 
 // EmitTaskEventWithContextualLogs emits a task event based on task type

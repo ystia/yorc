@@ -8,7 +8,6 @@ metadata:
 imports:
   - ../../data/tosca/normative-types.yml
   - ../../data/tosca/yorc-aws-types.yml
-  - ../../data/tosca/yorc-docker-types.yml
   - ../../data/tosca/yorc-google-types.yml
   - ../../data/tosca/yorc-hostspool-types.yml
   - ../../data/tosca/yorc-kubernetes-types.yml

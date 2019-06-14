@@ -34,7 +34,6 @@ func TestAssets(t *testing.T) {
 		t.Run("YorcTypes", testAssetYorcParsing)
 		t.Run("SlurmTypes", testAssetYorcSlurmParsing)
 		t.Run("HostsPoolTypes", testAssetYorcHostsPoolParsing)
-		t.Run("DockerTypes", testAssetYorcDockerParsing)
 	})
 }
 
@@ -82,9 +81,4 @@ func testAssetYorcSlurmParsing(t *testing.T) {
 func testAssetYorcHostsPoolParsing(t *testing.T) {
 	t.Parallel()
 	checkBuiltinTypesPath(t, "yorc-hostspool-types")
-}
-
-func testAssetYorcDockerParsing(t *testing.T) {
-	t.Parallel()
-	checkBuiltinTypesPath(t, "yorc-docker-types")
 }

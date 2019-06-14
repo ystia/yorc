@@ -508,6 +508,8 @@ func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {
 	cfg.Vault.Set(paramParts[1], value)
 }
 
+// TODO(loicalbertin): as per Yorc 4.0 upgrade deprecated features can be removed. @laurentganne Could you help on removing this?
+
 // Deprecate keys still using an old format in viper configuration by defining
 // an alias to the new key, and logging a message describing which keys are
 // deprecated as well as the new format to use.

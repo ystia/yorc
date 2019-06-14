@@ -108,7 +108,14 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 			return err
 		}
 		// Not cancelling within the same task try to get jobID from attribute
-		_, jobID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.nodeName, "0", "job_id")
+		jobIDValue, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.nodeName, "0", "job_id")
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
+		}
+		if jobIDValue != nil {
+			return errors.New("failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
+		}
+		jobID = jobIDValue.RawString()
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
 			"k8s job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.nodeName)
 	}

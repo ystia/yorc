@@ -117,23 +117,16 @@ func SimpleLogEntry(level LogLevel, deploymentID string) *LogEntry {
 	}
 }
 
-// WithOptionalFields allows to return a LogEntry instance with additional fields
-//
-// Deprecated: Use events.WithContextOptionalFields() instead
-func WithOptionalFields(fields LogOptionalFields) *LogEntryDraft {
-	info := make(LogOptionalFields, len(fields))
+// WithContextOptionalFields allows to return a LogEntry instance with additional fields comming from the context
+func WithContextOptionalFields(ctx context.Context) *LogEntryDraft {
+	lof, _ := FromContext(ctx)
+	info := make(LogOptionalFields, len(lof))
 	fle := &LogEntryDraft{additionalInfo: info}
-	for k, v := range fields {
+	for k, v := range lof {
 		info[k] = v
 	}
 
 	return fle
-}
-
-// WithContextOptionalFields allows to return a LogEntry instance with additional fields comming from the context
-func WithContextOptionalFields(ctx context.Context) *LogEntryDraft {
-	lof, _ := FromContext(ctx)
-	return WithOptionalFields(lof)
 }
 
 // NewLogEntry allows to build a log entry from a draft
