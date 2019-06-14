@@ -59,6 +59,12 @@ func (jid *noJobFound) Error() string {
 	return jid.msg
 }
 
+func isNoJobFoundError(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(*noJobFound)
+	return ok
+}
+
 type executionCommon struct {
 	kv             *api.KV
 	cfg            config.Configuration
