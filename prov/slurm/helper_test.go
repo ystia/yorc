@@ -247,7 +247,7 @@ func TestPrivateKey(t *testing.T) {
 	// Config to test
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
-			"slurm": config.DynamicMap{
+			"slurm": {
 				"user_name":   "jdoe",
 				"url":         "127.0.0.1",
 				"port":        22,
@@ -349,4 +349,17 @@ func TestParseJob(t *testing.T) {
 	require.Equal(t, "RUNNING", info["JobState"], "unexpected value for \"JobState\" key")
 	require.Equal(t, "test-salloc-Environment", info["JobName"], "unexpected value for \"JobName\" key")
 	require.Equal(t, "2-19:42:53", info["RunTime"], "unexpected value for \"RunTime\" key")
+}
+
+func TestGetJobInfo(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "slurm_load_jobs error: Invalid job id specified", errors.New("")
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.Equal(t, true, isNoJobFoundError(err), "expected no job found error")
 }

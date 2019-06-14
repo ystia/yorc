@@ -108,6 +108,10 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
 	if err != nil {
+		if isNoJobFoundError(err) {
+			// the job is not found in slurm database (should have been purged) : pass its status to "UNKNOWN"
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", "UNKNOWN")
+		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
 	}
 
