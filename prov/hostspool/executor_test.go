@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v4/helper/labelsutil"
 )
 
 func TestUpdateHostResourcesLabels(t *testing.T) {

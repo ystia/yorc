@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // TypeExistsFlagName is the name of a Consul key that is used to prove the existence of a TOSCA type

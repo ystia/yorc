@@ -20,10 +20,10 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/ystia/yorc/v3/deployments/store"
-	"github.com/ystia/yorc/v3/prov/hostspool"
-	"github.com/ystia/yorc/v3/registry"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/deployments/store"
+	"github.com/ystia/yorc/v4/prov/hostspool"
+	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 const (

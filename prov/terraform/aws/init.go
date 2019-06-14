@@ -15,8 +15,8 @@
 package aws
 
 import (
-	"github.com/ystia/yorc/v3/prov/terraform"
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v4/prov/terraform"
+	"github.com/ystia/yorc/v4/registry"
 )
 
 func init() {

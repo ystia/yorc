@@ -20,11 +20,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/stringutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/stringutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it

@@ -18,8 +18,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 )
 
 // An ActivityHook is a function that could be registered as pre or post activity hook and

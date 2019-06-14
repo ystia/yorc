@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // NewTestConsulInstance allows to :

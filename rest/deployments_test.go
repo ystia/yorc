@@ -17,9 +17,9 @@ package rest
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tasks"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"

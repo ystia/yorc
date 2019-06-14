@@ -6,7 +6,7 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // Cmd represents an external command being prepared or run.

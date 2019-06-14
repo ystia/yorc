@@ -23,14 +23,14 @@ import (
 	"path"
 	"strings"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/helper/pathutil"
-	"github.com/ystia/yorc/v3/helper/sshutil"
-	"github.com/ystia/yorc/v3/helper/stringutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/pathutil"
+	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/helper/stringutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,

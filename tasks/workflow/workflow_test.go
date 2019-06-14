@@ -26,12 +26,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/registry"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 )
 
 type mockExecutor struct {

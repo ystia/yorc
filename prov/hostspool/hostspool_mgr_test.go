@@ -28,9 +28,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/helper/labelsutil"
-	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/labelsutil"
+	"github.com/ystia/yorc/v4/helper/sshutil"
 )
 
 var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----

@@ -17,9 +17,9 @@ package rest
 import (
 	"net/http"
 
-	"github.com/ystia/yorc/v3/deployments/store"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v4/deployments/store"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/registry"
 )
 
 var reg = registry.GetRegistry()

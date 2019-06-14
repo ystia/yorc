@@ -15,7 +15,7 @@
 package openstack
 
 import (
-	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
 const defaultOSRegion = "RegionOne"

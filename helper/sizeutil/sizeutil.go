@@ -20,7 +20,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/helper/mathutil"
+	"github.com/ystia/yorc/v4/helper/mathutil"
 )
 
 // ConvertToGB allows to convert a MB size as "42" or a human readable size as "42MB" or "42 KB" into GB

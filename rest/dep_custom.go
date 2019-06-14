@@ -23,15 +23,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v4/helper/collections"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov/operations"
-	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov/operations"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {

@@ -20,8 +20,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/vault"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/vault"
 )
 
 // BuiltinOrigin is the origin for Yorc builtin

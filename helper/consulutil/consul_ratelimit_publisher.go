@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // ConsulStoreTxnTimeoutEnvName is the name of the environment variable that allows to activate the feature that

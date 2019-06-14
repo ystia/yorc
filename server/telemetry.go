@@ -21,8 +21,8 @@ import (
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func setupTelemetry(cfg config.Configuration) error {

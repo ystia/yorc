@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"vbom.ml/util/sortorder"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // GetRequirementKeyByNameForNode returns path to requirement which name match with defined requirementName for a given node name

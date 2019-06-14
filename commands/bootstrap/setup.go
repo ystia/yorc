@@ -32,11 +32,11 @@ import (
 	"github.com/blang/semver"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/commands/httputil"
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/ziputil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v4/commands/httputil"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/ziputil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/rest"
 )
 
 var cmdConsul *exec.Cmd

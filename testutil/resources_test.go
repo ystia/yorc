@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ystia/yorc/v3/deployments/store"
+	"github.com/ystia/yorc/v4/deployments/store"
 )
 
 func TestAssets(t *testing.T) {

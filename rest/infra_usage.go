@@ -20,9 +20,9 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/registry"
-	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {

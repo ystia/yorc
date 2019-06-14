@@ -19,7 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ystia/yorc/v3/commands/deployments"
+	"github.com/ystia/yorc/v4/commands/deployments"
 )
 
 var workflowsCmd = &cobra.Command{

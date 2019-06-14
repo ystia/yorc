@@ -1,4 +1,4 @@
-module github.com/ystia/yorc/v3
+module github.com/ystia/yorc/v4
 
 // Makefile should also be updated when changing module major version (for injected variables)
 

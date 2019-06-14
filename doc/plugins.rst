@@ -107,7 +107,7 @@ This guide will use Go modules to handle dependencies and we recommend to do the
   $ mkdir my-custom-plugin ; cd my-custom-plugin
   $ go mod init github.com/my/custom-plugin
   go: creating new go.mod: module github.com/my/custom-plugin
-  $ go get -m github.com/ystia/yorc/v3@v3.2.0-M2
+  $ go get -m github.com/ystia/yorc/v4@v4.0.0-M1
   $ touch main.go
 
 
@@ -123,7 +123,7 @@ entry-point with the following code:
   package main
 
   import (
-    "github.com/ystia/yorc/v3/plugin"
+    "github.com/ystia/yorc/v4/plugin"
   )
 
   func main() {
@@ -162,7 +162,7 @@ your main function.
   package main
 
   import (
-    "github.com/ystia/yorc/v3/plugin"
+    "github.com/ystia/yorc/v4/plugin"
   )
 
   var def = []byte(`tosca_definitions_version: yorc_tosca_simple_yaml_1_0
@@ -184,7 +184,7 @@ your main function.
   node_types:
     mytosca.types.Compute:
       derived_from: tosca.nodes.Compute
-		
+
   `)
 
   func main() {
@@ -210,11 +210,11 @@ and edit it with following content.
     "context"
     "log"
 
-    "github.com/ystia/yorc/v3/deployments"
-    "github.com/ystia/yorc/v3/tasks"
-    "github.com/ystia/yorc/v3/tosca"
-    "github.com/ystia/yorc/v3/events"
-    "github.com/ystia/yorc/v3/config"
+    "github.com/ystia/yorc/v4/deployments"
+    "github.com/ystia/yorc/v4/tasks"
+    "github.com/ystia/yorc/v4/tosca"
+    "github.com/ystia/yorc/v4/events"
+    "github.com/ystia/yorc/v4/config"
   )
 
   type delegateExecutor struct{}
@@ -240,8 +240,8 @@ and edit it with following content.
     if err != nil {
       return err
     }
-    
-    // Emit events and logs on instance status change 
+
+    // Emit events and logs on instance status change
     for _, instanceName := range instances {
       deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, instanceName, tosca.NodeStateCreating)
     }
@@ -251,7 +251,7 @@ and edit it with following content.
 
     // Emit a log or an event
     events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Provisioning node %q of type %q", nodeName, nodeType)
-    
+
     for _, instanceName := range instances {
       deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, instanceName, tosca.NodeStateStarted)
     }
@@ -267,8 +267,8 @@ This could be done by altering again  ``ServeOpts`` in your main function.
   package main
 
   import (
-    "github.com/ystia/yorc/v3/plugin"
-    "github.com/ystia/yorc/v3/prov"
+    "github.com/ystia/yorc/v4/plugin"
+    "github.com/ystia/yorc/v4/prov"
   )
 
   // ... omitted for brevity ...
@@ -305,9 +305,9 @@ You can create a ``operation.go`` file with following content.
     "fmt"
     "time"
 
-    "github.com/ystia/yorc/v3/config"
-    "github.com/ystia/yorc/v3/events"
-    "github.com/ystia/yorc/v3/prov"
+    "github.com/ystia/yorc/v4/config"
+    "github.com/ystia/yorc/v4/events"
+    "github.com/ystia/yorc/v4/prov"
   )
 
   type operationExecutor struct{}
@@ -349,7 +349,7 @@ Again, this could be done by altering ``ServeOpts`` in your main function.
 Logging
 ~~~~~~~
 
-Using the `log` standard library or Yorc log module `github.com/ystia/yorc/v3/log`
+Using the `log` standard library or Yorc log module `github.com/ystia/yorc/v4/log`
 in plugin code, log data from the plugin will be automatically sent to the Yorc
 Server parent process.
 Yorc will parse these plugin logs to infer their log level and filter
@@ -358,7 +358,7 @@ prefixed by the plugin name and suffixed by the timestamp of their creation on t
 
 Plugin log messages levels are inferred this way by Yorc Server :
 
-  * A message sent by the plugin using Yorc log module `github.com/ystia/yorc/v3/log`
+  * A message sent by the plugin using Yorc log module `github.com/ystia/yorc/v4/log`
     function `log.Debug()`, `log.Debugf()` or `log.Debugln()` will have the level
     `DEBUG`, all other messages will have the level `INFO` on Yorc server.
 

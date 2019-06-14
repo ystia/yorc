@@ -15,7 +15,7 @@
 package kubernetes
 
 import (
-	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v4/registry"
 )
 
 const (

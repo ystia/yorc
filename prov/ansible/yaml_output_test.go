@@ -26,9 +26,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {

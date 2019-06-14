@@ -15,7 +15,7 @@
 package ansible
 
 import (
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 // NewExecutor returns an Executor

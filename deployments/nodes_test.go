@@ -22,9 +22,9 @@ import (
 	ctu "github.com/hashicorp/consul/testutil"
 
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v3/deployments/internal"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/deployments/internal"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {

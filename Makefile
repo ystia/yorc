@@ -33,7 +33,7 @@ TF_GOOGLE_PLUGIN_VERSION=$(shell grep "tf_google_plugin_version" versions.yaml |
 YORC_VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 
 # Should be updated when changing major version
-YORC_PACKAGE=github.com/ystia/yorc/v3
+YORC_PACKAGE=github.com/ystia/yorc/v4
 
 export GO111MODULE=on
 export BUILD_DIR=$(shell pwd)/build
@@ -101,5 +101,6 @@ vet:
 tools:
 	@echo "--> Installing $(GOTOOLS)"
 	@go install $(GOTOOLS)
+
 
 .PHONY: build cov checks test cover format vet tools dist

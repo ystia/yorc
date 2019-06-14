@@ -24,8 +24,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {

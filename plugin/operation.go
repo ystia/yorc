@@ -22,9 +22,9 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 // OperationExecutor is an extension of prov.OperationExecutor that expose its supported node types

@@ -17,7 +17,7 @@ package vault
 import (
 	"fmt"
 
-	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v4/config"
 )
 
 // Client is the common interface for Vault clients.

@@ -25,12 +25,12 @@ import (
 	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/testutil"
-	"github.com/ystia/yorc/v3/tosca"
-	"github.com/ystia/yorc/v3/vault"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/testutil"
+	"github.com/ystia/yorc/v4/tosca"
+	"github.com/ystia/yorc/v4/vault"
 )
 
 func testResolver(t *testing.T, kv *api.KV) {

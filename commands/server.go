@@ -23,10 +23,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/collections"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/server"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/server"
 )
 
 func init() {

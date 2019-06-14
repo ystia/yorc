@@ -20,7 +20,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	gplugin "github.com/hashicorp/go-plugin"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // NewClient returns a properly configured plugin client for a given plugin path

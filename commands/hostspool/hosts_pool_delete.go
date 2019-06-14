@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v4/commands/httputil"
 )
 
 func init() {
