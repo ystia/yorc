@@ -222,7 +222,7 @@ func deleteNamespace(namespaceName string, clientset kubernetes.Interface) error
 }
 
 // Default k8s namespace policy for Yorc : one namespace for each deployment
-func defaultNamespace(deploymentID string) (string) {
+func defaultNamespace(deploymentID string) string {
 	return strings.ToLower(deploymentID)
 }
 
