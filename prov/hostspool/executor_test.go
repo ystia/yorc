@@ -128,56 +128,7 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, kv *api.KV, deployme
 func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer,
 	cc *api.Client, kv *api.KV, deploymentID string) {
 
-	// The topology in testdata/topology_hp_compute.yaml defines 4 compute node
-	// instances, each asking for 1CPU, 1GB of RAM, and 20GB of disk on a
-	// shareable host.
-	// Building a Hosts Pool where the first has enough resources for the first
-	// three compute instances, bu not enough resouces for the last compute
-	// instance which should then be allocated another host
-	cleanupHostsPool(t, cc)
-
-	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
-	initialLabels := map[string]string{
-		"host.num_cpus":  "3",
-		"host.mem_size":  "4 GB",
-		"host.disk_size": "70 GB",
-		"os.type":        "linux",
-		"label1":         "stringvalue1",
-		"public_address": "1.2.3.4", // to cover some code using this resource
-	}
-
-	var hostpool = createHostsWithLabels(2, initialLabels)
-
-	// Apply this definition
-	var checkpoint uint64
-	err := hpManager.Apply(hostpool, &checkpoint)
-	require.NoError(t, err, "Unexpected failure applying host pool configuration")
-
-	// Getting now nodes for which to call the install delegate operation install
-	// which will allocate resources in the Hosts Pool
-
-	allNodes, err := deployments.GetNodes(kv, deploymentID)
-	require.NoError(t, err, "Unexpected error getting nodes for deployment %s",
-		deploymentID)
-
-	var nodeNames []string
-	for _, nodeName := range allNodes {
-		nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
-		require.NoError(t, err, "Unexpected error getting type for node %s in deployment %s",
-			nodeName, deploymentID)
-		if nodeType == "yorc.nodes.hostspool.Compute" {
-			nodeNames = append(nodeNames, nodeName)
-		}
-	}
-
-	testExecutor := &defaultExecutor{}
-	ctx := context.Background()
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
+	ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor := prepareTestEnv(t, srv, cc, kv, deploymentID, 2)
 
 	// Testing the delegate operation install which will allocate resources
 	// Expected Hosts Pool allocations after this operation:
@@ -276,6 +227,31 @@ func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client
 func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer,
 	cc *api.Client, kv *api.KV, deploymentID string) {
 
+	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, kv, deploymentID, 1)
+
+	lastIndex := len(nodeNames) - 1
+	operationParams := operationParameters{
+		taskID:            "taskTest",
+		deploymentID:      deploymentID,
+		delegateOperation: "install",
+		hpManager:         hpManager,
+	}
+	for _, nodeName := range nodeNames[:lastIndex] {
+		operationParams.nodeName = nodeName
+		err := testExecutor.execDelegateHostsPool(ctx, cc, cfg, operationParams)
+		require.NoError(t, err, "Error executing operation %s on node %s\n", operationParams.delegateOperation, nodeName)
+	}
+
+	operationParams.nodeName = nodeNames[lastIndex]
+	err := testExecutor.execDelegateHostsPool(ctx, cc, cfg, operationParams)
+	require.Error(t, err, "Expected a not enough resources error executing operation %s on node %s\n",
+		operationParams.delegateOperation, operationParams.nodeName)
+
+}
+
+func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *api.KV, deploymentID string,
+	hostsNumber int) (context.Context, config.Configuration, Manager, []string, map[string]string, *defaultExecutor) {
+
 	// The topology in testdata/topology_hp_compute.yaml defines 4 compute node
 	// instances, each asking for 1CPU, 1GB of RAM, and 20GB of disk on a
 	// shareable host.
@@ -292,7 +268,7 @@ func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer
 		"public_address": "1.2.3.4", // to cover some code using this resource
 	}
 
-	var hostpool = createHostsWithLabels(1, initialLabels)
+	var hostpool = createHostsWithLabels(hostsNumber, initialLabels)
 
 	// Apply this definition
 	var checkpoint uint64
@@ -325,22 +301,5 @@ func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer
 		},
 	}
 
-	lastIndex := len(nodeNames) - 1
-	operationParams := operationParameters{
-		taskID:            "taskTest",
-		deploymentID:      deploymentID,
-		delegateOperation: "install",
-		hpManager:         hpManager,
-	}
-	for _, nodeName := range nodeNames[:lastIndex] {
-		operationParams.nodeName = nodeName
-		err := testExecutor.execDelegateHostsPool(ctx, cc, cfg, operationParams)
-		require.NoError(t, err, "Error executing operation %s on node %s\n", operationParams.delegateOperation, nodeName)
-	}
-
-	operationParams.nodeName = nodeNames[lastIndex]
-	err = testExecutor.execDelegateHostsPool(ctx, cc, cfg, operationParams)
-	require.Error(t, err, "Expected a not enough resources error executing operation %s on node %s\n",
-		operationParams.delegateOperation, operationParams.nodeName)
-
+	return ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor
 }
