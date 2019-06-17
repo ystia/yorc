@@ -242,10 +242,6 @@ func initConfig() {
 		})
 	}
 
-	// Deprecate Ansible and Consul flat keys if they are defined in
-	// configuration
-	deprecateFlatKeys(ansibleConfiguration, "ansible")
-	deprecateFlatKeys(consulConfiguration, "consul")
 }
 
 func setConfig() {
@@ -506,39 +502,6 @@ func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {
 	paramParts := strings.Split(vaultParam, ".")
 	value := viper.Get(vaultParam)
 	cfg.Vault.Set(paramParts[1], value)
-}
-
-// TODO(loicalbertin): as per Yorc 4.0 upgrade deprecated features can be removed. @laurentganne Could you help on removing this?
-
-// Deprecate keys still using an old format in viper configuration by defining
-// an alias to the new key, and logging a message describing which keys are
-// deprecated as well as the new format to use.
-func deprecateFlatKeys(configuration map[string]interface{}, configurationName string) {
-
-	var deprecatedMsg string
-	var newValueMsg string
-	msgFlatKeyFormat := "\t%q: %T,\n"
-	msgNestedKeyFormat := "\t" + msgFlatKeyFormat
-
-	for key, defaultValue := range configuration {
-		deprecatedKey := toFlatKey(key)
-		if value := viper.Get(deprecatedKey); value != nil {
-			subkeys := strings.SplitN(key, ".", 2)
-			deprecatedMsg += fmt.Sprintf(msgFlatKeyFormat, deprecatedKey, defaultValue)
-			newValueMsg += fmt.Sprintf(msgNestedKeyFormat, subkeys[1], defaultValue)
-			// Let viper manage the nested key as the primary key,
-			// and the flat key as an alias
-			viper.RegisterAlias(deprecatedKey, key)
-		}
-	}
-
-	if deprecatedMsg != "" {
-		log.Printf("Deprecated values are used in configuration file. The following lines:\n%sshould now have this format:\n\t%q:{\n%s\t}",
-			deprecatedMsg,
-			configurationName,
-			newValueMsg)
-	}
-
 }
 
 // Returns the flat key corresponding to a nested key.
