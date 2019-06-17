@@ -86,43 +86,40 @@ func (e *defaultExecutor) execDelegateHostsPool(
 
 	switch strings.ToLower(op.delegateOperation) {
 	case "install":
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(
-				events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
-				cc.KV(), op.deploymentID, op.nodeName, instance, tosca.NodeStateCreating)
-		}
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateCreating)
 		err = e.hostsPoolCreate(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(
-				events.AddLogOptionalFields(ctx,
-					events.LogOptionalFields{events.InstanceID: instance}),
-				cc.KV(), op.deploymentID, op.nodeName, instance, tosca.NodeStateStarted)
-		}
-		return nil
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateStarted)
 	case "uninstall":
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(
-				events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
-				cc.KV(), op.deploymentID, op.nodeName, instance, tosca.NodeStateDeleting)
-		}
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateDeleting)
 		err = e.hostsPoolDelete(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(
-				events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
-				cc.KV(), op.deploymentID, op.nodeName, instance, tosca.NodeStateDeleted)
-		}
-		return nil
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateDeleted)
+	default:
+		return errors.Errorf("operation %q not supported", op.delegateOperation)
 	}
-	return errors.Errorf("operation %q not supported", op.delegateOperation)
+	return nil
 }
 
-func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context,
+func setInstancesStateWithContextualLogs(
+	ctx context.Context,
+	cc *api.Client,
+	op operationParameters,
+	instances []string,
+	state tosca.NodeState) {
+
+	for _, instance := range instances {
+		deployments.SetInstanceStateWithContextualLogs(
+			events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
+			cc.KV(), op.deploymentID, op.nodeName, instance, state)
+	}
+}
+
+func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 	cc *api.Client, cfg config.Configuration,
 	op operationParameters, allocatedResources map[string]string) error {
 
@@ -164,7 +161,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context,
 		return err
 	}
 
-	return e.allocateHostToInstance(originalCtx, instances, shareable, filters, op, allocatedResources)
+	return e.allocateHostToInstance(ctx, instances, shareable, filters, op, allocatedResources)
 }
 
 func (e *defaultExecutor) allocateHostToInstance(
