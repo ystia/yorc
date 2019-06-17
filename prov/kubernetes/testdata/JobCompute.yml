@@ -1,0 +1,235 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: JobCompute
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - org.alien4cloud.kubernetes.api/2.1.1/tosca.yml
+  - alien-base-types/2.1.1/alien-base-types.yml
+  - docker-types/2.1.1/types.yml
+  - <yorc-kubernetes-types.yml>
+
+topology_template:
+  node_templates:
+    ContainerJobUnit_Resource:
+      metadata:
+        a4c_kubernetes-final-modifier_created_from: ContainerJobUnit
+      type: yorc.nodes.kubernetes.api.types.JobResource
+      properties:
+        resource_spec: |
+            {
+              "metadata" : {
+                "name" : "containerjobunit--74546570"
+              },
+              "apiVersion" : "batch/v1",
+              "kind" : "Job",
+              "spec" : {
+                "template" : {
+                  "metadata" : {
+                    "labels" : {
+                      "app" : "containerjobunit--74546570"
+                    }
+                  },
+                  "spec" : {
+                    "containers" : [ {
+                      "image" : "yikaus/alpine-bash:latest",
+                      "name" : "computebashloop-953064044",
+                      "resources" : {
+                        "requests" : {
+                          "memory" : 128000000,
+                          "cpu" : 1.0
+                        }
+                      },
+                      "command" : [ "/bin/bash", "-c", "for d in $(seq 1 15); do echo $d; sleep $d; done; echo 'Computation done!';" ]
+                    } ]
+                  }
+                }
+              }
+            }
+    ContainerJobUnit_Resource2:
+      metadata:
+        a4c_kubernetes-final-modifier_created_from: ContainerJobUnit
+      type: yorc.nodes.kubernetes.api.types.JobResource
+      properties:
+        resource_spec: |
+            {
+              "metadata" : {
+                "name" : "containerjobunit--74546570",
+                "namespace": "providedNS"
+              },
+              "apiVersion" : "batch/v1",
+              "kind" : "Job",
+              "spec" : {
+                "template" : {
+                  "metadata" : {
+                    "labels" : {
+                      "app" : "containerjobunit--74546570"
+                    }
+                  },
+                  "spec" : {
+                    "containers" : [ {
+                      "image" : "yikaus/alpine-bash:latest",
+                      "name" : "computebashloop-953064044",
+                      "resources" : {
+                        "requests" : {
+                          "memory" : 128000000,
+                          "cpu" : 1.0
+                        }
+                      },
+                      "command" : [ "/bin/bash", "-c", "for d in $(seq 1 15); do echo $d; sleep $d; done; echo 'Computation done!';" ]
+                    } ]
+                  }
+                }
+              }
+            }
+
+  workflows:
+    install:
+      steps:
+        ContainerJobUnit_Resource_created:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: created
+          on_success:
+            - ContainerJobUnit_Resource_configuring
+        ContainerJobUnit_Resource_initial:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: initial
+          on_success:
+            - ContainerJobUnit_Resource_creating
+        ContainerJobUnit_Resource_creating:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: creating
+          on_success:
+            - ContainerJobUnit_Resource_created
+        ContainerJobUnit_Resource_starting:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: starting
+          on_success:
+            - ContainerJobUnit_Resource_started
+        ContainerJobUnit_Resource_configured:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: configured
+          on_success:
+            - ContainerJobUnit_Resource_starting
+        ContainerJobUnit_Resource_configuring:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: configuring
+          on_success:
+            - ContainerJobUnit_Resource_configured
+        ContainerJobUnit_Resource_started:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: started
+    uninstall:
+      steps:
+        ContainerJobUnit_Resource_deleting:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: deleting
+          on_success:
+            - ContainerJobUnit_Resource_deleted
+        ContainerJobUnit_Resource_stopping:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: stopping
+          on_success:
+            - ContainerJobUnit_Resource_stopped
+        ContainerJobUnit_Resource_deleted:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: deleted
+        ContainerJobUnit_Resource_stopped:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: stopped
+          on_success:
+            - ContainerJobUnit_Resource_deleting
+    start:
+      steps:
+        ContainerJobUnit_Resource_starting:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: starting
+          on_success:
+            - ContainerJobUnit_Resource_started
+        ContainerJobUnit_Resource_started:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: started
+    stop:
+      steps:
+        ContainerJobUnit_Resource_stopping:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: stopping
+          on_success:
+            - ContainerJobUnit_Resource_stopped
+        ContainerJobUnit_Resource_stopped:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: stopped
+    run:
+      steps:
+        ContainerJobUnit_Resource_submit:
+          target: ContainerJobUnit_Resource
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.submit
+          on_success:
+            - ContainerJobUnit_Resource_submitted
+        ContainerJobUnit_Resource_executed:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: executed
+        ContainerJobUnit_Resource_submitting:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: submitting
+          on_success:
+            - ContainerJobUnit_Resource_submit
+        ContainerJobUnit_Resource_executing:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: executing
+          on_success:
+            - ContainerJobUnit_Resource_run
+        ContainerJobUnit_Resource_run:
+          target: ContainerJobUnit_Resource
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.run
+          on_success:
+            - ContainerJobUnit_Resource_executed
+        ContainerJobUnit_Resource_submitted:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: submitted
+          on_success:
+            - ContainerJobUnit_Resource_executing
+    cancel:
+      steps:
+        ContainerJobUnit_Resource_cancelling:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: cancelling
+          on_success:
+            - ContainerJobUnit_Resource_cancel
+        ContainerJobUnit_Resource_cancel:
+          target: ContainerJobUnit_Resource
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.cancel
+          on_success:
+            - ContainerJobUnit_Resource_cancelled
+        ContainerJobUnit_Resource_cancelled:
+          target: ContainerJobUnit_Resource
+          activities:
+            - set_state: cancelled

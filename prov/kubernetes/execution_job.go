@@ -112,7 +112,7 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
 		}
-		if jobIDValue != nil {
+		if jobIDValue == nil {
 			return errors.New("failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
 		}
 		jobID = jobIDValue.RawString()

@@ -222,8 +222,8 @@ func deleteNamespace(namespaceName string, clientset kubernetes.Interface) error
 }
 
 // Default k8s namespace policy for Yorc : one namespace for each deployment
-func defaultNamespace(deploymentID string) (string, error) {
-	return strings.ToLower(deploymentID), nil
+func defaultNamespace(deploymentID string) (string) {
+	return strings.ToLower(deploymentID)
 }
 
 // Check if a namespace is provided for a deployment.
@@ -240,7 +240,7 @@ func getNamespace(deploymentID string, objectMeta metav1.ObjectMeta) (string, bo
 		namespace = providedNamespace
 		isProvided = true
 	} else {
-		namespace, _ = defaultNamespace(deploymentID)
+		namespace = defaultNamespace(deploymentID)
 	}
 
 	return namespace, isProvided
