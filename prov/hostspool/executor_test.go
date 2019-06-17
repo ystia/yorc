@@ -137,13 +137,15 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 	cleanupHostsPool(t, cc)
 
 	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
-	initialResources := map[string]string{
+	initialLabels := map[string]string{
 		"host.num_cpus":  "3",
 		"host.mem_size":  "4 GB",
 		"host.disk_size": "70 GB",
-		"os.type":        "linux"}
+		"os.type":        "linux",
+		"public_address": "1.2.3.4", // to cover some code using this resource
+	}
 
-	var hostpool = createHostsWithLabels(2, initialResources)
+	var hostpool = createHostsWithLabels(2, initialLabels)
 
 	// Apply this definition
 	var checkpoint uint64
@@ -196,8 +198,8 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 	// Testing the delegate operation uninstall which will free resources
 	// Expected Hosts Pool resources after this operation:
 	expectedResources = map[string]map[string]string{
-		"host0": initialResources,
-		"host1": initialResources,
+		"host0": initialLabels,
+		"host1": initialLabels,
 	}
 	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
 		"uninstall", nodeNames, expectedResources)
