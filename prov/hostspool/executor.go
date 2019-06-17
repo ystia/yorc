@@ -34,6 +34,11 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
+const (
+	// endpointCapabilityName is the name of a TOSCA capability endpoint
+	endpointCapabilityName = "endpoint"
+)
+
 type defaultExecutor struct {
 }
 
@@ -42,6 +47,7 @@ type operationParameters struct {
 	deploymentID      string
 	nodeName          string
 	delegateOperation string
+	hpManager         Manager
 }
 
 // Mutex to ensure consistency of a host allocations and resources labels
@@ -53,18 +59,18 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	hpManager := NewManager(cc)
 	operationParams := operationParameters{
 		taskID:            taskID,
 		deploymentID:      deploymentID,
 		nodeName:          nodeName,
 		delegateOperation: delegateOperation,
+		hpManager:         NewManager(cc),
 	}
-	return e.execDelegateHostsPool(ctx, cc, hpManager, cfg, operationParams)
+	return e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
 }
 
 func (e *defaultExecutor) execDelegateHostsPool(
-	ctx context.Context, cc *api.Client, hpManager Manager, cfg config.Configuration,
+	ctx context.Context, cc *api.Client, cfg config.Configuration,
 	op operationParameters) error {
 
 	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
@@ -85,7 +91,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 				events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
 				cc.KV(), op.deploymentID, op.nodeName, instance, tosca.NodeStateCreating)
 		}
-		err = e.hostsPoolCreate(ctx, cc, hpManager, cfg, op, allocatedResources)
+		err = e.hostsPoolCreate(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -102,7 +108,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 				events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
 				cc.KV(), op.deploymentID, op.nodeName, instance, tosca.NodeStateDeleting)
 		}
-		err = e.hostsPoolDelete(ctx, cc, hpManager, cfg, op, allocatedResources)
+		err = e.hostsPoolDelete(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -117,7 +123,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 }
 
 func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context,
-	cc *api.Client, hpManager Manager, cfg config.Configuration,
+	cc *api.Client, cfg config.Configuration,
 	op operationParameters, allocatedResources map[string]string) error {
 
 	jsonProp, err := deployments.GetNodePropertyValue(cc.KV(), op.deploymentID, op.nodeName, "filters")
@@ -157,70 +163,68 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context,
 	if err != nil {
 		return err
 	}
-	for _, instance := range instances {
-		err = e.allocateHostToInstance(originalCtx, hpManager, instance,
-			shareable, filters, op, allocatedResources)
-		if err != nil {
-			return err
-		}
-	}
 
-	return err
+	return e.allocateHostToInstance(originalCtx, instances, shareable, filters, op, allocatedResources)
 }
 
-func (e *defaultExecutor) allocateHostToInstance(originalCtx context.Context,
-	hpManager Manager,
-	instance string,
+func (e *defaultExecutor) allocateHostToInstance(
+	originalCtx context.Context,
+	instances []string,
 	shareable bool,
 	filters []labelsutil.Filter,
 	op operationParameters,
 	allocatedResources map[string]string) error {
 
-	ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
+	for _, instance := range instances {
+		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
-	allocation := &Allocation{
-		NodeName:     op.nodeName,
-		Instance:     instance,
-		DeploymentID: op.deploymentID,
-		Shareable:    shareable,
-		Resources:    allocatedResources}
+		allocation := &Allocation{
+			NodeName:     op.nodeName,
+			Instance:     instance,
+			DeploymentID: op.deploymentID,
+			Shareable:    shareable,
+			Resources:    allocatedResources}
 
-	// Protecting the allocation and update of resources labels by a mutex, to
-	// ensure no other worker will attempt to over-allocate resources of a
-	// host if another worker has allocated but not yet updated resources labels
-	hostsPoolAllocMutex.Lock()
-	hostname, warnings, err := hpManager.Allocate(allocation, filters...)
-	if err == nil {
-		err = hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
-	}
-	hostsPoolAllocMutex.Unlock()
+		// Protecting the allocation and update of resources labels by a mutex, to
+		// ensure no other worker will attempt to over-allocate resources of a
+		// host if another worker has allocated but not yet updated resources labels
+		hostsPoolAllocMutex.Lock()
+		hostname, warnings, err := op.hpManager.Allocate(allocation, filters...)
+		if err == nil {
+			err = op.hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
+		}
+		hostsPoolAllocMutex.Unlock()
 
-	for _, warn := range warnings {
-		events.WithContextOptionalFields(ctx).
-			NewLogEntry(events.LogLevelWARN, op.deploymentID).Registerf(`%v`, warn)
-	}
-	if err != nil {
-		return err
-	}
-	err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance, "hostname", hostname)
-	if err != nil {
-		return err
-	}
-	host, err := hpManager.GetHost(hostname)
-	if err != nil {
-		return err
+		for _, warn := range warnings {
+			events.WithContextOptionalFields(ctx).
+				NewLogEntry(events.LogLevelWARN, op.deploymentID).Registerf(`%v`, warn)
+		}
+		if err != nil {
+			return err
+		}
+		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance, "hostname", hostname)
+		if err != nil {
+			return err
+		}
+		host, err := op.hpManager.GetHost(hostname)
+		if err != nil {
+			return err
+		}
+
+		err = e.updateConnectionSettings(ctx, op, host, hostname, instance)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = e.updateConnectionSettings(ctx, op, host, hostname, instance)
-
-	return err
+	return nil
 }
 
 func (e *defaultExecutor) updateConnectionSettings(
 	ctx context.Context, op operationParameters, host Host, hostname, instance string) error {
 
 	err := deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
-		instance, "endpoint", "ip_address", host.Connection.Host)
+		instance, endpointCapabilityName, "ip_address", host.Connection.Host)
 	if err != nil {
 		return err
 	}
@@ -232,7 +236,7 @@ func (e *defaultExecutor) updateConnectionSettings(
 		credentials["keys"] = []string{host.Connection.PrivateKey}
 	}
 	err = deployments.SetInstanceCapabilityAttributeComplex(op.deploymentID,
-		op.nodeName, instance, "endpoint", "credentials", credentials)
+		op.nodeName, instance, endpointCapabilityName, "credentials", credentials)
 	if err != nil {
 		return err
 	}
@@ -245,44 +249,47 @@ func (e *defaultExecutor) updateConnectionSettings(
 			`no "private_address" label for host %q, will use the address from the connection section`,
 			hostname)
 	}
-	err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance,
-		"ip_address", privateAddress)
-	if err != nil {
-		return err
-	}
-	err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance,
-		"private_address", privateAddress)
-	if err != nil {
-		return err
-	}
+	err = setInstanceAttributesValue(op, instance, privateAddress,
+		[]string{"ip_address", "private_address"})
 
 	if publicAddress, ok := host.Labels["public_address"]; ok {
+		// For compatibility with components referencing a host public_ip_address,
+		// defining an attribute public_ip_address as well
+		err = setInstanceAttributesValue(op, instance, privateAddress,
+			[]string{"public_address", "public_ip_address"})
+
 		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
 			instance, "public_address", publicAddress)
 		if err != nil {
 			return err
 		}
-
-		// For compatibility with components referencing a host public_ip_address,
-		// defining an attribute public_ip_address as well
-		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
-			instance, "public_ip_address", publicAddress)
-		if err != nil {
-			return err
-		}
-
 	}
 
 	if host.Connection.Port != 0 {
 		err = deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
-			instance, "endpoint", "port", strconv.FormatUint(host.Connection.Port, 10))
+			instance, endpointCapabilityName, "port", strconv.FormatUint(host.Connection.Port, 10))
 		if err != nil {
 			return err
 		}
 	}
 
-	for label, value := range host.Labels {
-		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+	return setInstanceAttributesFromLabels(op, instance, host.Labels)
+}
+
+func setInstanceAttributesValue(op operationParameters, instance, value string, attributes []string) error {
+	for _, attr := range attributes {
+		err := deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance,
+			attr, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func setInstanceAttributesFromLabels(op operationParameters, instance string, labels map[string]string) error {
+	for label, value := range labels {
+		err := setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
 			label, value, "networks", "network_name")
 		if err != nil {
 			return err
@@ -295,8 +302,11 @@ func (e *defaultExecutor) updateConnectionSettings(
 		// This is bad as we split value even if we are not sure that it matches
 		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
 			label, strings.Split(value, ","), "networks", "addresses")
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
@@ -405,7 +415,7 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 }
 
 func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client,
-	hpManager Manager, cfg config.Configuration, op operationParameters, allocatedResources map[string]string) error {
+	cfg config.Configuration, op operationParameters, allocatedResources map[string]string) error {
 	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
@@ -425,11 +435,11 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 			continue
 		}
 		allocation := &Allocation{NodeName: op.nodeName, Instance: instance, DeploymentID: op.deploymentID}
-		err = hpManager.Release(hostname.RawString(), allocation)
+		err = op.hpManager.Release(hostname.RawString(), allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return hpManager.UpdateResourcesLabels(hostname.RawString(), allocatedResources, add, updateResourcesLabels)
+		return op.hpManager.UpdateResourcesLabels(hostname.RawString(), allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")

@@ -257,8 +257,9 @@ func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client
 		deploymentID:      deploymentID,
 		nodeName:          nodeName,
 		delegateOperation: delegateOperation,
+		hpManager:         hpManager,
 	}
-	err := e.execDelegateHostsPool(ctx, cc, hpManager, cfg, operationParams)
+	err := e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
 	if err != nil {
 		fmt.Printf("Error executing operation %s on node %s: %s\n", delegateOperation, nodeName, err.Error())
 		errors <- err
