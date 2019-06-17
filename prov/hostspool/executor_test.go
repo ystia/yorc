@@ -252,7 +252,13 @@ func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client
 
 	defer waitGroup.Done()
 	fmt.Printf("Executing operation %s on node %s\n", delegateOperation, nodeName)
-	err := e.execDelegateHostsPool(ctx, cc, hpManager, cfg, taskID, deploymentID, nodeName, delegateOperation)
+	operationParams := operationParameters{
+		taskID:            taskID,
+		deploymentID:      deploymentID,
+		nodeName:          nodeName,
+		delegateOperation: delegateOperation,
+	}
+	err := e.execDelegateHostsPool(ctx, cc, hpManager, cfg, operationParams)
 	if err != nil {
 		fmt.Printf("Error executing operation %s on node %s: %s\n", delegateOperation, nodeName, err.Error())
 		errors <- err
