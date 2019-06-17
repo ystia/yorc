@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+### BREAKING CHANGES
+
+* Start v4.0 cycle ([GH-444](https://github.com/ystia/yorc/issues/444)):
+  * deprecated API functions are now removed
+  * the former and deprecated way to handle Kubernetes deployments is not supported anymore
+
 ### BUG FIXES
 
 * Deleting one host in Pool deletes other hosts having as prefix the deleted hostname ([GH-430](https://github.com/ystia/yorc/issues/430))
