@@ -84,6 +84,8 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
+            filters:
+              - label1 = 'stringvalue1'
         os:
           properties:
             type: linux

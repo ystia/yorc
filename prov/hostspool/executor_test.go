@@ -142,6 +142,7 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 		"host.mem_size":  "4 GB",
 		"host.disk_size": "70 GB",
 		"os.type":        "linux",
+		"label1":         "stringvalue1",
 		"public_address": "1.2.3.4", // to cover some code using this resource
 	}
 
