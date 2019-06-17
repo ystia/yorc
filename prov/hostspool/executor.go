@@ -37,6 +37,10 @@ import (
 const (
 	// endpointCapabilityName is the name of a TOSCA capability endpoint
 	endpointCapabilityName = "endpoint"
+	// publicAddressAttributeName is the name of an instance public address attribute
+	publicAddressAttributeName = "public_address"
+	// networksLabel automatically exposed by the orchestrator on compute instances
+	networksLabel = "networks"
 )
 
 type defaultExecutor struct {
@@ -249,14 +253,14 @@ func (e *defaultExecutor) updateConnectionSettings(
 	err = setInstanceAttributesValue(op, instance, privateAddress,
 		[]string{"ip_address", "private_address"})
 
-	if publicAddress, ok := host.Labels["public_address"]; ok {
+	if publicAddress, ok := host.Labels[publicAddressAttributeName]; ok {
 		// For compatibility with components referencing a host public_ip_address,
 		// defining an attribute public_ip_address as well
 		err = setInstanceAttributesValue(op, instance, privateAddress,
-			[]string{"public_address", "public_ip_address"})
+			[]string{publicAddressAttributeName, "public_ip_address"})
 
 		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
-			instance, "public_address", publicAddress)
+			instance, publicAddressAttributeName, publicAddress)
 		if err != nil {
 			return err
 		}
@@ -287,18 +291,18 @@ func setInstanceAttributesValue(op operationParameters, instance, value string, 
 func setInstanceAttributesFromLabels(op operationParameters, instance string, labels map[string]string) error {
 	for label, value := range labels {
 		err := setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
-			label, value, "networks", "network_name")
+			label, value, networksLabel, "network_name")
 		if err != nil {
 			return err
 		}
 		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
-			label, value, "networks", "network_id")
+			label, value, networksLabel, "network_id")
 		if err != nil {
 			return err
 		}
 		// This is bad as we split value even if we are not sure that it matches
 		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
-			label, strings.Split(value, ","), "networks", "addresses")
+			label, strings.Split(value, ","), networksLabel, "addresses")
 		if err != nil {
 			return err
 		}
