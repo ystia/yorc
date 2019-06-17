@@ -70,6 +70,8 @@ topology_template:
       type: yorc.nodes.hostspool.Compute
       properties:
         shareable: true
+        filters:
+          - label1 = 'stringvalue1'
       capabilities:
         endpoint:
           properties:
@@ -84,8 +86,6 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
-            filters:
-              - label1 = 'stringvalue1'
         os:
           properties:
             type: linux
