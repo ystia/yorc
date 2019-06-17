@@ -282,9 +282,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "mem_per_node"); err != nil {
 		return err
 	} else if m != nil && m.RawString() != "" {
-		if e.jobInfo.Mem, err = strconv.Atoi(m.RawString()); err != nil {
-			return err
-		}
+		e.jobInfo.Mem = strings.ReplaceAll(m.RawString(), " ", "")
 	}
 
 	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "cpus_per_task"); err != nil {
@@ -404,8 +402,8 @@ func (e *executionCommon) buildJobOpts() string {
 		opts += fmt.Sprintf(" --ntasks=%d", e.jobInfo.Tasks)
 	}
 	opts += fmt.Sprintf(" --nodes=%d", e.jobInfo.Nodes)
-	if e.jobInfo.Mem != 0 {
-		opts += fmt.Sprintf(" --mem=%dG", e.jobInfo.Mem)
+	if e.jobInfo.Mem != "" {
+		opts += fmt.Sprintf(" --mem=%s", e.jobInfo.Mem)
 	}
 	if e.jobInfo.Cpus != 0 {
 		opts += fmt.Sprintf(" --cpus-per-task=%d", e.jobInfo.Cpus)

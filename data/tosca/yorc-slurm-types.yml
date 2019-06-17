@@ -42,8 +42,8 @@ data_types:
         type: integer
         required: false
       mem_per_node:
-        type: integer
-        description: The memory per node in GB required to the job.
+        type: string
+        description: The memory per node required to the job. Different units can be specified using the suffix [K|M|G|T].
         required: false
       time:
         type: string
