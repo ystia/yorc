@@ -33,7 +33,6 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/prov"
-	"github.com/ystia/yorc/v4/prov/operations"
 	"github.com/ystia/yorc/v4/tasks"
 )
 
@@ -65,10 +64,6 @@ type execution struct {
 	nodeName     string
 	operation    prov.Operation
 	nodeType     string
-
-	// Bellow params are used in deprecated functions
-	envInputs      []*operations.EnvInput
-	secretRepoName string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
@@ -88,7 +83,6 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		deploymentID: deploymentID,
 		nodeName:     nodeName,
 		operation:    operation,
-		envInputs:    make([]*operations.EnvInput, 0),
 		taskID:       taskID,
 		taskType:     taskType,
 		nodeType:     nodeType,

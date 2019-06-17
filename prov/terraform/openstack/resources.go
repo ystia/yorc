@@ -37,9 +37,6 @@ type ComputeInstance struct {
 	SchedulerHints   SchedulerHints   `json:"scheduler_hints,omitempty"`
 
 	commons.Resource
-
-	// Deprecated use ComputeVolumeAttach instead
-	Volumes []Volume `json:"volume,omitempty"`
 }
 
 // A Volume represent an OpenStack volume (BlockStorage) attachment to a ComputeInstance
@@ -55,9 +52,6 @@ type ComputeNetwork struct {
 	Port          string `json:"port,omitempty"`
 	FixedIPV4     string `json:"fixed_ip_v4,omitempty"`
 	AccessNetwork bool   `json:"access_network,omitempty"`
-
-	// Deprecated use ComputeFloatingIPAssociate instead
-	FloatingIP string `json:"floating_ip,omitempty"`
 }
 
 // A BlockStorageVolume represent an OpenStack volume (BlockStorage)
@@ -101,7 +95,6 @@ type AllocationPool struct {
 }
 
 // A ComputeFloatingIPAssociate associates a floating IP to an instance.
-// This should be used instead of the floating_ip options in openstack_compute_instance_v2 now deprecated.
 type ComputeFloatingIPAssociate struct {
 	Region     string `json:"region"`
 	FloatingIP string `json:"floating_ip"`
@@ -110,7 +103,6 @@ type ComputeFloatingIPAssociate struct {
 }
 
 // A ComputeVolumeAttach attaches a volume to an instance.
-// This should be used instead of the floating_ip options in openstack_compute_instance_v2 now deprecated.
 type ComputeVolumeAttach struct {
 	Region     string `json:"region"`
 	VolumeID   string `json:"volume_id"`
