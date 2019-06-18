@@ -260,12 +260,15 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *
 
 	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 	initialLabels := map[string]string{
-		"host.num_cpus":  "3",
-		"host.mem_size":  "4 GB",
-		"host.disk_size": "70 GB",
-		"os.type":        "linux",
-		"label1":         "stringvalue1",
-		"public_address": "1.2.3.4", // to cover some code using this resource
+		"host.num_cpus":           "3",
+		"host.mem_size":           "4 GB",
+		"host.disk_size":          "70 GB",
+		"os.type":                 "linux",
+		"label1":                  "stringvalue1",
+		"public_address":          "1.2.3.4", // to cover some code using this resource
+		"networks.0.network_name": "mynetwork",
+		"networks.0.network_id":   "123",
+		"networks.0.addresses":    "1.2.3.4,1.2.3.5",
 	}
 
 	var hostpool = createHostsWithLabels(hostsNumber, initialLabels)
