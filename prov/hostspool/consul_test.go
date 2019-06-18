@@ -103,4 +103,7 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
 		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID)
 	})
+	t.Run("testExecDelegateFailure", func(t *testing.T) {
+		testExecDelegateFailure(t, srv, client, kv, deploymentID)
+	})
 }

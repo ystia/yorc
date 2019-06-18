@@ -306,3 +306,14 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *
 
 	return ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor
 }
+
+// testExecFDelegateFailure tests a failure to execute an install operation
+// due to a host connection issue (as not using the mockSSHClientFactory)
+func testExecDelegateFailure(t *testing.T, srv *testutil.TestServer,
+	cc *api.Client, kv *api.KV, deploymentID string) {
+
+	ctx, cfg, _, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, kv, deploymentID, 1)
+
+	err := testExecutor.ExecDelegate(ctx, cfg, "taskTest", deploymentID, nodeNames[0], "install")
+	require.Error(t, err, "Should have failed to allocate a host, on connection error")
+}
