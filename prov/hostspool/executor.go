@@ -34,15 +34,6 @@ import (
 	"github.com/ystia/yorc/v3/tosca"
 )
 
-const (
-	// endpointCapabilityName is the name of a TOSCA capability endpoint
-	endpointCapabilityName = "endpoint"
-	// publicAddressAttributeName is the name of an instance public address attribute
-	publicAddressAttributeName = "public_address"
-	// networksLabel automatically exposed by the orchestrator on compute instances
-	networksLabel = "networks"
-)
-
 type defaultExecutor struct {
 }
 
@@ -165,10 +156,10 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 		return err
 	}
 
-	return e.allocateHostToInstance(ctx, instances, shareable, filters, op, allocatedResources)
+	return e.allocateHostsToInstances(ctx, instances, shareable, filters, op, allocatedResources)
 }
 
-func (e *defaultExecutor) allocateHostToInstance(
+func (e *defaultExecutor) allocateHostsToInstances(
 	originalCtx context.Context,
 	instances []string,
 	shareable bool,
@@ -225,7 +216,8 @@ func (e *defaultExecutor) updateConnectionSettings(
 	ctx context.Context, op operationParameters, host Host, hostname, instance string) error {
 
 	err := deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
-		instance, endpointCapabilityName, "ip_address", host.Connection.Host)
+		instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityIPAddressAttribute,
+		host.Connection.Host)
 	if err != nil {
 		return err
 	}
@@ -237,30 +229,30 @@ func (e *defaultExecutor) updateConnectionSettings(
 		credentials["keys"] = []string{host.Connection.PrivateKey}
 	}
 	err = deployments.SetInstanceCapabilityAttributeComplex(op.deploymentID,
-		op.nodeName, instance, endpointCapabilityName, "credentials", credentials)
+		op.nodeName, instance, tosca.ComputeNodeEndpointCapabilityName, "credentials", credentials)
 	if err != nil {
 		return err
 	}
 
-	privateAddress, ok := host.Labels["private_address"]
+	privateAddress, ok := host.Labels[tosca.ComputeNodePrivateAddressAttributeName]
 	if !ok {
 		privateAddress = host.Connection.Host
 		events.WithContextOptionalFields(ctx).
 			NewLogEntry(events.LogLevelWARN, op.deploymentID).Registerf(
-			`no "private_address" label for host %q, will use the address from the connection section`,
-			hostname)
+			`no "%q label for host %q, will use the address from the connection section`,
+			tosca.ComputeNodePrivateAddressAttributeName, hostname)
 	}
 	err = setInstanceAttributesValue(op, instance, privateAddress,
-		[]string{"ip_address", "private_address"})
+		[]string{tosca.EndpointCapabilityIPAddressAttribute, tosca.ComputeNodePrivateAddressAttributeName})
 
-	if publicAddress, ok := host.Labels[publicAddressAttributeName]; ok {
+	if publicAddress, ok := host.Labels[tosca.ComputeNodePublicAddressAttributeName]; ok {
 		// For compatibility with components referencing a host public_ip_address,
 		// defining an attribute public_ip_address as well
 		err = setInstanceAttributesValue(op, instance, privateAddress,
-			[]string{publicAddressAttributeName, "public_ip_address"})
+			[]string{tosca.ComputeNodePublicAddressAttributeName, "public_ip_address"})
 
 		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
-			instance, publicAddressAttributeName, publicAddress)
+			instance, tosca.ComputeNodePublicAddressAttributeName, publicAddress)
 		if err != nil {
 			return err
 		}
@@ -268,7 +260,8 @@ func (e *defaultExecutor) updateConnectionSettings(
 
 	if host.Connection.Port != 0 {
 		err = deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
-			instance, endpointCapabilityName, "port", strconv.FormatUint(host.Connection.Port, 10))
+			instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityPortProperty,
+			strconv.FormatUint(host.Connection.Port, 10))
 		if err != nil {
 			return err
 		}
@@ -291,18 +284,19 @@ func setInstanceAttributesValue(op operationParameters, instance, value string, 
 func setInstanceAttributesFromLabels(op operationParameters, instance string, labels map[string]string) error {
 	for label, value := range labels {
 		err := setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
-			label, value, networksLabel, "network_name")
+			label, value, tosca.ComputeNodeNetworksAttributeName, tosca.NetworkNameProperty)
 		if err != nil {
 			return err
 		}
 		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
-			label, value, networksLabel, "network_id")
+			label, value, tosca.ComputeNodeNetworksAttributeName, tosca.NetworkIDProperty)
 		if err != nil {
 			return err
 		}
 		// This is bad as we split value even if we are not sure that it matches
 		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
-			label, strings.Split(value, ","), networksLabel, "addresses")
+			label, strings.Split(value, ","), tosca.ComputeNodeNetworksAttributeName,
+			tosca.NetworkAddressesProperty)
 		if err != nil {
 			return err
 		}
