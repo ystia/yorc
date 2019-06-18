@@ -15,6 +15,8 @@
 package scheduler
 
 import (
+	"encoding/json"
+	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/tasks"
 	"path"
 	"strconv"
@@ -90,8 +92,8 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 		}
 	}()
 
-	var check = func(index, cpt int) {
-		cpt++
+	var check = func(index int, cpt *int) {
+		*cpt++
 		// Check related tasks have been created
 		keys, _, err := client.KV().Keys(consulutil.TasksPrefix+"/", "/", nil)
 		require.Nil(t, err, "Unexpected error while checking actions tasks")
@@ -132,15 +134,14 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 		select {
 		case <-ticker.C:
 			ind++
-			check(ind, checkCpt)
+			check(ind, &checkCpt)
 			if ind == 3 {
 				ticker.Stop()
-				return
 			}
 		}
 	}
 
-	require.Equal(t, checkCpt, 5, "unexpected number of checks done")
+	require.Equal(t, checkCpt, 3, "unexpected number of checks done")
 }
 
 func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client *api.Client) {
@@ -148,8 +149,15 @@ func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client 
 	deploymentID := "dep-" + t.Name()
 	ti := 1 * time.Second
 	actionType := "test-action"
-	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"}}
+	nodeName := "my-node"
+	opeName := "my-op"
+	interfaceName := "my-inter"
+	taskID := "orig-taskID"
+	wfName := "my-wf"
+	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"},
+		AsyncOperation: prov.AsyncOperation{DeploymentID: deploymentID, NodeName: nodeName, Operation: prov.Operation{Name: interfaceName + "." + opeName}, TaskID: taskID, WorkflowName: wfName, }}
 	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
+
 	require.Nil(t, err, "Unexpected error while registering action")
 	require.NotEmpty(t, id, "id is not expected to be empty")
 
@@ -182,8 +190,8 @@ func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client 
 		}
 	}()
 
-	var check = func(index, cpt int) {
-		cpt++
+	var check = func(index int, cpt *int) {
+		*cpt++
 		// Check related tasks have been created
 		keys, _, err := client.KV().Keys(consulutil.TasksPrefix+"/", "/", nil)
 		require.Nil(t, err, "Unexpected error while checking actions tasks")
@@ -225,15 +233,27 @@ func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client 
 		case <-ticker.C:
 			ind++
 			// as the task is still running, no other task is created
-			check(1, checkCpt)
+			check(1, &checkCpt)
 			if ind == 3 {
 				ticker.Stop()
-				return
 			}
 		}
 	}
 
-	require.Equal(t, checkCpt, 5, "unexpected number of checks done")
+	require.Equal(t, checkCpt, 3, "unexpected number of checks done")
+
+	logs, _, err := events.LogsEvents(client.KV(), deploymentID, 0, 5*time.Second)
+	require.NoError(t, err, "Could not retrieve logs")
+	require.Equal(t, true, len(logs) > 0, "expected at least one logged event")
+
+	var data map[string]interface{}
+	err = json.Unmarshal(logs[0], &data)
+	require.Nil(t, err)
+	require.Equal(t, taskID, data["executionId"], "unexpected event executionID")
+	require.Equal(t, wfName, data["workflowId"], "unexpected event workflowId")
+	require.Equal(t, nodeName, data["nodeId"], "unexpected event nodeId")
+	require.Equal(t, interfaceName, data["interfaceName"], "unexpected event interfaceName")
+	require.Equal(t, opeName, data["operationName"], "unexpected event operationName")
 }
 
 func testProceedScheduledActionWithBadStatusError(t *testing.T, client *api.Client) {
@@ -275,8 +295,8 @@ func testProceedScheduledActionWithBadStatusError(t *testing.T, client *api.Clie
 		}
 	}()
 
-	var check = func(index, cpt int) {
-		cpt++
+	var check = func(index int, cpt *int) {
+		*cpt++
 		// Check related tasks have been created
 		keys, _, err := client.KV().Keys(consulutil.TasksPrefix+"/", "/", nil)
 		require.Nil(t, err, "Unexpected error while checking actions tasks")
@@ -318,15 +338,14 @@ func testProceedScheduledActionWithBadStatusError(t *testing.T, client *api.Clie
 		case <-ticker.C:
 			ind++
 			// as the proceed returns an error, the scheduler will stop and only one task will be created
-			check(1, checkCpt)
+			check(1, &checkCpt)
 			if ind == 3 {
 				ticker.Stop()
-				return
 			}
 		}
 	}
 
-	require.Equal(t, checkCpt, 5, "unexpected number of checks done")
+	require.Equal(t, checkCpt, 3, "unexpected number of checks done")
 }
 
 func testUnregisterAction(t *testing.T, client *api.Client) {

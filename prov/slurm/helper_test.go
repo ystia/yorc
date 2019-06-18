@@ -398,3 +398,16 @@ func TestGetJobInfoWithEmptyResponse(t *testing.T) {
 
 	require.Equal(t, true, isNoJobFoundError(err), "expected no job found error")
 }
+
+func TestGetJobInfoWithError(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "oups, it's bad", errors.New("this is an error !")
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.Equal(t, "oups, it's bad: this is an error !", err.Error(), "expected error")
+}
