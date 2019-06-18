@@ -282,7 +282,9 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "mem_per_node"); err != nil {
 		return err
 	} else if m != nil && m.RawString() != "" {
-		e.jobInfo.Mem = strings.ReplaceAll(m.RawString(), " ", "")
+		if e.jobInfo.Mem, err = toSlurmMemFormat(m.RawString()); err != nil {
+			return err
+		}
 	}
 
 	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "cpus_per_task"); err != nil {
