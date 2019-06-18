@@ -155,7 +155,7 @@ func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client 
 	taskID := "orig-taskID"
 	wfName := "my-wf"
 	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"},
-		AsyncOperation: prov.AsyncOperation{DeploymentID: deploymentID, NodeName: nodeName, Operation: prov.Operation{Name: interfaceName + "." + opeName}, TaskID: taskID, WorkflowName: wfName, }}
+		AsyncOperation: prov.AsyncOperation{DeploymentID: deploymentID, NodeName: nodeName, Operation: prov.Operation{Name: interfaceName + "." + opeName}, TaskID: taskID, WorkflowName: wfName}}
 	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
 
 	require.Nil(t, err, "Unexpected error while registering action")
