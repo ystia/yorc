@@ -427,6 +427,24 @@ func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 	}
 }
 
+// testConsulManagerRemoveHostWithSamePrefix checks removing a given host in
+// the Pool won't remove other hosts having as hostname a name which has as prefix
+// the hostname of the delete host
+func testConsulManagerRemoveHostWithSamePrefix(t *testing.T, cc *api.Client) {
+	cleanupHostsPool(t, cc)
+	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm.Add("myHost", Connection{PrivateKey: dummySSHkey}, nil)
+	cm.Add("myHost2", Connection{PrivateKey: dummySSHkey}, nil)
+
+	err := cm.Remove("myHost")
+	require.NoError(t, err, "Unexpected error removing host from Hosts Pool")
+
+	// Check the second host is still there
+	host, err := cm.GetHost("myHost2")
+	require.NoError(t, err, "Found no host myHost2 in Pool")
+	assert.Equal(t, "myHost2", host.Name)
+}
+
 func testConsulManagerList(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}

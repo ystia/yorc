@@ -264,7 +264,10 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	hostKey := path.Join(consulutil.HostsPoolPrefix, hostname)
+	// Need to remove the host key subtree, but not the tree of hosts having a
+	// hostname containing as a prefix the name of the host to delete
+	hostKeyTreePrexix := hostKey + "/"
 
 	if checkStatus {
 		status, err := cm.GetHostStatus(hostname)
@@ -282,7 +285,11 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 	rmOps := api.KVTxnOps{
 		&api.KVTxnOp{
 			Verb: api.KVDeleteTree,
-			Key:  hostKVPrefix,
+			Key:  hostKeyTreePrexix,
+		},
+		&api.KVTxnOp{
+			Verb: api.KVDelete,
+			Key:  hostKey,
 		},
 	}
 

@@ -43,6 +43,9 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("TestConsulManagerRemove", func(t *testing.T) {
 		testConsulManagerRemove(t, client)
 	})
+	t.Run("TestConsulManagerRemoveHostWithSamePrefix", func(t *testing.T) {
+		testConsulManagerRemoveHostWithSamePrefix(t, client)
+	})
 	t.Run("TestConsulManagerAddLabels", func(t *testing.T) {
 		testConsulManagerAddLabels(t, client)
 	})
