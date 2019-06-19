@@ -42,9 +42,11 @@ data_types:
         type: integer
         required: false
       mem_per_node:
-        type: integer
-        description: The memory per node in GB required to the job.
+        type: scalar-unit.size
+        description: The memory per node required to the job.
         required: false
+        constraints:
+          - greater_or_equal: 0 KB
       time:
         type: string
         description: >
