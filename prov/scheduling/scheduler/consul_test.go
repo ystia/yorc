@@ -49,6 +49,12 @@ func TestRunConsulSchedulingPackageTests(t *testing.T) {
 		t.Run("testProceedScheduledAction", func(t *testing.T) {
 			testProceedScheduledAction(t, client)
 		})
+		t.Run("testProceedScheduledActionWithFirstActionStillRunning", func(t *testing.T) {
+			testProceedScheduledActionWithFirstActionStillRunning(t, client)
+		})
+		t.Run("testProceedScheduledActionWithBadStatusError", func(t *testing.T) {
+			testProceedScheduledActionWithBadStatusError(t, client)
+		})
 		t.Run("testUnregisterAction", func(t *testing.T) {
 			testUnregisterAction(t, client)
 		})

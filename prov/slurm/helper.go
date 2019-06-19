@@ -35,6 +35,8 @@ import (
 
 const reSbatch = `^Submitted batch job (\d+)`
 
+const invalidJob = "Invalid job id specified"
+
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
 func getSSHClient(userName string, privateKey string, password string, cfg config.Configuration) (*sshutil.SSHClient, error) {
@@ -380,10 +382,13 @@ func parseKeyValue(str string) (bool, string, string) {
 func getJobInfo(client sshutil.Client, jobID string) (map[string]string, error) {
 	cmd := fmt.Sprintf("scontrol show job %s", jobID)
 	output, err := client.RunCommand(cmd)
-	if err != nil {
-		return nil, errors.Wrap(err, output)
-	}
 	out := strings.Trim(output, "\" \t\n\x00")
+	if err != nil {
+		if strings.Contains(out, invalidJob) {
+			return nil, &noJobFound{msg: err.Error()}
+		}
+		return nil, errors.Wrap(err, out)
+	}
 	if out != "" {
 		return parseJobInfo(strings.NewReader(out))
 	}
