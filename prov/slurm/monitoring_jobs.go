@@ -33,6 +33,13 @@ import (
 	"github.com/ystia/yorc/v3/prov/scheduling"
 )
 
+const bashLogger = `
+if [ -f %s ]; then
+    tail -n +%d %s
+fi
+
+`
+
 type actionOperator struct {
 }
 
@@ -101,6 +108,10 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
 	if err != nil {
+		if isNoJobFoundError(err) {
+			// the job is not found in slurm database (should have been purged) : pass its status to "UNKNOWN"
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", "UNKNOWN")
+		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
 	}
 
@@ -188,7 +199,7 @@ func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, 
 		return
 	}
 
-	cmd := fmt.Sprintf("tail -n +%d %s", lastInd+1, filePath)
+	cmd := fmt.Sprintf(bashLogger, filePath, lastInd+1, filePath)
 	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("fail to log file (%s)due to error:%+v:", filePath, err)
