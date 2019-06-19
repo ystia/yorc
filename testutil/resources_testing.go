@@ -23,9 +23,9 @@ import (
 	"github.com/pkg/errors"
 	res "gopkg.in/cookieo9/resources-go.v2"
 
-	"github.com/ystia/yorc/v3/deployments/store"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/resources"
+	"github.com/ystia/yorc/v4/deployments/store"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/resources"
 )
 
 func storeCommonDefinitions() {

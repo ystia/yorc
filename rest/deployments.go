@@ -32,10 +32,10 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 func extractFile(f *zip.File, path string) {

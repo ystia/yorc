@@ -24,9 +24,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 // RegisterAction allows to register a scheduled action and to start scheduling it

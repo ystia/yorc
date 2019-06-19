@@ -26,11 +26,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/ystia/yorc/v3/commands/deployments"
-	"github.com/ystia/yorc/v3/commands/httputil"
-	"github.com/ystia/yorc/v3/helper/tabutil"
-	"github.com/ystia/yorc/v3/rest"
-	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v4/commands/deployments"
+	"github.com/ystia/yorc/v4/commands/httputil"
+	"github.com/ystia/yorc/v4/helper/tabutil"
+	"github.com/ystia/yorc/v4/rest"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 func init() {

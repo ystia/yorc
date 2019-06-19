@@ -26,12 +26,12 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/tasks"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 )
 
 // A Collector is responsible for registering new tasks/workflows/executions

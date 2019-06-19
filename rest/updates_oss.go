@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // updateDeployment updates a deployment

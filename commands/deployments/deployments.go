@@ -20,8 +20,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ystia/yorc/v3/commands"
-	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v4/commands"
+	"github.com/ystia/yorc/v4/config"
 )
 
 func init() {

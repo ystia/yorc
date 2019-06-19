@@ -22,11 +22,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 type mockActivity struct {

@@ -24,8 +24,8 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // Regular expression for a line like:

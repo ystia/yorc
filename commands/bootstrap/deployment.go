@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ystia/yorc/v3/commands/deployments"
-	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v4/commands/deployments"
+	"github.com/ystia/yorc/v4/helper/ziputil"
 )
 
 // deployTopology deploys a topology provided under deploymentDir.

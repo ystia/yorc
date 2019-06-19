@@ -1,0 +1,84 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: alien-base-types
+  template_version: 2.1.1
+  template_author: alien4cloud
+
+description: "Types supported by alien 4 cloud that extends the TOSCA specification."
+
+artifact_types:
+  org.alien4cloud.artifacts.BatchScript:
+    description: "A Windows batch script (.bat or .cmd)"
+    derived_from: tosca.artifacts.Root
+    file_ext: [bat, cmd]
+  org.alien4cloud.artifacts.AnsiblePlaybook:
+    description: "null"
+    derived_from: tosca.artifacts.Root
+    mime_type: application/zip
+    file_ext: [ansible]
+
+capability_types:
+  org.alien4cloud.capabilities.ClusterController:
+    description: |
+      This capability is used to define the ability for a node to manage a cluster of nodes.
+      The management of other nodes is considered as a black box from the TOSCA orchestrator point of view. This capability should be associated with the definition on the node of the org.alien4cloud.management.ClusterControl interface to offer scale.
+    derived_from: tosca.capabilities.Root
+    properties:
+      min_instances:
+        type: integer
+        description: "This property is used to indicate the minimum number of instances that should be created for the associated TOSCA Node Template by a TOSCA orchestrator."
+        default: 1
+      max_instances:
+        type: integer
+        description: "This property is used to indicate the maximum number of instances that should be created for the associated TOSCA Node Template by a TOSCA orchestrator."
+        default: 1
+      default_instances:
+        type: integer
+        description: "An optional property that indicates the requested default number of instances that should be the starting number of instances a TOSCA orchestrator should attempt to allocate. Note: The value for this property MUST be in the range between the values set for ‘min_instances’ and ‘max_instances’ properties."
+        required: false
+        default: 1
+
+node_types:
+  org.alien4cloud.nodes.Job:
+    description: "A job is a component that has a run operation."
+    derived_from: tosca.nodes.Root
+
+policy_types:
+  org.alien4cloud.policies.LabelPlacement:
+    description: "This policy instruct the orchestrator to place the targets of the policy in host nodes which label/value pairs matches the one provided in this policy \"labels\" property."
+    derived_from: tosca.policies.Placement
+    properties:
+      labels:
+        type: map
+        description: "Map of key-value labels that can be used to provide arbitrary matching information."
+        required: false
+        entry_schema:
+          type: string
+  org.alien4cloud.policies.Affinity:
+    description: "This policy instruct the orchestrator to place the targets of the policy in the same container (Same host, zone (data-center), region). Implementations of this policy may refine the actual level of affinity provided and may be specific to actual targets."
+    derived_from: tosca.policies.Placement
+    properties:
+      level:
+        type: string
+        required: false
+  org.alien4cloud.policies.AntiAffinity:
+    description: "This policy instruct the orchestrator to place the targets of the policy in different container (Same host, zone (data-center), region). Implementations of this policy may refine the actual level of anti-affinity provided and may be specific to actual targets."
+    derived_from: tosca.policies.Placement
+    properties:
+      level:
+        type: string
+        required: false
+  org.alien4cloud.policies.ScheduleWorkflowPolicy:
+    metadata:
+      icon: "/images/policy_scheduling.png"
+      a4c_class: "fa fa-clock-o"
+      a4c_svg_char: f017
+    description: "This policy instruct the orchestrator to schedule the given workflow using the given cron expression."
+    derived_from: tosca.policies.Root
+    properties:
+      cron_expression:
+        type: string
+      workflow_name:
+        type: string
+        default: run

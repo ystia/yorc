@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/plugin"
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/plugin"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 type myDelegateExecutor struct{}

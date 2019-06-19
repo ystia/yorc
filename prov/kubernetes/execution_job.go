@@ -23,13 +23,13 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/tasks"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 func (e *execution) executeAsync(ctx context.Context, cfg config.Configuration, stepName string, clientset kubernetes.Interface) (*prov.Action, time.Duration, error) {
@@ -108,7 +108,14 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 			return err
 		}
 		// Not cancelling within the same task try to get jobID from attribute
-		_, jobID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.nodeName, "0", "job_id")
+		jobIDValue, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.nodeName, "0", "job_id")
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
+		}
+		if jobIDValue == nil {
+			return errors.New("failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
+		}
+		jobID = jobIDValue.RawString()
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
 			"k8s job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.nodeName)
 	}

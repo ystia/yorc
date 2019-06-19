@@ -20,8 +20,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/vault"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/vault"
 )
 
 // BuiltinOrigin is the origin for Yorc builtin
@@ -79,32 +79,12 @@ type Registry interface {
 	GetActionOperator(actionType string) (prov.ActionOperator, error)
 	// ListActionOperators returns a map of actionTypes matches to prov.ActionOperator origin
 	ListActionOperators() []ActionTypeMatch
-
-	// Deprecated
-
-	// Register a TOSCA definition file. Origin is the origin of the executor (builtin for builtin executors or the plugin name in case of a plugin)
-	//
-	// Deprecated: use store.CommonDefinition instead
-	//             will be removed in Yorc 4.0
-	AddToscaDefinition(name, origin string, data []byte)
-	// GetToscaDefinition retruns the definitions for the given name.
-	//
-	// If the given definition name can't match any definition an error is returned
-	//
-	// Deprecated: use store.GetCommonsTypesPaths instead to know supported definitions
-	//             will be removed in Yorc 4.0
-	GetToscaDefinition(name string) ([]byte, error)
-	// ListToscaDefinitions returns a map of definitions names to their origin
-	//
-	// Deprecated: use store.GetCommonsTypesPaths instead to know supported definitions
-	//             will be removed in Yorc 4.0
-	ListToscaDefinitions() []Definition
 }
 
 var defaultReg Registry
 
 func init() {
-	defaultReg = &defaultRegistry{delegateMatches: make([]DelegateMatch, 0), definitions: make([]Definition, 0), vaultClientBuilders: make([]VaultClientBuilder, 0)}
+	defaultReg = &defaultRegistry{delegateMatches: make([]DelegateMatch, 0), vaultClientBuilders: make([]VaultClientBuilder, 0)}
 }
 
 // GetRegistry returns the singleton instance of the Registry
@@ -151,7 +131,6 @@ type defaultRegistry struct {
 	delegateMatches          []DelegateMatch
 	operationMatches         []OperationExecMatch
 	actionTypeMatches        []ActionTypeMatch
-	definitions              []Definition
 	vaultClientBuilders      []VaultClientBuilder
 	infraUsageCollectors     []InfraUsageCollector
 	delegatesLock            sync.RWMutex

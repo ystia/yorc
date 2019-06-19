@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 func testOperationImplementationArtifact(t *testing.T, kv *api.KV) {

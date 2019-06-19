@@ -128,8 +128,6 @@ github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brv
 github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d h1:e2mZzg22eywzVQVmZyrCXiGdRwTvQwgMIvdzYpvMj8g=
 github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtngrth3wmdIIUrZ80=
 github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd/go.mod h1:9bjs9uLqI8l75knNv3lV1kA55veR+WUPSiKIWcQHudI=
-github.com/hashicorp/go-hclog v0.0.0-20190109152822-4783caec6f2e h1:SS6R03q1M5bxjbOL2JziQUUu7opiRocL4R2H5Y2I6rY=
-github.com/hashicorp/go-hclog v0.0.0-20190109152822-4783caec6f2e/go.mod h1:5CU+agLiy3J7N7QjHK5d05KxGsuXiQLrjA0H7acj2lQ=
 github.com/hashicorp/go-hclog v0.8.0 h1:z3ollgGRg8RjfJH6UVBaG54R70GFd++QOkvnJH3VSBY=
 github.com/hashicorp/go-hclog v0.8.0/go.mod h1:5CU+agLiy3J7N7QjHK5d05KxGsuXiQLrjA0H7acj2lQ=
 github.com/hashicorp/go-immutable-radix v1.0.0 h1:AKDB1HM5PWEA7i4nhcpwOrO2byshxBjXVn/J/3+z5/0=
@@ -140,8 +138,6 @@ github.com/hashicorp/go-msgpack v0.5.3 h1:zKjpN5BK/P5lMYrLmBHdBULWbJ0XpYR+7NGzqk
 github.com/hashicorp/go-msgpack v0.5.3/go.mod h1:ahLV/dePpqEmjfWmKiqvPkv/twdG7iPBM1vqhUKIvfM=
 github.com/hashicorp/go-multierror v1.0.0 h1:iVjPR7a6H0tWELX5NxNe7bYopibicUzc7uPribsnS6o=
 github.com/hashicorp/go-multierror v1.0.0/go.mod h1:dHtQlpGsu+cZNNAkkCN/P3hoUDHhCYQXV3UM06sGGrk=
-github.com/hashicorp/go-plugin v0.0.0-20170419161244-1ffca25a1118 h1:hoRFbZMiTJDHsPnu1sXIjIjUirYz0EHSELHfNmZxBx0=
-github.com/hashicorp/go-plugin v0.0.0-20170419161244-1ffca25a1118/go.mod h1:JSqWYsict+jzcj0+xElxyrBQRPNoiWQuddnxArJ7XHQ=
 github.com/hashicorp/go-plugin v1.0.0 h1:/gQ1sNR8/LHpoxKRQq4PmLBuacfZb4tC93e9B30o/7c=
 github.com/hashicorp/go-plugin v1.0.0/go.mod h1:++UyYGoz3o5w9ZzAdZxtQKrWWP+iqPBn3cQptSMzBuY=
 github.com/hashicorp/go-rootcerts v1.0.0 h1:Rqb66Oo1X/eSV1x66xbDccZjhJigjg0+e82kpwzSwCI=
@@ -160,8 +156,6 @@ github.com/hashicorp/serf v0.0.0-20170419221626-65c2babe73c7a096cd24e9eeec67613e
 github.com/hashicorp/serf v0.0.0-20170419221626-65c2babe73c7a096cd24e9eeec67613eb4e436c9/go.mod h1:h/Ru6tmZazX7WO/GDmwdpS975F019L4t5ng5IgwbNrE=
 github.com/hashicorp/vault v0.9.0 h1:Q0mhuwDGu2pvJPpHLrSCHeYjJZ5rR3Q6pAL8ZXKkA+Q=
 github.com/hashicorp/vault v0.9.0/go.mod h1:KfSyffbKxoVyspOdlaGVjIuwLobi07qD1bAbosPMpP0=
-github.com/hashicorp/yamux v0.0.0-20160720233140-d1caa6c97c9fc1cc9e83bbe34d0603f9ff0ce8bd h1:b2syle42fnHe2zpHYKayIiZGZMCpv59e2aCOW4N6mao=
-github.com/hashicorp/yamux v0.0.0-20160720233140-d1caa6c97c9fc1cc9e83bbe34d0603f9ff0ce8bd/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb h1:b5rjCoWHc7eqmAS4/qyk21ZsHyb6Mxv/jykxvNTkU4M=
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c h1:kp3AxgXgDOmIJFR7bIwqFhwJ2qWar8tEQSE5XXhCfVk=

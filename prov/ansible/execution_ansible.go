@@ -26,7 +26,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v4/events"
 )
 
 const uploadArtifactsPlaybook = `

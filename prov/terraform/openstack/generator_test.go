@@ -20,7 +20,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
 func Test_addOutput(t *testing.T) {

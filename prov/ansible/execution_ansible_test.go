@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 func TestAnsibleTemplate(t *testing.T) {

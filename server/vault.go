@@ -15,9 +15,9 @@
 package server
 
 import (
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/registry"
-	"github.com/ystia/yorc/v3/vault"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/vault"
 )
 
 func buildVaultClient(cfg config.Configuration) (vault.Client, error) {

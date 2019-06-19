@@ -20,14 +20,16 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v3/config"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/config"
 )
 
 // MockSSHSession allows to mock an SSH session

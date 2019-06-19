@@ -21,8 +21,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // StoreComplexType stores a TOSCA value into a given path.

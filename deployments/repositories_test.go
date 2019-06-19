@@ -20,7 +20,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 func testRepositories(t *testing.T, kv *api.KV) {

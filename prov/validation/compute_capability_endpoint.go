@@ -19,12 +19,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/tasks"
-	"github.com/ystia/yorc/v3/tasks/workflow"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/workflow"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 )
 
 func postComputeCreationHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity builder.Activity) {

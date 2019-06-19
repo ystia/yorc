@@ -22,10 +22,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/tosca"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 )

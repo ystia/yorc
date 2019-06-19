@@ -16,6 +16,8 @@ package kubernetes
 
 import (
 	"context"
+	"testing"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"testing"
 )
 
 type k8s struct {
@@ -41,6 +42,10 @@ func newTestK8s() *k8s {
 		clientset: &fake.Clientset{},
 	}
 	return &client
+}
+
+func namespaceRuntimeObject(namespace string) *corev1.Namespace {
+	return &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 }
 
 func newTestSimpleNode(nodeName string, extIP string) corev1.Node {

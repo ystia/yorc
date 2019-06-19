@@ -18,8 +18,8 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // StoreRequirementAssignment stores a TOSCA RequirementAssignment under a given prefix

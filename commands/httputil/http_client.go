@@ -30,8 +30,8 @@ import (
 	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/rest"
 )
 
 // YorcAPIDefaultErrorMsg is the default communication error message

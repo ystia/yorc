@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+### BREAKING CHANGES
+
+* Start v4.0 cycle ([GH-444](https://github.com/ystia/yorc/issues/444)):
+  * deprecated API functions are now removed
+  * the former and deprecated way to handle Kubernetes deployments is not supported anymore
+
 ### BUG FIXES
 
 * Wrong resources allocation on shareable Hosts Pool ([GH-426](https://github.com/ystia/yorc/issues/426))

@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 func deleteElementFromConsulPrefix(kv *api.KV, prefix, element string) error {

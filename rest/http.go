@@ -27,10 +27,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov/hostspool"
-	"github.com/ystia/yorc/v3/tasks/collector"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov/hostspool"
+	"github.com/ystia/yorc/v4/tasks/collector"
 )
 
 type router struct {

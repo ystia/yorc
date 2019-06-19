@@ -16,8 +16,6 @@ package scheduler
 
 import (
 	"encoding/json"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/tasks"
 	"path"
 	"strconv"
 	"testing"
@@ -26,9 +24,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/prov/scheduling"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/prov/scheduling"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 func testRegisterAction(t *testing.T, client *api.Client) {
