@@ -1073,7 +1073,7 @@ func BenchmarkDefinitionStore(b *testing.B) {
 		c.Stderr = ioutil.Discard
 	}
 
-	srv, client := testutil.NewTestConsulInstanceWithConfig(b, cb)
+	srv, client := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb)
 	kv := client.KV()
 	defer srv.Stop()
 	deploymentID := testutil.BuildDeploymentID(b)
