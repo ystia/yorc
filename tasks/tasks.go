@@ -67,14 +67,29 @@ type taskDataNotFound struct {
 	taskID string
 }
 
+type taskNotFound struct {
+	taskID string
+}
+
 func (t taskDataNotFound) Error() string {
 	return fmt.Sprintf("Data %q not found for task %q", t.name, t.taskID)
+}
+
+func (t taskNotFound) Error() string {
+	return fmt.Sprintf("Task %q not found", t.taskID)
 }
 
 // IsTaskDataNotFoundError checks if an error is a task data not found error
 func IsTaskDataNotFoundError(err error) bool {
 	cause := errors.Cause(err)
 	_, ok := cause.(taskDataNotFound)
+	return ok
+}
+
+// IsTaskNotFoundError checks if an error is a task not found error
+func IsTaskNotFoundError(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(taskNotFound)
 	return ok
 }
 
@@ -118,7 +133,15 @@ func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 		return TaskStatusFAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return TaskStatusFAILED, errors.Errorf("Missing status for task with id %q", taskID)
+		// Check if task exists to return specific error
+		ok, err := TaskExists(kv, taskID)
+		if err != nil {
+			return TaskStatusFAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if ok {
+			return TaskStatusFAILED, errors.Errorf("Missing status for task with id %q", taskID)
+		}
+		return TaskStatusFAILED, errors.WithStack(taskNotFound{taskID: taskID})
 	}
 	statusInt, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {

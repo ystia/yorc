@@ -20,13 +20,16 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/config"
 )
 
 // MockSSHSession allows to mock an SSH session
@@ -247,7 +250,7 @@ func TestPrivateKey(t *testing.T) {
 	// Config to test
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.DynamicMap{
-			"slurm": config.DynamicMap{
+			"slurm": {
 				"user_name":   "jdoe",
 				"url":         "127.0.0.1",
 				"port":        22,
@@ -349,4 +352,96 @@ func TestParseJob(t *testing.T) {
 	require.Equal(t, "RUNNING", info["JobState"], "unexpected value for \"JobState\" key")
 	require.Equal(t, "test-salloc-Environment", info["JobName"], "unexpected value for \"JobName\" key")
 	require.Equal(t, "2-19:42:53", info["RunTime"], "unexpected value for \"RunTime\" key")
+}
+
+func TestGetJobInfoWithInvalidJob(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "slurm_load_jobs error: Invalid job id specified", errors.New("")
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.Equal(t, true, isNoJobFoundError(err), "expected no job found error")
+}
+
+func TestGetJobInfo(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			content, err := ioutil.ReadFile("testdata/scontrol.txt")
+			require.Nil(t, err, "Unexpected error reading scontrol")
+			return string(content), nil
+		},
+	}
+
+	data, err := os.Open("testdata/scontrol.txt")
+	require.Nil(t, err, "unexpected error while opening test file")
+	expected, err := parseJobInfo(data)
+	require.Nil(t, err, "Unexpected error parsing job info")
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, err, "Unexpected error retrieving job info")
+	require.NotNil(t, info, "info should not be nil")
+
+	require.Equal(t, expected, info, "unexpected job info")
+}
+
+func TestGetJobInfoWithEmptyResponse(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "", nil
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.Equal(t, true, isNoJobFoundError(err), "expected no job found error")
+}
+
+func TestGetJobInfoWithError(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "oups, it's bad", errors.New("this is an error !")
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.Equal(t, "oups, it's bad: this is an error !", err.Error(), "expected error")
+}
+
+func TestToSlurmMemFormat(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		memStr string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"TestMemInGB", args{"250 GB"}, "233G", false},
+		{"TestMemInMiB", args{"800 MiB"}, "800M", false},
+		{"TestMemInGiBWithDecimal", args{"0.5 GiB"}, "512M", false},
+		{"TestMemInGBWithDecimal", args{"0.5GB"}, "477M", false},
+		{"TestBadFormat", args{"0.5 Bad"}, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			memSlurm, err := toSlurmMemFormat(tt.args.memStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("toSlurmMemFormat() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			require.Equal(t, tt.want, memSlurm, "unexpected slurm mem format")
+		})
+	}
+
 }

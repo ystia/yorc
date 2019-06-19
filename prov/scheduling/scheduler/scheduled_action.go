@@ -100,33 +100,36 @@ func (sca *scheduledAction) proceed() error {
 	sca.Data["asyncOperation"] = sca.asyncOperationString
 
 	if sca.latestTaskID != "" {
-		ok, err := tasks.TaskExists(sca.kv, sca.latestTaskID)
+		status, err := tasks.GetTaskStatus(sca.kv, sca.latestTaskID)
+		// As action task is deleted after being executed asynchronously, we handle if task still exists
+		if tasks.IsTaskNotFoundError(err) {
+			return sca.registerNewTask()
+		}
 		if err != nil {
 			return err
 		}
-		if ok {
-			status, err := tasks.GetTaskStatus(sca.kv, sca.latestTaskID)
-			if err != nil {
-				return err
+		if status == tasks.TaskStatusINITIAL || status == tasks.TaskStatusRUNNING {
+			ctx := context.Background()
+			if sca.AsyncOperation.TaskID != "" {
+				ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
+					events.ExecutionID:   sca.AsyncOperation.TaskID,
+					events.WorkFlowID:    sca.AsyncOperation.WorkflowName,
+					events.NodeID:        sca.AsyncOperation.NodeName,
+					events.InterfaceName: stringutil.GetAllExceptLastElement(sca.AsyncOperation.Operation.Name, "."),
+					events.OperationName: stringutil.GetLastElement(sca.AsyncOperation.Operation.Name, "."),
+				})
 			}
-			if status == tasks.TaskStatusINITIAL || status == tasks.TaskStatusRUNNING {
-				ctx := context.Background()
-				if sca.AsyncOperation.TaskID != "" {
-					ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
-						events.ExecutionID:   sca.AsyncOperation.TaskID,
-						events.WorkFlowID:    sca.AsyncOperation.WorkflowName,
-						events.NodeID:        sca.AsyncOperation.NodeName,
-						events.InterfaceName: stringutil.GetAllExceptLastElement(sca.AsyncOperation.Operation.Name, "."),
-						events.OperationName: stringutil.GetLastElement(sca.AsyncOperation.Operation.Name, "."),
-					})
-				}
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, sca.deploymentID).Registerf("Scheduled action: %+v miss trigger due to another execution (task ID: %q) already planned or running. Will try to be rescheduled on next trigger.", sca, sca.latestTaskID)
-				metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"scheduling", sca.ActionType, sca.ID, "misses"}), 1)
-				return nil
-			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, sca.deploymentID).Registerf("Scheduled action: %+v miss trigger due to another execution (task ID: %q) already planned or running. Will try to be rescheduled on next trigger.", sca, sca.latestTaskID)
+			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"scheduling", sca.ActionType, sca.ID, "misses"}), 1)
+			return nil
 		}
 	}
 
+	return sca.registerNewTask()
+}
+
+func (sca *scheduledAction) registerNewTask() error {
+	var err error
 	sca.latestTaskID, err = defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
 	if err != nil {
 		return err
