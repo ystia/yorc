@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
@@ -36,53 +37,88 @@ import (
 type defaultExecutor struct {
 }
 
+type operationParameters struct {
+	taskID            string
+	deploymentID      string
+	nodeName          string
+	delegateOperation string
+	hpManager         Manager
+}
+
+// Mutex to ensure consistency of a host allocations and resources labels
+var hostsPoolAllocMutex sync.Mutex
+
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
 	}
 
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+	operationParams := operationParameters{
+		taskID:            taskID,
+		deploymentID:      deploymentID,
+		nodeName:          nodeName,
+		delegateOperation: delegateOperation,
+		hpManager:         NewManager(cc),
+	}
+	return e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
+}
+
+func (e *defaultExecutor) execDelegateHostsPool(
+	ctx context.Context, cc *api.Client, cfg config.Configuration,
+	op operationParameters) error {
+
+	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
-	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(cc.KV(), deploymentID, nodeName)
+	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(cc.KV(),
+		op.deploymentID, op.nodeName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q", nodeName, deploymentID)
+		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q",
+			op.nodeName, op.deploymentID)
 	}
-	switch strings.ToLower(delegateOperation) {
+
+	switch strings.ToLower(op.delegateOperation) {
 	case "install":
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
-		}
-		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateCreating)
+		err = e.hostsPoolCreate(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateStarted)
-		}
-		return nil
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateStarted)
 	case "uninstall":
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
-		}
-		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateDeleting)
+		err = e.hostsPoolDelete(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
-		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleted)
-		}
-		return nil
+		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateDeleted)
+	default:
+		return errors.Errorf("operation %q not supported", op.delegateOperation)
 	}
-	return errors.Errorf("operation %q not supported", delegateOperation)
+	return nil
 }
 
-func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
-	hpManager := NewManager(cc)
+func setInstancesStateWithContextualLogs(
+	ctx context.Context,
+	cc *api.Client,
+	op operationParameters,
+	instances []string,
+	state tosca.NodeState) {
 
-	jsonProp, err := deployments.GetNodePropertyValue(cc.KV(), deploymentID, nodeName, "filters")
+	for _, instance := range instances {
+		deployments.SetInstanceStateWithContextualLogs(
+			events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
+			cc.KV(), op.deploymentID, op.nodeName, instance, state)
+	}
+}
+
+func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
+	cc *api.Client, cfg config.Configuration,
+	op operationParameters, allocatedResources map[string]string) error {
+
+	jsonProp, err := deployments.GetNodePropertyValue(cc.KV(), op.deploymentID, op.nodeName, "filters")
 	if err != nil {
 		return err
 	}
@@ -90,10 +126,10 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 	if jsonProp != nil && jsonProp.RawString() != "" {
 		err = json.Unmarshal([]byte(jsonProp.RawString()), &filtersString)
 		if err != nil {
-			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp.String())
+			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, op.nodeName, jsonProp.String())
 		}
 	}
-	filters, err := createFiltersFromComputeCapabilities(cc.KV(), deploymentID, nodeName)
+	filters, err := createFiltersFromComputeCapabilities(cc.KV(), op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
@@ -106,7 +142,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 	}
 
 	shareable := false
-	if s, err := deployments.GetNodePropertyValue(cc.KV(), deploymentID, nodeName, "shareable"); err != nil {
+	if s, err := deployments.GetNodePropertyValue(cc.KV(), op.deploymentID, op.nodeName, "shareable"); err != nil {
 		return err
 	} else if s != nil && s.RawString() != "" {
 		shareable, err = strconv.ParseBool(s.RawString())
@@ -115,102 +151,156 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		}
 	}
 
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
+
+	return e.allocateHostsToInstances(ctx, instances, shareable, filters, op, allocatedResources)
+}
+
+func (e *defaultExecutor) allocateHostsToInstances(
+	originalCtx context.Context,
+	instances []string,
+	shareable bool,
+	filters []labelsutil.Filter,
+	op operationParameters,
+	allocatedResources map[string]string) error {
+
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
-		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: allocatedResources}
-		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
+		allocation := &Allocation{
+			NodeName:     op.nodeName,
+			Instance:     instance,
+			DeploymentID: op.deploymentID,
+			Shareable:    shareable,
+			Resources:    allocatedResources}
+
+		// Protecting the allocation and update of resources labels by a mutex, to
+		// ensure no other worker will attempt to over-allocate resources of a
+		// host if another worker has allocated but not yet updated resources labels
+		hostsPoolAllocMutex.Lock()
+		hostname, warnings, err := op.hpManager.Allocate(allocation, filters...)
+		if err == nil {
+			err = op.hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
+		}
+		hostsPoolAllocMutex.Unlock()
+
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
-				NewLogEntry(events.LogLevelWARN, deploymentID).Registerf(`%v`, warn)
+				NewLogEntry(events.LogLevelWARN, op.deploymentID).Registerf(`%v`, warn)
 		}
 		if err != nil {
 			return err
 		}
-		err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "hostname", hostname)
+		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance, "hostname", hostname)
 		if err != nil {
 			return err
 		}
-		host, err := hpManager.GetHost(hostname)
-		if err != nil {
-			return err
-		}
-		err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, instance, "endpoint", "ip_address", host.Connection.Host)
-		if err != nil {
-			return err
-		}
-		credentials := map[string]interface{}{"user": host.Connection.User}
-		if host.Connection.Password != "" {
-			credentials["token"] = host.Connection.Password
-		}
-		if host.Connection.PrivateKey != "" {
-			credentials["keys"] = []string{host.Connection.PrivateKey}
-		}
-		err = deployments.SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instance, "endpoint", "credentials", credentials)
+		host, err := op.hpManager.GetHost(hostname)
 		if err != nil {
 			return err
 		}
 
-		privateAddress, ok := host.Labels["private_address"]
-		if !ok {
-			privateAddress = host.Connection.Host
-			events.WithContextOptionalFields(ctx).
-				NewLogEntry(events.LogLevelWARN, deploymentID).Registerf(`no "private_address" label for host %q, we will use the address from the connection section`, hostname)
-		}
-		err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "ip_address", privateAddress)
+		err = e.updateConnectionSettings(ctx, op, host, hostname, instance)
 		if err != nil {
 			return err
 		}
-		err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "private_address", privateAddress)
-		if err != nil {
-			return err
-		}
-
-		if publicAddress, ok := host.Labels["public_address"]; ok {
-			err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "public_address", publicAddress)
-			if err != nil {
-				return err
-			}
-
-			// For compatibility with components referencing a host public_ip_address,
-			// defining an attribute public_ip_address as well
-			err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "public_ip_address", publicAddress)
-			if err != nil {
-				return err
-			}
-
-		}
-
-		if host.Connection.Port != 0 {
-			err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, instance, "endpoint", "port", strconv.FormatUint(host.Connection.Port, 10))
-			if err != nil {
-				return err
-			}
-		}
-
-		for label, value := range host.Labels {
-			err = setAttributeFromLabel(deploymentID, nodeName, instance, label, value, "networks", "network_name")
-			if err != nil {
-				return err
-			}
-			err = setAttributeFromLabel(deploymentID, nodeName, instance, label, value, "networks", "network_id")
-			if err != nil {
-				return err
-			}
-			// This is bad as we split value even if we are not sure that it matches
-			err = setAttributeFromLabel(deploymentID, nodeName, instance, label, strings.Split(value, ","), "networks", "addresses")
-			if err != nil {
-				return err
-			}
-		}
-
-		return hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
 	}
 
+	return nil
+}
+
+func (e *defaultExecutor) updateConnectionSettings(
+	ctx context.Context, op operationParameters, host Host, hostname, instance string) error {
+
+	err := deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
+		instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityIPAddressAttribute,
+		host.Connection.Host)
+	if err != nil {
+		return err
+	}
+	credentials := map[string]interface{}{"user": host.Connection.User}
+	if host.Connection.Password != "" {
+		credentials["token"] = host.Connection.Password
+	}
+	if host.Connection.PrivateKey != "" {
+		credentials["keys"] = []string{host.Connection.PrivateKey}
+	}
+	err = deployments.SetInstanceCapabilityAttributeComplex(op.deploymentID,
+		op.nodeName, instance, tosca.ComputeNodeEndpointCapabilityName, "credentials", credentials)
+	if err != nil {
+		return err
+	}
+
+	privateAddress, ok := host.Labels[tosca.ComputeNodePrivateAddressAttributeName]
+	if !ok {
+		privateAddress = host.Connection.Host
+		events.WithContextOptionalFields(ctx).
+			NewLogEntry(events.LogLevelWARN, op.deploymentID).Registerf(
+			`no "%q label for host %q, will use the address from the connection section`,
+			tosca.ComputeNodePrivateAddressAttributeName, hostname)
+	}
+	err = setInstanceAttributesValue(op, instance, privateAddress,
+		[]string{tosca.EndpointCapabilityIPAddressAttribute, tosca.ComputeNodePrivateAddressAttributeName})
+
+	if publicAddress, ok := host.Labels[tosca.ComputeNodePublicAddressAttributeName]; ok {
+		// For compatibility with components referencing a host public_ip_address,
+		// defining an attribute public_ip_address as well
+		err = setInstanceAttributesValue(op, instance, privateAddress,
+			[]string{tosca.ComputeNodePublicAddressAttributeName, "public_ip_address"})
+
+		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
+			instance, tosca.ComputeNodePublicAddressAttributeName, publicAddress)
+		if err != nil {
+			return err
+		}
+	}
+
+	if host.Connection.Port != 0 {
+		err = deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
+			instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityPortProperty,
+			strconv.FormatUint(host.Connection.Port, 10))
+		if err != nil {
+			return err
+		}
+	}
+
+	return setInstanceAttributesFromLabels(op, instance, host.Labels)
+}
+
+func setInstanceAttributesValue(op operationParameters, instance, value string, attributes []string) error {
+	for _, attr := range attributes {
+		err := deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance,
+			attr, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func setInstanceAttributesFromLabels(op operationParameters, instance string, labels map[string]string) error {
+	for label, value := range labels {
+		err := setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+			label, value, tosca.ComputeNodeNetworksAttributeName, tosca.NetworkNameProperty)
+		if err != nil {
+			return err
+		}
+		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+			label, value, tosca.ComputeNodeNetworksAttributeName, tosca.NetworkIDProperty)
+		if err != nil {
+			return err
+		}
+		// This is bad as we split value even if we are not sure that it matches
+		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+			label, strings.Split(value, ","), tosca.ComputeNodeNetworksAttributeName,
+			tosca.NetworkAddressesProperty)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -319,29 +409,32 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 	return filters, nil
 }
 
-func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
-	hpManager := NewManager(cc)
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client,
+	cfg config.Configuration, op operationParameters, allocatedResources map[string]string) error {
+	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
-		hostname, err := deployments.GetInstanceAttributeValue(cc.KV(), deploymentID, nodeName, instance, "hostname")
+		hostname, err := deployments.GetInstanceAttributeValue(
+			cc.KV(), op.deploymentID, op.nodeName, instance, "hostname")
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
 		if hostname == nil || hostname.RawString() == "" {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, op.deploymentID).Registerf(
+				"instance %q of node %q has no registered hostname. This may be due to an error at creation time.",
+				instance, op.nodeName)
 			continue
 		}
-		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}
-		err = hpManager.Release(hostname.RawString(), allocation)
+		allocation := &Allocation{NodeName: op.nodeName, Instance: instance, DeploymentID: op.deploymentID}
+		err = op.hpManager.Release(hostname.RawString(), allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return hpManager.UpdateResourcesLabels(hostname.RawString(), allocatedResources, add, updateResourcesLabels)
+		return op.hpManager.UpdateResourcesLabels(hostname.RawString(), allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
