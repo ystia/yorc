@@ -55,17 +55,14 @@ func getLatestCommonsTypesPaths() ([]string, error) {
 		if len(versions) == 0 {
 			continue
 		}
-		typePath := path.Join(versions[0], "types")
-		if len(versions) >= 1 {
-			var maxVersion semver.Version
-			for _, v := range versions {
-				version, err := semver.Make(path.Base(v))
-				if err == nil && version.GTE(maxVersion) {
-					maxVersion = version
-				}
+		var maxVersion semver.Version
+		for _, v := range versions {
+			version, err := semver.Make(path.Base(v))
+			if err == nil && version.GTE(maxVersion) {
+				maxVersion = version
 			}
-			typePath = path.Join(builtinTypesPath, maxVersion.String(), "types")
 		}
+		typePath := path.Join(builtinTypesPath, maxVersion.String())
 
 		paths = append(paths, typePath)
 	}
