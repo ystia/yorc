@@ -24,8 +24,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v4/config"
 )
+
+var expectedDefaultAnsibleConfig = config.Ansible{
+	UseOpenSSH:              false,
+	DebugExec:               false,
+	ConnectionRetries:       5,
+	OperationRemoteBaseDir:  ".yorc",
+	KeepOperationRemotePath: false,
+	JobsChecksPeriod:        15 * time.Second,
+}
+
+var expectedDefaultConsulConfig = config.Consul{
+	Token:               "anonymous",
+	Datacenter:          "dc1",
+	Address:             "",
+	Key:                 "",
+	Cert:                "",
+	CA:                  "",
+	CAPath:              "",
+	SSL:                 false,
+	SSLVerify:           true,
+	PubMaxRoutines:      config.DefaultConsulPubMaxRoutines,
+	TLSHandshakeTimeout: config.DefaultConsulTLSHandshakeTimeout,
+}
 
 // Test the following args:
 // ./yorc server --infrastructure_infra1_auth_url http://localhost:5000/v2.0 --infrastructure_infra1_tenant_name validation
@@ -150,7 +173,7 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 }
 
 // Tests configuration values:
-// - using a configuration file with deprecated values (backward compatibility check)
+// - using a configuration file with deprecated values (not supported anymore) => default values used
 // - using a configuration file with the expected format
 func TestConfigFile(t *testing.T) {
 
@@ -160,31 +183,11 @@ func TestConfigFile(t *testing.T) {
 		AnsibleConfig config.Ansible
 		ConsulConfig  config.Consul
 	}{
+		// Flat keys are not supported anymore default values are used
 		{SubTestName: "config_flat",
-			FileName: "testdata/config_flat.yorc.json",
-			AnsibleConfig: config.Ansible{
-				UseOpenSSH:              true,
-				DebugExec:               true,
-				ConnectionRetries:       10,
-				OperationRemoteBaseDir:  "test_base_dir",
-				KeepOperationRemotePath: true,
-				ArchiveArtifacts:        true,
-				CacheFacts:              true,
-				JobsChecksPeriod:        15 * time.Second,
-			},
-			ConsulConfig: config.Consul{
-				Token:               "testToken",
-				Datacenter:          "testDC",
-				Address:             "http://127.0.0.1:8500",
-				Key:                 "testKeyFile",
-				Cert:                "testCertFile",
-				CA:                  "testCACert",
-				CAPath:              "testCAPath",
-				SSL:                 true,
-				SSLVerify:           false,
-				PubMaxRoutines:      1234,
-				TLSHandshakeTimeout: 30 * time.Second,
-			},
+			FileName:      "testdata/config_flat.yorc.json",
+			AnsibleConfig: expectedDefaultAnsibleConfig,
+			ConsulConfig:  expectedDefaultConsulConfig,
 		},
 		{SubTestName: "config_structured",
 			FileName: "testdata/config_structured.yorc.json",
@@ -230,47 +233,23 @@ func TestConfigFile(t *testing.T) {
 
 // Tests Ansible configuration default values
 func TestAnsibleDefaultValues(t *testing.T) {
-
-	expectedAnsibleConfig := config.Ansible{
-		UseOpenSSH:              false,
-		DebugExec:               false,
-		ConnectionRetries:       5,
-		OperationRemoteBaseDir:  ".yorc",
-		KeepOperationRemotePath: false,
-		JobsChecksPeriod:        15 * time.Second,
-	}
-
 	testResetConfig()
 	setConfig()
 	initConfig()
 	testConfig := GetConfig()
 
-	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected default configuration")
+	assert.Equal(t, expectedDefaultAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected default configuration")
 }
 
 // Tests Consul configuration default values
 func TestConsulDefaultValues(t *testing.T) {
 
-	expectedConsulConfig := config.Consul{
-		Token:               "anonymous",
-		Datacenter:          "dc1",
-		Address:             "",
-		Key:                 "",
-		Cert:                "",
-		CA:                  "",
-		CAPath:              "",
-		SSL:                 false,
-		SSLVerify:           true,
-		PubMaxRoutines:      config.DefaultConsulPubMaxRoutines,
-		TLSHandshakeTimeout: config.DefaultConsulTLSHandshakeTimeout,
-	}
-
 	testResetConfig()
 	setConfig()
 	initConfig()
 	testConfig := GetConfig()
 
-	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from expected default configuration")
+	assert.Equal(t, expectedDefaultConsulConfig, testConfig.Consul, "Consul configuration differs from expected default configuration")
 }
 
 // Tests Ansible configuration using environment variables

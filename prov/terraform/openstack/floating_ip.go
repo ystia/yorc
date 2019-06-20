@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v4/deployments"
 )
 
 // An IP is...

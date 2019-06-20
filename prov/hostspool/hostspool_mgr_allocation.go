@@ -24,8 +24,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/labelsutil"
 )
 
 func (cm *consulManager) Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {

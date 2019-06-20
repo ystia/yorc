@@ -22,9 +22,9 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {

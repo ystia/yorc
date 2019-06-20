@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 func storeOperationOutput(consulStore consulutil.ConsulStore, valueAssign *tosca.ValueAssignment, operationOutputPrefix string) error {

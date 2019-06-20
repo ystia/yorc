@@ -29,10 +29,10 @@ import (
 	// Loading the gcp plugin to authenticate against GKE clusters
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/stringutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/stringutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 type defaultExecutor struct {

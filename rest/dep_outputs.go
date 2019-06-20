@@ -20,8 +20,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {

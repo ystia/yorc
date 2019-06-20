@@ -1,0 +1,190 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: docker-types
+  template_version: 2.1.1
+  template_author: alien4cloud
+
+description: "Contains the non-normative definition of Docker-related types as currently supported in Alien 4 Cloud."
+
+data_types:
+  org.alien4cloud.extended.container.datatypes.ConfigSetting:
+    description: "Setting for a set of prefixed inputs related to a given folder in the topology and for which a configMap will be mounted on the container (K8S)."
+    derived_from: tosca.datatypes.Root
+    properties:
+      mount_path:
+        type: string
+        description: "where the config map will be mount onto the container."
+      mount_subPath:
+        type: string
+        description: "where the config map will be mount onto the container."
+        required: false
+      input_prefix:
+        type: string
+        description: "the prefix used for the input names."
+      config_path:
+        type: string
+        description: "where to to find the files that will be used to create the configMap."
+
+artifact_types:
+  tosca.artifacts.Deployment.Image.Container.Docker:
+    description: "Docker Container Image"
+    derived_from: tosca.artifacts.Deployment.Image
+
+capability_types:
+  tosca.capabilities.Container.Docker:
+    description: "The capacity to host and run Docker containers."
+    derived_from: tosca.capabilities.Container
+  org.alien4cloud.extended.container.capabilities.ApplicationHost:
+    description: "The capacity to host and run containerized application image."
+    derived_from: tosca.capabilities.Container
+  org.alien4cloud.capabilities.DockerVolumeAttachment:
+    description: "Capability to mount a Docker volume"
+    derived_from: tosca.capabilities.Attachment
+    valid_source_types: ["org.alien4cloud.nodes.DockerExtVolume"]
+
+node_types:
+  org.alien4cloud.extended.container.types.ContainerRuntime:
+    description: "Can host containerized applications. A ContainerRuntime represents the container itself, while DockerContainer is the contanerized application."
+    derived_from: tosca.nodes.Root
+    capabilities:
+      host:
+        type: org.alien4cloud.extended.container.capabilities.ApplicationHost
+    requirements:
+      - host:
+          capability: tosca.capabilities.Container.Docker
+          relationship: tosca.relationships.HostedOn
+          occurrences: [0, 1]
+  org.alien4cloud.extended.container.types.ContainerDeploymentUnit:
+    description: "Can host containers and be deployed as a unit. Think about Pods in K8S."
+    derived_from: tosca.nodes.Root
+    capabilities:
+      host:
+        type: tosca.capabilities.Container.Docker
+      scalable:
+        type: tosca.capabilities.Scalable
+  org.alien4cloud.extended.container.types.ContainerJobUnit:
+    description: "Can host containers to be run as Jobs."
+    derived_from: tosca.nodes.Root
+    capabilities:
+      host:
+        type: tosca.capabilities.Container.Docker
+  tosca.nodes.Container.Application.DockerContainer:
+    metadata:
+      icon: "/images/docker.png"
+    description: "The TOSCA Container Application Docker node represents an application running in a Docker container. Properties defined in the node will be interpreted as the entrypoint's arguments."
+    derived_from: tosca.nodes.Container.Application
+    properties:
+      cpu_share:
+        type: float
+        default: 1.0
+      cpu_share_limit:
+        type: float
+        required: false
+      mem_share:
+        type: scalar-unit.size
+        default: "128 MB"
+      mem_share_limit:
+        type: scalar-unit.size
+        required: false
+      disk_share:
+        type: integer
+        required: false
+      docker_options:
+        type: map
+        required: false
+        entry_schema:
+          type: string
+          description: "Arbitrary command-line options for the docker run command."
+      docker_run_args:
+        type: list
+        required: false
+        entry_schema:
+          type: string
+          description: "Docker run arguments. Allows safe usage of Docker ENTRYPOINT statement in the Dockerfile."
+      docker_bash_cmd:
+        type: list
+        description: "Docker run command. Will override the Dockerfile CMD statement."
+        required: false
+        default: 
+          - "/bin/bash"
+          - "-c"
+        entry_schema:
+          type: string
+      docker_run_cmd:
+        type: string
+        description: "Docker run command. Will override the Dockerfile CMD statement."
+        required: false
+      docker_env_vars:
+        type: map
+        required: false
+        entry_schema:
+          type: string
+          description: "Environment variables for the Docker container."
+    attributes:
+      endpoint:
+        type: string
+        description: "Reflects the external endpoint assigned to this container."
+    capabilities:
+      attach:
+        type: org.alien4cloud.capabilities.DockerVolumeAttachment
+      scalable:
+        type: tosca.capabilities.Scalable
+    requirements:
+      - host:
+          capability: org.alien4cloud.extended.container.capabilities.ApplicationHost
+          relationship: org.alien4cloud.extended.container.relationships.HostedOnContainerRuntime
+  tosca.nodes.Container.Application.ConfigurableDockerContainer:
+    description: "A specification of a DockerContainer that is configurable. In K8S, we'll use configMaps."
+    derived_from: tosca.nodes.Container.Application.DockerContainer
+    properties:
+      config_settings:
+        type: list
+        required: false
+        entry_schema:
+          type: org.alien4cloud.extended.container.datatypes.ConfigSetting
+  org.alien4cloud.nodes.DockerExtVolume:
+    metadata:
+      icon: "/images/volume.png"
+    description: "null"
+    derived_from: tosca.nodes.BlockStorage
+    requirements:
+      - attachment:
+          capability: org.alien4cloud.capabilities.DockerVolumeAttachment
+          relationship: org.alien4cloud.relationships.MountDockerVolume
+          occurrences: [1, UNBOUNDED]
+      - host:
+          capability: tosca.capabilities.Container.Docker
+          relationship: tosca.relationships.HostedOn
+          occurrences: [0, 1]
+  org.alien4cloud.nodes.DockerArtifactVolume:
+    metadata:
+      icon: "/images/volume.png"
+    description: "This volume has an artifact, can be used to create a K8S secret from a file or files in a directory for example."
+    derived_from: org.alien4cloud.nodes.DockerExtVolume
+    artifacts:
+      resources:
+        file: README.md
+        type: tosca.artifacts.File
+
+relationship_types:
+  org.alien4cloud.extended.container.relationships.HostedOnContainerRuntime:
+    description: "null"
+    derived_from: tosca.relationships.HostedOn
+    valid_source_types: ["org.alien4cloud.extended.container.capabilities.ApplicationHost"]
+  org.alien4cloud.relationships.MountDockerVolume:
+    description: "null"
+    derived_from: tosca.relationships.AttachTo
+    properties:
+      container_path:
+        type: string
+        description: "Specifies where the volume is mounted inside the container."
+      container_subPath:
+        type: string
+        description: "Path within the volume from which the container's volume should be mounted."
+        required: false
+      readonly:
+        type: boolean
+        required: false
+        default: false
+    valid_source_types: ["org.alien4cloud.capabilities.DockerVolumeAttachment"]

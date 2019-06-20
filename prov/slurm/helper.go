@@ -17,6 +17,7 @@ package slurm
 import (
 	"bufio"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"io"
 	"regexp"
 	"strconv"
@@ -26,10 +27,10 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/helper/sshutil"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 const reSbatch = `^Submitted batch job (\d+)`
@@ -404,4 +405,15 @@ func quoteArgs(t []string) string {
 		args += v + " "
 	}
 	return args
+}
+
+// Slurm mem units are K|M|G|T ie KiB MiB GiB TiB
+func toSlurmMemFormat(memStr string) (string, error) {
+	mem, err := humanize.ParseBytes(memStr)
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to convert to slurm memory format value:%q", memStr)
+	}
+
+	humanB := strings.ReplaceAll(humanize.IBytes(mem), " ", "")
+	return humanB[0 : len(humanB)-2], nil
 }

@@ -21,10 +21,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/deployments/store"
-	"github.com/ystia/yorc/v3/helper/collections"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/deployments/store"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func getCommonsTypesList(kv *api.KV) ([]string, error) {

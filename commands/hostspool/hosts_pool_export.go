@@ -24,8 +24,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/commands/httputil"
-	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v4/commands/httputil"
+	"github.com/ystia/yorc/v4/rest"
 )
 
 func init() {

@@ -29,19 +29,19 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/helper/metricsutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov"
-	"github.com/ystia/yorc/v3/prov/operations"
-	"github.com/ystia/yorc/v3/prov/scheduling"
-	"github.com/ystia/yorc/v3/registry"
-	"github.com/ystia/yorc/v3/tasks"
-	"github.com/ystia/yorc/v3/tasks/workflow/builder"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/metricsutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/prov/operations"
+	"github.com/ystia/yorc/v4/prov/scheduling"
+	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // worker concern is to execute a task execution received from the dispatcher
@@ -562,23 +562,27 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 	if status != deployments.UNDEPLOYED {
 		deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		t.finalFunction = func() error {
-			defer func() {
-				// in all cases, if purge has been requested, run it at the end
-				if t.taskType == tasks.TaskTypePurge {
-					err := w.runPurge(ctx, t)
-					if err != nil {
-						log.Printf("%+v", err)
-					}
-				}
-			}()
-			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+			taskStatus, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
 				return err
 			}
-			// Set it to undeployed anyway
-			return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
+			if taskStatus != tasks.TaskStatusDONE {
+				return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_FAILED)
+			}
+			deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
+
+			// if purge has been requested, run it at the end except for un-deployment failure
+			if t.taskType == tasks.TaskTypePurge {
+				return w.runPurge(ctx, t)
+			}
+			return nil
 		}
-		return w.runWorkflowStep(ctx, t, "uninstall", true)
+		bypassErrors, err := w.checkByPassErrors(t, "uninstall")
+		if err != nil {
+			return err
+		}
+
+		return w.runWorkflowStep(ctx, t, "uninstall", bypassErrors)
 	} else if t.taskType == tasks.TaskTypePurge {
 		return w.runPurge(ctx, t)
 	}
@@ -694,17 +698,12 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName string) error {
-	kv := w.consulClient.KV()
 	if wfName == "" {
 		return errors.New("workflow name missing")
 	}
-	continueOnError, err := tasks.GetTaskData(kv, t.taskID, "continueOnError")
+	bypassErrors, err := w.checkByPassErrors(t, wfName)
 	if err != nil {
 		return err
-	}
-	bypassErrors, err := strconv.ParseBool(continueOnError)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse \"continueOnError\" flag for custom workflow")
 	}
 	t.finalFunction = func() error {
 		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, wfName)
@@ -712,6 +711,18 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 	}
 
 	return w.runWorkflowStep(ctx, t, wfName, bypassErrors)
+}
+
+func (w *worker) checkByPassErrors(t *taskExecution, wfName string) (bool, error) {
+	continueOnError, err := tasks.GetTaskData(w.consulClient.KV(), t.taskID, "continueOnError")
+	if err != nil {
+		return false, err
+	}
+	bypassErrors, err := strconv.ParseBool(continueOnError)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to parse \"continueOnError\" flag for workflow:%q", wfName)
+	}
+	return bypassErrors, nil
 }
 
 // bool return indicates if the workflow is done

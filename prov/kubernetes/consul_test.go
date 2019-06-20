@@ -1,4 +1,4 @@
-// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+// Copyright 2019 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ansible
+package kubernetes
 
 import (
-	"github.com/ystia/yorc/v3/prov"
+	"testing"
+
+	"github.com/ystia/yorc/v4/testutil"
 )
 
-// NewExecutor returns an Executor
-//
-// Deprecated: no alternatives should never been exported. will be removed in Yorc 4.0
-func NewExecutor() prov.OperationExecutor {
-	return newExecutor()
+func TestConsulKubernetesPackage(t *testing.T) {
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+	t.Run("testsExecJob", func(t *testing.T) {
+		testsExecJob(t, kv)
+	})
 }

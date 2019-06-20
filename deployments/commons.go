@@ -24,8 +24,8 @@ import (
 	"github.com/pkg/errors"
 	"vbom.ml/util/sortorder"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 func urlEscapeAll(keys []string) []string {

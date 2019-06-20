@@ -27,16 +27,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 func TestGenerateValue(t *testing.T) {
 	t.Parallel()
-	logEntry := WithOptionalFields(LogOptionalFields{
+	ctx := context.WithValue(context.Background(), logOptFieldsKey, LogOptionalFields{
 		WorkFlowID:    "my_workflowID",
 		OperationName: "my_operationID",
-	}).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
+	})
+	logEntry := WithContextOptionalFields(ctx).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
 
 	logEntry.timestamp = time.Now()
 
@@ -46,10 +47,11 @@ func TestGenerateValue(t *testing.T) {
 
 func TestGenerateKey(t *testing.T) {
 	t.Parallel()
-	logEntry := WithOptionalFields(LogOptionalFields{
+	ctx := context.WithValue(context.Background(), logOptFieldsKey, LogOptionalFields{
 		WorkFlowID:    "my_workflowID",
 		OperationName: "my_operationID",
-	}).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
+	})
+	logEntry := WithContextOptionalFields(ctx).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
 
 	logEntry.timestamp = time.Now()
 

@@ -21,7 +21,7 @@ package sshutil
 
 // 	"golang.org/x/crypto/ssh"
 
-// 	"github.com/ystia/yorc/v3/log"
+// 	"github.com/ystia/yorc/v4/log"
 // )
 
 // var sc = &SSHClient{

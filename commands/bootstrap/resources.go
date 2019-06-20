@@ -25,7 +25,7 @@ import (
 
 	resources "gopkg.in/cookieo9/resources-go.v2"
 
-	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v4/helper/ziputil"
 )
 
 // extractResources extracts resources from the file in argument if any,

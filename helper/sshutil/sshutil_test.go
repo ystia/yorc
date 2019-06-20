@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func TestSSHAgent(t *testing.T) {

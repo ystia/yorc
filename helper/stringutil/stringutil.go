@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // GetLastElement returns the last element of a "separator-separated" string

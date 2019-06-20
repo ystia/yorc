@@ -24,9 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/prov"
 )
 
 type mockDelegateExecutor struct {

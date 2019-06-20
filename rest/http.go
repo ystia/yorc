@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
@@ -26,10 +27,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/prov/hostspool"
-	"github.com/ystia/yorc/v3/tasks/collector"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/prov/hostspool"
+	"github.com/ystia/yorc/v4/tasks/collector"
 )
 
 type router struct {
@@ -204,6 +205,16 @@ func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	jEnc.Encode(resp)
+}
+
+func getBoolQueryParam(r *http.Request, paramName string) (bool, error) {
+	if values, ok := r.URL.Query()[paramName]; ok {
+		if len(values) > 0 && len(values[0]) > 0 {
+			return strconv.ParseBool(values[0])
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func getAddress(configuration config.Configuration) (net.Addr, error) {

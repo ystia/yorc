@@ -23,11 +23,11 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/sshutil"
-	"github.com/ystia/yorc/v3/prov/hostspool"
-	"github.com/ystia/yorc/v3/tasks/collector"
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/prov/hostspool"
+	"github.com/ystia/yorc/v4/tasks/collector"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 type mockSSHClient struct {
@@ -72,6 +72,9 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 		})
 		t.Run("testSSLRest", func(t *testing.T) {
 			testSSLREST(t, client, srv)
+		})
+		t.Run("testDeploymentHandlers", func(t *testing.T) {
+			testDeploymentHandlers(t, client, srv)
 		})
 	})
 }

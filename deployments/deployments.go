@@ -21,14 +21,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v4/helper/collections"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 const purgedDeploymentsLock = consulutil.PurgedDeploymentKVPrefix + ".lock"

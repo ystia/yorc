@@ -17,8 +17,8 @@ package internal
 import (
 	"context"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // storeAttributeDefinition stores an attribute definition

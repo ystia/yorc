@@ -19,9 +19,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/server/upgradeschema"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/server/upgradeschema"
 )
 
 var upgradeToMap = map[string]func(*api.KV, <-chan struct{}) error{

@@ -18,8 +18,8 @@ import (
 	"context"
 	"path"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // StoreRepositories store repositories

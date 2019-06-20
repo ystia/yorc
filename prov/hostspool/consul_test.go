@@ -21,9 +21,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/deployments"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
@@ -96,5 +96,14 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	})
 	t.Run("testCreateFiltersFromComputeCapabilities", func(t *testing.T) {
 		testCreateFiltersFromComputeCapabilities(t, kv, deploymentID)
+	})
+	t.Run("testConcurrentExecDelegateShareableHost", func(t *testing.T) {
+		testConcurrentExecDelegateShareableHost(t, srv, client, kv, deploymentID)
+	})
+	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
+		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID)
+	})
+	t.Run("testExecDelegateFailure", func(t *testing.T) {
+		testExecDelegateFailure(t, srv, client, kv, deploymentID)
 	})
 }

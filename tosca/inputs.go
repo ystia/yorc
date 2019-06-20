@@ -14,7 +14,7 @@
 
 package tosca
 
-import "github.com/ystia/yorc/v3/log"
+import "github.com/ystia/yorc/v4/log"
 
 // An Input is the representation of the input part of a TOSCA Operation Definition
 //

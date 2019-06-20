@@ -2,12 +2,25 @@
 
 ## UNRELEASED
 
+### BREAKING CHANGES
+
+* Start v4.0 cycle ([GH-444](https://github.com/ystia/yorc/issues/444)):
+  * deprecated API functions are now removed
+  * the former and deprecated way to handle Kubernetes deployments is not supported anymore
+
 ### BUG FIXES
 
+* Wrong resources allocation on shareable Hosts Pool ([GH-426](https://github.com/ystia/yorc/issues/426))
 * Deleting one host in Pool deletes other hosts having as prefix the deleted hostname ([GH-430](https://github.com/ystia/yorc/issues/430))
 * Yorc should support long standard operation names as well as short ones ([GH-300](https://github.com/ystia/yorc/issues/300))
 * Fix attributes notifications for services (substitutions) ([GH-423](https://github.com/ystia/yorc/issues/423))
 * Monitoring can be stopped before the job termination ([GH-438](https://github.com/ystia/yorc/issues/438))
+* mem_per_node slurm option parameter is limited to integer number of GB ([GH-446](https://github.com/ystia/yorc/issues/446))
+
+### ENHANCEMENTS
+
+* Expose bypass error parameter on workflow ([GH-425](https://github.com/ystia/yorc/issues/425))
+* Support Alien4Cloud 2.2 ([GH-441](https://github.com/ystia/yorc/issues/441))
 
 ## 3.2.0 (May 31, 2019)
 

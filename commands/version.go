@@ -19,7 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 var version = "unknown phantom version"

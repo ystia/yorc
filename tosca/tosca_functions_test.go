@@ -20,7 +20,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func TestFunctionParsing(t *testing.T) {

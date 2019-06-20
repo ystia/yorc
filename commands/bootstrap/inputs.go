@@ -33,12 +33,12 @@ import (
 	survey "gopkg.in/AlecAivazis/survey.v1"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/commands"
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/collections"
-	"github.com/ystia/yorc/v3/resources"
-	"github.com/ystia/yorc/v3/rest"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/commands"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/resources"
+	"github.com/ystia/yorc/v4/rest"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 var inputValues TopologyValues

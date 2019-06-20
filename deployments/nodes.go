@@ -25,10 +25,10 @@ import (
 	"github.com/pkg/errors"
 	"vbom.ml/util/sortorder"
 
-	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.

@@ -23,7 +23,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {

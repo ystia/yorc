@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/testutil"
 )
 
 func TestDeploymentStatusFromString(t *testing.T) {

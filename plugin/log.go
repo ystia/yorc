@@ -19,7 +19,7 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // Creating a hclog logger so that Hashicorp go plugin logs can be correctly

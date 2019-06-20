@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func testArtifacts(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {

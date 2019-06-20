@@ -21,8 +21,8 @@ import (
 
 	"github.com/armon/go-metrics"
 
-	"github.com/ystia/yorc/v3/helper/metricsutil"
-	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v4/helper/metricsutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 func recoverHandler(next http.Handler) http.Handler {

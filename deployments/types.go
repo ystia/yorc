@@ -22,11 +22,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/deployments/internal"
-	"github.com/ystia/yorc/v3/deployments/store"
-	"github.com/ystia/yorc/v3/helper/collections"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/deployments/internal"
+	"github.com/ystia/yorc/v4/deployments/store"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 type typeMissingError struct {
