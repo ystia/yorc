@@ -21,6 +21,7 @@
 
 * Expose bypass error parameter on workflow ([GH-425](https://github.com/ystia/yorc/issues/425))
 * Support Alien4Cloud 2.2 ([GH-441](https://github.com/ystia/yorc/issues/441))
+* Allow to provide extra env vars to Alien4Cloud during bootstrap ([GH-452](https://github.com/ystia/yorc/issues/452))
 
 ## 3.2.0 (May 31, 2019)
 
