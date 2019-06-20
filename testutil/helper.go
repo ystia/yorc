@@ -30,6 +30,7 @@ import (
 // NewTestConsulInstance allows to :
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
+//  - stores common-types to Consul
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
@@ -44,17 +45,16 @@ func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 	return NewTestConsulInstanceWithConfigAndStore(t, cb)
 }
 
-// NewTestConsulInstanceWithConfig sets up a consul instance for testing
-// Store common-types to Consul
+// NewTestConsulInstanceWithConfigAndStore sets up a consul instance for testing
 func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client) {
 
 	return NewTestConsulInstanceWithConfig(t, cb, true)
 }
 
-// NewTestConsulInstanceWithConfig sets up a consul instance for testing
-//
+// NewTestConsulInstanceWithConfig sets up a consul instance for testing :
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
+//  - stores common-types to Consul only if storeCommons bool parameter is true
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, storeCommons bool) (*testutil.TestServer, *api.Client) {
 	srv1, err := testutil.NewTestServerConfig(cb)
