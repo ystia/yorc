@@ -62,6 +62,7 @@ topology_template:
         ca_pem: |{{indent .Yorc.CAPEMContent 10}}
         ca_key: |{{indent .Yorc.CAKeyContent 10}}
         ca_passphrase: "{{.Yorc.CAPassPhrase}}"
+        extra_env: |{{indent .Alien4cloud.ExtraEnv 10}}
       requirements:
         - javaSoftwareHostedOnJdkOracleJdkJdk:
             type_requirement: java
