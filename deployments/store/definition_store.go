@@ -23,11 +23,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
-	"github.com/ystia/yorc/v4/helper/collections"
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/tosca"
+	"github.com/ystia/yorc/v3/deployments/internal"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // BuiltinOrigin is the origin for Yorc builtin
