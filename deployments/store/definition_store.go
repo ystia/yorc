@@ -23,11 +23,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v3/deployments/internal"
-	"github.com/ystia/yorc/v3/helper/collections"
-	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/log"
-	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v4/deployments/internal"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // BuiltinOrigin is the origin for Yorc builtin
@@ -55,17 +55,14 @@ func getLatestCommonsTypesPaths() ([]string, error) {
 		if len(versions) == 0 {
 			continue
 		}
-		typePath := path.Join(versions[0], "types")
-		if len(versions) >= 1 {
-			var maxVersion semver.Version
-			for _, v := range versions {
-				version, err := semver.Make(path.Base(v))
-				if err == nil && version.GTE(maxVersion) {
-					maxVersion = version
-				}
+		var maxVersion semver.Version
+		for _, v := range versions {
+			version, err := semver.Make(path.Base(v))
+			if err == nil && version.GTE(maxVersion) {
+				maxVersion = version
 			}
-			typePath = path.Join(builtinTypesPath, maxVersion.String(), "types")
 		}
+		typePath := path.Join(builtinTypesPath, maxVersion.String())
 
 		paths = append(paths, typePath)
 	}
