@@ -75,6 +75,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		case "RUNNING", "QUEUED":
 			return false, opErr
 		case "COMPLETED":
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", tosca.NodeStateStarted.String())
 			return true, opErr
 		case "FAILED":
 			if opErr == nil {
