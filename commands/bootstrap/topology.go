@@ -70,6 +70,7 @@ type Alien4CloudConfiguration struct {
 	Protocol    string
 	User        string
 	Password    string
+	ExtraEnv    string `yaml:"extra_env" mapstructure:"extra_env"`
 }
 
 // ConsulConfiguration provides Consul user-defined settings
