@@ -16,6 +16,7 @@
 * Fix attributes notifications for services (substitutions) ([GH-423](https://github.com/ystia/yorc/issues/423))
 * Monitoring can be stopped before the job termination ([GH-438](https://github.com/ystia/yorc/issues/438))
 * mem_per_node slurm option parameter is limited to integer number of GB ([GH-446](https://github.com/ystia/yorc/issues/446))
+* Job node state remains to "executing" when Ansible job fails ([GH-455](https://github.com/ystia/yorc/issues/455))
 
 ### ENHANCEMENTS
 
