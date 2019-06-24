@@ -10,10 +10,6 @@
 * mem_per_node slurm option parameter is limited to integer number of GB ([GH-446](https://github.com/ystia/yorc/issues/446))
 * Monitoring can be stopped before the job termination ([GH-438](https://github.com/ystia/yorc/issues/438))
 
-### ENHANCEMENTS
-
-* Expose bypass error parameter on workflow ([GH-425](https://github.com/ystia/yorc/issues/425))
-
 ## 3.2.0 (May 31, 2019)
 
 ### ENHANCEMENTS
