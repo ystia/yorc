@@ -267,6 +267,7 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissio
 		}
 	}()
 
+	wg.Wait()
 	close(errCh)
 	for err := range errCh {
 		if err != nil {
