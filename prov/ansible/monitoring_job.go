@@ -17,14 +17,14 @@ package ansible
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/prov"
 	"github.com/ystia/yorc/v3/tasks"
 	"github.com/ystia/yorc/v3/tosca"
