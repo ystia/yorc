@@ -41,14 +41,14 @@ var builtinTypes = make([]string, 0)
 
 func getLatestCommonsTypesPaths() ([]string, error) {
 	kv := consulutil.GetKV()
-	keys, _, err := kv.List("", nil)
-	//keys, _, err := kv.Keys(consulutil.CommonsTypesKVPrefix+"/", "/", nil)
+	// keys, _, err := kv.List("", nil)
+	keys, _, err := kv.Keys(consulutil.CommonsTypesKVPrefix+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	paths := make([]string, 0, len(keys))
 	for _, builtinTypesPath := range keys {
-		versions, _, err := kv.Keys(builtinTypesPath.Key, "/", nil)
+		versions, _, err := kv.Keys(builtinTypesPath, "/", nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -63,7 +63,7 @@ func getLatestCommonsTypesPaths() ([]string, error) {
 				maxVersion = version
 			}
 		}
-		typePath := path.Join(builtinTypesPath.Key, maxVersion.String())
+		typePath := path.Join(builtinTypesPath, maxVersion.String())
 
 		paths = append(paths, typePath)
 	}

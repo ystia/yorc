@@ -18,13 +18,13 @@ import (
 	"context"
 	"os"
 	"path"
-	"strconv"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
@@ -33,13 +33,12 @@ import (
 // TestRunDefinitionStoreTests aims to run a max of tests on store functions
 func TestRunDefinitionStoreTests(t *testing.T) {
 	log.Printf("TestRunDefinitionStoreTests")
-	srv, _ := newTestConsulInstance(t)
+	srv, cc := newTestConsulInstance(t)
 	defer srv.Stop()
 
 	t.Run("StoreTests", func(t *testing.T) {
 		t.Run("TestTypesPath", func(t *testing.T) {
-			storeSomething()
-			testTypesPath(t)
+			testTypesPath(t, cc.KV())
 		})
 	})
 }
@@ -78,48 +77,38 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	return srv1, client
 }
 
-// storeSomething allows to store some type definitions to consul under consulutil.CommonsTypesKVPrefix
-func storeSomething() {
-	prefix := consulutil.CommonsTypesKVPrefix + "/"
-	resources := getSomeResourcesToStore(2)
-	ctx := context.Background()
-	storeDefinition(ctx, prefix, resources)
-}
-
-// storeDefinition uses the consulStore from the context
-func storeDefinition(ctx context.Context, origin string, resDefinitions map[string]string) {
-	ctx, _, consulStore := consulutil.WithContext(ctx)
-	for name, value := range resDefinitions {
-		consulStore.StoreConsulKeyAsString(path.Join(origin, name), value)
+func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
+	_, errGrp, consulStore := consulutil.WithContext(ctx)
+	for _, p := range paths {
+		consulStore.StoreConsulKeyAsString(path.Join(consulutil.CommonsTypesKVPrefix, p, ".exist"), "1")
 	}
-}
-
-// getSomeResourcesToStore creates a map for resource definitiaons to store
-// for each of the nbres respurces, construct 2 resource names corresponding to 2 versions of the resource
-func getSomeResourcesToStore(nbres int) map[string]string {
-	res := make(map[string]string, nbres)
-	value1 := "abc"
-	value2 := "xyz"
-	for i := 0; i < nbres; i++ {
-		resName := "test_types" + strconv.Itoa(i)
-		resName1 := resName + "/" + "1.1.1"
-		res[resName1] = value1
-		resName2 := resName + "/" + "2.1.1"
-		res[resName2] = value2
-	}
-	return res
+	require.NoError(t, errGrp.Wait())
 }
 
 // restTypePath ais to test getLatestCommonsTypesPaths
 // WIP
-func testTypesPath(t *testing.T) {
+func testTypesPath(t *testing.T, kv *api.KV) {
 	log.Printf("Try to execute testTypesPath")
 	log.SetDebug(true)
 
-	paths, err := getLatestCommonsTypesPaths()
+	tests := []struct {
+		name          string
+		existingPaths []string
+		want          []string
+		wantErr       bool
+	}{
+		{"NoPath", nil, []string{}, false},
+		{"PathSimple", []string{"toto/1.0.0", "zuzu/2.0.0"}, []string{path.Join(consulutil.CommonsTypesKVPrefix, "toto/1.0.0"), path.Join(consulutil.CommonsTypesKVPrefix, "zuzu/2.0.0")}, false},
+		{"PathMultiVersion", []string{"toto/1.0.0", "toto/1.0.1", "toto/1.1.1", "zuzu/2.0.0"}, []string{path.Join(consulutil.CommonsTypesKVPrefix, "toto/1.1.1"), path.Join(consulutil.CommonsTypesKVPrefix, "zuzu/2.0.0")}, false},
+	}
 
-	log.Printf("Length of paths is " + string(len(paths)))
+	for _, tt := range tests {
+		_, err := kv.DeleteTree(consulutil.CommonsTypesKVPrefix, nil)
+		require.NoError(t, err)
+		storeCommonTypePath(context.Background(), t, tt.existingPaths)
+		paths, err := getLatestCommonsTypesPaths()
+		assert.Equal(t, tt.wantErr, err != nil, "Actual error: %v while expecting error: %v", err, tt.wantErr)
+		assert.Equal(t, tt.want, paths)
+	}
 
-	require.Nil(t, err)
-	require.Len(t, paths, 0)
 }
