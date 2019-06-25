@@ -424,10 +424,11 @@ func TestToSlurmMemFormat(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{"TestMemInGB", args{"250 GB"}, "233G", false},
-		{"TestMemInMiB", args{"800 MiB"}, "800M", false},
-		{"TestMemInGiBWithDecimal", args{"0.5 GiB"}, "512M", false},
-		{"TestMemInGBWithDecimal", args{"0.5GB"}, "477M", false},
+		{"TestMemInGB", args{"250 GB"}, "244140625K", false},
+		{"TestMemInMiB", args{"2010 MiB"}, "2058240K", false},
+		{"TestMemInMiB", args{"800 MiB"}, "819200K", false},
+		{"TestMemInGiBWithDecimal", args{"0.5 GiB"}, "524288K", false},
+		{"TestMemInGBWithDecimal", args{"0.5GB"}, "488281K", false},
 		{"TestBadFormat", args{"0.5 Bad"}, "", true},
 	}
 
