@@ -8,6 +8,7 @@
 * Yorc should support long standard operation names as well as short ones ([GH-300](https://github.com/ystia/yorc/issues/300))
 * Fix attributes notifications for services (substitutions) ([GH-423](https://github.com/ystia/yorc/issues/423))
 * Monitoring can be stopped before the job termination ([GH-438](https://github.com/ystia/yorc/issues/438))
+* Problem with getting the path of common types stored in Consul ([GH-451](https://github.com/ystia/yorc/issues/451))
 
 ## 3.2.0 (May 31, 2019)
 
