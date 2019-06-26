@@ -47,6 +47,15 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deploymentStatus, err := deployments.GetDeploymentStatus(s.consulClient.KV(), deploymentID)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if deploymentStatus == deployments.UPDATE_IN_PROGRESS {
+		writeError(w, r, newConflictRequest("Workflow can't be executed as an update is in progress for this deployment"))
+		return
+	}
+
 	workflows, err := deployments.GetWorkflows(s.consulClient.KV(), deploymentID)
 	if err != nil {
 		log.Panic(err)
