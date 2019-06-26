@@ -43,8 +43,9 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 	})
 }
 
-// newTestConsulInstance creates and configures Consul instance for tests
-// can't use util functions from testutil package in order to avoid import cycles
+// newTestConsulInstance creates and configures Consul instance
+// for testing functions in the store package
+// Remarque: can't use util functions from testutil package in order to avoid import cycles
 func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
@@ -77,15 +78,16 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
 	_, errGrp, consulStore := consulutil.WithContext(ctx)
 
-	// Store some_value (here "1") with key "_yorc/commons_types/some_type/some_version/some_name"
+	// Store someValue (here "1") with key "_yorc/commons_types/some_type/some_version/some_name"
 	// Where "some_type/some_value" is one of the existingPath slice element provided in the tests structure,
 	// for example "toto/1.0.0",
 	// and "some_name" (here ".exist") represents some element (like a property) name of the some_type type
-	var some_value string = "1"
+	var someValue string = "1"
 	for _, p := range paths {
 		// Store value "1" with key _yorc/commons_types/toto/1.0.0/.exist
-		consulStore.StoreConsulKeyAsString(path.Join(consulutil.CommonsTypesKVPrefix, p, ".exist"), some_value)
+		consulStore.StoreConsulKeyAsString(path.Join(consulutil.CommonsTypesKVPrefix, p, ".exist"), someValue)
 	}
+	//
 	require.NoError(t, errGrp.Wait())
 }
 
@@ -94,7 +96,6 @@ func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
 // - some_type/some_value
 // - some_name
 func testTypesPath(t *testing.T, kv *api.KV) {
-	log.Printf("Try to execute testTypesPath")
 	log.SetDebug(true)
 
 	tests := []struct {
