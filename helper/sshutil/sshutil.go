@@ -230,15 +230,17 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissio
 		return err
 	}
 
+	// need to get StdinPipe before starting ssh process
+	w, err := session.StdinPipe()
+	if err != nil {
+		return err
+	}
+
 	go func() {
 		defer wg.Done()
-		w, err := session.StdinPipe()
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer w.Close()
 
+		// close writer once file data have been written or if error occurs
+		defer w.Close()
 		_, err = fmt.Fprintln(w, "C"+permissions, size, filename)
 		if err != nil {
 			errCh <- err
