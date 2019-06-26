@@ -39,6 +39,10 @@ var lock sync.Mutex
 
 var builtinTypes = make([]string, 0)
 
+// getLatestCommonsTypesPaths() returns all the path keys corresponding to the last version of a type
+// that is stored under the consulutil.CommonsTypesKVPrefix.
+// For example, one path key could be _yorc/commons_types/some_type/2.0.0 if the last version
+// of the some_type type is 2.0.0
 func getLatestCommonsTypesPaths() ([]string, error) {
 	kv := consulutil.GetKV()
 	// keys, _, err := kv.List("", nil)
