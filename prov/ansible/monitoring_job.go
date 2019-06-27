@@ -22,7 +22,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/prov"
 	"github.com/ystia/yorc/v3/tasks"
 	"github.com/ystia/yorc/v3/tosca"
@@ -73,11 +75,13 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		case "RUNNING", "QUEUED":
 			return false, opErr
 		case "COMPLETED":
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", tosca.NodeStateStarted.String())
 			return true, opErr
 		case "FAILED":
 			if opErr == nil {
 				opErr = errors.Errorf("job implementation of node %q was detected as failed", nodeName)
 			}
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", tosca.NodeStateError.String())
 			return true, opErr
 		}
 

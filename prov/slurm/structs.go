@@ -46,7 +46,7 @@ type jobInfo struct {
 	Tasks                  int               `json:"tasks,omitempty"`
 	Cpus                   int               `json:"cpus,omitempty"`
 	Nodes                  int               `json:"nodes,omitempty"`
-	Mem                    int               `json:"mem,omitempty"`
+	Mem                    string            `json:"mem,omitempty"`
 	MaxTime                string            `json:"max_time,omitempty"`
 	Opts                   []string          `json:"opts,omitempty"`
 	Args                   []string          `json:"args,omitempty"`

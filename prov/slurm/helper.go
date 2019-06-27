@@ -17,6 +17,7 @@ package slurm
 import (
 	"bufio"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"io"
 	"regexp"
 	"strconv"
@@ -404,4 +405,15 @@ func quoteArgs(t []string) string {
 		args += v + " "
 	}
 	return args
+}
+
+// Convert scalar-unit size to Kib as K for Slurm
+func toSlurmMemFormat(memStr string) (string, error) {
+	mem, err := humanize.ParseBytes(memStr)
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to convert to slurm memory format value:%q", memStr)
+	}
+
+	// Pass to KiB as K for Slurm
+	return strconv.Itoa(int(mem)/1024) + "K", nil
 }

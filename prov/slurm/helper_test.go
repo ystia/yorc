@@ -411,3 +411,36 @@ func TestGetJobInfoWithError(t *testing.T) {
 
 	require.Equal(t, "oups, it's bad: this is an error !", err.Error(), "expected error")
 }
+
+func TestToSlurmMemFormat(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		memStr string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"TestMemInGB", args{"250 GB"}, "244140625K", false},
+		{"TestMemInMiB", args{"2010 MiB"}, "2058240K", false},
+		{"TestMemInMiB", args{"800 MiB"}, "819200K", false},
+		{"TestMemInGiBWithDecimal", args{"0.5 GiB"}, "524288K", false},
+		{"TestMemInGBWithDecimal", args{"0.5GB"}, "488281K", false},
+		{"TestBadFormat", args{"0.5 Bad"}, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			memSlurm, err := toSlurmMemFormat(tt.args.memStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("toSlurmMemFormat() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			require.Equal(t, tt.want, memSlurm, "unexpected slurm mem format")
+		})
+	}
+
+}
