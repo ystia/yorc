@@ -63,59 +63,53 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deplo
 
 	subnet := Subnet{}
 
-	netName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "network_name")
+	subnet.Name, err = getSubnetName(kv, cfg, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
-	} else if netName != nil && netName.RawString() != "" {
-		subnet.Name = cfg.ResourcesPrefix + netName.RawString() + "_subnet"
-	} else {
-		subnet.Name = cfg.ResourcesPrefix + nodeName + "_subnet"
 	}
-	ipVersion, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "ip_version")
+
+	subnet.IPVersion, err = getSubnetIPVersion(kv, cfg, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
-	} else if ipVersion != nil && ipVersion.RawString() != "" {
-		subnet.IPVersion, err = strconv.Atoi(ipVersion.RawString())
+	}
+
+	subnet.NetworkID, err = getSubnetNetworkID(kv, cfg, deploymentID, nodeName, resourceType)
+	if err != nil {
+		return Subnet{}, err
+	}
+
+	subnet.CIDR, err = getSubnetProperty(kv, cfg, deploymentID, nodeName, "cidr")
+	if err != nil {
+		return Subnet{}, err
+	}
+
+	subnet.GatewayIP, err = getSubnetProperty(kv, cfg, deploymentID, nodeName, "gateway_ip")
+	if err != nil {
+		return Subnet{}, err
+	}
+
+	startIP, err := getSubnetProperty(kv, cfg, deploymentID, nodeName, "start_ip")
+	if err != nil {
+		return Subnet{}, err
+	}
+	if startIP != "" {
+		endIP, err := getSubnetProperty(kv, cfg, deploymentID, nodeName, "end_ip")
 		if err != nil {
 			return Subnet{}, err
 		}
-	} else {
-		subnet.IPVersion = 4
-	}
-	nodeID, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "network_id")
-	if err != nil {
-		return Subnet{}, err
-	} else if nodeID != nil && nodeID.RawString() != "" {
-		subnet.NetworkID = nodeID.RawString()
-	} else {
-		subnet.NetworkID = fmt.Sprintf("${%s.%s.id}", resourceType, nodeName)
-	}
-	if nodeCIDR, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "cidr"); err != nil {
-		return Subnet{}, err
-	} else if nodeCIDR != nil && nodeCIDR.RawString() != "" {
-		subnet.CIDR = nodeCIDR.RawString()
-	}
-	if gatewayIP, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "gateway_ip"); err != nil {
-		return Subnet{}, err
-	} else if gatewayIP != nil && gatewayIP.RawString() != "" {
-		subnet.GatewayIP = gatewayIP.RawString()
-	}
-	if startIP, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "start_ip"); err != nil {
-		return Subnet{}, err
-	} else if startIP != nil && startIP.RawString() != "" {
-		endIP, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "end_ip")
-		if err != nil {
-			return Subnet{}, err
-		}
-		if endIP == nil || endIP.RawString() == "" {
+		if endIP == "" {
 			return Subnet{}, errors.Errorf("A start_ip and a end_ip need to be provided")
 		}
-		subnet.AllocationPools = &AllocationPool{Start: startIP.RawString(), End: endIP.RawString()}
+		subnet.AllocationPools = &AllocationPool{Start: startIP, End: endIP}
 	}
-	if dhcp, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "dhcp_enabled"); err != nil {
+
+	dhcpVal, err := getSubnetProperty(kv, cfg, deploymentID, nodeName, "dhcp_enabled")
+	if err != nil {
 		return Subnet{}, err
-	} else if dhcp != nil && dhcp.RawString() != "" {
-		subnet.EnableDHCP, err = strconv.ParseBool(dhcp.RawString())
+	}
+	if dhcpVal != "" {
+
+		subnet.EnableDHCP, err = strconv.ParseBool(dhcpVal)
 		if err != nil {
 			return Subnet{}, err
 		}
@@ -126,4 +120,64 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deplo
 	subnet.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 
 	return subnet, nil
+}
+
+func getSubnetName(kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (string, error) {
+
+	var subnetName string
+	netName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "network_name")
+	if err != nil {
+		return "", err
+	}
+	if netName != nil && netName.RawString() != "" {
+		subnetName = cfg.ResourcesPrefix + netName.RawString() + "_subnet"
+	} else {
+		subnetName = cfg.ResourcesPrefix + nodeName + "_subnet"
+	}
+	return subnetName, err
+}
+
+func getSubnetIPVersion(kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (int, error) {
+
+	ipVersion := 4
+	ipVersionProp, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "ip_version")
+	if err != nil {
+		return ipVersion, err
+	}
+	if ipVersionProp != nil && ipVersionProp.RawString() != "" {
+		ipVersion, err = strconv.Atoi(ipVersionProp.RawString())
+	}
+
+	return ipVersion, err
+}
+
+func getSubnetNetworkID(kv *api.KV, cfg config.Configuration, deploymentID,
+	nodeName, resourceType string) (string, error) {
+
+	var networkID string
+	nodeID, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "network_id")
+	if err != nil {
+		return networkID, err
+	}
+	if nodeID != nil && nodeID.RawString() != "" {
+		networkID = nodeID.RawString()
+	} else {
+		networkID = fmt.Sprintf("${%s.%s.id}", resourceType, nodeName)
+	}
+	return networkID, err
+}
+
+func getSubnetProperty(kv *api.KV, cfg config.Configuration, deploymentID,
+	nodeName, propertyName string) (string, error) {
+
+	var stringValue string
+	propValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
+	if err != nil {
+		return stringValue, err
+	}
+	if propValue != nil && propValue.RawString() != "" {
+		stringValue = propValue.RawString()
+	}
+
+	return stringValue, err
 }

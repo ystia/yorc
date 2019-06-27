@@ -34,6 +34,10 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
+const (
+	floatingIPEndpointCapAttribute = "/capabilities/endpoint/attributes/floating_ip_address"
+)
+
 type osGenerator struct {
 }
 
@@ -176,7 +180,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 				floatingIP := FloatingIP{Pool: ip.Pool}
 				commons.AddResource(&infrastructure, resourceTypes[computeFloatingIP], ip.Name, &floatingIP)
 				consulKey = commons.ConsulKey{
-					Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"),
+					Path:  path.Join(instancesKey, instanceName, floatingIPEndpointCapAttribute),
 					Value: fmt.Sprintf("${%s.%s.address}", resourceTypes[computeFloatingIP], ip.Name)}
 			} else {
 				ips := strings.Split(ip.Pool, ",")
@@ -197,7 +201,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 					floatingIP := FloatingIP{Pool: networkName.RawString()}
 					commons.AddResource(&infrastructure, resourceTypes[computeFloatingIP], ip.Name, &floatingIP)
 					consulKey = commons.ConsulKey{
-						Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"),
+						Path:  path.Join(instancesKey, instanceName, floatingIPEndpointCapAttribute),
 						Value: fmt.Sprintf("${%s.%s.address}", resourceTypes[computeFloatingIP], ip.Name)}
 
 				} else {
@@ -206,7 +210,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 					if err != nil {
 						return false, nil, nil, nil, err
 					}
-					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: ips[instName]}
+					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, floatingIPEndpointCapAttribute), Value: ips[instName]}
 				}
 
 			}

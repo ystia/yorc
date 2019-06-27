@@ -32,6 +32,10 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
+const (
+	topologyTree = "topology"
+)
+
 type osInstanceOptions struct {
 	kv            *api.KV
 	cfg           config.Configuration
@@ -55,7 +59,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
 	instance := ComputeInstance{}
-	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, opts.deploymentID, "topology", "instances")
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, opts.deploymentID, topologyTree, "instances")
 	instancesKey := path.Join(instancesPrefix, nodeName)
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
@@ -238,8 +242,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 				Value: fmt.Sprintf("${%s.%s.device}",
 					opts.resourceTypes[computeVolumeAttach], attachName)})
 			outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = key1
-			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = key1
-			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = key1
+			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, topologyTree, "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = key1
+			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, topologyTree, "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = key1
 		}
 	}
 
