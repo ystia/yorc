@@ -106,9 +106,6 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testPurgedDeployments", func(t *testing.T) {
 			testPurgedDeployments(t, client)
 		})
-		t.Run("testTypes", func(t *testing.T) {
-			testTypes(t, kv)
-		})
 	})
 
 	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {
