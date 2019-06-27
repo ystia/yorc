@@ -30,6 +30,7 @@ import (
 // NewTestConsulInstance allows to :
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
+//  - stores common-types to Consul
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
@@ -41,15 +42,21 @@ func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 		c.Args = []string{"-ui"}
 		c.LogLevel = logLevel
 	}
-	return NewTestConsulInstanceWithConfig(t, cb)
+	return NewTestConsulInstanceWithConfigAndStore(t, cb)
 }
 
-// NewTestConsulInstanceWithConfig sets up a consul instance for testing
-//
+// NewTestConsulInstanceWithConfigAndStore sets up a consul instance for testing
+func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client) {
+
+	return NewTestConsulInstanceWithConfig(t, cb, true)
+}
+
+// NewTestConsulInstanceWithConfig sets up a consul instance for testing :
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
+//  - stores common-types to Consul only if storeCommons bool parameter is true
 // Warning: You need to defer the server stop command in the caller
-func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, storeCommons bool) (*testutil.TestServer, *api.Client) {
 	srv1, err := testutil.NewTestServerConfig(cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
@@ -68,7 +75,9 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
 
-	storeCommonDefinitions()
+	if storeCommons {
+		storeCommonDefinitions()
+	}
 
 	return srv1, client
 }
