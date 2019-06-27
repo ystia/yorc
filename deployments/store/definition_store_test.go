@@ -82,7 +82,7 @@ func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
 	// Where "some_type/some_value" is one of the existingPath slice element provided in the tests structure,
 	// for example "toto/1.0.0",
 	// and "some_name" (here ".exist") represents some element (like a property) name of the some_type type
-	var someValue string = "1"
+	someValue := "1"
 	for _, p := range paths {
 		// Store value "1" with key _yorc/commons_types/toto/1.0.0/.exist
 		consulStore.StoreConsulKeyAsString(path.Join(consulutil.CommonsTypesKVPrefix, p, ".exist"), someValue)
