@@ -17,16 +17,27 @@ package openstack
 import (
 	"context"
 	"fmt"
+	"path"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
-	"path"
 )
 
-func (g *osGenerator) generateServerGroup(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
+type serverGroupOptions struct {
+	kv            *api.KV
+	deploymentID  string
+	nodeName      string
+	resourceTypes map[string]string
+}
+
+func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupOptions, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
+	kv := opts.kv
+	deploymentID := opts.deploymentID
+	nodeName := opts.nodeName
+
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -45,11 +56,14 @@ func (g *osGenerator) generateServerGroup(ctx context.Context, kv *api.KV, cfg c
 		return err
 	}
 	serverGroup.Policies = []string{policy}
-	commons.AddResource(infrastructure, "openstack_compute_servergroup_v2", serverGroup.Name, serverGroup)
+	commons.AddResource(infrastructure, opts.resourceTypes[computeServerGroup],
+		serverGroup.Name, serverGroup)
 
 	// Provide output for server group ID
 	idKey := nodeName + "-id"
-	commons.AddOutput(infrastructure, idKey, &commons.Output{Value: fmt.Sprintf("${openstack_compute_servergroup_v2.%s.id}", serverGroup.Name)})
+	commons.AddOutput(infrastructure, idKey, &commons.Output{
+		Value: fmt.Sprintf("${%s.%s.id}",
+			opts.resourceTypes[computeServerGroup], serverGroup.Name)})
 	outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, "/0/attributes/id")] = idKey
 	return nil
 }

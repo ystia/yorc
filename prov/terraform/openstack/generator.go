@@ -103,6 +103,8 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 		return false, nil, nil, nil, err
 	}
 
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+
 	for instNb, instanceName := range instances {
 		instanceState, err := deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 		if err != nil {
@@ -115,7 +117,16 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 		switch nodeType {
 		case "yorc.nodes.openstack.Compute":
-			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs, &cmdEnv)
+			err = g.generateOSInstance(ctx,
+				osInstanceOptions{
+					kv:            kv,
+					cfg:           cfg,
+					deploymentID:  deploymentID,
+					nodeName:      nodeName,
+					instanceName:  instanceName,
+					resourceTypes: resourceTypes,
+				},
+				&infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
@@ -139,8 +150,10 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			}
 
 			if len(bsIds)-1 < instNb {
-				commons.AddResource(&infrastructure, "openstack_blockstorage_volume_v1", bsVolume.Name, &bsVolume)
-				consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsVolume.Name)}
+				commons.AddResource(&infrastructure, resourceTypes[blockStorageVolume], bsVolume.Name, &bsVolume)
+				consulKey := commons.ConsulKey{
+					Path:  path.Join(instancesKey, instanceName, "/attributes/volume_id"),
+					Value: fmt.Sprintf("${%s.%s.id}", resourceTypes[blockStorageVolume], bsVolume.Name)}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 				commons.AddResource(&infrastructure, "consul_keys", bsVolume.Name, &consulKeys)
 			} else {
@@ -161,8 +174,10 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			var consulKey commons.ConsulKey
 			if !ip.IsIP {
 				floatingIP := FloatingIP{Pool: ip.Pool}
-				commons.AddResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
-				consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
+				commons.AddResource(&infrastructure, resourceTypes[computeFloatingIP], ip.Name, &floatingIP)
+				consulKey = commons.ConsulKey{
+					Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"),
+					Value: fmt.Sprintf("${%s.%s.address}", resourceTypes[computeFloatingIP], ip.Name)}
 			} else {
 				ips := strings.Split(ip.Pool, ",")
 				// TODO we should change this. instance name should not be considered as an int
@@ -180,8 +195,10 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 					}
 
 					floatingIP := FloatingIP{Pool: networkName.RawString()}
-					commons.AddResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
-					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
+					commons.AddResource(&infrastructure, resourceTypes[computeFloatingIP], ip.Name, &floatingIP)
+					consulKey = commons.ConsulKey{
+						Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"),
+						Value: fmt.Sprintf("${%s.%s.address}", resourceTypes[computeFloatingIP], ip.Name)}
 
 				} else {
 					// TODO we should change this. instance name should not be considered as an int
@@ -211,21 +228,31 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 				return false, nil, nil, nil, err
 			}
 			var subnet Subnet
-			subnet, err = g.generateSubnet(kv, cfg, deploymentID, nodeName)
+			subnet, err = g.generateSubnet(kv, cfg, deploymentID, nodeName, resourceTypes[networkingSubnet])
 
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 
-			commons.AddResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
-			commons.AddResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
-			consulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "attributes/network_id"), Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
+			commons.AddResource(&infrastructure, resourceTypes[networkingNetwork], nodeName, &network)
+			commons.AddResource(&infrastructure, resourceTypes[networkingSubnet], nodeName+"_subnet", &subnet)
+			consulKey := commons.ConsulKey{
+				Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology",
+					"nodes", nodeName, "attributes/network_id"),
+				Value: fmt.Sprintf("${%s.%s.id}", resourceTypes[networkingNetwork], nodeName)}
 			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-			consulKeys.DependsOn = []string{fmt.Sprintf("openstack_networking_subnet_v2.%s_subnet", nodeName)}
+			consulKeys.DependsOn = []string{fmt.Sprintf("%s.%s_subnet", resourceTypes[networkingSubnet], nodeName)}
 			commons.AddResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 		case "yorc.nodes.openstack.ServerGroup":
-			err = g.generateServerGroup(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs, &cmdEnv)
+			err = g.generateServerGroup(ctx,
+				serverGroupOptions{
+					kv:            kv,
+					deploymentID:  deploymentID,
+					nodeName:      nodeName,
+					resourceTypes: resourceTypes,
+				},
+				&infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

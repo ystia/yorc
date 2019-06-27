@@ -15,6 +15,7 @@
 package openstack
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/hashicorp/consul/api"
@@ -49,7 +50,9 @@ func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, depl
 
 }
 
-func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (Subnet, error) {
+func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deploymentID,
+	nodeName, resourceType string) (Subnet, error) {
+
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
@@ -85,7 +88,7 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deplo
 	} else if nodeID != nil && nodeID.RawString() != "" {
 		subnet.NetworkID = nodeID.RawString()
 	} else {
-		subnet.NetworkID = "${openstack_networking_network_v2." + nodeName + ".id}"
+		subnet.NetworkID = fmt.Sprintf("${%s.%s.id}", resourceType, nodeName)
 	}
 	if nodeCIDR, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "cidr"); err != nil {
 		return Subnet{}, err

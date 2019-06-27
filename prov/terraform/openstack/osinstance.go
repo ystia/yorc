@@ -32,7 +32,21 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
+type osInstanceOptions struct {
+	kv            *api.KV
+	cfg           config.Configuration
+	deploymentID  string
+	nodeName      string
+	instanceName  string
+	resourceTypes map[string]string
+}
+
+func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOptions, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
+	kv := opts.kv
+	cfg := opts.cfg
+	deploymentID := opts.deploymentID
+	nodeName := opts.nodeName
+	instanceName := opts.instanceName
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -41,7 +55,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
 	instance := ComputeInstance{}
-	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, opts.deploymentID, "topology", "instances")
 	instancesKey := path.Join(instancesPrefix, nodeName)
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
@@ -204,20 +218,25 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				volumeID = volumeIDValue.RawString()
 			}
 			volumeAttach := ComputeVolumeAttach{
-				Region:     instance.Region,
-				VolumeID:   volumeID,
-				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
+				Region:   instance.Region,
+				VolumeID: volumeID,
+				InstanceID: fmt.Sprintf("${%s.%s.id}",
+					opts.resourceTypes[computeInstance], instance.Name),
 			}
 			if device != nil {
 				volumeAttach.Device = device.RawString()
 			}
 			attachName := "Vol" + volumeNodeName + "to" + instance.Name
-			commons.AddResource(infrastructure, "openstack_compute_volume_attach_v2", attachName, &volumeAttach)
+			commons.AddResource(infrastructure, opts.resourceTypes[computeVolumeAttach],
+				attachName, &volumeAttach)
+
 			// retrieve the actual used device as depending on the hypervisor it may not be the one we provided, and if there was no devices provided
 			// then we can get it back
 
 			key1 := attachName + "-device"
-			commons.AddOutput(infrastructure, key1, &commons.Output{Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)})
+			commons.AddOutput(infrastructure, key1, &commons.Output{
+				Value: fmt.Sprintf("${%s.%s.device}",
+					opts.resourceTypes[computeVolumeAttach], attachName)})
 			outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = key1
 			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = key1
 			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = key1
@@ -277,10 +296,12 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			floatingIPAssociate := ComputeFloatingIPAssociate{
 				Region:     instance.Region,
 				FloatingIP: floatingIP,
-				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
+				InstanceID: fmt.Sprintf("${%s.%s.id}",
+					opts.resourceTypes[computeInstance], instance.Name),
 			}
 			fipAssociateName = "FIP" + instance.Name
-			commons.AddResource(infrastructure, "openstack_compute_floatingip_associate_v2", fipAssociateName, &floatingIPAssociate)
+			commons.AddResource(infrastructure, opts.resourceTypes[computeFloatingIPAssociate],
+				fipAssociateName, &floatingIPAssociate)
 
 			// Provide output for public IP as floating IP
 			publicIPKey := nodeName + "-" + instanceName + "-publicIP"
@@ -328,9 +349,15 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			networkIDKey := nodeName + "-" + instanceName + "-networkID"
 			networkNameKey := nodeName + "-" + instanceName + "-networkName"
 			networkAddressesKey := nodeName + "-" + instanceName + "-addresses"
-			commons.AddOutput(infrastructure, networkIDKey, &commons.Output{Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", instance.Name, i)})
-			commons.AddOutput(infrastructure, networkNameKey, &commons.Output{Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", instance.Name, i)})
-			commons.AddOutput(infrastructure, networkAddressesKey, &commons.Output{Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", instance.Name, i)})
+			commons.AddOutput(infrastructure, networkIDKey, &commons.Output{
+				Value: fmt.Sprintf("${%s.%s.network.%d.uuid}",
+					opts.resourceTypes[computeInstance], instance.Name, i)})
+			commons.AddOutput(infrastructure, networkNameKey, &commons.Output{
+				Value: fmt.Sprintf("${%s.%s.network.%d.name}",
+					opts.resourceTypes[computeInstance], instance.Name, i)})
+			commons.AddOutput(infrastructure, networkAddressesKey, &commons.Output{
+				Value: fmt.Sprintf("[ ${%s.%s.network.%d.fixed_ip_v4} ]",
+					opts.resourceTypes[computeInstance], instance.Name, i)})
 
 			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name")] = networkNameKey
 			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id")] = networkIDKey
@@ -338,14 +365,16 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		}
 	}
 
-	commons.AddResource(infrastructure, "openstack_compute_instance_v2", instance.Name, &instance)
+	commons.AddResource(infrastructure, opts.resourceTypes[computeInstance], instance.Name, &instance)
 
 	var accessIP string
 	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
 		// Use Floating IP for provisioning
-		accessIP = "${openstack_compute_floatingip_associate_v2." + fipAssociateName + ".floating_ip}"
+		accessIP = fmt.Sprintf("${%s.%s.floating_ip}",
+			opts.resourceTypes[computeFloatingIPAssociate], fipAssociateName)
 	} else {
-		accessIP = "${openstack_compute_instance_v2." + instance.Name + ".network.0.fixed_ip_v4}"
+		accessIP = fmt.Sprintf("${%s.%s.network.0.fixed_ip_v4}",
+			opts.resourceTypes[computeInstance], instance.Name)
 	}
 
 	// Provide output for access IP and private IP
@@ -355,7 +384,9 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
 
 	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
-	privateIP := fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1) // Use latest provisioned network for private access
+	privateIP := fmt.Sprintf("${%s.%s.network.%d.fixed_ip_v4}",
+		opts.resourceTypes[computeInstance], instance.Name,
+		len(instance.Networks)-1) // Use latest provisioned network for private access
 	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
 	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 

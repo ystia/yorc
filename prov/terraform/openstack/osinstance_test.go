@@ -54,7 +54,18 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:            kv,
+			cfg:           cfg,
+			deploymentID:  deploymentID,
+			nodeName:      "Compute",
+			instanceName:  "0",
+			resourceTypes: resourceTypes,
+		},
+		&infrastructure, outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -117,7 +128,18 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:            kv,
+			cfg:           cfg,
+			deploymentID:  deploymentID,
+			nodeName:      "Compute",
+			instanceName:  "0",
+			resourceTypes: resourceTypes,
+		},
+		&infrastructure, outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -185,7 +207,18 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, make(map[string]string), &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:            kv,
+			cfg:           cfg,
+			deploymentID:  deploymentID,
+			nodeName:      "Compute",
+			instanceName:  "0",
+			resourceTypes: resourceTypes,
+		},
+		&infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -249,7 +282,18 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/ServerGroupPolicy_sg/0/attributes/id"): []byte("my_sg_id"),
 	})
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "ComputeA", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:            kv,
+			cfg:           cfg,
+			deploymentID:  deploymentID,
+			nodeName:      "ComputeA",
+			instanceName:  "0",
+			resourceTypes: resourceTypes,
+		},
+		&infrastructure, outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)

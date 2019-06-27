@@ -33,7 +33,16 @@ func testSimpleServerGroup(t *testing.T, kv *api.KV) {
 	g := osGenerator{}
 	cfg := config.Configuration{}
 	outputs := make(map[string]string, 0)
-	err := g.generateServerGroup(context.Background(), kv, cfg, deploymentID, "ServerGroupA", &infrastructure, outputs, nil)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateServerGroup(
+		context.Background(),
+		serverGroupOptions{
+			kv:            kv,
+			deploymentID:  deploymentID,
+			nodeName:      "ServerGroupA",
+			resourceTypes: resourceTypes,
+		},
+		&infrastructure, outputs, nil)
 	require.NoError(t, err, "Unexpected error attempting to generate server group for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_servergroup_v2"], 1, "Expected one server group")
