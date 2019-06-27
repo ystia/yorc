@@ -1,4 +1,4 @@
-// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+// Copyright 2019 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ func getBlockStorageAPIVersion(cfg config.Configuration, infrastructureName stri
 	// However for tests purposes, it is possible to use obsolete OpenStack
 	// versions providing only block storage API version v1.
 	// A basic check is performed here to detect if we are on an obsolete
-	// OpenStack version: 
+	// OpenStack version:
 	// If the User Domain mandatory property required by the Identity v3 API is not set,
 	// then considering we are on an obsolete version of OpenStack providing
 	// only block storage v1 API.
