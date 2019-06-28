@@ -47,10 +47,10 @@ type osInstanceOptions struct {
 
 func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOptions, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
 	kv := opts.kv
-	cfg := opts.cfg
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 	instanceName := opts.instanceName
+
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -58,116 +58,145 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 	if nodeType != "yorc.nodes.openstack.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-	instance := ComputeInstance{}
+	instance, err := generateComputeInstance(opts, infrastructure)
+	if err != nil {
+		return err
+	}
+
 	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, opts.deploymentID, topologyTree, "instances")
-	instancesKey := path.Join(instancesPrefix, nodeName)
+	err = generateAttachedVolumes(ctx, opts, infrastructure, instancesPrefix,
+		instance, outputs)
+	if err != nil {
+		return err
+	}
+
+	err = addServerGroupMembership(ctx, kv, deploymentID, nodeName, &instance)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add serverGroup membership for deploymentID:%q, nodeName:%q, instance:%q",
+			deploymentID, nodeName, instanceName)
+	}
+
+	instance.Networks, err = getComputeInstanceNetworks(opts)
+	if err != nil {
+		return err
+	}
+
+	err = computeConnectionSettings(ctx, opts, infrastructure, instancesPrefix, &instance, outputs, env)
+	return err
+}
+
+func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nodeName string, compute *ComputeInstance) error {
+	keys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "group")
+	if err != nil {
+		return err
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+
+	if len(keys) == 1 {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(keys[0])
+		serverGroup, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return err
+		}
+
+		id, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, serverGroup, "0", "id")
+		if err != nil {
+			return err
+		}
+
+		compute.SchedulerHints.Group = id
+		return nil
+	}
+
+	return errors.Errorf("Only one group requirement can be accepted for OpenStack compute with name:%q", nodeName)
+
+}
+
+func generateComputeInstance(opts osInstanceOptions,
+	infrastructure *commons.Infrastructure) (ComputeInstance, error) {
+
+	kv := opts.kv
+	cfg := opts.cfg
+	deploymentID := opts.deploymentID
+	nodeName := opts.nodeName
+	instanceName := opts.instanceName
+
+	instance := ComputeInstance{}
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return instance, err
+	}
+	if nodeType != "yorc.nodes.openstack.Compute" {
+		return instance, errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
+	}
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	image, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "image")
+	instance.ImageID, err = getProperyValueString(kv, deploymentID, nodeName, "image")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if image != nil {
-		instance.ImageID = image.RawString()
-	}
-	image, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "imageName")
+	instance.ImageName, err = getProperyValueString(kv, deploymentID, nodeName, "imageName")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if image != nil {
-		instance.ImageName = image.RawString()
-	}
-	flavor, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "flavor")
+	instance.FlavorID, err = getProperyValueString(kv, deploymentID, nodeName, "flavor")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if flavor != nil {
-		instance.FlavorID = flavor.RawString()
-	}
-	flavor, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "flavorName")
+	instance.FlavorName, err = getProperyValueString(kv, deploymentID, nodeName, "flavorName")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if flavor != nil {
-		instance.FlavorName = flavor.RawString()
-	}
-	az, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
+	instance.AvailabilityZone, err = getProperyValueString(kv, deploymentID, nodeName, "availability_zone")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if az != nil {
-		instance.AvailabilityZone = az.RawString()
-	}
-	region, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "region")
+	instance.Region, err = getProperyValueString(kv, deploymentID, nodeName, "region")
 	if err != nil {
-		return err
-	} else if region != nil && region.RawString() != "" {
-		instance.Region = region.RawString()
-	} else {
+		return instance, err
+	}
+	if instance.Region == "" {
 		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	keyPair, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "key_pair")
+	instance.AvailabilityZone, err = getProperyValueString(kv, deploymentID, nodeName, "key_pair")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if keyPair != nil {
-		// TODO if empty use a default one or fail ?
-		instance.KeyPair = keyPair.RawString()
-	}
+
 	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
-	secGroups, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "security_groups")
+	secGroups, err := getProperyValueString(kv, deploymentID, nodeName, "security_groups")
 	if err != nil {
-		return err
+		return instance, err
 	}
-	if secGroups != nil && secGroups.RawString() != "" {
-		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
+	if secGroups != "" {
+		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups), ",") {
 			secGroup = strings.TrimSpace(secGroup)
 			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
 		}
 	}
 
 	if instance.ImageID == "" && instance.ImageName == "" {
-		return errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", nodeName)
+		return instance, errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", nodeName)
 	}
 	if instance.FlavorID == "" && instance.FlavorName == "" {
-		return errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", nodeName)
+		return instance, errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", nodeName)
 	}
 
-	networkName, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "network_name")
-	if err != nil {
-		return err
-	}
-	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
-	if networkName != nil && networkName.RawString() != "" {
-		// TODO Deal with networks aliases (PUBLIC)
-		var networkSlice []ComputeNetwork
-		if strings.EqualFold(networkName.RawString(), "private") {
-			if defaultPrivateNetName == "" {
-				return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
-			}
-			networkSlice = append(networkSlice, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
-		} else if strings.EqualFold(networkName.RawString(), "public") {
-			//TODO
-			return errors.Errorf("Public Network aliases currently not supported")
-		} else {
-			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName.RawString(), AccessNetwork: true})
-		}
-		instance.Networks = networkSlice
-	} else {
-		// Use a default
-		if defaultPrivateNetName == "" {
-			return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
-		}
-		instance.Networks = append(instance.Networks, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
-	}
+	return instance, err
+}
 
-	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
+func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
+	infrastructure *commons.Infrastructure, instancesPrefix string, instance ComputeInstance,
+	outputs map[string]string) error {
+
+	kv := opts.kv
+	deploymentID := opts.deploymentID
+	nodeName := opts.nodeName
+	instanceName := opts.instanceName
 
 	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
@@ -180,7 +209,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 			return err
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
-
 			device, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
 			if err != nil {
 				return err
@@ -247,11 +275,78 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 		}
 	}
 
+	return err
+}
+
+func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error) {
+	kv := opts.kv
+	cfg := opts.cfg
+	deploymentID := opts.deploymentID
+	nodeName := opts.nodeName
+
+	var networkSlice []ComputeNetwork
+	networkName, err := deployments.GetCapabilityPropertyValue(
+		kv, deploymentID, nodeName, "endpoint", "network_name")
+	if err != nil {
+		return networkSlice, err
+	}
+	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
+	if networkName != nil && networkName.RawString() != "" {
+		// Should Deal here with networks aliases (PUBLIC)
+		if strings.EqualFold(networkName.RawString(), "private") {
+			if defaultPrivateNetName == "" {
+				return networkSlice, errors.Errorf(
+					"You should either specify a default private network name using "+
+						`the "private_network_name" configuration parameter for the "openstack" `+
+						`infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`,
+					nodeName)
+			}
+			networkSlice = append(networkSlice,
+				ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
+		} else if strings.EqualFold(networkName.RawString(), "public") {
+			return networkSlice, errors.Errorf("Public Network aliases currently not supported")
+		} else {
+			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName.RawString(), AccessNetwork: true})
+		}
+	} else {
+		// Use a default
+		if defaultPrivateNetName == "" {
+			return networkSlice, errors.Errorf(
+				"You should either specify a default private network name using the "+
+					`private_network_name" configuration parameter for the "openstack" `+
+					`infrastructure or specify a "network_name" property in the "endpoint" `+
+					"capability of node %q`",
+				nodeName)
+		}
+		networkSlice = append(networkSlice, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
+	}
+
+	return networkSlice, err
+}
+
+func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
+	infrastructure *commons.Infrastructure,
+	instancesPrefix string,
+	instance *ComputeInstance, outputs map[string]string, env *[]string) error {
+
+	kv := opts.kv
+	cfg := opts.cfg
+	deploymentID := opts.deploymentID
+	nodeName := opts.nodeName
+	instanceName := opts.instanceName
+
+	// Get connection info (user, private key)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
 	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return err
 	}
 	var fipAssociateName string
+	instancesKey := path.Join(instancesPrefix, nodeName)
 	for _, networkReqPrefix := range networkKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
 
@@ -394,39 +489,20 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
 	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 
-	err = addServerGroupMembership(ctx, kv, deploymentID, nodeName, &instance)
-	if err != nil {
-		return errors.Wrapf(err, "failed to add serverGroup membership for deploymentID:%q, nodeName:%q, instance:%q", deploymentID, nodeName, instanceName)
-	}
-
 	return commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env)
+
 }
 
-func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nodeName string, compute *ComputeInstance) error {
-	keys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "group")
+func getProperyValueString(kv *api.KV, deploymentID, nodeName, propertyName string) (string, error) {
+
+	var stringValue string
+	propValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
 	if err != nil {
-		return err
+		return stringValue, err
 	}
-	if len(keys) == 0 {
-		return nil
-	}
-
-	if len(keys) == 1 {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(keys[0])
-		serverGroup, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return err
-		}
-
-		id, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, serverGroup, "0", "id")
-		if err != nil {
-			return err
-		}
-
-		compute.SchedulerHints.Group = id
-		return nil
+	if propValue != nil {
+		stringValue = propValue.RawString()
 	}
 
-	return errors.Errorf("Only one group requirement can be accepted for OpenStack compute with name:%q", nodeName)
-
+	return stringValue, err
 }
