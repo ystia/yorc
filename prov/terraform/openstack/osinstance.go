@@ -378,17 +378,14 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 
 		if isFip {
 			fipAssociateName = "FIP" + instance.Name
-
 			err = computeFloatingIPAddress(ctx, opts, fipAssociateName, networkNodeName,
 				instancesKey, instance, outputs)
-			if err != nil {
-				return err
-			}
 		} else {
 			err = computeNetworkAttributes(ctx, opts, networkNodeName, instancesKey, instance, outputs)
-			if err != nil {
-				return err
-			}
+
+		}
+		if err != nil {
+			return err
 		}
 	}
 
