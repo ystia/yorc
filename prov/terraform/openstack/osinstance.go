@@ -58,7 +58,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 	if nodeType != "yorc.nodes.openstack.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-	instance, err := generateComputeInstance(opts, infrastructure)
+	instance, err := generateComputeInstance(opts)
 	if err != nil {
 		return err
 	}
@@ -114,8 +114,7 @@ func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nod
 
 }
 
-func generateComputeInstance(opts osInstanceOptions,
-	infrastructure *commons.Infrastructure) (ComputeInstance, error) {
+func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
 	kv := opts.kv
 	cfg := opts.cfg
@@ -134,22 +133,16 @@ func generateComputeInstance(opts osInstanceOptions,
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	instance.ImageID, err = getProperyValueString(kv, deploymentID, nodeName, "image")
+	err = computeInstanceImage(kv, deploymentID, nodeName, &instance)
 	if err != nil {
 		return instance, err
 	}
-	instance.ImageName, err = getProperyValueString(kv, deploymentID, nodeName, "imageName")
+
+	err = computeInstanceFlavor(kv, deploymentID, nodeName, &instance)
 	if err != nil {
 		return instance, err
 	}
-	instance.FlavorID, err = getProperyValueString(kv, deploymentID, nodeName, "flavor")
-	if err != nil {
-		return instance, err
-	}
-	instance.FlavorName, err = getProperyValueString(kv, deploymentID, nodeName, "flavorName")
-	if err != nil {
-		return instance, err
-	}
+
 	instance.AvailabilityZone, err = getProperyValueString(kv, deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return instance, err
@@ -162,7 +155,7 @@ func generateComputeInstance(opts osInstanceOptions,
 		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	instance.AvailabilityZone, err = getProperyValueString(kv, deploymentID, nodeName, "key_pair")
+	instance.KeyPair, err = getProperyValueString(kv, deploymentID, nodeName, "key_pair")
 	if err != nil {
 		return instance, err
 	}
@@ -179,14 +172,43 @@ func generateComputeInstance(opts osInstanceOptions,
 		}
 	}
 
-	if instance.ImageID == "" && instance.ImageName == "" {
-		return instance, errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", nodeName)
+	return instance, err
+}
+
+func computeInstanceImage(kv *api.KV, deploymentID, nodeName string, instance *ComputeInstance) error {
+	var err error
+	instance.ImageID, err = getProperyValueString(kv, deploymentID, nodeName, "image")
+	if err != nil {
+		return err
 	}
-	if instance.FlavorID == "" && instance.FlavorName == "" {
-		return instance, errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", nodeName)
+	instance.ImageName, err = getProperyValueString(kv, deploymentID, nodeName, "imageName")
+	if err != nil {
+		return err
 	}
 
-	return instance, err
+	if instance.ImageID == "" && instance.ImageName == "" {
+		err = errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", nodeName)
+	}
+
+	return err
+}
+
+func computeInstanceFlavor(kv *api.KV, deploymentID, nodeName string, instance *ComputeInstance) error {
+	var err error
+	instance.FlavorID, err = getProperyValueString(kv, deploymentID, nodeName, "flavor")
+	if err != nil {
+		return err
+	}
+	instance.FlavorName, err = getProperyValueString(kv, deploymentID, nodeName, "flavorName")
+	if err != nil {
+		return err
+	}
+
+	if instance.FlavorID == "" && instance.FlavorName == "" {
+		err = errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", nodeName)
+	}
+
+	return err
 }
 
 func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
@@ -213,41 +235,9 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 			if err != nil {
 				return err
 			}
-			log.Debugf("Looking for volume_id")
-			volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
+			volumeID, err := getVolumeID(ctx, kv, deploymentID, volumeNodeName, instanceName)
 			if err != nil {
 				return err
-			}
-			var volumeID string
-			if volumeIDValue == nil || volumeIDValue.RawString() == "" {
-				resultChan := make(chan string, 1)
-				go func() {
-					for {
-						// ignore errors and retry
-						volID, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
-						// As volumeID is an optional property GetInstanceAttribute then GetProperty
-						// may return an empty volumeID so keep checking as long as we have it
-						if volID != nil && volID.RawString() != "" {
-							resultChan <- volID.RawString()
-							return
-						}
-						select {
-						case <-time.After(1 * time.Second):
-						case <-ctx.Done():
-							// context cancelled, give up!
-							return
-						}
-
-					}
-				}()
-				select {
-				case volumeID = <-resultChan:
-				case <-ctx.Done():
-					return ctx.Err()
-
-				}
-			} else {
-				volumeID = volumeIDValue.RawString()
 			}
 			volumeAttach := ComputeVolumeAttach{
 				Region:   instance.Region,
@@ -276,6 +266,48 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 	}
 
 	return err
+}
+
+func getVolumeID(ctx context.Context, kv *api.KV,
+	deploymentID, volumeNodeName, instanceName string) (string, error) {
+
+	var volumeID string
+	log.Debugf("Looking for volume_id")
+	volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
+	if err != nil {
+		return volumeID, err
+	}
+	if volumeIDValue == nil || volumeIDValue.RawString() == "" {
+		resultChan := make(chan string, 1)
+		go func() {
+			for {
+				// ignore errors and retry
+				volID, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+				// As volumeID is an optional property GetInstanceAttribute then GetProperty
+				// may return an empty volumeID so keep checking as long as we have it
+				if volID != nil && volID.RawString() != "" {
+					resultChan <- volID.RawString()
+					return
+				}
+				select {
+				case <-time.After(1 * time.Second):
+				case <-ctx.Done():
+					// context cancelled, give up!
+					return
+				}
+			}
+		}()
+		select {
+		case volumeID = <-resultChan:
+		case <-ctx.Done():
+			return volumeID, ctx.Err()
+
+		}
+	} else {
+		volumeID = volumeIDValue.RawString()
+	}
+
+	return volumeID, err
 }
 
 func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error) {
@@ -464,7 +496,7 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 		}
 	}
 
-	commons.AddResource(infrastructure, opts.resourceTypes[computeInstance], instance.Name, &instance)
+	commons.AddResource(infrastructure, opts.resourceTypes[computeInstance], instance.Name, instance)
 
 	var accessIP string
 	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
