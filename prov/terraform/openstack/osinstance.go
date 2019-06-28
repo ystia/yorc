@@ -349,12 +349,6 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
-	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-
 	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return err
@@ -398,59 +392,54 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 		}
 	}
 
-	return addResources(opts,
-		resourcesOptions{
-			fipAssociateName: fipAssociateName,
-			instancesKey:     instancesKey,
-			user:             user,
-			privateKey:       privateKey,
-			instance:         instance,
-		},
-		outputs, env)
-}
-
-type resourcesOptions struct {
-	fipAssociateName, instancesKey, user, privateKey string
-	instance                                         *ComputeInstance
+	return addResources(opts, fipAssociateName, instancesKey, instance, outputs, env)
 }
 
 func addResources(opts osInstanceOptions,
-	resOpts resourcesOptions,
+	fipAssociateName, instancesKey string,
+	instance *ComputeInstance,
 	outputs map[string]string,
 	env *[]string) error {
 
-	commons.AddResource(opts.infrastructure, opts.resourceTypes[computeInstance], resOpts.instance.Name, resOpts.instance)
+	commons.AddResource(opts.infrastructure, opts.resourceTypes[computeInstance], instance.Name, instance)
 
 	var accessIP string
-	if resOpts.fipAssociateName != "" && opts.cfg.Infrastructures[infrastructureName].GetBool(
+	if fipAssociateName != "" && opts.cfg.Infrastructures[infrastructureName].GetBool(
 		"provisioning_over_fip_allowed") {
 
 		// Use Floating IP for provisioning
 		accessIP = fmt.Sprintf("${%s.%s.floating_ip}",
-			opts.resourceTypes[computeFloatingIPAssociate], resOpts.fipAssociateName)
+			opts.resourceTypes[computeFloatingIPAssociate], fipAssociateName)
 	} else {
 		accessIP = fmt.Sprintf("${%s.%s.network.0.fixed_ip_v4}",
-			opts.resourceTypes[computeInstance], resOpts.instance.Name)
+			opts.resourceTypes[computeInstance], instance.Name)
 	}
 
 	// Provide output for access IP and private IP
 	accessIPKey := opts.nodeName + "-" + opts.instanceName + "-IPAddress"
 	commons.AddOutput(opts.infrastructure, accessIPKey, &commons.Output{Value: accessIP})
-	outputs[path.Join(resOpts.instancesKey, opts.instanceName,
+	outputs[path.Join(instancesKey, opts.instanceName,
 		"/capabilities/endpoint/attributes/ip_address")] = accessIPKey
-	outputs[path.Join(resOpts.instancesKey, opts.instanceName,
+	outputs[path.Join(instancesKey, opts.instanceName,
 		"/attributes/ip_address")] = accessIPKey
 
 	privateIPKey := opts.nodeName + "-" + opts.instanceName + "-privateIP"
 	privateIP := fmt.Sprintf("${%s.%s.network.%d.fixed_ip_v4}",
-		opts.resourceTypes[computeInstance], resOpts.instance.Name,
-		len(resOpts.instance.Networks)-1) // Use latest provisioned network for private access
+		opts.resourceTypes[computeInstance], instance.Name,
+		len(instance.Networks)-1) // Use latest provisioned network for private access
 	commons.AddOutput(opts.infrastructure, privateIPKey, &commons.Output{Value: privateIP})
-	outputs[path.Join(resOpts.instancesKey, opts.instanceName,
+	outputs[path.Join(instancesKey, opts.instanceName,
 		"/attributes/private_address")] = privateIPKey
 
-	return commons.AddConnectionCheckResource(opts.infrastructure, resOpts.user,
-		resOpts.privateKey, accessIP, resOpts.instance.Name, env)
+	// Get connection info (user, private key)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(opts.kv,
+		opts.deploymentID, opts.nodeName)
+	if err != nil {
+		return err
+	}
+
+	return commons.AddConnectionCheckResource(opts.infrastructure, user,
+		privateKey, accessIP, instance.Name, env)
 
 }
 
