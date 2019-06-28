@@ -133,15 +133,13 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
-		kv, deploymentID, nodeName, "image", "imageName")
-	if err != nil {
+	if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
+		kv, deploymentID, nodeName, "image", "imageName"); err != nil {
 		return instance, err
 	}
 
-	instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
-		kv, deploymentID, nodeName, "flavor", "flavorName")
-	if err != nil {
+	if instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
+		kv, deploymentID, nodeName, "flavor", "flavorName"); err != nil {
 		return instance, err
 	}
 
@@ -348,11 +346,8 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 	instancesPrefix string, instance *ComputeInstance, outputs map[string]string, env *[]string) error {
 
 	kv := opts.kv
-	cfg := opts.cfg
-	infrastructure := opts.infrastructure
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
-	instanceName := opts.instanceName
 
 	// Get connection info (user, private key)
 	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
@@ -403,32 +398,59 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 		}
 	}
 
-	commons.AddResource(infrastructure, opts.resourceTypes[computeInstance], instance.Name, instance)
+	return addResources(opts,
+		resourcesOptions{
+			fipAssociateName: fipAssociateName,
+			instancesKey:     instancesKey,
+			user:             user,
+			privateKey:       privateKey,
+			instance:         instance,
+		},
+		outputs, env)
+}
+
+type resourcesOptions struct {
+	fipAssociateName, instancesKey, user, privateKey string
+	instance                                         *ComputeInstance
+}
+
+func addResources(opts osInstanceOptions,
+	resOpts resourcesOptions,
+	outputs map[string]string,
+	env *[]string) error {
+
+	commons.AddResource(opts.infrastructure, opts.resourceTypes[computeInstance], resOpts.instance.Name, resOpts.instance)
 
 	var accessIP string
-	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
+	if resOpts.fipAssociateName != "" && opts.cfg.Infrastructures[infrastructureName].GetBool(
+		"provisioning_over_fip_allowed") {
+
 		// Use Floating IP for provisioning
 		accessIP = fmt.Sprintf("${%s.%s.floating_ip}",
-			opts.resourceTypes[computeFloatingIPAssociate], fipAssociateName)
+			opts.resourceTypes[computeFloatingIPAssociate], resOpts.fipAssociateName)
 	} else {
 		accessIP = fmt.Sprintf("${%s.%s.network.0.fixed_ip_v4}",
-			opts.resourceTypes[computeInstance], instance.Name)
+			opts.resourceTypes[computeInstance], resOpts.instance.Name)
 	}
 
 	// Provide output for access IP and private IP
-	accessIPKey := nodeName + "-" + instanceName + "-IPAddress"
-	commons.AddOutput(infrastructure, accessIPKey, &commons.Output{Value: accessIP})
-	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
-	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
+	accessIPKey := opts.nodeName + "-" + opts.instanceName + "-IPAddress"
+	commons.AddOutput(opts.infrastructure, accessIPKey, &commons.Output{Value: accessIP})
+	outputs[path.Join(resOpts.instancesKey, opts.instanceName,
+		"/capabilities/endpoint/attributes/ip_address")] = accessIPKey
+	outputs[path.Join(resOpts.instancesKey, opts.instanceName,
+		"/attributes/ip_address")] = accessIPKey
 
-	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
+	privateIPKey := opts.nodeName + "-" + opts.instanceName + "-privateIP"
 	privateIP := fmt.Sprintf("${%s.%s.network.%d.fixed_ip_v4}",
-		opts.resourceTypes[computeInstance], instance.Name,
-		len(instance.Networks)-1) // Use latest provisioned network for private access
-	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
-	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
+		opts.resourceTypes[computeInstance], resOpts.instance.Name,
+		len(resOpts.instance.Networks)-1) // Use latest provisioned network for private access
+	commons.AddOutput(opts.infrastructure, privateIPKey, &commons.Output{Value: privateIP})
+	outputs[path.Join(resOpts.instancesKey, opts.instanceName,
+		"/attributes/private_address")] = privateIPKey
 
-	return commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env)
+	return commons.AddConnectionCheckResource(opts.infrastructure, resOpts.user,
+		resOpts.privateKey, accessIP, resOpts.instance.Name, env)
 
 }
 
@@ -488,18 +510,13 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	networkNodeName, instancesKey string,
 	instance *ComputeInstance, outputs map[string]string) error {
 
-	kv := opts.kv
-	deploymentID := opts.deploymentID
-	infrastructure := opts.infrastructure
-	nodeName := opts.nodeName
-	instanceName := opts.instanceName
-
 	log.Debugf("Looking for Network id for %q", networkNodeName)
 	var networkID string
 	resultChan := make(chan string, 1)
 	go func() {
 		for {
-			nID, err := deployments.GetInstanceAttributeValue(kv, deploymentID, networkNodeName, instanceName, "network_id")
+			nID, err := deployments.GetInstanceAttributeValue(
+				opts.kv, opts.deploymentID, networkNodeName, opts.instanceName, "network_id")
 			if err != nil {
 				log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
 			}
@@ -530,22 +547,23 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	instance.Networks = append(instance.Networks, cn)
 
 	// Provide output for network_name, network_id, addresses attributes
-	networkIDKey := nodeName + "-" + instanceName + "-networkID"
-	networkNameKey := nodeName + "-" + instanceName + "-networkName"
-	networkAddressesKey := nodeName + "-" + instanceName + "-addresses"
-	commons.AddOutput(infrastructure, networkIDKey, &commons.Output{
+	networkIDKey := opts.nodeName + "-" + opts.instanceName + "-networkID"
+	networkNameKey := opts.nodeName + "-" + opts.instanceName + "-networkName"
+	networkAddressesKey := opts.nodeName + "-" + opts.instanceName + "-addresses"
+	commons.AddOutput(opts.infrastructure, networkIDKey, &commons.Output{
 		Value: fmt.Sprintf("${%s.%s.network.%d.uuid}",
 			opts.resourceTypes[computeInstance], instance.Name, i)})
-	commons.AddOutput(infrastructure, networkNameKey, &commons.Output{
+	commons.AddOutput(opts.infrastructure, networkNameKey, &commons.Output{
 		Value: fmt.Sprintf("${%s.%s.network.%d.name}",
 			opts.resourceTypes[computeInstance], instance.Name, i)})
-	commons.AddOutput(infrastructure, networkAddressesKey, &commons.Output{
+	commons.AddOutput(opts.infrastructure, networkAddressesKey, &commons.Output{
 		Value: fmt.Sprintf("[ ${%s.%s.network.%d.fixed_ip_v4} ]",
 			opts.resourceTypes[computeInstance], instance.Name, i)})
 
-	outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name")] = networkNameKey
-	outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id")] = networkIDKey
-	outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses")] = networkAddressesKey
+	prefix := path.Join(instancesKey, opts.instanceName, "attributes/networks", strconv.Itoa(i))
+	outputs[path.Join(prefix, "network_name")] = networkNameKey
+	outputs[path.Join(prefix, "network_id")] = networkIDKey
+	outputs[path.Join(prefix, "addresses")] = networkAddressesKey
 	return nil
 }
 
