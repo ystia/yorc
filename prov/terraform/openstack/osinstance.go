@@ -37,15 +37,16 @@ const (
 )
 
 type osInstanceOptions struct {
-	kv            *api.KV
-	cfg           config.Configuration
-	deploymentID  string
-	nodeName      string
-	instanceName  string
-	resourceTypes map[string]string
+	kv             *api.KV
+	cfg            config.Configuration
+	infrastructure *commons.Infrastructure
+	deploymentID   string
+	nodeName       string
+	instanceName   string
+	resourceTypes  map[string]string
 }
 
-func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOptions, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
+func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOptions, outputs map[string]string, env *[]string) error {
 	kv := opts.kv
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
@@ -64,8 +65,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 	}
 
 	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, opts.deploymentID, topologyTree, "instances")
-	err = generateAttachedVolumes(ctx, opts, infrastructure, instancesPrefix,
-		instance, outputs)
+	err = generateAttachedVolumes(ctx, opts, instancesPrefix, instance, outputs)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 		return err
 	}
 
-	err = computeConnectionSettings(ctx, opts, infrastructure, instancesPrefix, &instance, outputs, env)
+	err = computeConnectionSettings(ctx, opts, instancesPrefix, &instance, outputs, env)
 	return err
 }
 
@@ -133,12 +133,14 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	err = computeInstanceImage(kv, deploymentID, nodeName, &instance)
+	instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
+		kv, deploymentID, nodeName, "image", "imageName")
 	if err != nil {
 		return instance, err
 	}
 
-	err = computeInstanceFlavor(kv, deploymentID, nodeName, &instance)
+	instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
+		kv, deploymentID, nodeName, "flavor", "flavorName")
 	if err != nil {
 		return instance, err
 	}
@@ -175,47 +177,33 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 	return instance, err
 }
 
-func computeInstanceImage(kv *api.KV, deploymentID, nodeName string, instance *ComputeInstance) error {
+func computeInstanceMandatoryAttributeInPair(kv *api.KV, deploymentID, nodeName,
+	attr1, attr2 string) (string, string, error) {
 	var err error
-	instance.ImageID, err = getProperyValueString(kv, deploymentID, nodeName, "image")
+	var value1, value2 string
+	value1, err = getProperyValueString(kv, deploymentID, nodeName, attr1)
 	if err != nil {
-		return err
+		return value1, value2, err
 	}
-	instance.ImageName, err = getProperyValueString(kv, deploymentID, nodeName, "imageName")
+	value2, err = getProperyValueString(kv, deploymentID, nodeName, attr2)
 	if err != nil {
-		return err
+		return value1, value2, err
 	}
 
-	if instance.ImageID == "" && instance.ImageName == "" {
-		err = errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", nodeName)
+	if value1 == "" && value2 == "" {
+		err = errors.Errorf("Missing mandatory parameter %q or %q node type for %s",
+			attr1, attr2, nodeName)
 	}
 
-	return err
-}
-
-func computeInstanceFlavor(kv *api.KV, deploymentID, nodeName string, instance *ComputeInstance) error {
-	var err error
-	instance.FlavorID, err = getProperyValueString(kv, deploymentID, nodeName, "flavor")
-	if err != nil {
-		return err
-	}
-	instance.FlavorName, err = getProperyValueString(kv, deploymentID, nodeName, "flavorName")
-	if err != nil {
-		return err
-	}
-
-	if instance.FlavorID == "" && instance.FlavorName == "" {
-		err = errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", nodeName)
-	}
-
-	return err
+	return value1, value2, err
 }
 
 func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
-	infrastructure *commons.Infrastructure, instancesPrefix string, instance ComputeInstance,
+	instancesPrefix string, instance ComputeInstance,
 	outputs map[string]string) error {
 
 	kv := opts.kv
+	infrastructure := opts.infrastructure
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 	instanceName := opts.instanceName
@@ -357,12 +345,11 @@ func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error
 }
 
 func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
-	infrastructure *commons.Infrastructure,
-	instancesPrefix string,
-	instance *ComputeInstance, outputs map[string]string, env *[]string) error {
+	instancesPrefix string, instance *ComputeInstance, outputs map[string]string, env *[]string) error {
 
 	kv := opts.kv
 	cfg := opts.cfg
+	infrastructure := opts.infrastructure
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 	instanceName := opts.instanceName
@@ -401,98 +388,18 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 		}
 
 		if isFip {
-			log.Debugf("Looking for Floating IP")
-			var floatingIP string
-			resultChan := make(chan string, 1)
-			go func() {
-				for {
-					if fip, _ := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
-						resultChan <- fip.RawString()
-						return
-					}
-
-					select {
-					case <-time.After(1 * time.Second):
-					case <-ctx.Done():
-						// context cancelled, give up!
-						return
-					}
-				}
-			}()
-			select {
-			case floatingIP = <-resultChan:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			floatingIPAssociate := ComputeFloatingIPAssociate{
-				Region:     instance.Region,
-				FloatingIP: floatingIP,
-				InstanceID: fmt.Sprintf("${%s.%s.id}",
-					opts.resourceTypes[computeInstance], instance.Name),
-			}
 			fipAssociateName = "FIP" + instance.Name
-			commons.AddResource(infrastructure, opts.resourceTypes[computeFloatingIPAssociate],
-				fipAssociateName, &floatingIPAssociate)
 
-			// Provide output for public IP as floating IP
-			publicIPKey := nodeName + "-" + instanceName + "-publicIP"
-			commons.AddOutput(infrastructure, publicIPKey, &commons.Output{Value: floatingIP})
-			outputs[path.Join(instancesKey, instanceName, "/attributes/public_address")] = publicIPKey
-			// In order to be backward compatible to components developed for Alien (only the above is standard)
-			outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = publicIPKey
+			err = computeFloatingIPAddress(ctx, opts, fipAssociateName, networkNodeName,
+				instancesKey, instance, outputs)
+			if err != nil {
+				return err
+			}
 		} else {
-			log.Debugf("Looking for Network id for %q", networkNodeName)
-			var networkID string
-			resultChan := make(chan string, 1)
-			go func() {
-				for {
-					nID, err := deployments.GetInstanceAttributeValue(kv, deploymentID, networkNodeName, instanceName, "network_id")
-					if err != nil {
-						log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
-					}
-					// As networkID is an optional property GetInstanceAttribute then GetProperty
-					// may return an empty networkID so keep checking as long as we have it
-					if nID != nil && nID.RawString() != "" {
-						resultChan <- nID.RawString()
-						return
-					}
-					select {
-					case <-time.After(1 * time.Second):
-					case <-ctx.Done():
-						// context cancelled, give up!
-						return
-					}
-				}
-			}()
-			select {
-			case networkID = <-resultChan:
-			case <-ctx.Done():
-				return ctx.Err()
+			err = computeNetworkAttributes(ctx, opts, networkNodeName, instancesKey, instance, outputs)
+			if err != nil {
+				return err
 			}
-			cn := ComputeNetwork{UUID: networkID, AccessNetwork: false}
-			i := len(instance.Networks)
-			if instance.Networks == nil {
-				instance.Networks = make([]ComputeNetwork, 0)
-			}
-			instance.Networks = append(instance.Networks, cn)
-
-			// Provide output for network_name, network_id, addresses attributes
-			networkIDKey := nodeName + "-" + instanceName + "-networkID"
-			networkNameKey := nodeName + "-" + instanceName + "-networkName"
-			networkAddressesKey := nodeName + "-" + instanceName + "-addresses"
-			commons.AddOutput(infrastructure, networkIDKey, &commons.Output{
-				Value: fmt.Sprintf("${%s.%s.network.%d.uuid}",
-					opts.resourceTypes[computeInstance], instance.Name, i)})
-			commons.AddOutput(infrastructure, networkNameKey, &commons.Output{
-				Value: fmt.Sprintf("${%s.%s.network.%d.name}",
-					opts.resourceTypes[computeInstance], instance.Name, i)})
-			commons.AddOutput(infrastructure, networkAddressesKey, &commons.Output{
-				Value: fmt.Sprintf("[ ${%s.%s.network.%d.fixed_ip_v4} ]",
-					opts.resourceTypes[computeInstance], instance.Name, i)})
-
-			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name")] = networkNameKey
-			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id")] = networkIDKey
-			outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses")] = networkAddressesKey
 		}
 	}
 
@@ -523,6 +430,123 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 
 	return commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env)
 
+}
+
+func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
+	fipAssociateName, networkNodeName, instancesKey string,
+	instance *ComputeInstance, outputs map[string]string) error {
+
+	kv := opts.kv
+	deploymentID := opts.deploymentID
+	infrastructure := opts.infrastructure
+	nodeName := opts.nodeName
+	instanceName := opts.instanceName
+
+	log.Debugf("Looking for Floating IP")
+	var floatingIP string
+	resultChan := make(chan string, 1)
+	go func() {
+		for {
+			if fip, _ := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
+				resultChan <- fip.RawString()
+				return
+			}
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				// context cancelled, give up!
+				return
+			}
+		}
+	}()
+	select {
+	case floatingIP = <-resultChan:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	floatingIPAssociate := ComputeFloatingIPAssociate{
+		Region:     instance.Region,
+		FloatingIP: floatingIP,
+		InstanceID: fmt.Sprintf("${%s.%s.id}",
+			opts.resourceTypes[computeInstance], instance.Name),
+	}
+	commons.AddResource(infrastructure, opts.resourceTypes[computeFloatingIPAssociate],
+		fipAssociateName, &floatingIPAssociate)
+
+	// Provide output for public IP as floating IP
+	publicIPKey := nodeName + "-" + instanceName + "-publicIP"
+	commons.AddOutput(infrastructure, publicIPKey, &commons.Output{Value: floatingIP})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/public_address")] = publicIPKey
+	// In order to be backward compatible to components developed for Alien (only the above is standard)
+	outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = publicIPKey
+
+	return nil
+}
+
+func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
+	networkNodeName, instancesKey string,
+	instance *ComputeInstance, outputs map[string]string) error {
+
+	kv := opts.kv
+	deploymentID := opts.deploymentID
+	infrastructure := opts.infrastructure
+	nodeName := opts.nodeName
+	instanceName := opts.instanceName
+
+	log.Debugf("Looking for Network id for %q", networkNodeName)
+	var networkID string
+	resultChan := make(chan string, 1)
+	go func() {
+		for {
+			nID, err := deployments.GetInstanceAttributeValue(kv, deploymentID, networkNodeName, instanceName, "network_id")
+			if err != nil {
+				log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
+			}
+			// As networkID is an optional property GetInstanceAttribute then GetProperty
+			// may return an empty networkID so keep checking as long as we have it
+			if nID != nil && nID.RawString() != "" {
+				resultChan <- nID.RawString()
+				return
+			}
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				// context cancelled, give up!
+				return
+			}
+		}
+	}()
+	select {
+	case networkID = <-resultChan:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	cn := ComputeNetwork{UUID: networkID, AccessNetwork: false}
+	i := len(instance.Networks)
+	if instance.Networks == nil {
+		instance.Networks = make([]ComputeNetwork, 0)
+	}
+	instance.Networks = append(instance.Networks, cn)
+
+	// Provide output for network_name, network_id, addresses attributes
+	networkIDKey := nodeName + "-" + instanceName + "-networkID"
+	networkNameKey := nodeName + "-" + instanceName + "-networkName"
+	networkAddressesKey := nodeName + "-" + instanceName + "-addresses"
+	commons.AddOutput(infrastructure, networkIDKey, &commons.Output{
+		Value: fmt.Sprintf("${%s.%s.network.%d.uuid}",
+			opts.resourceTypes[computeInstance], instance.Name, i)})
+	commons.AddOutput(infrastructure, networkNameKey, &commons.Output{
+		Value: fmt.Sprintf("${%s.%s.network.%d.name}",
+			opts.resourceTypes[computeInstance], instance.Name, i)})
+	commons.AddOutput(infrastructure, networkAddressesKey, &commons.Output{
+		Value: fmt.Sprintf("[ ${%s.%s.network.%d.fixed_ip_v4} ]",
+			opts.resourceTypes[computeInstance], instance.Name, i)})
+
+	outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name")] = networkNameKey
+	outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id")] = networkIDKey
+	outputs[path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses")] = networkAddressesKey
+	return nil
 }
 
 func getProperyValueString(kv *api.KV, deploymentID, nodeName, propertyName string) (string, error) {
