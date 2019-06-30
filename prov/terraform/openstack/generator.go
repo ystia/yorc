@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -60,6 +61,14 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 		return false, nil, nil, nil, err
 	}
 	kv := cClient.KV()
+
+	return g.generateTerraformInfraForNode(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath)
+}
+
+func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api.KV,
+	cfg config.Configuration, deploymentID,
+	nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
+
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 
