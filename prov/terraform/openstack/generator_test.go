@@ -117,11 +117,39 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		res, outputs, _, _, err := g.generateTerraformInfraForNode(
 			context.Background(), kv, cfg, depID, tt.nodeName, tempdir)
 		require.NoError(t, err, "Unexpected error generating %s terraform info", tt.nodeName)
-		assert.Equal(t, true, res, "Unexpect result for node name %s", tt.nodeName)
+		assert.Equal(t, true, res, "Unexpected result for node name %s", tt.nodeName)
 
 		for k, v := range tt.expectedOutputs {
 			assert.Equal(t, v, outputs[k], "Unexpected output")
 		}
 	}
+
+	// Error case
+	infra := commons.Infrastructure{}
+	infraOpts := generateInfraOptions{
+		kv:             kv,
+		cfg:            cfg,
+		infrastructure: &infra,
+		instancesKey:   "instancesKey",
+		deploymentID:   depID,
+		nodeName:       "Compute",
+		nodeType:       "yorc.nodes.openstack.ServerGroup",
+		instanceName:   "0",
+		instanceIndex:  0,
+		resourceTypes:  getOpenstackResourceTypes(cfg, infrastructureName),
+	}
+	outputs := make(map[string]string)
+	cmdEnv := make([]string, 0)
+	err = g.generateInstanceInfra(context.Background(), infraOpts, outputs, cmdEnv)
+	require.Error(t, err, "Expected to get an error on wrong node type")
+
+	// Case where the floating IP is available as a property
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes",
+			"FIPCompute/0/properties/ip"): []byte("1.2.3.4"),
+	})
+	_, outputs, _, _, err = g.generateTerraformInfraForNode(
+		context.Background(), kv, cfg, depID, "FIPCompute", tempdir)
+	require.NoError(t, err, "Unexpected error generating FIPCompute terraform info")
 
 }

@@ -37,6 +37,7 @@ import (
 
 const (
 	floatingIPEndpointCapAttribute = "/capabilities/endpoint/attributes/floating_ip_address"
+	consulKeysResource             = "consul_keys"
 )
 
 type osGenerator struct {
@@ -247,14 +248,14 @@ func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error
 			Path:  path.Join(opts.instancesKey, opts.instanceName, "/attributes/volume_id"),
 			Value: fmt.Sprintf("${%s.%s.id}", opts.resourceTypes[blockStorageVolume], bsVolume.Name)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-		commons.AddResource(opts.infrastructure, "consul_keys", bsVolume.Name, &consulKeys)
+		commons.AddResource(opts.infrastructure, consulKeysResource, bsVolume.Name, &consulKeys)
 	} else {
 		name := opts.cfg.ResourcesPrefix + opts.nodeName + "-" + opts.instanceName
 		consulKey := commons.ConsulKey{
 			Path:  path.Join(opts.instancesKey, opts.instanceName, "/properties/volume_id"),
 			Value: strings.TrimSpace(bsIds[opts.instanceIndex])}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-		commons.AddResource(opts.infrastructure, "consul_keys", name, &consulKeys)
+		commons.AddResource(opts.infrastructure, consulKeysResource, name, &consulKeys)
 	}
 
 	return err
@@ -311,7 +312,7 @@ func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
 
 	}
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-	commons.AddResource(opts.infrastructure, "consul_keys", ip.Name, &consulKeys)
+	commons.AddResource(opts.infrastructure, consulKeysResource, ip.Name, &consulKeys)
 	return err
 }
 
@@ -350,7 +351,7 @@ func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 	consulKeys.DependsOn = []string{fmt.Sprintf("%s.%s_subnet", opts.resourceTypes[networkingSubnet],
 		opts.nodeName)}
-	commons.AddResource(opts.infrastructure, "consul_keys", opts.nodeName, &consulKeys)
+	commons.AddResource(opts.infrastructure, consulKeysResource, opts.nodeName, &consulKeys)
 
 	return err
 }
