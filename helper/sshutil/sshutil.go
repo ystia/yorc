@@ -26,8 +26,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
-	"github.com/bramvdbogaerde/go-scp"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
@@ -199,29 +199,83 @@ func ToPrivateKeyContent(pk string) ([]byte, error) {
 }
 
 // CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
-func (client *SSHClient) CopyFile(source io.Reader, remotePath, permissions string) error {
-	// Create a new SCP client
-	scpHostPort := fmt.Sprintf("%s:%d", client.Host, client.Port)
-	scpClient := scp.NewClient(scpHostPort, client.Config)
-
-	// Connect to the remote server
-	err := scpClient.Connect()
-	if err != nil {
-		return errors.Wrapf(err, "Couldn't establish a connection to the remote host:%q", scpHostPort)
-	}
-	defer scpClient.Session.Close()
-
+// CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
+func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissions string) error {
 	// Create the remote directory
 	remoteDir := path.Dir(remotePath)
 	mkdirCmd := fmt.Sprintf("mkdir -p %s", remoteDir)
-	_, err = client.RunCommand(mkdirCmd)
+	_, err := client.RunCommand(mkdirCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't create the remote directory:%q", remoteDir)
 	}
 
-	// Finally, copy the reader over SSH
-	log.Debugf("Copy source over SSH to remote path:%s", remotePath)
-	scpClient.CopyFile(source, remotePath, permissions)
+	// determine the length by reading the reader
+	content, err := ioutil.ReadAll(source)
+	if err != nil {
+		return err
+	}
+	size := int64(len(content))
+
+	// Copy the file with scp
+	filename := path.Base(remotePath)
+	directory := path.Dir(remotePath)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	errCh := make(chan error, 2)
+
+	session, err := client.newSession()
+	if err != nil {
+		return err
+	}
+
+	// need to get StdinPipe before starting ssh process
+	w, err := session.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		defer wg.Done()
+
+		// close writer once file data have been written or if error occurs
+		defer w.Close()
+		_, err = fmt.Fprintln(w, "C"+permissions, size, filename)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		_, err = io.Copy(w, bytes.NewReader(content))
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		_, err = fmt.Fprint(w, "\x00")
+		if err != nil {
+			errCh <- err
+			return
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		err := session.Run(fmt.Sprintf("scp -qt %s", directory))
+		if err != nil {
+			errCh <- err
+			return
+		}
+	}()
+
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -7,7 +7,6 @@ require (
 	github.com/alecthomas/participle v0.0.0-20180201003711-224bfdc38a4de4f407a47c576dd127413e0a1361
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/bramvdbogaerde/go-scp v0.0.0-20170919175937-e1fc87afa32536b6f2a58fc9cf937432aeff91e7
 	github.com/docker/docker v0.0.0-20170504205632-89658bed64c2
 	github.com/dustin/go-humanize v0.0.0-20160623014021-fef948f2d241
 	github.com/fatih/color v1.1.0
