@@ -73,6 +73,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		path.Join(instancesPrefix, "BlockStorage/0/attributes/volume_id"): []byte("my_vol_id"),
 		path.Join(instancesPrefix, "/FIPCompute/0/capabilities/endpoint",
 			"attributes/floating_ip_address"): []byte("1.2.3.4"),
+		path.Join(instancesPrefix, "/Network_2/0/attributes/network_id"): []byte("netID"),
 	})
 
 	cfg := config.Configuration{
@@ -96,9 +97,9 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		path.Join(instancesPrefix, "Compute/0/attributes/public_ip_address"):                "Compute-0-publicIP",
 		path.Join(instancesPrefix, "Compute/0/capabilities/endpoint/attributes/ip_address"): "Compute-0-IPAddress",
 		path.Join(consulutil.DeploymentKVPrefix, depID, "topology/relationship_instances",
-			"BlockStorage/1/0/attributes/device"): "VolBlockStoragetoCompute-0-device",
+			"BlockStorage/2/0/attributes/device"): "VolBlockStoragetoCompute-0-device",
 		path.Join(consulutil.DeploymentKVPrefix, depID, "topology/relationship_instances",
-			"Compute/1/0/attributes/device"): "VolBlockStoragetoCompute-0-device",
+			"Compute/2/0/attributes/device"): "VolBlockStoragetoCompute-0-device",
 	}
 
 	tempdir, err := ioutil.TempDir("", depID)
@@ -112,6 +113,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		{"Compute", expectedComputeOutputs},
 		{"BlockStorage", map[string]string{}},
 		{"FIPCompute", map[string]string{}},
+		{"Network_2", map[string]string{}},
 	}
 	for _, tt := range testData {
 		res, outputs, _, _, err := g.generateTerraformInfraForNode(
@@ -144,9 +146,10 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 	require.Error(t, err, "Expected to get an error on wrong node type")
 
 	// Case where the floating IP is available as a property
+	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes")
+
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes",
-			"FIPCompute/0/properties/ip"): []byte("1.2.3.4"),
+		path.Join(nodePrefix, "FIPCompute/properties/ip"): []byte("1.2.3.4"),
 	})
 	_, outputs, _, _, err = g.generateTerraformInfraForNode(
 		context.Background(), kv, cfg, depID, "FIPCompute", tempdir)
