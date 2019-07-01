@@ -45,8 +45,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/centos/.ssh/yorc.pem"
               user: centos
             secure: true
