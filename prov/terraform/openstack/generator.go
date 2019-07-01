@@ -123,7 +123,7 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 			instanceIndex:  instIdx,
 			resourceTypes:  resourceTypes,
 		}
-		err := g.generateInstanceInfra(ctx, infraOpts, outputs, cmdEnv)
+		err := g.generateInstanceInfra(ctx, infraOpts, outputs, &cmdEnv)
 		if err != nil {
 			return false, nil, nil, nil, err
 		}
@@ -172,7 +172,7 @@ func getOpenStackProviderEnv(cfg config.Configuration, infraName string) (map[st
 }
 
 func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateInfraOptions,
-	outputs map[string]string, cmdEnv []string) error {
+	outputs map[string]string, cmdEnv *[]string) error {
 
 	instanceState, err := deployments.GetInstanceState(opts.kv, opts.deploymentID,
 		opts.nodeName, opts.instanceName)
@@ -196,7 +196,7 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 				instanceName:   opts.instanceName,
 				resourceTypes:  opts.resourceTypes,
 			},
-			outputs, &cmdEnv)
+			outputs, cmdEnv)
 
 	case "yorc.nodes.openstack.BlockStorage":
 		err = g.generateBlockStorageInfra(opts)
@@ -215,7 +215,7 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 				nodeName:      opts.nodeName,
 				resourceTypes: opts.resourceTypes,
 			},
-			opts.infrastructure, outputs, &cmdEnv)
+			opts.infrastructure, outputs, cmdEnv)
 	default:
 		err = errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'",
 			opts.nodeType, opts.nodeName, opts.deploymentID)

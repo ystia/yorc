@@ -142,7 +142,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 	}
 	outputs := make(map[string]string)
 	cmdEnv := make([]string, 0)
-	err = g.generateInstanceInfra(context.Background(), infraOpts, outputs, cmdEnv)
+	err = g.generateInstanceInfra(context.Background(), infraOpts, outputs, &cmdEnv)
 	require.Error(t, err, "Expected to get an error on wrong node type")
 
 	// Case where the floating IP is available as a property
