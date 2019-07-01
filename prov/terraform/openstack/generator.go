@@ -92,30 +92,8 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
-	cmdEnv := []string{
-		fmt.Sprintf("OS_USERNAME=%s", cfg.Infrastructures[infrastructureName].GetString("user_name")),
-		fmt.Sprintf("OS_PASSWORD=%s", cfg.Infrastructures[infrastructureName].GetString("password")),
-		fmt.Sprintf("OS_PROJECT_NAME=%s", cfg.Infrastructures[infrastructureName].GetString("project_name")),
-		fmt.Sprintf("OS_PROJECT_ID=%s", cfg.Infrastructures[infrastructureName].GetString("project_id")),
-		fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", cfg.Infrastructures[infrastructureName].GetString("user_domain_name")),
-		fmt.Sprintf("OS_AUTH_URL=%s", cfg.Infrastructures[infrastructureName].GetString("auth_url")),
-	}
-
-	// Management of variables for Terraform
-	infrastructure.Provider = map[string]interface{}{
-		"openstack": map[string]interface{}{
-			"version":     cfg.Terraform.OpenStackPluginVersionConstraint,
-			"tenant_name": cfg.Infrastructures[infrastructureName].GetString("tenant_name"),
-			"insecure":    cfg.Infrastructures[infrastructureName].GetString("insecure"),
-			"cacert_file": cfg.Infrastructures[infrastructureName].GetString("cacert_file"),
-			"cert":        cfg.Infrastructures[infrastructureName].GetString("cert"),
-			"key":         cfg.Infrastructures[infrastructureName].GetString("key"),
-		},
-		"consul": commons.GetConsulProviderfiguration(cfg),
-		"null": map[string]interface{}{
-			"version": commons.NullPluginVersionConstraint,
-		},
-	}
+	var cmdEnv []string
+	infrastructure.Provider, cmdEnv = getOpenStackProviderEnv(cfg, infrastructureName)
 
 	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
@@ -161,6 +139,35 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 
 	log.Debugf("Infrastructure generated for deployment with id %s", deploymentID)
 	return true, outputs, cmdEnv, nil, nil
+}
+
+func getOpenStackProviderEnv(cfg config.Configuration, infraName string) (map[string]interface{}, []string) {
+	cmdEnv := []string{
+		fmt.Sprintf("OS_USERNAME=%s", cfg.Infrastructures[infraName].GetString("user_name")),
+		fmt.Sprintf("OS_PASSWORD=%s", cfg.Infrastructures[infraName].GetString("password")),
+		fmt.Sprintf("OS_PROJECT_NAME=%s", cfg.Infrastructures[infraName].GetString("project_name")),
+		fmt.Sprintf("OS_PROJECT_ID=%s", cfg.Infrastructures[infraName].GetString("project_id")),
+		fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", cfg.Infrastructures[infraName].GetString("user_domain_name")),
+		fmt.Sprintf("OS_AUTH_URL=%s", cfg.Infrastructures[infraName].GetString("auth_url")),
+	}
+
+	// Management of variables for Terraform
+	provider := map[string]interface{}{
+		"openstack": map[string]interface{}{
+			"version":     cfg.Terraform.OpenStackPluginVersionConstraint,
+			"tenant_name": cfg.Infrastructures[infraName].GetString("tenant_name"),
+			"insecure":    cfg.Infrastructures[infraName].GetString("insecure"),
+			"cacert_file": cfg.Infrastructures[infraName].GetString("cacert_file"),
+			"cert":        cfg.Infrastructures[infraName].GetString("cert"),
+			"key":         cfg.Infrastructures[infraName].GetString("key"),
+		},
+		"consul": commons.GetConsulProviderfiguration(cfg),
+		"null": map[string]interface{}{
+			"version": commons.NullPluginVersionConstraint,
+		},
+	}
+
+	return provider, cmdEnv
 }
 
 func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateInfraOptions,
