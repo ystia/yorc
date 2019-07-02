@@ -17,12 +17,14 @@
 * Monitoring can be stopped before the job termination ([GH-438](https://github.com/ystia/yorc/issues/438))
 * mem_per_node slurm option parameter is limited to integer number of GB ([GH-446](https://github.com/ystia/yorc/issues/446))
 * Job node state remains to "executing" when Ansible job fails ([GH-455](https://github.com/ystia/yorc/issues/455))
+* Panic occurs uploading job slurm artifacts during load test ([GH-465](https://github.com/ystia/yorc/issues/465))
 
 ### ENHANCEMENTS
 
 * Expose bypass error parameter on workflow ([GH-425](https://github.com/ystia/yorc/issues/425))
 * Support Alien4Cloud 2.2 ([GH-441](https://github.com/ystia/yorc/issues/441))
 * Allow to provide extra env vars to Alien4Cloud during bootstrap ([GH-452](https://github.com/ystia/yorc/issues/452))
+* Port CLI and Rest API minor changes for premium update feature ([GH-467](https://github.com/ystia/yorc/issues/467))
 
 ## 3.2.0 (May 31, 2019)
 

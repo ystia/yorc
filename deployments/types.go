@@ -73,19 +73,15 @@ func locateTypePath(kv *api.KV, deploymentID, typeName string) (string, error) {
 		return typePath, nil
 	}
 
-	builtinTypesPaths, err := getLatestCommonsTypesPaths(kv)
-	if err != nil {
-		return "", err
-	}
-
-	for _, builtinTypesPath := range builtinTypesPaths {
-		typePath = path.Join(builtinTypesPath, typeName)
-		exits, err := checkIfTypeExists(kv, typePath)
+	builtinTypesPaths := store.GetCommonsTypesPaths()
+	for i := range builtinTypesPaths {
+		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types", typeName)
+		exits, err := checkIfTypeExists(kv, builtinTypesPaths[i])
 		if err != nil {
 			return "", err
 		}
 		if exits {
-			return typePath, nil
+			return builtinTypesPaths[i], nil
 		}
 	}
 
@@ -137,12 +133,12 @@ func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
 		names = append(names, path.Base(t))
 	}
 
-	builtinPaths, err := getLatestCommonsTypesPaths(kv)
-	if err != nil {
-		return names, err
+	builtinTypesPaths := store.GetCommonsTypesPaths()
+	for i := range builtinTypesPaths {
+		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types")
 	}
-	for _, builtinPath := range builtinPaths {
-		types, _, err := kv.Keys(builtinPath+"/", "/", nil)
+	for _, builtinTypesPath := range builtinTypesPaths {
+		types, _, err := kv.Keys(builtinTypesPath+"/", "/", nil)
 		if err != nil {
 			return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}

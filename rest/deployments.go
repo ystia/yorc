@@ -58,28 +58,11 @@ func extractFile(f *zip.File, path string) {
 
 // unzipArchiveGetTopology unzips an archive and return the path to its topology
 // yaml file
-func unzipArchiveGetTopology(workingDir, deploymentID string, r *http.Request, deploymentUpdate bool) (string, *Error) {
+func unzipArchiveGetTopology(workingDir, deploymentID string, r *http.Request) (string, *Error) {
 	var err error
 	var file *os.File
 
 	uploadPath := filepath.Join(workingDir, "deployments", deploymentID)
-	backupPath := filepath.Join(workingDir, "deployments", "."+deploymentID)
-	if deploymentUpdate {
-		// This is a deployment update, renaming the current deployment directory
-		if _, err := os.Stat(uploadPath); !os.IsNotExist(err) {
-			// path/to/whatever exists
-			if err := os.Rename(uploadPath, backupPath); err != nil {
-				return "", newInternalServerError(err)
-			}
-
-			defer func() {
-				// Restore backup in case of error
-				if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
-					os.Rename(backupPath, uploadPath)
-				}
-			}()
-		}
-	}
 
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		return "", newInternalServerError(err)
@@ -135,14 +118,9 @@ func unzipArchiveGetTopology(workingDir, deploymentID string, r *http.Request, d
 	}
 	if len(yamlList) != 1 {
 		err = fmt.Errorf(
-			"One and only one YAML (.yml or .yaml) file should be present at the root of archive for deployment %s",
+			"one and only one YAML (.yml or .yaml) file should be present at the root of archive for deployment %s",
 			deploymentID)
 		return "", newBadRequestError(err)
-	}
-
-	// Cleanup
-	if deploymentUpdate {
-		os.RemoveAll(backupPath)
 	}
 
 	return yamlList[0], nil
@@ -188,7 +166,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Analyzing deployment %s\n", uid)
 
-	yamlFile, archiveErr := unzipArchiveGetTopology(s.config.WorkingDirectory, uid, r, false)
+	yamlFile, archiveErr := unzipArchiveGetTopology(s.config.WorkingDirectory, uid, r)
 	if archiveErr != nil {
 		log.Printf("Error analyzing archive for deployment %s\n", uid)
 		writeError(w, r, archiveErr)
