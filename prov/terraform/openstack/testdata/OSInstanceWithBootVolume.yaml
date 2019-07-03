@@ -14,7 +14,6 @@ topology_template:
       type: yorc.nodes.openstack.Compute
       properties:
         flavor: 2
-        availability_zone: nova
         key_pair: yorc
         security_groups: openbar,default
         bootVolume:
