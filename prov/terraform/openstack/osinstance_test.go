@@ -112,6 +112,62 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 }
 
+func testOSInstanceWithBootVolume(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
+				"region":               "RegionTwo",
+				"private_network_name": "test",
+			}}}
+	g := osGenerator{}
+	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
+	outputs := make(map[string]string, 0)
+
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
+	require.NoError(t, err, "Failed to create an OS instance with boot volume")
+
+	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
+	instancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "Compute-0")
+
+	compute, ok := instancesMap["Compute-0"].(*ComputeInstance)
+	assert.True(t, ok, "Compute-0 is not a ComputeInstance")
+	assert.Equal(t, "4bde6002-649d-4868-a5cb-fcd36d5ffa63", compute.BootVolume.UUID,
+		"Wrong boot volume UUID value")
+	assert.Equal(t, "image", compute.BootVolume.Source,
+		"Wrong boot volume source value")
+	assert.Equal(t, "volume", compute.BootVolume.Destination,
+		"Wrong boot volume destination value")
+	assert.Equal(t, 10, compute.BootVolume.Size,
+		"Wrong boot volume size value")
+	assert.Equal(t, true, compute.BootVolume.DeleteOnTermination,
+		"Wrong boot volume deleta on termination value")
+
+	assert.Equal(t, "yorc", compute.KeyPair)
+	assert.Equal(t, "2", compute.FlavorID)
+	assert.Equal(t, "RegionTwo", compute.Region)
+	assert.Len(t, compute.SecurityGroups, 2)
+	assert.Contains(t, compute.SecurityGroups, "default")
+	assert.Contains(t, compute.SecurityGroups, "openbar")
+}
+
 func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)

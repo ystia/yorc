@@ -30,6 +30,9 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("simpleOSInstance", func(t *testing.T) {
 			testSimpleOSInstance(t, kv)
 		})
+		t.Run("OSInstanceWithBootVolume", func(t *testing.T) {
+			testOSInstanceWithBootVolume(t, kv)
+		})
 		t.Run("fipOSInstance", func(t *testing.T) {
 			testFipOSInstance(t, kv, srv)
 		})

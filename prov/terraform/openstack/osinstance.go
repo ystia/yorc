@@ -28,6 +28,7 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/sizeutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
@@ -133,9 +134,17 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
-		kv, deploymentID, nodeName, "image", "imageName"); err != nil {
+	if instance.BootVolume, err = computeBootVolume(kv, deploymentID, nodeName); err != nil {
 		return instance, err
+	}
+
+	if instance.BootVolume == nil {
+		// When no boot volume is defined, it is mandatory to define an image
+		// or an image name
+		if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
+			kv, deploymentID, nodeName, "image", "imageName"); err != nil {
+			return instance, err
+		}
 	}
 
 	if instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
@@ -194,6 +203,48 @@ func computeInstanceMandatoryAttributeInPair(kv *api.KV, deploymentID, nodeName,
 	}
 
 	return value1, value2, err
+}
+
+// computeBootVolume gets value of a boot volume if any is defined
+// If none, nil is returned
+func computeBootVolume(kv *api.KV, deploymentID, nodeName string) (*BootVolume, error) {
+	var vol BootVolume
+	var err error
+	// If a boot volume is defined, its source definition is mandatory
+	vol.Source, err = getProperyValueString(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
+	if err != nil || vol.Source == "" {
+		return nil, err
+	}
+
+	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, deleteOnTerminationTOSCAKey}
+	strValues := make(map[string]string, len(keys))
+	for _, key := range keys {
+		strValues[key], err = getProperyValueString(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	vol.UUID = strValues[uuidTOSCAKey]
+	vol.Destination = strValues[destinationTOSCAKey]
+	if strValues[sizeTOSCAKey] != "" {
+		vol.Size, err = sizeutil.ConvertToGB(strValues[sizeTOSCAKey])
+		if err != nil {
+			log.Printf("Failed to convert %s %s boot volume size %q : %s", deploymentID,
+				nodeName, strValues[sizeTOSCAKey], err.Error())
+			return nil, err
+		}
+	}
+	if strValues[deleteOnTerminationTOSCAKey] != "" {
+		vol.DeleteOnTermination, err = strconv.ParseBool(strValues[deleteOnTerminationTOSCAKey])
+		if err != nil {
+			log.Printf("Failed to convert %s %s %s boolean value %q : %s", deploymentID,
+				nodeName, deleteOnTerminationTOSCAKey, strValues[sizeTOSCAKey], err.Error())
+			return nil, err
+		}
+	}
+
+	return &vol, err
 }
 
 func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
@@ -553,10 +604,12 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	return nil
 }
 
-func getProperyValueString(kv *api.KV, deploymentID, nodeName, propertyName string) (string, error) {
+func getProperyValueString(kv *api.KV, deploymentID, nodeName, propertyName string,
+	nestedKeys ...string) (string, error) {
 
 	var stringValue string
-	propValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
+	propValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName,
+		propertyName, nestedKeys...)
 	if err != nil {
 		return stringValue, err
 	}
