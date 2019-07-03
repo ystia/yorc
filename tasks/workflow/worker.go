@@ -596,7 +596,7 @@ func (w *worker) delayPurge(ctx context.Context, t *taskExecution, taskID string
 		case <-ticker.C:
 			state, err := tasks.GetTaskStatus(t.cc.KV(), taskID)
 			if err != nil {
-				log.Printf("error occurred during delaying purge:%+v, err")
+				log.Printf("error occurred during delaying purge:%+v", err)
 				ticker.Stop()
 				return
 			}
