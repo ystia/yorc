@@ -601,7 +601,7 @@ func (w *worker) delayPurge(ctx context.Context, t *taskExecution, taskID string
 				return
 			}
 			if state != tasks.TaskStatusRUNNING {
-				log.Debugf("stop delaying purge as task:%q is no more running", taskID)
+				log.Debugf("stop delaying purge as task:%q is no longer running", taskID)
 				ticker.Stop()
 				return
 			}
