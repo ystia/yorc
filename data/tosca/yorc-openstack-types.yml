@@ -15,7 +15,7 @@ data_types:
       uuid:
         type: string
         required: false
-        description: UUID of the image, volume, or snapshot. Required if source is set to 'blank'
+        description: UUID of the image, volume, or snapshot. Required unless source is set to 'blank'
       source:
         type: string
         required: true
