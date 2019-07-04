@@ -605,6 +605,20 @@ func (w *worker) delayPurge(ctx context.Context, t *taskExecution, taskID string
 				ticker.Stop()
 				return
 			}
+		case <-time.After(30 * time.Second):
+			state, err := tasks.GetTaskStatus(t.cc.KV(), taskID)
+			if err != nil {
+				log.Printf("error occurred during delaying purge:%+v", err)
+				ticker.Stop()
+				return
+			}
+			if state == tasks.TaskStatusRUNNING {
+				log.Debugf("Purge delay timeout is reached: we cancel the task with ID:%q", taskID)
+				tasks.CancelTask(t.cc.KV(), taskID)
+				ticker.Stop()
+				return
+			}
+
 		}
 	}
 }
