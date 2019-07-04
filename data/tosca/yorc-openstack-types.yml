@@ -100,7 +100,7 @@ node_types:
         description: >
           Openstack VM Image Name, this property is required when 'image' is not set and not booting from a volume
         required: false
-      bootVolume:
+      boot_volume:
         type: yorc.datatypes.openstack.BootVolume
         description: >
           Boot Volume to create

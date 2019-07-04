@@ -21,7 +21,7 @@ import (
 const (
 	defaultOSRegion             = "RegionOne"
 	infrastructureName          = "openstack"
-	bootVolumeTOSCAAttr         = "bootVolume"
+	bootVolumeTOSCAAttr         = "boot_volume"
 	uuidTOSCAKey                = "uuid"
 	sourceTOSCAKey              = "source"
 	destinationTOSCAKey         = "destination"
