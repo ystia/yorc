@@ -41,6 +41,12 @@ type AnsibleConfiguration struct {
 	Inventory            map[string][]string `yaml:"inventory,omitempty" mapstructure:"inventory"`
 }
 
+const (
+	regexpYamlTrue          = "(?m):\\s+(y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON)$"
+	regexpYamlFalse         = "(?m):\\s+(n|N|no|No|NO|false|False|FALSE|off|Off|OFF)$"
+	regexpMarshalingPattern = "(?m)^(\\s+)%s:"
+)
+
 // YorcConfiguration provides Yorc user-defined settings
 type YorcConfiguration struct {
 	DownloadURL       string `yaml:"download_url" mapstructure:"download_url"`
@@ -271,20 +277,29 @@ func createTopology(topologyDir string) error {
 		return fmt.Errorf("Found no on-demand resources template in %s", topologyDir)
 	}
 
+	onDemandResourcesFilePath := filepath.Join(topologyDir, inputValues.Location.ResourcesFile)
 	err = createFileFromTemplates(resourcesTemplateFileNames,
 		filepath.Base(resourcesTemplateFileNames[0]),
-		filepath.Join(topologyDir, inputValues.Location.ResourcesFile),
+		onDemandResourcesFilePath,
 		inputValues)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create on-demand resources file from templates")
 	}
 
+	err = postProcessOnDemandResourceFile(onDemandResourcesFilePath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to post-process on-demand resources file")
+	}
+
+	topologyFilePath := filepath.Join(topologyDir, "topology.yaml")
 	err = createFileFromTemplates(topologyTemplateFileNames, topologyTemplateFile,
-		filepath.Join(topologyDir, "topology.yaml"),
+		topologyFilePath,
 		inputValues)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create topology file from templates")
 	}
+
+	err = postProcessYamlMarshaling(topologyFilePath)
 
 	// If a Hosts Pool infrastructure was specified, an additional resources file
 	// containing the hosts pool description has to be created
@@ -307,6 +322,51 @@ func createTopology(topologyDir string) error {
 
 	}
 
+	return err
+}
+
+// postProcessOnDemandResourceFile will replace booleans by strings in the on-demand
+// resources file as Alien4Cloud REST API fails to manage such boolean values
+// when processing the request of configuring an on-demand resource boolean attribute value
+func postProcessOnDemandResourceFile(filepath string) error {
+	content, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return err
+	}
+
+	tmpContent := regexp.MustCompile(regexpYamlTrue).ReplaceAllString(string(content), `: "true"`)
+	newContent := regexp.MustCompile(regexpYamlFalse).ReplaceAllString(tmpContent, `: "false"`)
+
+	err = ioutil.WriteFile(filepath, []byte(newContent), 0)
+	if err != nil {
+		return err
+	}
+
+	err = postProcessYamlMarshaling(filepath)
+	return err
+}
+
+// postProcessYamlMarshaling fixes the yaml marshaling of map keys which
+// are converted to lower case, while some yaml attributes are not exepcted to
+// be lower cased
+func postProcessYamlMarshaling(filepath string) error {
+	content, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return err
+	}
+
+	newContent := string(content)
+	attrNames := []string{"imageName", "flavorName"}
+	for _, attr := range attrNames {
+		regexpVal := fmt.Sprintf(regexpMarshalingPattern, strings.ToLower(attr))
+		newContent = regexp.MustCompile(regexpVal).ReplaceAllString(newContent,
+			fmt.Sprintf("${1}%s:", attr))
+	}
+
+	err = ioutil.WriteFile(filepath, []byte(newContent), 0)
+	if err != nil {
+		return err
+	}
 	return err
 }
 
