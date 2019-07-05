@@ -208,6 +208,8 @@ func (w *worker) handleExecution(t *taskExecution) {
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
 		err = w.runDeploy(ctx, t)
+	case tasks.TaskTypeAddNodes, tasks.TaskTypeRemoveNodes:
+		err = w.runAddRemoveNodes(ctx, t, wfName)
 	case tasks.TaskTypeUnDeploy, tasks.TaskTypePurge:
 		err = w.runUndeploy(ctx, t)
 	case tasks.TaskTypeScaleOut:

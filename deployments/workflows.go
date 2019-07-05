@@ -172,3 +172,9 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 	}
 	return step, nil
 }
+
+// DeleteWorkflow deletes the given workflow from the Consul store
+func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}

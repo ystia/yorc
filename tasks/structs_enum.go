@@ -88,21 +88,27 @@ const (
 	TaskTypeAction
 	// TaskTypeForcePurge is a TaskType of type ForcePurge
 	TaskTypeForcePurge
+	// TaskTypeAddNodes is a TaskType of type AddNodes
+	TaskTypeAddNodes
+	// TaskTypeRemoveNodes is a TaskType of type RemoveNodes
+	TaskTypeRemoveNodes
 )
 
-const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQueryActionForcePurge"
+const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQueryActionForcePurgeAddNodesRemoveNodes"
 
 var _TaskTypeMap = map[TaskType]string{
-	0: _TaskTypeName[0:6],
-	1: _TaskTypeName[6:14],
-	2: _TaskTypeName[14:22],
-	3: _TaskTypeName[22:29],
-	4: _TaskTypeName[29:34],
-	5: _TaskTypeName[34:47],
-	6: _TaskTypeName[47:61],
-	7: _TaskTypeName[61:66],
-	8: _TaskTypeName[66:72],
-	9: _TaskTypeName[72:82],
+	0:  _TaskTypeName[0:6],
+	1:  _TaskTypeName[6:14],
+	2:  _TaskTypeName[14:22],
+	3:  _TaskTypeName[22:29],
+	4:  _TaskTypeName[29:34],
+	5:  _TaskTypeName[34:47],
+	6:  _TaskTypeName[47:61],
+	7:  _TaskTypeName[61:66],
+	8:  _TaskTypeName[66:72],
+	9:  _TaskTypeName[72:82],
+	10: _TaskTypeName[82:90],
+	11: _TaskTypeName[90:101],
 }
 
 func (i TaskType) String() string {
@@ -113,16 +119,18 @@ func (i TaskType) String() string {
 }
 
 var _TaskTypeValue = map[string]TaskType{
-	_TaskTypeName[0:6]:   0,
-	_TaskTypeName[6:14]:  1,
-	_TaskTypeName[14:22]: 2,
-	_TaskTypeName[22:29]: 3,
-	_TaskTypeName[29:34]: 4,
-	_TaskTypeName[34:47]: 5,
-	_TaskTypeName[47:61]: 6,
-	_TaskTypeName[61:66]: 7,
-	_TaskTypeName[66:72]: 8,
-	_TaskTypeName[72:82]: 9,
+	_TaskTypeName[0:6]:    0,
+	_TaskTypeName[6:14]:   1,
+	_TaskTypeName[14:22]:  2,
+	_TaskTypeName[22:29]:  3,
+	_TaskTypeName[29:34]:  4,
+	_TaskTypeName[34:47]:  5,
+	_TaskTypeName[47:61]:  6,
+	_TaskTypeName[61:66]:  7,
+	_TaskTypeName[66:72]:  8,
+	_TaskTypeName[72:82]:  9,
+	_TaskTypeName[82:90]:  10,
+	_TaskTypeName[90:101]: 11,
 }
 
 // ParseTaskType attempts to convert a string to a TaskType

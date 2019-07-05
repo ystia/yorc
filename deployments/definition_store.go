@@ -71,7 +71,12 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID str
 		return handleDeploymentStatus(ctx, kv, deploymentID, err)
 	}
 
-	return handleDeploymentStatus(ctx, kv, deploymentID, enhanceNodes(ctx, kv, deploymentID))
+	// Enhance nodes
+	nodes, err := GetNodes(kv, deploymentID)
+	if err != nil {
+		return err
+	}
+	return handleDeploymentStatus(ctx, kv, deploymentID, enhanceNodes(ctx, kv, deploymentID, nodes))
 }
 
 func handleDeploymentStatus(ctx context.Context, kv *api.KV, deploymentID string, err error) error {
@@ -163,16 +168,12 @@ func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID s
 	return nil
 }
 
-// enhanceNodes walk through the topology nodes an for each of them if needed it creates the instances and fix alien BlockStorage declaration
-func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
+// EnhanceNodes walk through the provided nodes an for each of them if needed it creates the instances and fix alien BlockStorage declaration
+func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string, nodes []string) error {
 	ctxStore, errGroup, consulStore := consulutil.WithContext(ctx)
-	nodes, err := GetNodes(kv, deploymentID)
-	if err != nil {
-		return err
-	}
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
-		err = fixGetOperationOutputForRelationship(ctx, kv, deploymentID, nodeName)
+		err := fixGetOperationOutputForRelationship(ctx, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -206,12 +207,12 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	}
 	for _, nodeName := range computes {
 
-		err = createMissingBlockStorageForNode(consulStore, kv, deploymentID, nodeName)
+		err := createMissingBlockStorageForNode(consulStore, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
 	}
-	err = errGroup.Wait()
+	err := errGroup.Wait()
 	if err != nil {
 		return err
 	}

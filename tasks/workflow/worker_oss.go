@@ -12,31 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tasks
+// +build !premium
 
-//go:generate go-enum -f=structs.go
+package workflow
 
-// TaskType x ENUM(
-// Deploy,
-// UnDeploy,
-// ScaleOut,
-// ScaleIn,
-// Purge,
-// CustomCommand,
-// CustomWorkflow,
-// Query,
-// Action
-// ForcePurge
-// AddNodes
-// RemoveNodes
-// )
-type TaskType int
+import (
+	"context"
+	"github.com/pkg/errors"
+)
 
-// TaskStatus x ENUM(
-// INITIAL,
-// RUNNING,
-// DONE,
-// FAILED,
-// CANCELED
-// )
-type TaskStatus int
+func (w *worker) runAddRemoveNodes(ctx context.Context, t *taskExecution, wfName string) error {
+	return errors.New("runAddRemoveNodes is only supported only in premium versions")
+}
