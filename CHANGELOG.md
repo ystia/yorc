@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 3.2.1 (July 05, 2019)
 
 ### BUG FIXES
