@@ -42,6 +42,20 @@ node_types:
             file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
 
+  yorc.nodes.kubernetes.api.types.StatefulSetResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.StatefulSetResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+        delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+
+
   yorc.nodes.kubernetes.api.types.JobResource:
     derived_from: org.alien4cloud.kubernetes.api.types.JobResource
     interfaces:

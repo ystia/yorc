@@ -37,6 +37,7 @@ import (
 )
 
 const deploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
+const statefulsetResourceType string = "yorc.nodes.kubernetes.api.types.StatefulSetResource"
 const serviceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
 const simpleRessourceType string = "yorc.nodes.kubernetes.api.types.SimpleResource"
 
@@ -129,6 +130,8 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 	switch e.nodeType {
 	case deploymentResourceType:
 		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
+	case statefulsetResourceType:
+		return errors.Errorf("Unsupported k8s statefulset type %q", e.nodeType)
 	case serviceResourceType:
 		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
 	case simpleRessourceType:
