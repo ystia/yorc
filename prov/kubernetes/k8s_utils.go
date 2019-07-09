@@ -27,6 +27,7 @@ import (
 	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -48,6 +49,7 @@ func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Depl
 	return false, ""
 }
 
+// /!\ Deprecated, use waitForK8sObjectDeletion instead /!\
 func waitForDeploymentDeletion(ctx context.Context, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		_, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
@@ -332,6 +334,7 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 	return version.String(), nil
 }
 
+// /!\ Deprecated, use waitForK8sObjectDeletion instead /!\
 func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		_, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
@@ -358,4 +361,28 @@ func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, p
 		return false, nil
 	}, ctx.Done())
 
+}
+
+func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject runtime.Object) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		var err error
+		switch concreteObj := k8sObject.(type) {
+		case *corev1.PersistentVolumeClaim:
+			_, err = clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+		case *v1beta1.Deployment:
+			_, err = clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+		case *corev1.Service:
+			_, err = clientset.CoreV1().Services(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+		default:
+			return false, nil
+		}
+
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		return false, nil
+	}, ctx.Done())
 }

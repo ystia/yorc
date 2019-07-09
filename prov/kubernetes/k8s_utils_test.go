@@ -134,7 +134,7 @@ func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
 		return true, pvc, nil
 	})
 	go func() {
-		err := waitForPVCDeletion(ctx, k8s.clientset, pvc)
+		err := waitForK8sObjectDeletion(ctx, k8s.clientset, pvc)
 		if err != nil {
 			t.Logf("Error : %s", err.Error())
 			t.Fatal("Deleted pvc should not raise an error")
