@@ -538,51 +538,6 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 	return true, bsName, nil
 }
 
-func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {
-	wf, err := ReadWorkflow(kv, deploymentID, "run")
-	if err != nil {
-		return err
-	}
-	var wasUpdated bool
-	for sn, s := range wf.Steps {
-		var isCancellable bool
-		for _, a := range s.Activities {
-			switch strings.ToLower(a.CallOperation) {
-			case tosca.RunnableSubmitOperationName, tosca.RunnableRunOperationName:
-				isCancellable = true
-			}
-		}
-		if isCancellable && len(s.OnCancel) == 0 {
-			// Cancellable and on-cancel not defined
-			// Check if there is an cancel op
-			hasCancelOp, err := IsOperationImplemented(kv, deploymentID, s.Target, tosca.RunnableCancelOperationName)
-			if err != nil {
-				return err
-			}
-			if hasCancelOp {
-				cancelStep := &tosca.Step{
-					Target:             s.Target,
-					TargetRelationShip: s.TargetRelationShip,
-					OperationHost:      s.OperationHost,
-					Activities: []tosca.Activity{
-						tosca.Activity{
-							CallOperation: tosca.RunnableCancelOperationName,
-						},
-					},
-				}
-				csName := "yorc_automatic_cancellation_of_" + sn
-				wf.Steps[csName] = cancelStep
-				s.OnCancel = []string{csName}
-				wasUpdated = true
-			}
-		}
-	}
-	if wasUpdated {
-		internal.StoreWorkflow(consulStore, deploymentID, "run", wf)
-	}
-	return nil
-}
-
 // enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes notifications
 // to allow resolving any attribute when one is updated
 func enhanceAttributes(kv *api.KV, deploymentID string, nodes []string) error {
