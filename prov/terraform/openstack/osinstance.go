@@ -143,11 +143,13 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		return instance, err
 	}
 
-	instance.AvailabilityZone, err = getProperyValueString(kv, deploymentID, nodeName, "availability_zone")
+	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(kv, deploymentID,
+		nodeName, "availability_zone", false)
 	if err != nil {
 		return instance, err
 	}
-	instance.Region, err = getProperyValueString(kv, deploymentID, nodeName, "region")
+	instance.Region, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"region", false)
 	if err != nil {
 		return instance, err
 	}
@@ -155,13 +157,15 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	instance.KeyPair, err = getProperyValueString(kv, deploymentID, nodeName, "key_pair")
+	instance.KeyPair, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"key_pair", false)
 	if err != nil {
 		return instance, err
 	}
 
 	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
-	secGroups, err := getProperyValueString(kv, deploymentID, nodeName, "security_groups")
+	secGroups, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"security_groups", false)
 	if err != nil {
 		return instance, err
 	}
@@ -179,11 +183,11 @@ func computeInstanceMandatoryAttributeInPair(kv *api.KV, deploymentID, nodeName,
 	attr1, attr2 string) (string, string, error) {
 	var err error
 	var value1, value2 string
-	value1, err = getProperyValueString(kv, deploymentID, nodeName, attr1)
+	value1, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, attr1, false)
 	if err != nil {
 		return value1, value2, err
 	}
-	value2, err = getProperyValueString(kv, deploymentID, nodeName, attr2)
+	value2, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, attr2, false)
 	if err != nil {
 		return value1, value2, err
 	}
@@ -551,18 +555,4 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	outputs[path.Join(prefix, "network_id")] = networkIDKey
 	outputs[path.Join(prefix, "addresses")] = networkAddressesKey
 	return nil
-}
-
-func getProperyValueString(kv *api.KV, deploymentID, nodeName, propertyName string) (string, error) {
-
-	var stringValue string
-	propValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
-	if err != nil {
-		return stringValue, err
-	}
-	if propValue != nil {
-		stringValue = propValue.RawString()
-	}
-
-	return stringValue, err
 }
