@@ -22,6 +22,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -373,6 +374,8 @@ func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interfac
 			_, err = clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 		case *corev1.Service:
 			_, err = clientset.CoreV1().Services(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+		case *appsv1.StatefulSet:
+			_, err = clientset.Apps().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 		default:
 			return false, nil
 		}

@@ -357,10 +357,10 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 		if err != nil {
 			return errors.Wrapf(err, "Failed to delete StatefulSet %s", stfsName)
 		}
-		// err = waitForStatefulSetDeletion(ctx, clientset, pvc)
-		// if err != nil {
-		// 	return err
-		// }
+		err = waitForK8sObjectDeletion(ctx, clientset, stfs)
+		if err != nil {
+			return err
+		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s PVC %s deleted!", stfsName)
 	// TODO: manage scale
 	//case k8sScaleOperation:
