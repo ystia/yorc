@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 3.2.2 (July 09, 2019)
 
 ## 3.2.1 (July 05, 2019)
