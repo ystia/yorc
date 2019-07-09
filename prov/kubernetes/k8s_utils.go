@@ -65,6 +65,7 @@ func waitForDeploymentDeletion(ctx context.Context, clientset kubernetes.Interfa
 
 }
 
+// /!\ Deprecated, use waitForK8sObjectCompletion instead /!\
 func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		deployment, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
@@ -350,6 +351,7 @@ func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc
 
 }
 
+// /!\ Deprecated, use waitForK8sObjectCompletion instead /!\
 func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		pvc, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
@@ -364,6 +366,7 @@ func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, p
 
 }
 
+// Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
 func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject runtime.Object) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		var err error
@@ -388,4 +391,42 @@ func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interfac
 		}
 		return false, nil
 	}, ctx.Done())
+}
+
+// Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
+func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject runtime.Object) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		switch concreteObj := k8sObject.(type) {
+		case *v1beta1.Deployment:
+			if dep, err := clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+				return false, err
+			} else {
+				if dep.Status.AvailableReplicas == *concreteObj.Spec.Replicas {
+					return true, nil
+				}
+				if failed, msg := isDeploymentFailed(clientset, concreteObj); failed {
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", concreteObj.Name, msg)
+					return false, errors.Errorf("Kubernetes deployment %q: %s", concreteObj.Name, msg)
+				}
+			}
+
+		case *appsv1.StatefulSet:
+			if _, err := clientset.Apps().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+				return false, err
+			}
+
+		case *corev1.PersistentVolumeClaim:
+			if pvc, err := clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+				return false, err
+			} else {
+				if pvc.Status.Phase == corev1.ClaimBound {
+					return true, nil
+				}
+			}
+		default:
+			return false, nil
+		}
+		return false, nil
+	}, ctx.Done())
+
 }

@@ -223,7 +223,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 
 		streamDeploymentLogs(ctx, e.deploymentID, clientset, deployment)
 
-		err = waitForDeploymentCompletion(ctx, e.deploymentID, clientset, deployment)
+		err = waitForK8sObjectCompletion(ctx, e.deploymentID, clientset, deployment)
 		if err != nil {
 			return err
 		}
@@ -301,7 +301,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		}
 		streamDeploymentLogs(ctx, e.deploymentID, clientset, deployment)
 
-		err = waitForDeploymentCompletion(ctx, e.deploymentID, clientset, deployment)
+		err = waitForK8sObjectCompletion(ctx, e.deploymentID, clientset, deployment)
 		if err != nil {
 			return err
 		}
@@ -341,10 +341,10 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 		if err != nil {
 			return errors.Wrap(err, "Failed to create statefulSet")
 		}
-		// err = waitForStatefulSetCreation(ctx, clientset, pvc)
-		// if err != nil {
-		// 	return err
-		// }
+		err = waitForK8sObjectCompletion(ctx, e.deploymentID, clientset, stfs)
+		if err != nil {
+			return err
+		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s StatefulSet %s created in namespace %s", stfs.Name, namespace)
 	case k8sDeleteOperation:
 		var stfsName = stfsRepr.Name
@@ -463,7 +463,7 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create persistent volume claim %s", pvc.Name)
 		}
-		err = waitForPVCCompletion(ctx, clientset, pvc)
+		err = waitForK8sObjectCompletion(ctx, e.deploymentID, clientset, pvc)
 		if err != nil {
 			return err
 		}
