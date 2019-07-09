@@ -24,6 +24,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -131,7 +132,8 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 	case deploymentResourceType:
 		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
 	case statefulsetResourceType:
-		return errors.Errorf("Unsupported k8s statefulset type %q", e.nodeType)
+		return e.manageStatefulSetResource(ctx, clientset, generator, op, rSpec.RawString())
+		//return errors.Errorf("Unsupported k8s statefulset type %q", e.nodeType)
 	case serviceResourceType:
 		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
 	case simpleRessourceType:
@@ -312,6 +314,59 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
 
+	return nil
+}
+
+func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
+	var stfsRepr appsv1.StatefulSet
+	if rSpec == "" {
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
+	}
+	if err = json.Unmarshal([]byte(rSpec), &stfsRepr); err != nil {
+		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+	}
+	objectMeta := stfsRepr.ObjectMeta
+	namespace, nsProvided := getNamespace(e.deploymentID, objectMeta)
+
+	switch operationType {
+	case k8sCreateOperation:
+		if !nsProvided {
+			err = createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+			if err != nil {
+				return err
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
+		}
+		stfs, err := clientset.Apps().StatefulSets(namespace).Create(&stfsRepr)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create statefulSet")
+		}
+		// err = waitForStatefulSetCreation(ctx, clientset, pvc)
+		// if err != nil {
+		// 	return err
+		// }
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s StatefulSet %s created in namespace %s", stfs.Name, namespace)
+	case k8sDeleteOperation:
+		var stfsName = stfsRepr.Name
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Deleting k8s StatefulSet %s", stfsName)
+		stfs, err := clientset.Apps().StatefulSets(namespace).Get(stfsName, metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "StatefuSet %s does not exists", stfs.Name)
+		}
+		err = clientset.Apps().StatefulSets(namespace).Delete(stfsName, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to delete StatefulSet %s", stfsName)
+		}
+		// err = waitForStatefulSetDeletion(ctx, clientset, pvc)
+		// if err != nil {
+		// 	return err
+		// }
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s PVC %s deleted!", stfsName)
+	// TODO: manage scale
+	//case k8sScaleOperation:
+	default:
+		return errors.Errorf("Unsupported operation on k8s resource")
+	}
 	return nil
 }
 
