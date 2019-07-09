@@ -27,9 +27,13 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
+const (
+	workflowsPrefix = "workflows"
+)
+
 // GetWorkflows returns the list of workflows names for a given deployment
 func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
-	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows")
+	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix)
 	keys, _, err := kv.Keys(workflowsPath+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -43,7 +47,7 @@ func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
 
 // ReadWorkflow reads a workflow definition from Consul and built its TOSCA representation
 func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error) {
-	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName)
+	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix, workflowName)
 	steps, _, err := kv.Keys(workflowPath+"/steps/", "/", nil)
 	wf := tosca.Workflow{}
 	if err != nil {
@@ -175,6 +179,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 
 // DeleteWorkflow deletes the given workflow from the Consul store
 func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+		workflowsPrefix, workflowName), nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
