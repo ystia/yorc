@@ -57,6 +57,7 @@ func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
 	return ok, ""
 }
 
+// IsWorkflowTask returns true if the task type is related to workflow
 func IsWorkflowTask(taskType TaskType) bool {
 	switch taskType {
 	case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut, TaskTypeCustomWorkflow, TaskTypeAddNodes, TaskTypeRemoveNodes:
