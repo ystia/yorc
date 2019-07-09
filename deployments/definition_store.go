@@ -173,46 +173,19 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string, nodes []
 	ctxStore, errGroup, consulStore := consulutil.WithContext(ctx)
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
-		err := fixGetOperationOutputForRelationship(ctx, kv, deploymentID, nodeName)
+		isCompute, err := createInstanceAndFixModel(ctxStore, consulStore, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
-		err = fixGetOperationOutputForHost(ctxStore, kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-
-		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-		if !substitutable {
-			err = createInstancesForNode(ctxStore, consulStore, kv, deploymentID, nodeName)
-			if err != nil {
-				return err
-			}
-			err = fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
-			if err != nil {
-				return err
-			}
-			var isCompute bool
-			isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
-			if err != nil {
-				return err
-			}
-			if isCompute {
-				computes = append(computes, nodeName)
-			}
+		if isCompute {
+			computes = append(computes, nodeName)
 		}
 	}
-	for _, nodeName := range computes {
-
-		err := createMissingBlockStorageForNode(consulStore, kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
+	err := createMissingBlockStorageForNodes(consulStore, kv, deploymentID, computes)
+	if err != nil {
+		return err
 	}
-	err := errGroup.Wait()
+	err = errGroup.Wait()
 	if err != nil {
 		return err
 	}
@@ -235,6 +208,38 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string, nodes []
 		return err
 	}
 	return errGroup.Wait()
+}
+
+func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore,
+	kv *api.KV, deploymentID string, nodeName string) (bool, error) {
+
+	var isCompute bool
+	err := fixGetOperationOutputForRelationship(ctx, kv, deploymentID, nodeName)
+	if err != nil {
+		return isCompute, err
+	}
+	err = fixGetOperationOutputForHost(ctx, kv, deploymentID, nodeName)
+	if err != nil {
+		return isCompute, err
+	}
+
+	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return isCompute, err
+	}
+	if !substitutable {
+		err = createInstancesForNode(ctx, consulStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return isCompute, err
+		}
+		err = fixAlienBlockStorages(ctx, kv, deploymentID, nodeName)
+		if err != nil {
+			return isCompute, err
+		}
+		isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
+	}
+
+	return isCompute, err
 }
 
 // In this function we iterate over all node to know which node need to have a HOST output and search for this HOST and tell him to export this output
@@ -459,39 +464,44 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 	}
 }
 
-// createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
-func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
-	if err != nil {
-		return err
-	}
+// createInstancesForNodes checks if the given nodes are hosted on a Scalable node,
+// stores the number of required instances and sets the instance's status to INITIAL
+func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, kv *api.KV,
+	deploymentID string, nodeNames []string) error {
 
-	nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-
-	var bsName []string
-
-	for _, requirement := range requirementsKey {
-		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+	for _, nodeName := range nodeNames {
+		requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		} else if capability == nil {
-			continue
+			return err
 		}
 
-		bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+		nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
 		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
+			return err
 		}
 
-		bsName = append(bsName, string(bsNode.Value))
-	}
+		var bsName []string
 
-	for _, name := range bsName {
-		createNodeInstances(consulStore, kv, nbInstances, deploymentID, name)
+		for _, requirement := range requirementsKey {
+			capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+			if err != nil {
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			} else if capability == nil {
+				continue
+			}
+
+			bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+			if err != nil {
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+
+			}
+
+			bsName = append(bsName, string(bsNode.Value))
+		}
+
+		for _, name := range bsName {
+			createNodeInstances(consulStore, kv, nbInstances, deploymentID, name)
+		}
 	}
 
 	return nil
