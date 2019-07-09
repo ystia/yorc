@@ -148,8 +148,7 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 	if err != nil {
 		return instance, err
 	}
-	instance.Region, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
-		"region", false)
+	instance.Region, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "region", false)
 	if err != nil {
 		return instance, err
 	}
@@ -157,15 +156,13 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	instance.KeyPair, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
-		"key_pair", false)
+	instance.KeyPair, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "key_pair", false)
 	if err != nil {
 		return instance, err
 	}
 
 	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
-	secGroups, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
-		"security_groups", false)
+	secGroups, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "security_groups", false)
 	if err != nil {
 		return instance, err
 	}
