@@ -54,7 +54,19 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -117,7 +129,19 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -185,7 +209,19 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, make(map[string]string), &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -249,7 +285,19 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/ServerGroupPolicy_sg/0/attributes/id"): []byte("my_sg_id"),
 	})
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "ComputeA", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "ComputeA",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -263,4 +311,45 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 	require.Equal(t, "7d9bd308-d9c1-4952-a410-95b761672499", compute.ImageID)
 	require.Equal(t, "4", compute.FlavorID)
 	require.Equal(t, "my_sg_id", compute.SchedulerHints.Group)
+}
+
+func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
+				"provisioning_over_fip_allowed": false,
+				"private_network_name":          "test",
+			}}}
+	infrastructure := commons.Infrastructure{}
+	outputs := make(map[string]string, 0)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	opts := osInstanceOptions{
+		kv:             kv,
+		cfg:            cfg,
+		infrastructure: &infrastructure,
+		deploymentID:   deploymentID,
+		nodeName:       "ComputeA",
+		instanceName:   "0",
+		resourceTypes:  resourceTypes,
+	}
+
+	networkNodeName := "Network"
+	networkID := "netID"
+	instKey := "instKey"
+	srv.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+			"/topology/instances", networkNodeName, opts.instanceName, "attributes", "network_id"): []byte(networkID),
+	})
+
+	instance := ComputeInstance{
+		Name: "instanceName",
+	}
+	err := computeNetworkAttributes(context.Background(), opts, networkNodeName, instKey,
+		&instance, outputs)
+	require.NoError(t, err, "Failed to compute network attributes")
+	require.Equal(t, 1, len(instance.Networks), "Expected to have one compute instance network")
+	assert.Equal(t, networkID, instance.Networks[0].UUID, "Wrong network ID")
 }

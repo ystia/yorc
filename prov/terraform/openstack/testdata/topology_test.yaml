@@ -1,0 +1,165 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: Test
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+
+topology_template:
+  node_templates:
+    BlockStorage:
+      type: yorc.nodes.openstack.BlockStorage
+      properties:
+        deletable: false
+        size: "10 GB"
+      requirements:
+        - attachToComputeAttach:
+            type_requirement: attachment
+            node: Compute
+            capability: tosca.capabilities.Attachment
+            relationship: tosca.relationships.AttachTo
+    Compute:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      requirements:
+        - networkNetwork2Connection:
+            type_requirement: network
+            node: Network_2
+            capability: tosca.capabilities.Connectivity
+            relationship: tosca.relationships.Network
+        - Compute_FIPCompute:
+            type_requirement: network
+            node: FIPCompute
+            capability: yorc.capabilities.openstack.FIPConnectivity
+            relationship: tosca.relationships.Network
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/centos/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Network_2:
+      type: yorc.nodes.openstack.Network
+      properties:
+        ip_version: 4
+        cidr: "10.1.0.0/24"
+    FIPCompute:
+      type: yorc.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: "public-net1"
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          target: Compute
+          activities:
+            - delegate: install
+        FIPCompute_install:
+          target: FIPCompute
+          activities:
+            - delegate: install
+          on_success:
+            - Compute_install
+        Network_2_install:
+          target: Network_2
+          activities:
+            - delegate: install
+          on_success:
+            - Compute_install
+        BlockStorage_install:
+          target: BlockStorage
+          activities:
+            - delegate: install
+          on_success:
+            - Compute_install
+    uninstall:
+      steps:
+        Compute_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+          on_success:
+            - Network_2_uninstall
+            - FIPCompute_uninstall
+            - BlockStorage_uninstall
+        Network_2_uninstall:
+          target: Network_2
+          activities:
+            - delegate: uninstall
+        FIPCompute_uninstall:
+          target: FIPCompute
+          activities:
+            - delegate: uninstall
+        BlockStorage_uninstall:
+          target: BlockStorage
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        Network_2_start:
+          target: Network_2
+          activities:
+            - delegate: start
+          on_success:
+            - Compute_start
+        Compute_start:
+          target: Compute
+          activities:
+            - delegate: start
+          on_success:
+            - BlockStorage_start
+        FIPCompute_start:
+          target: FIPCompute
+          activities:
+            - delegate: start
+          on_success:
+            - Compute_start
+        BlockStorage_start:
+          target: BlockStorage
+          activities:
+            - delegate: start
+    stop:
+      steps:
+        FIPCompute_stop:
+          target: FIPCompute
+          activities:
+            - delegate: stop
+        Network_2_stop:
+          target: Network_2
+          activities:
+            - delegate: stop
+        BlockStorage_stop:
+          target: BlockStorage
+          activities:
+            - delegate: stop
+          on_success:
+            - Compute_stop
+        Compute_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+          on_success:
+            - FIPCompute_stop
+            - Network_2_stop
+    run:
+    cancel:

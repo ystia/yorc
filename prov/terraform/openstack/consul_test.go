@@ -66,5 +66,8 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("OSInstanceWithServerGroup", func(t *testing.T) {
 			testOSInstanceWithServerGroup(t, kv, srv)
 		})
+		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
+			testGenerateTerraformInfo(t, srv, kv)
+		})
 	})
 }
