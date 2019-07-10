@@ -69,6 +69,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testInlineWorkflow", func(t *testing.T) {
 			testInlineWorkflow(t, kv)
 		})
+		t.Run("testDeleteWorkflow", func(t *testing.T) {
+			testInlineWorkflow(t, kv)
+		})
 		t.Run("testCheckCycleInNestedWorkflows", func(t *testing.T) {
 			testCheckCycleInNestedWorkflows(t, kv)
 		})
