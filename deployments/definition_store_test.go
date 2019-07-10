@@ -962,10 +962,11 @@ func testDeleteWorkflow(t *testing.T, kv *api.KV) {
 	require.Equal(t, len(workflows), 3)
 
 	err = DeleteWorkflow(kv, deploymentID, "install")
-	require.NoError(t, err, "Unexpected erorr deleting install workflow")
+	require.NoError(t, err, "Unexpected error deleting install workflow")
 
-	_, err = ReadWorkflow(kv, deploymentID, "install")
-	require.Error(t, err, "Expected to get an error reading a non-existing workflow")
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
+	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
 
 }
 
