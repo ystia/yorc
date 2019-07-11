@@ -1,0 +1,37 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+description: Alien4Cloud generated service template
+metadata:
+  template_name: Test
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+imports:
+  - openstack-types: <yorc-openstack-types.yml>
+
+topology_template:
+  node_templates:
+    Compute:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        flavor: 2
+        key_pair: yorc
+        security_groups: openbar,default
+        boot_volume:
+          uuid: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
+          source: image
+          destination: volume
+          size: 10 GB
+          delete_on_termination: "delete"
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+            credentials: {user: cloud-user}
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1

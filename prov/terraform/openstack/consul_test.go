@@ -72,5 +72,11 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
 			testGenerateTerraformInfo(t, srv, kv)
 		})
+		t.Run("TestComputeBootVolumeWrongSize", func(t *testing.T) {
+			testComputeBootVolumeWrongSize(t, srv, kv)
+		})
+		t.Run("TestComputeBootVolumeWrongType", func(t *testing.T) {
+			testComputeBootVolumeWrongType(t, srv, kv)
+		})
 	})
 }
