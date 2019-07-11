@@ -45,49 +45,65 @@ func (m *mockActivity) Value() string {
 func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Configuration) {
 	log.SetDebug(true)
 
-	activity := &mockActivity{t: builder.ActivityTypeDelegate, v: "install"}
 	ctx := context.Background()
 
-	dep := "monitoring1"
-	node := "Compute1"
-	instance := "0"
-	expectedCheck := NewCheck(dep, node, instance)
+	type args struct {
+		deploymentID string
+		nodeName     string
+		instanceName string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{"TCPMonitoring", args{"monitoring1", "Compute1", "0"}},
+		{"HTTPMonitoring", args{"monitoring1", "Compute2", "0"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	addMonitoringHook(ctx, cfg, "", dep, node, activity)
-	time.Sleep(2 * time.Second)
+			expectedCheck := NewCheck(tt.args.deploymentID, tt.args.nodeName, tt.args.instanceName)
 
-	checkReports, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
-		if cr.DeploymentID == dep {
-			return true
-		}
-		return false
-	})
-	require.Nil(t, err, "Unexpected error while getting check reports list")
-	require.Len(t, checkReports, 1, "1 check is expected")
-	require.Equal(t, expectedCheck.Report.DeploymentID, checkReports[0].DeploymentID, "unexpected deploymentID")
-	require.Equal(t, expectedCheck.Report.NodeName, checkReports[0].NodeName, "unexpected node name")
-	require.Equal(t, expectedCheck.Report.Instance, checkReports[0].Instance, "unexpected instance")
-	require.Equal(t, CheckStatusCRITICAL, checkReports[0].Status, "unexpected status")
+			activity := &mockActivity{t: builder.ActivityTypeDelegate, v: "install"}
 
-	// Check the instance state has been updated
-	state, err := deployments.GetInstanceState(client.KV(), "monitoring1", "Compute1", "0")
-	require.Nil(t, err, "Unexpected error while node state")
-	require.Equal(t, tosca.NodeStateError, state)
+			addMonitoringHook(ctx, cfg, "", tt.args.deploymentID, tt.args.nodeName, activity)
+			time.Sleep(2 * time.Second)
 
-	activity = &mockActivity{t: builder.ActivityTypeDelegate, v: "uninstall"}
-	removeMonitoringHook(ctx, cfg, "", dep, node, activity)
+			checkReports, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+				if cr.DeploymentID == tt.args.deploymentID {
+					return true
+				}
+				return false
+			})
+			require.Nil(t, err, "Unexpected error while getting check reports list")
+			require.Len(t, checkReports, 1, "1 check is expected")
+			require.Equal(t, expectedCheck.Report.DeploymentID, checkReports[0].DeploymentID, "unexpected deploymentID")
+			require.Equal(t, expectedCheck.Report.NodeName, checkReports[0].NodeName, "unexpected node name")
+			require.Equal(t, expectedCheck.Report.Instance, checkReports[0].Instance, "unexpected instance")
+			require.Equal(t, CheckStatusCRITICAL, checkReports[0].Status, "unexpected status")
 
-	time.Sleep(1 * time.Second)
-	require.Nil(t, err, "Unexpected error while removing check")
-	checkReports, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
-		if cr.DeploymentID == dep {
-			return true
-		}
-		return false
-	})
-	require.Nil(t, err, "Unexpected error while getting check reports list")
-	require.Len(t, checkReports, 0, "0 check is expected")
-	require.Len(t, defaultMonManager.checks, 0, "0 check is expected in work map")
+			// Check the instance state has been updated
+			state, err := deployments.GetInstanceState(client.KV(), tt.args.deploymentID, tt.args.nodeName, "0")
+			require.Nil(t, err, "Unexpected error while node state")
+			require.Equal(t, tosca.NodeStateError, state)
+
+			activity = &mockActivity{t: builder.ActivityTypeDelegate, v: "uninstall"}
+			removeMonitoringHook(ctx, cfg, "", tt.args.deploymentID, tt.args.nodeName, activity)
+
+			time.Sleep(1 * time.Second)
+			require.Nil(t, err, "Unexpected error while removing check")
+			checkReports, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+				if cr.DeploymentID == tt.args.deploymentID {
+					return true
+				}
+				return false
+			})
+			require.Nil(t, err, "Unexpected error while getting check reports list")
+			require.Len(t, checkReports, 0, "0 check is expected")
+			require.Len(t, defaultMonManager.checks, 0, "0 check is expected in work map")
+		})
+	}
+
 }
 
 func testIsMonitoringRequiredWithNoPolicy(t *testing.T, client *api.Client) {

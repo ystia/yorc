@@ -48,8 +48,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 	// - SetState activity and node state "Started"
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).
-			Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
 		return
 	}
 	kv := cc.KV()
@@ -82,8 +81,7 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 	// - SetState activity and node state "Deleted"
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).
-			Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
 		return
 	}
 	kv := cc.KV()
