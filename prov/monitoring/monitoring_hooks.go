@@ -46,13 +46,18 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 	// Monitoring check are added after (post-hook):
 	// - Delegate activity and install operation
 	// - SetState activity and node state "Started"
-
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+		return
+	}
+	kv := cc.KV()
 	switch {
 	case activity.Type() == builder.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
 		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
 
 		// Check if monitoring is required
-		isMonitorReq, policyName, err := checkExistingMonitoringPolicy(defaultMonManager.cc.KV(), deploymentID, target)
+		isMonitorReq, policyName, err := checkExistingMonitoringPolicy(kv, deploymentID, target)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
@@ -62,7 +67,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 			return
 		}
 
-		err = addMonitoringPolicyForTarget(defaultMonManager.cc.KV(), taskID, deploymentID, target, policyName)
+		err = addMonitoringPolicyForTarget(kv, taskID, deploymentID, target, policyName)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to add monitoring policy for node name:%q due to: %v", target, err)
@@ -74,12 +79,18 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 	// Monitoring check are removed before (pre-hook):
 	// - Delegate activity and uninstall operation
 	// - SetState activity and node state "Deleted"
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+		return
+	}
+	kv := cc.KV()
 	switch {
 	case activity.Type() == builder.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
 		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
 
 		// Check if monitoring has been required
-		isMonitorReq, _, err := checkExistingMonitoringPolicy(defaultMonManager.cc.KV(), deploymentID, target)
+		isMonitorReq, _, err := checkExistingMonitoringPolicy(kv, deploymentID, target)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
@@ -89,7 +100,7 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 			return
 		}
 
-		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
+		instances, err := tasks.GetInstances(kv, taskID, deploymentID, target)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
@@ -146,7 +157,7 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 	if err != nil {
 		return errors.Errorf("Failed to retrieve port as correct integer for monitoring policy:%q due to: %v", policyName, err)
 	}
-	instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
+	instances, err := tasks.GetInstances(kv, taskID, deploymentID, target)
 	if err != nil {
 		return err
 	}
@@ -155,15 +166,15 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 	case httpMonitoring:
 		return applyHTTPMonitoringPolicy(kv, policyName, deploymentID, target, timeInterval, port, instances)
 	case tcpMonitoring:
-		return applyTCPMonitoringPolicy(deploymentID, target, timeInterval, port, instances)
+		return applyTCPMonitoringPolicy(kv, deploymentID, target, timeInterval, port, instances)
 	default:
 		return errors.Errorf("Unsupported policy type:%q for policy:%q", policyType, policyName)
 	}
 }
 
-func applyTCPMonitoringPolicy(deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
+func applyTCPMonitoringPolicy(kv *api.KV, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
-		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
+		ipAddress, err := retrieveIPAddress(kv, deploymentID, target, instance)
 		if err != nil {
 			return err
 		}
@@ -176,7 +187,7 @@ func applyTCPMonitoringPolicy(deploymentID, target string, timeInterval time.Dur
 
 func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
-		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
+		ipAddress, err := retrieveIPAddress(kv, deploymentID, target, instance)
 		if err != nil {
 			return err
 		}
@@ -239,8 +250,8 @@ func retrieveTLSClientConfig(kv *api.KV, policyName, deploymentID string) (map[s
 	return tlsClientConfig, nil
 }
 
-func retrieveIPAddress(deploymentID, target, instance string) (string, error) {
-	ipAddress, err := deployments.GetInstanceAttributeValue(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
+func retrieveIPAddress(kv *api.KV, deploymentID, target, instance string) (string, error) {
+	ipAddress, err := deployments.GetInstanceAttributeValue(kv, deploymentID, target, instance, "ip_address")
 	if err != nil {
 		return "", errors.Errorf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
 	}
