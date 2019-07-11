@@ -78,22 +78,26 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deplo
 		return Subnet{}, err
 	}
 
-	subnet.CIDR, err = getProperyValueString(kv, deploymentID, nodeName, "cidr")
+	subnet.CIDR, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"cidr", false)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	subnet.GatewayIP, err = getProperyValueString(kv, deploymentID, nodeName, "gateway_ip")
+	subnet.GatewayIP, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"gateway_ip", false)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	startIP, err := getProperyValueString(kv, deploymentID, nodeName, "start_ip")
+	startIP, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"start_ip", false)
 	if err != nil {
 		return Subnet{}, err
 	}
 	if startIP != "" {
-		endIP, err := getProperyValueString(kv, deploymentID, nodeName, "end_ip")
+		endIP, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+			"end_ip", false)
 		if err != nil {
 			return Subnet{}, err
 		}
@@ -160,7 +164,8 @@ func getSubnetNetworkID(kv *api.KV, deploymentID, nodeName, resourceType string)
 func isDHCPEnabled(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 
 	dhcpEnabled := true
-	dhcpVal, err := getProperyValueString(kv, deploymentID, nodeName, "dhcp_enabled")
+	dhcpVal, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		"dhcp_enabled", false)
 	if err != nil {
 		return dhcpEnabled, err
 	}
