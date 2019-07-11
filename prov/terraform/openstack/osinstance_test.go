@@ -39,7 +39,8 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 	return deploymentID
 }
 
-func testSimpleOSInstance(t *testing.T, kv *api.KV) {
+// initTestInfra loads a deployment topology and creates resources
+func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []string, map[string]string, error) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
@@ -49,6 +50,7 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 				"region":               "RegionTwo",
 				"private_network_name": "test",
 			}}}
+
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -67,6 +69,11 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 			resourceTypes:  resourceTypes,
 		},
 		outputs, &env)
+	return deploymentID, infrastructure, env, outputs, err
+}
+
+func testSimpleOSInstance(t *testing.T, kv *api.KV) {
+	deploymentID, infrastructure, env, outputs, err := initTestInfra(t, kv)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -113,33 +120,7 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 }
 
 func testOSInstanceWithBootVolume(t *testing.T, kv *api.KV) {
-	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region":               "RegionTwo",
-				"private_network_name": "test",
-			}}}
-	g := osGenerator{}
-	infrastructure := commons.Infrastructure{}
-	env := make([]string, 0)
-	outputs := make(map[string]string, 0)
-
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
-	err := g.generateOSInstance(
-		context.Background(),
-		osInstanceOptions{
-			kv:             kv,
-			cfg:            cfg,
-			infrastructure: &infrastructure,
-			deploymentID:   deploymentID,
-			nodeName:       "Compute",
-			instanceName:   "0",
-			resourceTypes:  resourceTypes,
-		},
-		outputs, &env)
+	_, infrastructure, _, _, err := initTestInfra(t, kv)
 	require.NoError(t, err, "Failed to create an OS instance with boot volume")
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)

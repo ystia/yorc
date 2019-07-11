@@ -28,7 +28,6 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/helper/sizeutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
@@ -117,24 +116,18 @@ func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nod
 
 func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
-	kv := opts.kv
-	cfg := opts.cfg
-	deploymentID := opts.deploymentID
-	nodeName := opts.nodeName
-	instanceName := opts.instanceName
-
 	instance := ComputeInstance{}
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(opts.kv, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return instance, err
 	}
 	if nodeType != "yorc.nodes.openstack.Compute" {
-		return instance, errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
+		return instance, errors.Errorf("Unsupported node type for %q: %s", opts.nodeName, nodeType)
 	}
 
-	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
+	instance.Name = opts.cfg.ResourcesPrefix + opts.nodeName + "-" + opts.instanceName
 
-	if instance.BootVolume, err = computeBootVolume(kv, deploymentID, nodeName); err != nil {
+	if instance.BootVolume, err = computeBootVolume(opts.kv, opts.deploymentID, opts.nodeName); err != nil {
 		return instance, err
 	}
 
@@ -142,36 +135,36 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		// When no boot volume is defined, it is mandatory to define an image
 		// or an image name
 		if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
-			kv, deploymentID, nodeName, "image", "imageName"); err != nil {
+			opts.kv, opts.deploymentID, opts.nodeName, "image", "imageName"); err != nil {
 			return instance, err
 		}
 	}
 
 	if instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
-		kv, deploymentID, nodeName, "flavor", "flavorName"); err != nil {
+		opts.kv, opts.deploymentID, opts.nodeName, "flavor", "flavorName"); err != nil {
 		return instance, err
 	}
 
-	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(kv, deploymentID,
-		nodeName, "availability_zone", false)
+	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID,
+		opts.nodeName, "availability_zone", false)
 	if err != nil {
 		return instance, err
 	}
-	instance.Region, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "region", false)
+	instance.Region, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "region", false)
 	if err != nil {
 		return instance, err
 	}
 	if instance.Region == "" {
-		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
+		instance.Region = opts.cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	instance.KeyPair, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "key_pair", false)
+	instance.KeyPair, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "key_pair", false)
 	if err != nil {
 		return instance, err
 	}
 
-	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
-	secGroups, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "security_groups", false)
+	instance.SecurityGroups = opts.cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
+	secGroups, err := deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "security_groups", false)
 	if err != nil {
 		return instance, err
 	}
@@ -204,48 +197,6 @@ func computeInstanceMandatoryAttributeInPair(kv *api.KV, deploymentID, nodeName,
 	}
 
 	return value1, value2, err
-}
-
-// computeBootVolume gets value of a boot volume if any is defined
-// If none, nil is returned
-func computeBootVolume(kv *api.KV, deploymentID, nodeName string) (*BootVolume, error) {
-	var vol BootVolume
-	var err error
-	// If a boot volume is defined, its source definition is mandatory
-	vol.Source, err = deployments.GetStringNodePropertyValue(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
-	if err != nil || vol.Source == "" {
-		return nil, err
-	}
-
-	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, deleteOnTerminationTOSCAKey}
-	strValues := make(map[string]string, len(keys))
-	for _, key := range keys {
-		strValues[key], err = deployments.GetStringNodePropertyValue(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	vol.UUID = strValues[uuidTOSCAKey]
-	vol.Destination = strValues[destinationTOSCAKey]
-	if strValues[sizeTOSCAKey] != "" {
-		vol.Size, err = sizeutil.ConvertToGB(strValues[sizeTOSCAKey])
-		if err != nil {
-			log.Printf("Failed to convert %s %s boot volume size %q : %s", deploymentID,
-				nodeName, strValues[sizeTOSCAKey], err.Error())
-			return nil, err
-		}
-	}
-	if strValues[deleteOnTerminationTOSCAKey] != "" {
-		vol.DeleteOnTermination, err = strconv.ParseBool(strValues[deleteOnTerminationTOSCAKey])
-		if err != nil {
-			log.Printf("Failed to convert %s %s %s boolean value %q : %s", deploymentID,
-				nodeName, deleteOnTerminationTOSCAKey, strValues[sizeTOSCAKey], err.Error())
-			return nil, err
-		}
-	}
-
-	return &vol, err
 }
 
 func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
