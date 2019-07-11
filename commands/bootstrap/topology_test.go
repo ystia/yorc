@@ -37,23 +37,53 @@ func TestCreateTopology(t *testing.T) {
 	workingDirectoryPath = tempdir
 	resourcesDir := filepath.Join(workingDirectoryPath, "bootstrapResources")
 
-	resourcesZip := filepath.Join("resources", "topology", "tosca_types.zip")
-	// copying resources zip file to temporary directory
-	input, err := ioutil.ReadFile(resourcesZip)
-	require.NoError(t, err, "Failed to ready resource zip file %s", resourcesZip)
-
-	err = ioutil.WriteFile(filepath.Join(tempdir, "tosca_types.zip"), input, 0744)
-	require.NoError(t, err, "Failed to copy resources zip file %s to temp dir", resourcesZip)
-
-	err = extractResources(resourcesZip,
-		filepath.Join(resourcesDir, "topology"))
+	topologyDir := filepath.Join(resourcesDir, "topology")
+	srcResourcesDir := filepath.Join("resources", "topology")
+	err = copyFiles(srcResourcesDir, topologyDir)
+	require.NoError(t, err, "Failed to copy resources from %s to %s", srcResourcesDir, topologyDir)
+	resourcesZip, _ := getResourcesZipPath()
+	err = extractResources(resourcesZip, topologyDir)
 	require.NoError(t, err, "Failed to extract resources")
 
 	configuration := commands.GetConfig()
 	err = initializeInputs("testdata/inputs_test.yaml", resourcesDir, configuration)
 	require.NoError(t, err, "Failed to initialize inputs")
 
-	err = createTopology(tempdir)
+	err = createTopology(topologyDir)
 	require.NoError(t, err, "Failed to create topology")
+
+	// Check a topology file was created
+	topologyFile := filepath.Join(topologyDir, "topology.yaml")
+	_, err = os.Stat(topologyFile)
+	require.NoError(t, err, "No topology.yaml file was generated")
+
+}
+
+func copyFiles(srcDir, dstDir string) error {
+	err := os.MkdirAll(dstDir, 0700)
+	if err != nil {
+		return err
+	}
+
+	err = filepath.Walk(srcDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			input, newErr := ioutil.ReadFile(path)
+			if newErr != nil {
+				return newErr
+			}
+
+			newErr = ioutil.WriteFile(filepath.Join(dstDir, filepath.Base(path)), input, 0744)
+			return newErr
+		})
+
+	return err
 
 }

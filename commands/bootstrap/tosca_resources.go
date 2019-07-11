@@ -17,9 +17,15 @@
 package bootstrap
 
 import (
+	res "gopkg.in/cookieo9/resources-go.v2"
+
 	"github.com/ystia/yorc/v4/resources"
 )
 
 func getTOSCADefinition(name string) ([]byte, error) {
 	return resources.GetTOSCADefinition(name)
+}
+
+func getResourcesZipPath() (string, error) {
+	return res.ExecutablePath()
 }

@@ -41,3 +41,7 @@ func getTOSCADefinition(name string) ([]byte, error) {
 	}
 	return resources.ReadResource(toscaRes)
 }
+
+func getResourcesZipPath() (string, error) {
+	return filepath.Clean(filepath.Join("resources", "topology", "tosca_types.zip")), nil
+}
