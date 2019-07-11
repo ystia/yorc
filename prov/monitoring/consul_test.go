@@ -29,12 +29,18 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	cfg := config.Configuration{
 		HTTPAddress: "localhost",
 		ServerID:    "0",
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
 	}
 
 	// Register the consul service
 	chStop := make(chan struct{})
-	consulutil.RegisterServerAsConsulService(cfg, client, chStop)
-
+	err := consulutil.RegisterServerAsConsulService(cfg, client, chStop)
+	if err != nil {
+		t.Fatalf("failed to setup Yorc Consul service %v", err)
+	}
 	// Start/Stop the monitoring manager
 	Start(cfg, client)
 	defer func() {
@@ -100,7 +106,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 
 	t.Run("groupMonitoring", func(t *testing.T) {
 		t.Run("testComputeMonitoringHook", func(t *testing.T) {
-			testComputeMonitoringHook(t, client, config.Configuration{})
+			testComputeMonitoringHook(t, client, cfg)
 		})
 		t.Run("testIsMonitoringRequiredWithNoPolicy", func(t *testing.T) {
 			testIsMonitoringRequiredWithNoPolicy(t, client)
