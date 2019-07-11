@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"testing"
@@ -31,7 +32,7 @@ func TestCreateTopology(t *testing.T) {
 
 	tempdir, err := ioutil.TempDir("", path.Base(t.Name()))
 	require.NoError(t, err, "Failed to create temporary directory")
-	//	defer os.RemoveAll(tempdir)
+	defer os.RemoveAll(tempdir)
 
 	workingDirectoryPath = tempdir
 	resourcesDir := filepath.Join(workingDirectoryPath, "bootstrapResources")
