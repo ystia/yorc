@@ -201,6 +201,12 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab20a/attributes/id": []byte("Node1-20"),
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab2/attributes/id":   []byte("Node1-2"),
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za3/attributes/id":   []byte("Node1-3"),
+		// Test testDeleteNode
+		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/type":                                               []byte("tosca.nodes.Compute"),
+		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/attributes/id":                                      []byte("Not Used as it exists in instances"),
+		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/capabilities/scalable/properties/default_instances": []byte("10"),
+		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/capabilities/scalable/properties/max_instances":     []byte("20"),
+		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/capabilities/scalable/properties/min_instances":     []byte("2"),
 	})
 
 	t.Run("groupDeploymentsNodes", func(t *testing.T) {
@@ -230,6 +236,9 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
 		})
 		t.Run("TestGetTypeAttributesNames", func(t *testing.T) {
 			testGetTypeAttributesNames(t, kv)
+		})
+		t.Run("TestDeleteNode", func(t *testing.T) {
+			testDeleteNode(t, kv)
 		})
 	})
 }
@@ -548,6 +557,18 @@ func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
 	instancesIDs, err = GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node2")
 	require.NoError(t, err)
 	require.Equal(t, node2ExpectedResult, instancesIDs)
+}
+
+func testDeleteNode(t *testing.T, kv *api.KV) {
+
+	deploymentID := "testDeleteNode"
+	nodeName := "Compute1"
+	err := DeleteNode(kv, deploymentID, nodeName)
+	require.NoError(t, err, "Unexpected error deleting node %s", nodeName)
+
+	instancesValues, err := GetNodeAttributesValues(kv, deploymentID, nodeName, "type")
+	require.NoError(t, err, "Unexpected error calling GetNodeAttributesValues")
+	require.Len(t, instancesValues, 0, "Expected an empty map, got %+v", instancesValues)
 }
 
 func testNodeHasAttribute(t *testing.T, kv *api.KV, deploymentID string) {

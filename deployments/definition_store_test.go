@@ -951,6 +951,25 @@ func testInlineWorkflow(t *testing.T, kv *api.KV) {
 	require.Equal(t, len(wfInception.Steps), 1)
 }
 
+func testDeleteWorkflow(t *testing.T, kv *api.KV) {
+	// t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/inline_workflow.yaml")
+	require.Nil(t, err)
+
+	workflows, err := GetWorkflows(kv, deploymentID)
+	require.Nil(t, err)
+	require.Equal(t, len(workflows), 3)
+
+	err = DeleteWorkflow(kv, deploymentID, "install")
+	require.NoError(t, err, "Unexpected error deleting install workflow")
+
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
+	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
+
+}
+
 func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)

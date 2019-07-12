@@ -15,9 +15,14 @@
 package operations
 
 import (
+	"path/filepath"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
+
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/provutil"
+	"github.com/ystia/yorc/v4/tasks"
 )
 
 // GetInstanceName returns the built instance name from nodeName and instanceID
@@ -30,4 +35,22 @@ func GetInstanceID(instanceName string) string {
 
 	lastIndex := strings.LastIndex(instanceName, "_")
 	return instanceName[lastIndex+1 : len(instanceName)]
+}
+
+// GetOverlayPath returns the overlay path
+// In case of taskTypeRemoveNodes, it refers the backup overlay
+func GetOverlayPath(kv *api.KV, cfg config.Configuration, taskID, deploymentID string) (string, error) {
+	taskType, err := tasks.GetTaskType(kv, taskID)
+	if err != nil {
+		return "", err
+	}
+	var prefix string
+	if taskType == tasks.TaskTypeRemoveNodes {
+		prefix = "."
+	}
+	p, err := filepath.Abs(filepath.Join(cfg.WorkingDirectory, "deployments", prefix+deploymentID, "overlay"))
+	if err != nil {
+		return "", err
+	}
+	return p, nil
 }

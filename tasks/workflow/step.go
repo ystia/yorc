@@ -122,7 +122,7 @@ func (s *step) isRunnable() (bool, error) {
 		}
 	}
 
-	if s.t.taskType == tasks.TaskTypeScaleOut || s.t.taskType == tasks.TaskTypeScaleIn {
+	if s.t.taskType == tasks.TaskTypeScaleOut || s.t.taskType == tasks.TaskTypeScaleIn || s.t.taskType == tasks.TaskTypeAddNodes || s.t.taskType == tasks.TaskTypeRemoveNodes {
 		// If not a relationship check the actual node
 		if s.TargetRelationship == "" {
 			return tasks.IsTaskRelatedNode(kv, s.t.taskID, s.Target)

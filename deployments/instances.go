@@ -80,6 +80,12 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
+// DeleteAllInstances deletes all instances of the given node from the Consul store
+func DeleteAllInstances(kv *api.KV, deploymentID, nodeName string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 // LookupInstanceAttributeValue executes a lookup to retrieve instance attribute value when attribute can be long to retrieve
 func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, attribute string, nestedKeys ...string) (string, error) {
 	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
