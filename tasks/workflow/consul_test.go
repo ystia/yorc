@@ -29,5 +29,8 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testRunStep", func(t *testing.T) {
 			testRunStep(t, srv, client)
 		})
+		t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
+			testRegisterInlineWorkflow(t, srv, client)
+		})
 	})
 }
