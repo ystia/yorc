@@ -95,4 +95,11 @@ func testRegisterTaskWithBigWorkflow(t *testing.T, client *api.Client) {
 	_, err = testCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeDeploy, data)
 	require.NoError(t, err, "Failed to register deploy task with install workflow")
 
+	// Error case
+	badClient, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err, "Failed to create bad consul client")
+	badCollector := NewCollector(badClient)
+	_, err = badCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeDeploy, data)
+	require.Error(t, err, "Expected to fail on consul error")
+
 }
