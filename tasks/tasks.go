@@ -39,9 +39,9 @@ type anotherLivingTaskAlreadyExistsError struct {
 }
 
 const (
-	// StepRegistrationInProgressKey is the Consul key name, whose presence means the
+	// stepRegistrationInProgressKey is the Consul key name, whose presence means the
 	// new steps are being registered in Consul for a given task
-	StepRegistrationInProgressKey = "stepRegistrationInProgress"
+	stepRegistrationInProgressKey = "stepRegistrationInProgress"
 )
 
 func (e anotherLivingTaskAlreadyExistsError) Error() string {
@@ -222,7 +222,7 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 // IsStepRegistrationInProgress checks if a task registration is still in progress,
 // in which case it should not yet be executed
 func IsStepRegistrationInProgress(kv *api.KV, taskID string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, StepRegistrationInProgressKey), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -237,7 +237,7 @@ func IsStepRegistrationInProgress(kv *api.KV, taskID string) (bool, error) {
 // notifying a registration is in progress
 func StoreOperations(kv *api.KV, taskID string, operations api.KVTxnOps) error {
 
-	registrationStatusKeyPath := path.Join(consulutil.TasksPrefix, taskID, StepRegistrationInProgressKey)
+	registrationStatusKeyPath := path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey)
 	preOpSplit := &api.KVTxnOp{
 		Verb:  api.KVSet,
 		Key:   registrationStatusKeyPath,

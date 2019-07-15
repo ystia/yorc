@@ -29,8 +29,10 @@ import (
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.TasksPrefix + "/t1/targetId":         []byte("id1"),
-		consulutil.TasksPrefix + "/t1/status":           []byte("0"),
+		consulutil.TasksPrefix + "/t1/targetId": []byte("id1"),
+		consulutil.TasksPrefix + "/t1/status":   []byte("0"),
+		consulutil.TasksPrefix + "/t1/" +
+			stepRegistrationInProgressKey: []byte("true"),
 		consulutil.TasksPrefix + "/t1/type":             []byte("0"),
 		consulutil.TasksPrefix + "/t1/data/inputs/i0":   []byte("0"),
 		consulutil.TasksPrefix + "/t1/data/nodes/node1": []byte("0,1,2"),
@@ -676,6 +678,35 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetQueryTaskIDs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"RegistrationInProgress", args{kv, "t1"}, true, false},
+		{"NoRegistrationInProgress", args{kv, "t2"}, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := IsStepRegistrationInProgress(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("%s error = %v, wantErr %v", tt.name, err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("%s = %v, want %v", tt.name, got, tt.want)
 			}
 		})
 	}
