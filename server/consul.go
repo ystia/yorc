@@ -23,9 +23,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/server/upgradeschema"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/server/upgradeschema"
 )
 
 var upgradeToMap = map[string]func(*api.KV, <-chan struct{}) error{
@@ -135,37 +135,44 @@ func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersio
 		// Same version nothing to do
 		return nil
 	case 1:
-		snap := client.Snapshot()
-		var snapReader io.ReadCloser
-		if !disableConsulSnapshotsOnUpgrades {
-			// Make a Consul snapshot and restore it if any error occurs
-			snapReader, _, err := snap.Save(nil)
-			if err != nil {
-				return errors.Wrapf(err, "failed to upgrade consul db schema to %q", err)
-			}
-			defer snapReader.Close()
-		}
-		for _, vUp := range orderedUpgradesVersions {
-			if vUp.GT(vCurrent) {
-				err = upgradeToMap[vUp.String()](client.KV(), leaderCh)
-				if err != nil {
-					if !disableConsulSnapshotsOnUpgrades {
-						// Restore Consul snapshot
-						restoreErr := snap.Restore(nil, snapReader)
-						if restoreErr != nil {
-							log.Printf("failed to restore consul db schema to %q due to error:%+v", fromVersion, restoreErr)
-						} else {
-							log.Printf("As any error occurred, schema has been successfully restored to version %q", fromVersion)
-						}
-					}
-					return errors.Wrapf(err, "failed to upgrade consul db schema to %q.", vUp)
-				}
-			}
+		err = performUpgrade(client, leaderCh, vCurrent)
+		if err != nil {
+			return err
 		}
 	case -1:
 		return errors.Errorf("this version of Yorc is too old compared to the current DB schema (%s), an upgrade is needed.", vCurrent)
-
 	}
 
 	return setNewVersion(client.KV())
+}
+
+func performUpgrade(client *api.Client, leaderCh <-chan struct{}, vCurrent semver.Version) error {
+	snap := client.Snapshot()
+	var snapReader io.ReadCloser
+	if !disableConsulSnapshotsOnUpgrades {
+		// Make a Consul snapshot and restore it if any error occurs
+		snapReader, _, err := snap.Save(nil)
+		if err != nil {
+			return errors.Wrapf(err, "failed to upgrade consul db schema to %q", err)
+		}
+		defer snapReader.Close()
+	}
+	for _, vUp := range orderedUpgradesVersions {
+		if vUp.GT(vCurrent) {
+			err := upgradeToMap[vUp.String()](client.KV(), leaderCh)
+			if err != nil {
+				if !disableConsulSnapshotsOnUpgrades {
+					// Restore Consul snapshot
+					restoreErr := snap.Restore(nil, snapReader)
+					if restoreErr != nil {
+						log.Printf("failed to restore consul db schema to %q due to error:%+v", vCurrent, restoreErr)
+					} else {
+						log.Printf("As any error occurred, schema has been successfully restored to version %q", vCurrent)
+					}
+				}
+				return errors.Wrapf(err, "failed to upgrade consul db schema to %q.", vUp)
+			}
+		}
+	}
+	return nil
 }
