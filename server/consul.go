@@ -151,7 +151,8 @@ func performUpgrade(client *api.Client, leaderCh <-chan struct{}, vCurrent semve
 	var snapReader io.ReadCloser
 	if !disableConsulSnapshotsOnUpgrades {
 		// Make a Consul snapshot and restore it if any error occurs
-		snapReader, _, err := snap.Save(nil)
+		var err error
+		snapReader, _, err = snap.Save(nil)
 		if err != nil {
 			return errors.Wrapf(err, "failed to upgrade consul db schema to %q", err)
 		}
