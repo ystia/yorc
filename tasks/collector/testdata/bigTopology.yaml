@@ -23,8 +23,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -45,8 +45,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -67,8 +67,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -89,8 +89,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -111,8 +111,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -133,8 +133,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -155,8 +155,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -177,8 +177,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -199,8 +199,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -221,8 +221,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -243,8 +243,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -265,8 +265,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -287,8 +287,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -309,8 +309,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -331,8 +331,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -353,8 +353,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -375,8 +375,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -397,8 +397,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -419,8 +419,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -441,8 +441,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -463,8 +463,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -485,8 +485,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -507,8 +507,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -529,8 +529,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -551,8 +551,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -573,8 +573,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -595,8 +595,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -617,8 +617,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -639,8 +639,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -661,8 +661,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -683,8 +683,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -705,8 +705,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -727,8 +727,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -749,8 +749,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -771,8 +771,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -793,8 +793,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -815,8 +815,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -837,8 +837,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -859,8 +859,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -881,8 +881,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -903,8 +903,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -925,8 +925,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -947,8 +947,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -969,8 +969,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -991,8 +991,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1013,8 +1013,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1035,8 +1035,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1057,8 +1057,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1079,8 +1079,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1101,8 +1101,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1123,8 +1123,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1145,8 +1145,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1167,8 +1167,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1189,8 +1189,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1211,8 +1211,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1233,8 +1233,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1255,8 +1255,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1277,8 +1277,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1299,8 +1299,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1321,8 +1321,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1343,8 +1343,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1365,8 +1365,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1387,8 +1387,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1409,8 +1409,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1431,8 +1431,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1453,8 +1453,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1475,8 +1475,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1497,8 +1497,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1519,8 +1519,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
@@ -1541,8 +1541,8 @@ topology_template:
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              keys: 
+            credentials:
+              keys:
                 0: "/home/myuser/.ssh/yorc.pem"
               user: centos
             secure: true
