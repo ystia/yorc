@@ -184,3 +184,15 @@ func clearActivityHooks() {
 	preActivityHooks = make([]ActivityHook, 0)
 	postActivityHooks = make([]ActivityHook, 0)
 }
+
+func testRegisterInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+	kv := cc.KV()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	topologyPath := "../../deployments/testdata/inline_workflow.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, topologyPath)
+	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
+
+	_, err = builder.BuildWorkFlow(kv, deploymentID, "install")
+	require.NoError(t, err, "Unexpected error building workflow for %s", topologyPath)
+
+}
