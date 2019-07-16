@@ -15,13 +15,17 @@
 package collector
 
 import (
+	"context"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/tasks"
 )
@@ -75,4 +79,27 @@ func testResumeTask(t *testing.T, client *api.Client) {
 			}
 		})
 	}
+}
+
+func testRegisterTaskWithBigWorkflow(t *testing.T, client *api.Client) {
+	kv := client.KV()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	topologyFile := "testdata/bigTopology.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, topologyFile)
+	require.NoError(t, err, "Failed to store topology %s", topologyFile)
+
+	testCollector := NewCollector(client)
+	data := map[string]string{
+		"workflowName": "install",
+	}
+	_, err = testCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeDeploy, data)
+	require.NoError(t, err, "Failed to register deploy task with install workflow")
+
+	// Error case
+	badClient, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err, "Failed to create bad consul client")
+	badCollector := NewCollector(badClient)
+	_, err = badCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeDeploy, data)
+	require.Error(t, err, "Expected to fail on consul error")
+
 }

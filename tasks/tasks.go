@@ -38,6 +38,12 @@ type anotherLivingTaskAlreadyExistsError struct {
 	status   string
 }
 
+const (
+	// stepRegistrationInProgressKey is the Consul key name, whose presence means the
+	// new steps are being registered in Consul for a given task
+	stepRegistrationInProgressKey = "stepRegistrationInProgress"
+)
+
 func (e anotherLivingTaskAlreadyExistsError) Error() string {
 	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
 }
@@ -211,6 +217,37 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// IsStepRegistrationInProgress checks if a task registration is still in progress,
+// in which case it should not yet be executed
+func IsStepRegistrationInProgress(kv *api.KV, taskID string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+// StoreOperations stores operations related to a task through a transaction
+// splitting this transaction if needed, in which case it will create a key
+// notifying a registration is in progress
+func StoreOperations(kv *api.KV, taskID string, operations api.KVTxnOps) error {
+
+	registrationStatusKeyPath := path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey)
+	preOpSplit := &api.KVTxnOp{
+		Verb:  api.KVSet,
+		Key:   registrationStatusKeyPath,
+		Value: []byte("true"),
+	}
+	postOpSplit := &api.KVTxnOp{
+		Verb: api.KVDelete,
+		Key:  registrationStatusKeyPath,
+	}
+	return consulutil.ExecuteSplittableTransaction(kv, operations, preOpSplit, postOpSplit)
 }
 
 // CancelTask marks a task as Canceled

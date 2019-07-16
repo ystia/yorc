@@ -17,6 +17,7 @@ package consulutil
 import (
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,12 +28,20 @@ import (
 	"github.com/ystia/yorc/v3/log"
 )
 
-// ConsulStoreTxnTimeoutEnvName is the name of the environment variable that allows to activate the feature that
-// pack ConsulStore operations into transactions. If the variable is empty or not set then the process is the same
-// as usual and operations are sent individually to Consul. Otherwise if set to a valid Go duration then operations
-// are packed into transactions up to 64 ops and this timeout represent the time to wait for new operations before
-// sending an incomplete (less than 64 ops) transaction to Consul.
-const ConsulStoreTxnTimeoutEnvName = "YORC_CONSUL_STORE_TXN_TIMEOUT"
+const (
+	// ConsulStoreTxnTimeoutEnvName is the name of the environment variable that allows
+	// to activate the feature that packs ConsulStore operations into transactions.
+	// If the variable is empty or not set then the process is the same as usual
+	// and operations are sent individually to Consul.
+	// Otherwise if set to a valid Go duration then operations are packed into transactions
+	// up to 64 ops and this timeout represent the time to wait for new operations before
+	// sending an incomplete (less than 64 ops) transaction to Consul.
+	ConsulStoreTxnTimeoutEnvName = "YORC_CONSUL_STORE_TXN_TIMEOUT"
+
+	// maxNbTransactionOps is the maximum number of operations within a transaction
+	// supported by Consul (limit hard-coded in Consul implementation)
+	maxNbTransactionOps = 64
+)
 
 var envTimeoutDuration time.Duration
 
@@ -106,7 +115,11 @@ func withContext(ctx context.Context) (context.Context, *errgroup.Group, *consul
 	errGroup, errCtx := errgroup.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGroupKey, errGroup)
 
-	return errCtx, errGroup, &consulStore{ctx: errCtx, tx: make(api.KVTxnOps, 0, 64), close: make(chan struct{}), txPackingTimeout: envTimeoutDuration}
+	return errCtx, errGroup,
+		&consulStore{ctx: errCtx,
+			tx:               make(api.KVTxnOps, 0, maxNbTransactionOps),
+			close:            make(chan struct{}),
+			txPackingTimeout: envTimeoutDuration}
 }
 
 // StoreConsulKeyAsString is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
@@ -169,6 +182,48 @@ func (cs *consulStore) StoreConsulKeyWithFlags(key string, value []byte, flags u
 	}
 }
 
+// ExecuteSplittableTransaction executes a transaction taking care to split the
+// transaction if ever the number of operations in the transaction exceeds the
+// maximum number of operations in a transaction supported by Consul.
+// In the case where the transaction has to be split, and a pre-operation and
+// post-operation are provided, this function will add the pre and post operations
+// to the operations, else if will execute the operations within a single transaction.
+func ExecuteSplittableTransaction(kv *api.KV, ops api.KVTxnOps, preOpSplit, postOpSplit *api.KVTxnOp) error {
+
+	var newOps api.KVTxnOps
+	if len(ops) > maxNbTransactionOps {
+		newOps = append(newOps, preOpSplit)
+		newOps = append(newOps, ops...)
+		newOps = append(newOps, postOpSplit)
+	} else {
+		newOps = ops
+	}
+
+	opsLength := len(newOps)
+	for begin := 0; begin < opsLength; begin += maxNbTransactionOps {
+		end := begin + maxNbTransactionOps
+		if end > opsLength {
+			end = opsLength
+		}
+
+		ok, response, _, err := kv.Txn(newOps[begin:end], nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to execute transaction")
+		}
+
+		if !ok {
+			// Check the response
+			var errs []string
+			for _, e := range response.Errors {
+				errs = append(errs, e.What)
+			}
+			return errors.Errorf("Failed to execute transaction: %s", strings.Join(errs, ", "))
+		}
+	}
+
+	return nil
+}
+
 func (cs *consulStore) publishWithoutTx(key string, value []byte, flags uint64) {
 	p := &api.KVPair{Key: key, Value: value, Flags: flags}
 	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
@@ -205,7 +260,7 @@ func (cs *consulStore) publishTxn() {
 		return executeKVTxn(kv, ops)
 	})
 	// reset slice
-	cs.tx = make(api.KVTxnOps, 0, 64)
+	cs.tx = make(api.KVTxnOps, 0, maxNbTransactionOps)
 	//  Release others
 	close(cs.close)
 	cs.close = make(chan struct{})
@@ -240,7 +295,7 @@ func (cs *consulStore) publishWithinTx(key string, value []byte, flags uint64) {
 			}
 			return nil
 		})
-	} else if len(cs.tx) == 64 {
+	} else if len(cs.tx) == maxNbTransactionOps {
 		cs.publishTxn()
 	} else {
 		closeCh := cs.close
