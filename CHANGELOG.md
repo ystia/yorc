@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 3.2.3 (July 16, 2019)
 
 ### ENHANCEMENTS
 
