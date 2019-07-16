@@ -35,5 +35,8 @@ func TestRunConsulCollectorPackageTests(t *testing.T) {
 		t.Run("testResumeTask", func(t *testing.T) {
 			testResumeTask(t, client)
 		})
+		t.Run("testRegisterTaskWithBigWorkflow", func(t *testing.T) {
+			testRegisterTaskWithBigWorkflow(t, client)
+		})
 	})
 }

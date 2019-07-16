@@ -226,6 +226,18 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
+			inProgress, err := tasks.IsStepRegistrationInProgress(kv, taskID)
+			if err != nil {
+				log.Printf("Can't check if task %s registration is in progress %+v", taskID, err)
+				continue
+			}
+			if inProgress {
+				log.Debugf("Task %s registration is still in progress", taskID, err)
+				lock.Unlock()
+				lock.Destroy()
+				continue
+			}
+
 			t, err := buildTaskExecution(d.client, execID)
 			if err != nil {
 				log.Print(err)

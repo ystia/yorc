@@ -369,19 +369,12 @@ func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) 
 	if err != nil {
 		return err
 	}
-	ok, response, _, err := s.t.cc.KV().Txn(wfOps, nil)
+	err = tasks.StoreOperations(s.t.cc.KV(), s.t.taskID, wfOps)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to register workflow init operations with workflow:%q, targetID:%q, taskID:%q", workflowName, s.t.targetID, s.t.taskID)
-	}
-	if !ok {
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Wrapf(err, "Failed to register workflow init operations with workflow:%q, targetID:%q, taskID:%q due to error:%q", workflowName, s.t.targetID, s.t.taskID, strings.Join(errs, ", "))
+		err = errors.Wrapf(err, "Failed to register workflow init operations with workflow:%q, targetID:%q, taskID:%q", workflowName, s.t.targetID, s.t.taskID)
 	}
 
-	return nil
+	return err
 }
 
 func (s *step) checkIfPreviousOfNextStepAreDone(ctx context.Context, nextStep *step, workflowName string) (bool, error) {
@@ -435,18 +428,11 @@ func (s *step) registerNextSteps(ctx context.Context, workflowName string) error
 	}
 	defer l.Unlock()
 	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
-	ok, response, _, err := s.cc.KV().Txn(ops, nil)
+	err = tasks.StoreOperations(s.t.cc.KV(), s.t.taskID, ops)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
+		err = errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
 	}
-	if !ok {
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q due to:%s", s.t.taskID, strings.Join(errs, ", "))
-	}
-	return nil
+	return err
 }
 
 func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName string, steps []*builder.Step) error {
@@ -466,19 +452,11 @@ func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName 
 	}
 	defer l.Unlock()
 	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
-	ok, response, _, err := s.cc.KV().Txn(ops, nil)
+	err = tasks.StoreOperations(s.t.cc.KV(), s.t.taskID, ops)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
+		err = errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
 	}
-	if !ok {
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q due to:%s", s.t.taskID, strings.Join(errs, ", "))
-	}
-
-	return nil
+	return err
 }
 
 func (s *step) publishInstanceRelatedEvents(ctx context.Context, kv *api.KV, deploymentID, instanceName string, eventInfo *events.WorkflowStepInfo, statuses ...tasks.TaskStepStatus) {

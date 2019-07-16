@@ -6,6 +6,11 @@
 
 * Allow to disable automatic Consul snapshots and restore when upgrading Yorc using ̀`YORC_DISABLE_CONSUL_SNAPSHOTS_ON_UPGRADE` env variable ([GH-486](https://github.com/ystia/yorc/issues/486))
 
+### BUG FIXES
+
+* Failure to deploy/undeploy big application: Transaction contains too many operations ([GH-484](https://github.com/ystia/yorc/issues/484))
+
+
 ## 3.2.2 (July 09, 2019)
 
 ## 3.2.1 (July 05, 2019)
