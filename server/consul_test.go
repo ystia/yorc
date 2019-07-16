@@ -19,6 +19,7 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -59,7 +60,8 @@ func checkCurrentSchemaVersion(t *testing.T, kv *api.KV) {
 func testSetupVersion(t *testing.T, client *api.Client) {
 	// Test without any version set
 	kv := client.KV()
-	_, err := kv.Put(&api.KVPair{Key: consulutil.DeploymentKVPrefix + "/something", Value: []byte{1}}, nil)
+	initialDataKP := &api.KVPair{Key: consulutil.DeploymentKVPrefix + "/something", Value: []byte{1}}
+	_, err := kv.Put(initialDataKP, nil)
 	require.NoError(t, err)
 
 	err = setupConsulDBSchema(client)
@@ -87,4 +89,33 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 	assert.Error(t, err)
 	checkSchemaVersion(t, kv, v.String())
 
+	// Check error and auto-rollback
+	currentConsulVersion := semver.MustParse(consulutil.YorcSchemaVersion)
+	currentConsulVersion.Minor--
+	upgradeToMap[consulutil.YorcSchemaVersion] = func(kv *api.KV, lc <-chan struct{}) error {
+		// Delete something
+		kv.Delete(initialDataKP.Key, nil)
+		return errors.New("This is an expected error")
+	}
+	setSchemaVersion(t, kv, currentConsulVersion.String())
+	err = setupConsulDBSchema(client)
+	// An error is expected
+	assert.Error(t, err)
+	// Version should be restored
+	checkSchemaVersion(t, kv, currentConsulVersion.String())
+	kvp, _, err := kv.Get(initialDataKP.Key, nil)
+	assert.NoError(t, err)
+	require.NotNil(t, kvp)
+	assert.Equal(t, initialDataKP.Value, kvp.Value)
+
+	// Check case where snapshots are disable
+	disableConsulSnapshotsOnUpgrades = true
+	err = setupConsulDBSchema(client)
+	// An error is expected
+	assert.Error(t, err)
+
+	// initial data was not restored
+	kvp, _, err = kv.Get(initialDataKP.Key, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, kvp)
 }
