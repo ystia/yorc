@@ -10,6 +10,7 @@
 
 ### BUG FIXES
 
+* Failure to deploy/undeploy big application: Transaction contains too many operations ([GH-484](https://github.com/ystia/yorc/issues/484))
 * Wrong resources allocation on shareable Hosts Pool ([GH-426](https://github.com/ystia/yorc/issues/426))
 * Deleting one host in Pool deletes other hosts having as prefix the deleted hostname ([GH-430](https://github.com/ystia/yorc/issues/430))
 * Yorc should support long standard operation names as well as short ones ([GH-300](https://github.com/ystia/yorc/issues/300))
