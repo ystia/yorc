@@ -232,7 +232,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 			if inProgress {
-				log.Debugf("Task %s regsitration is still in progress", err)
+				log.Debugf("Task %s registration is still in progress", err)
 				continue
 			}
 
