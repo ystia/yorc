@@ -133,7 +133,6 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
 	case statefulsetResourceType:
 		return e.manageStatefulSetResource(ctx, clientset, generator, op, rSpec.RawString())
-		//return errors.Errorf("Unsupported k8s statefulset type %q", e.nodeType)
 	case serviceResourceType:
 		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
 	case simpleRessourceType:
