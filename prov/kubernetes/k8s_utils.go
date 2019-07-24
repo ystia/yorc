@@ -22,7 +22,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -411,8 +411,12 @@ func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, client
 			}
 
 		case *appsv1.StatefulSet:
-			if _, err := clientset.Apps().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+			if stfs, err := clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
 				return false, err
+			} else {
+				if stfs.Status.CurrentReplicas == *concreteObj.Spec.Replicas {
+					return true, nil
+				}
 			}
 
 		case *corev1.PersistentVolumeClaim:

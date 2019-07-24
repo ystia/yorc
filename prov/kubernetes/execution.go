@@ -24,7 +24,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -336,7 +336,7 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 			}
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
 		}
-		stfs, err := clientset.Apps().StatefulSets(namespace).Create(&stfsRepr)
+		stfs, err := clientset.AppsV1beta1().StatefulSets(namespace).Create(&stfsRepr)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create statefulSet")
 		}
