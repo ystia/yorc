@@ -23,6 +23,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
@@ -684,6 +686,9 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 
 func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
 
+	badClient, err := api.NewClient(api.DefaultConfig())
+	require.NoError(t, err, "Failed to create bad consul client")
+
 	type args struct {
 		kv     *api.KV
 		taskID string
@@ -696,7 +701,7 @@ func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
 	}{
 		{"RegistrationInProgress", args{kv, "t1"}, true, false},
 		{"NoRegistrationInProgress", args{kv, "t2"}, false, false},
-		//{"ConsulFailure", args{nil, "t2"}, false, true},
+		{"ConsulFailure", args{badClient.KV(), "t2"}, false, true},
 	}
 
 	for _, tt := range tests {
