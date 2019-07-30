@@ -5,6 +5,7 @@
 ### ENHANCEMENTS
 
 * Allow to disable automatic Consul snapshots and restore when upgrading Yorc using ̀`YORC_DISABLE_CONSUL_SNAPSHOTS_ON_UPGRADE` env variable ([GH-486](https://github.com/ystia/yorc/issues/486))
+* Allow to update instance attribute when creating attribute notifications ([GH-491](https://github.com/ystia/yorc/issues/491))
 
 ## 4.0.0-M1 (July 12, 2019)
 

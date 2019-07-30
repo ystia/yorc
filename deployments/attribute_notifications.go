@@ -149,27 +149,16 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 			return err
 		}
 		if notified.capabilityName != "" {
-			value, err := GetInstanceCapabilityAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName)
+			err = updateInstanceAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName)
 			if err != nil {
 				return err
-			}
-			if value != nil {
-				if err = SetInstanceCapabilityAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName, value.String()); err != nil {
-					return err
-				}
 			}
 			continue
 		}
 
-		value, err := GetInstanceAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
-
+		err = updateInstanceAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
 		if err != nil {
 			return err
-		}
-		if value != nil {
-			if err = SetInstanceAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.attributeName, value.String()); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -368,10 +357,13 @@ func addAttributeNotifications(kv *api.KV, deploymentID, nodeName, instanceName,
 			instanceName:  instanceName,
 			attributeName: attributeName,
 		}
-		return notifiedAttr.parseFunction(kv, value.RawString())
+		err = notifiedAttr.parseFunction(kv, value.RawString())
+		if err != nil {
+			return err
+		}
 	}
-
-	return nil
+	// Check if attribute can be updated
+	return updateInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attributeName)
 }
 
 // This is looking for Tosca get_attribute and get_operation_output functions

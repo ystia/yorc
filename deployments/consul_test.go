@@ -103,6 +103,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testTopologyUpdate", func(t *testing.T) {
 			testTopologyUpdate(t, kv)
 		})
+		t.Run("testTopologyBadUpdate", func(t *testing.T) {
+			testTopologyBadUpdate(t, kv)
+		})
 		t.Run("testRepositories", func(t *testing.T) {
 			testRepositories(t, kv)
 		})
@@ -127,6 +130,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		})
 		t.Run("TestAttributeNotifications", func(t *testing.T) {
 			testAttributeNotifications(t, kv, deploymentID)
+		})
+		t.Run("TestNotifyAttributeOnValueChange", func(t *testing.T) {
+			testNotifyAttributeOnValueChange(t, kv, deploymentID)
 		})
 		t.Run("TestImportTopologyTemplate", func(t *testing.T) {
 			testImportTopologyTemplate(t, kv, deploymentID)

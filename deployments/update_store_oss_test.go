@@ -27,3 +27,9 @@ func testTopologyUpdate(t *testing.T, kv *api.KV) {
 
 	// Topology update is a premium feature
 }
+
+// Testing topology template metadata
+func testTopologyBadUpdate(t *testing.T, kv *api.KV) {
+
+	// Topology update is a premium feature
+}

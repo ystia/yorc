@@ -1081,6 +1081,20 @@ func testAttributeNotifications(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 }
 
+// Testing topology template metadata
+func testNotifyAttributeOnValueChange(t *testing.T, kv *api.KV, deploymentID string) {
+	notifPaths := []string{"topology/instances/TestCompute/0/attribute_notifications/public_ip_address/0",
+		"topology/instances/TestCompute/0/capabilities/endpoint/attribute_notifications/ip_address/0",
+		"topology/instances/TestContainer/0/attribute_notifications/my_attribute/0",
+		"topology/instances/TestComponent/0/outputs/standard/create/attribute_notifications/URL/0",
+	}
+
+	for _, p := range notifPaths {
+		err := notifyAttributeOnValueChange(kv, p, deploymentID)
+		require.NoError(t, err, "Error notifying attribute on value change for path %s", p)
+	}
+}
+
 func BenchmarkDefinitionStore(b *testing.B) {
 	log.SetDebug(false)
 	log.SetOutput(ioutil.Discard)
