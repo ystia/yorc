@@ -35,7 +35,7 @@ You can find below some configuration options that could be adapted to fit your 
 
   * Yorc stores keys into Consul in highly parallel way, to prevent consuming too much connections and specially getting
     into a ``max open file descriptor issue`` we use a mechanism that limits the number of open connections to Consul.
-    The number open connections can be set using :ref:`option_pub_routines_cmd`. The default value of ``500`` was determined
+    The number open connections can be set using :ref:`consul_publisher_max_routines <option_pub_routines_cmd>`. The default value of ``500`` was determined
     empirically to fit the default ``1024`` maximum number of open file descriptors. Increasing this value could improve performances
     but you should also update accordingly the maximum number of open file descriptors.
 
