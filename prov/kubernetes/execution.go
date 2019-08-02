@@ -348,11 +348,11 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 	case k8sDeleteOperation:
 		var stfsName = stfsRepr.Name
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Deleting k8s StatefulSet %s", stfsName)
-		stfs, err := clientset.Apps().StatefulSets(namespace).Get(stfsName, metav1.GetOptions{})
+		stfs, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(stfsName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "StatefuSet %s does not exists", stfs.Name)
 		}
-		err = clientset.Apps().StatefulSets(namespace).Delete(stfsName, nil)
+		err = clientset.AppsV1beta1().StatefulSets(namespace).Delete(stfsName, nil)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to delete StatefulSet %s", stfsName)
 		}

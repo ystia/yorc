@@ -414,7 +414,7 @@ func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, client
 			if stfs, err := clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
 				return false, err
 			} else {
-				if stfs.Status.CurrentReplicas == *concreteObj.Spec.Replicas {
+				if stfs.Status.ReadyReplicas == *concreteObj.Spec.Replicas {
 					return true, nil
 				}
 			}
