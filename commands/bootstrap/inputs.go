@@ -1228,7 +1228,17 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 		return fmt.Errorf("Unknown node type %s", resourceName)
 	}
 
-	for propName, definition := range nodeType.Properties {
+	err := getPropertiesInput(topology, nodeType.Properties, askIfNotRequired,
+		convertBooleanToString, "", resultMap)
+
+	return err
+
+}
+
+func getPropertiesInput(topology tosca.Topology, properties map[string]tosca.PropertyDefinition,
+	askIfNotRequired bool, convertBooleanToString bool, msgPrefix string, resultMap *config.DynamicMap) error {
+
+	for propName, definition := range properties {
 
 		// Check if a value is already provided before asking for user input
 		// ot if the value is not required
@@ -1239,6 +1249,9 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 		}
 
 		description := getFormattedDescription(definition.Description)
+		if msgPrefix != "" {
+			description = fmt.Sprintf("%s - %s", msgPrefix, description)
+		}
 
 		isList := (definition.Type == "list")
 		if definition.Type == "boolean" {
@@ -1263,6 +1276,27 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 				resultMap.Set(propName, value)
 			}
 
+		} else if isDatatype(topology, definition.Type) {
+			propValueMap := make(config.DynamicMap)
+			if !required && askIfNotRequired {
+				prompt := &survey.Select{
+					Message: fmt.Sprintf("Do you want to define property %q", description),
+					Options: []string{"yes", "no"},
+					Default: "no",
+				}
+				var answer string
+				survey.AskOne(prompt, &answer, nil)
+
+				if answer == "no" {
+					continue
+				}
+
+				if err := getPropertiesInput(topology, topology.DataTypes[definition.Type].Properties,
+					askIfNotRequired, convertBooleanToString, description, &propValueMap); err != nil {
+					return err
+				}
+				resultMap.Set(propName, propValueMap)
+			}
 		} else {
 
 			answer := struct {
@@ -1334,7 +1368,11 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 	}
 
 	return nil
+}
 
+func isDatatype(topology tosca.Topology, nodeType string) bool {
+	_, ok := topology.DataTypes[nodeType]
+	return ok
 }
 
 // prepareGoogleInfraInputs updates inputs for a Google Infrastructure if needed
