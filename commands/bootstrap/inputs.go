@@ -1253,118 +1253,149 @@ func getPropertiesInput(topology tosca.Topology, properties map[string]tosca.Pro
 			description = fmt.Sprintf("%s - %s", msgPrefix, description)
 		}
 
-		isList := (definition.Type == "list")
 		if definition.Type == "boolean" {
-			defaultValue := "false"
-			if definition.Default != nil {
-				defaultValue = definition.Default.GetLiteral()
-			}
-			prompt := &survey.Select{
-				Message: fmt.Sprintf("%s:", description),
-				Options: []string{"true", "false"},
-				Default: defaultValue,
-			}
-			var answer string
-			survey.AskOne(prompt, &answer, nil)
-			if convertBooleanToString {
-				resultMap.Set(propName, answer)
-			} else {
-				value := false
-				if answer == "true" {
-					value = true
-				}
-				resultMap.Set(propName, value)
-			}
-
+			getBooleanPropertyValue(propName, description, definition, convertBooleanToString, resultMap)
 		} else if isDatatype(topology, definition.Type) {
-			propValueMap := make(config.DynamicMap)
-			if !required && askIfNotRequired {
-				prompt := &survey.Select{
-					Message: fmt.Sprintf("Do you want to define property %q", description),
-					Options: []string{"yes", "no"},
-					Default: "no",
-				}
-				var answer string
-				survey.AskOne(prompt, &answer, nil)
-
-				if answer == "no" {
-					continue
-				}
-
-				if err := getPropertiesInput(topology, topology.DataTypes[definition.Type].Properties,
-					askIfNotRequired, convertBooleanToString, description, &propValueMap); err != nil {
-					return err
-				}
-				resultMap.Set(propName, propValueMap)
+			if err := getDatatypePropertyValue(topology, propName, description, definition,
+				required, askIfNotRequired, convertBooleanToString, resultMap); err != nil {
+				return err
 			}
 		} else {
 
-			answer := struct {
-				Value string
-			}{}
-
-			var additionalMsg string
-			if required {
-				additionalMsg = "(required"
-			}
-			if isList {
-				if additionalMsg == "" {
-					additionalMsg = " (comma-separated list"
-				} else {
-					additionalMsg += ", comma-separated list"
-				}
-
-			}
-			if definition.Default != nil {
-				if additionalMsg == "" {
-					additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
-				} else {
-					additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
-				}
-			}
-			if additionalMsg != "" {
-				additionalMsg += ")"
-			}
-
-			var prompt survey.Prompt
-			loweredProp := strings.ToLower(propName)
-			if strings.Contains(loweredProp, "password") ||
-				strings.Contains(loweredProp, "secret") {
-				prompt = &survey.Password{
-					Message: fmt.Sprintf("%s%s:",
-						description,
-						additionalMsg)}
-			} else {
-				prompt = &survey.Input{
-					Message: fmt.Sprintf("%s%s:",
-						description,
-						additionalMsg)}
-			}
-			question := &survey.Question{
-				Name:   "value",
-				Prompt: prompt,
-			}
-			if required {
-				question.Validate = survey.Required
-			}
-			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			if err := getPropertyValue(propName, description, definition,
+				required, resultMap); err != nil {
 				return err
 			}
 
-			if answer.Value != "" {
-				if !isList {
-					resultMap.Set(propName, answer.Value)
-				} else {
-					value := strings.Split(answer.Value, ",")
-					for i, val := range value {
-						value[i] = strings.TrimSpace(val)
-					}
-					resultMap.Set(propName, value)
-				}
-			} else if definition.Default != nil {
-				resultMap.Set(propName, definition.Default.GetLiteral())
-			}
 		}
+	}
+
+	return nil
+}
+
+func getBooleanPropertyValue(propName, description string, definition tosca.PropertyDefinition,
+	convertBooleanToString bool, resultMap *config.DynamicMap) {
+	defaultValue := "false"
+	if definition.Default != nil {
+		defaultValue = definition.Default.GetLiteral()
+	}
+	prompt := &survey.Select{
+		Message: fmt.Sprintf("%s:", description),
+		Options: []string{"true", "false"},
+		Default: defaultValue,
+	}
+	var answer string
+	survey.AskOne(prompt, &answer, nil)
+	if convertBooleanToString {
+		resultMap.Set(propName, answer)
+	} else {
+		value := false
+		if answer == "true" {
+			value = true
+		}
+		resultMap.Set(propName, value)
+	}
+}
+
+func getDatatypePropertyValue(topology tosca.Topology, propName, description string,
+	definition tosca.PropertyDefinition,
+	required, askIfNotRequired, convertBooleanToString bool,
+	resultMap *config.DynamicMap) error {
+
+	propValueMap := make(config.DynamicMap)
+	if !required && askIfNotRequired {
+		prompt := &survey.Select{
+			Message: fmt.Sprintf("Do you want to define property %q", description),
+			Options: []string{"yes", "no"},
+			Default: "no",
+		}
+		var answer string
+		survey.AskOne(prompt, &answer, nil)
+
+		if answer == "no" {
+			return nil
+		}
+
+		if err := getPropertiesInput(topology, topology.DataTypes[definition.Type].Properties,
+			askIfNotRequired, convertBooleanToString, description, &propValueMap); err != nil {
+			return err
+		}
+		resultMap.Set(propName, propValueMap)
+	}
+
+	return nil
+}
+
+func getPropertyValue(propName, description string, definition tosca.PropertyDefinition,
+	required bool, resultMap *config.DynamicMap) error {
+
+	answer := struct {
+		Value string
+	}{}
+
+	var additionalMsg string
+	if required {
+		additionalMsg = "(required"
+	}
+
+	isList := (definition.Type == "list")
+
+	if isList {
+		if additionalMsg == "" {
+			additionalMsg = " (comma-separated list"
+		} else {
+			additionalMsg += ", comma-separated list"
+		}
+
+	}
+	if definition.Default != nil {
+		if additionalMsg == "" {
+			additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
+		} else {
+			additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
+		}
+	}
+	if additionalMsg != "" {
+		additionalMsg += ")"
+	}
+
+	var prompt survey.Prompt
+	loweredProp := strings.ToLower(propName)
+	if strings.Contains(loweredProp, "password") ||
+		strings.Contains(loweredProp, "secret") {
+		prompt = &survey.Password{
+			Message: fmt.Sprintf("%s%s:",
+				description,
+				additionalMsg)}
+	} else {
+		prompt = &survey.Input{
+			Message: fmt.Sprintf("%s%s:",
+				description,
+				additionalMsg)}
+	}
+	question := &survey.Question{
+		Name:   "value",
+		Prompt: prompt,
+	}
+	if required {
+		question.Validate = survey.Required
+	}
+	if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+		return err
+	}
+
+	if answer.Value != "" {
+		if !isList {
+			resultMap.Set(propName, answer.Value)
+		} else {
+			value := strings.Split(answer.Value, ",")
+			for i, val := range value {
+				value[i] = strings.TrimSpace(val)
+			}
+			resultMap.Set(propName, value)
+		}
+	} else if definition.Default != nil {
+		resultMap.Set(propName, definition.Default.GetLiteral())
 	}
 
 	return nil
