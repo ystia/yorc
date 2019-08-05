@@ -1,0 +1,2687 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: Test
+  template_version: 0.1.0-SNAPSHOT
+  template_author: yorc
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+
+topology_template:
+  node_templates:
+    Compute1:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute2:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute3:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute4:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute5:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute6:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute7:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute8:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute9:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute10:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute11:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute12:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute13:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute14:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute15:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute16:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute17:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute18:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute19:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute20:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute21:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute22:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute23:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute24:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute25:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute26:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute27:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute28:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute29:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute30:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute31:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute32:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute33:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute34:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute35:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute36:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute37:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute38:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute39:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute40:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute41:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute42:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute43:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute44:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute45:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute46:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute47:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute48:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute49:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute50:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute51:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute52:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute53:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute54:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute55:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute56:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute57:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute58:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute59:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute60:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute61:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute62:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute63:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute64:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute65:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute66:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute67:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute68:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute69:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute70:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+  workflows:
+    install:
+      steps:
+        Compute51_install:
+          target: Compute51
+          activities:
+            - delegate: install
+        Compute21_install:
+          target: Compute21
+          activities:
+            - delegate: install
+        Compute38_install:
+          target: Compute38
+          activities:
+            - delegate: install
+        Compute36_install:
+          target: Compute36
+          activities:
+            - delegate: install
+        Compute23_install:
+          target: Compute23
+          activities:
+            - delegate: install
+        Compute9_install:
+          target: Compute9
+          activities:
+            - delegate: install
+        Compute53_install:
+          target: Compute53
+          activities:
+            - delegate: install
+        Compute68_install:
+          target: Compute68
+          activities:
+            - delegate: install
+        Compute49_install:
+          target: Compute49
+          activities:
+            - delegate: install
+        Compute7_install:
+          target: Compute7
+          activities:
+            - delegate: install
+        Compute70_install:
+          target: Compute70
+          activities:
+            - delegate: install
+        Compute32_install:
+          target: Compute32
+          activities:
+            - delegate: install
+        Compute19_install:
+          target: Compute19
+          activities:
+            - delegate: install
+        Compute47_install:
+          target: Compute47
+          activities:
+            - delegate: install
+        Compute64_install:
+          target: Compute64
+          activities:
+            - delegate: install
+        Compute66_install:
+          target: Compute66
+          activities:
+            - delegate: install
+        Compute17_install:
+          target: Compute17
+          activities:
+            - delegate: install
+        Compute34_install:
+          target: Compute34
+          activities:
+            - delegate: install
+        Compute5_install:
+          target: Compute5
+          activities:
+            - delegate: install
+        Compute14_install:
+          target: Compute14
+          activities:
+            - delegate: install
+        Compute45_install:
+          target: Compute45
+          activities:
+            - delegate: install
+        Compute59_install:
+          target: Compute59
+          activities:
+            - delegate: install
+        Compute28_install:
+          target: Compute28
+          activities:
+            - delegate: install
+        Compute31_install:
+          target: Compute31
+          activities:
+            - delegate: install
+        Compute2_install:
+          target: Compute2
+          activities:
+            - delegate: install
+        Compute55_install:
+          target: Compute55
+          activities:
+            - delegate: install
+        Compute62_install:
+          target: Compute62
+          activities:
+            - delegate: install
+        Compute24_install:
+          target: Compute24
+          activities:
+            - delegate: install
+        Compute41_install:
+          target: Compute41
+          activities:
+            - delegate: install
+        Compute10_install:
+          target: Compute10
+          activities:
+            - delegate: install
+        Compute60_install:
+          target: Compute60
+          activities:
+            - delegate: install
+        Compute12_install:
+          target: Compute12
+          activities:
+            - delegate: install
+        Compute43_install:
+          target: Compute43
+          activities:
+            - delegate: install
+        Compute26_install:
+          target: Compute26
+          activities:
+            - delegate: install
+        Compute57_install:
+          target: Compute57
+          activities:
+            - delegate: install
+        Compute37_install:
+          target: Compute37
+          activities:
+            - delegate: install
+        Compute22_install:
+          target: Compute22
+          activities:
+            - delegate: install
+        Compute52_install:
+          target: Compute52
+          activities:
+            - delegate: install
+        Compute50_install:
+          target: Compute50
+          activities:
+            - delegate: install
+        Compute67_install:
+          target: Compute67
+          activities:
+            - delegate: install
+        Compute69_install:
+          target: Compute69
+          activities:
+            - delegate: install
+        Compute8_install:
+          target: Compute8
+          activities:
+            - delegate: install
+        Compute54_install:
+          target: Compute54
+          activities:
+            - delegate: install
+        Compute6_install:
+          target: Compute6
+          activities:
+            - delegate: install
+        Compute63_install:
+          target: Compute63
+          activities:
+            - delegate: install
+        Compute18_install:
+          target: Compute18
+          activities:
+            - delegate: install
+        Compute48_install:
+          target: Compute48
+          activities:
+            - delegate: install
+        Compute33_install:
+          target: Compute33
+          activities:
+            - delegate: install
+        Compute4_install:
+          target: Compute4
+          activities:
+            - delegate: install
+        Compute16_install:
+          target: Compute16
+          activities:
+            - delegate: install
+        Compute65_install:
+          target: Compute65
+          activities:
+            - delegate: install
+        Compute35_install:
+          target: Compute35
+          activities:
+            - delegate: install
+        Compute20_install:
+          target: Compute20
+          activities:
+            - delegate: install
+        Compute44_install:
+          target: Compute44
+          activities:
+            - delegate: install
+        Compute1_install:
+          target: Compute1
+          activities:
+            - delegate: install
+        Compute3_install:
+          target: Compute3
+          activities:
+            - delegate: install
+        Compute13_install:
+          target: Compute13
+          activities:
+            - delegate: install
+        Compute30_install:
+          target: Compute30
+          activities:
+            - delegate: install
+        Compute46_install:
+          target: Compute46
+          activities:
+            - delegate: install
+        Compute15_install:
+          target: Compute15
+          activities:
+            - delegate: install
+        Compute29_install:
+          target: Compute29
+          activities:
+            - delegate: install
+        Compute40_install:
+          target: Compute40
+          activities:
+            - delegate: install
+        Compute56_install:
+          target: Compute56
+          activities:
+            - delegate: install
+        Compute25_install:
+          target: Compute25
+          activities:
+            - delegate: install
+        Compute27_install:
+          target: Compute27
+          activities:
+            - delegate: install
+        Compute61_install:
+          target: Compute61
+          activities:
+            - delegate: install
+        Compute58_install:
+          target: Compute58
+          activities:
+            - delegate: install
+        Compute39_install:
+          target: Compute39
+          activities:
+            - delegate: install
+        Compute11_install:
+          target: Compute11
+          activities:
+            - delegate: install
+        Compute42_install:
+          target: Compute42
+          activities:
+            - delegate: install
+    uninstall:
+      steps:
+        Compute59_uninstall:
+          target: Compute59
+          activities:
+            - delegate: uninstall
+        Compute63_uninstall:
+          target: Compute63
+          activities:
+            - delegate: uninstall
+        Compute25_uninstall:
+          target: Compute25
+          activities:
+            - delegate: uninstall
+        Compute52_uninstall:
+          target: Compute52
+          activities:
+            - delegate: uninstall
+        Compute29_uninstall:
+          target: Compute29
+          activities:
+            - delegate: uninstall
+        Compute44_uninstall:
+          target: Compute44
+          activities:
+            - delegate: uninstall
+        Compute4_uninstall:
+          target: Compute4
+          activities:
+            - delegate: uninstall
+        Compute36_uninstall:
+          target: Compute36
+          activities:
+            - delegate: uninstall
+        Compute18_uninstall:
+          target: Compute18
+          activities:
+            - delegate: uninstall
+        Compute40_uninstall:
+          target: Compute40
+          activities:
+            - delegate: uninstall
+        Compute10_uninstall:
+          target: Compute10
+          activities:
+            - delegate: uninstall
+        Compute3_uninstall:
+          target: Compute3
+          activities:
+            - delegate: uninstall
+        Compute55_uninstall:
+          target: Compute55
+          activities:
+            - delegate: uninstall
+        Compute47_uninstall:
+          target: Compute47
+          activities:
+            - delegate: uninstall
+        Compute66_uninstall:
+          target: Compute66
+          activities:
+            - delegate: uninstall
+        Compute8_uninstall:
+          target: Compute8
+          activities:
+            - delegate: uninstall
+        Compute21_uninstall:
+          target: Compute21
+          activities:
+            - delegate: uninstall
+        Compute1_uninstall:
+          target: Compute1
+          activities:
+            - delegate: uninstall
+        Compute30_uninstall:
+          target: Compute30
+          activities:
+            - delegate: uninstall
+        Compute62_uninstall:
+          target: Compute62
+          activities:
+            - delegate: uninstall
+        Compute11_uninstall:
+          target: Compute11
+          activities:
+            - delegate: uninstall
+        Compute56_uninstall:
+          target: Compute56
+          activities:
+            - delegate: uninstall
+        Compute43_uninstall:
+          target: Compute43
+          activities:
+            - delegate: uninstall
+        Compute69_uninstall:
+          target: Compute69
+          activities:
+            - delegate: uninstall
+        Compute37_uninstall:
+          target: Compute37
+          activities:
+            - delegate: uninstall
+        Compute17_uninstall:
+          target: Compute17
+          activities:
+            - delegate: uninstall
+        Compute24_uninstall:
+          target: Compute24
+          activities:
+            - delegate: uninstall
+        Compute7_uninstall:
+          target: Compute7
+          activities:
+            - delegate: uninstall
+        Compute20_uninstall:
+          target: Compute20
+          activities:
+            - delegate: uninstall
+        Compute33_uninstall:
+          target: Compute33
+          activities:
+            - delegate: uninstall
+        Compute14_uninstall:
+          target: Compute14
+          activities:
+            - delegate: uninstall
+        Compute46_uninstall:
+          target: Compute46
+          activities:
+            - delegate: uninstall
+        Compute27_uninstall:
+          target: Compute27
+          activities:
+            - delegate: uninstall
+        Compute50_uninstall:
+          target: Compute50
+          activities:
+            - delegate: uninstall
+        Compute9_uninstall:
+          target: Compute9
+          activities:
+            - delegate: uninstall
+        Compute12_uninstall:
+          target: Compute12
+          activities:
+            - delegate: uninstall
+        Compute65_uninstall:
+          target: Compute65
+          activities:
+            - delegate: uninstall
+        Compute38_uninstall:
+          target: Compute38
+          activities:
+            - delegate: uninstall
+        Compute57_uninstall:
+          target: Compute57
+          activities:
+            - delegate: uninstall
+        Compute31_uninstall:
+          target: Compute31
+          activities:
+            - delegate: uninstall
+        Compute68_uninstall:
+          target: Compute68
+          activities:
+            - delegate: uninstall
+        Compute49_uninstall:
+          target: Compute49
+          activities:
+            - delegate: uninstall
+        Compute6_uninstall:
+          target: Compute6
+          activities:
+            - delegate: uninstall
+        Compute23_uninstall:
+          target: Compute23
+          activities:
+            - delegate: uninstall
+        Compute42_uninstall:
+          target: Compute42
+          activities:
+            - delegate: uninstall
+        Compute15_uninstall:
+          target: Compute15
+          activities:
+            - delegate: uninstall
+        Compute53_uninstall:
+          target: Compute53
+          activities:
+            - delegate: uninstall
+        Compute39_uninstall:
+          target: Compute39
+          activities:
+            - delegate: uninstall
+        Compute34_uninstall:
+          target: Compute34
+          activities:
+            - delegate: uninstall
+        Compute61_uninstall:
+          target: Compute61
+          activities:
+            - delegate: uninstall
+        Compute45_uninstall:
+          target: Compute45
+          activities:
+            - delegate: uninstall
+        Compute13_uninstall:
+          target: Compute13
+          activities:
+            - delegate: uninstall
+        Compute26_uninstall:
+          target: Compute26
+          activities:
+            - delegate: uninstall
+        Compute32_uninstall:
+          target: Compute32
+          activities:
+            - delegate: uninstall
+        Compute64_uninstall:
+          target: Compute64
+          activities:
+            - delegate: uninstall
+        Compute28_uninstall:
+          target: Compute28
+          activities:
+            - delegate: uninstall
+        Compute58_uninstall:
+          target: Compute58
+          activities:
+            - delegate: uninstall
+        Compute70_uninstall:
+          target: Compute70
+          activities:
+            - delegate: uninstall
+        Compute51_uninstall:
+          target: Compute51
+          activities:
+            - delegate: uninstall
+        Compute5_uninstall:
+          target: Compute5
+          activities:
+            - delegate: uninstall
+        Compute22_uninstall:
+          target: Compute22
+          activities:
+            - delegate: uninstall
+        Compute54_uninstall:
+          target: Compute54
+          activities:
+            - delegate: uninstall
+        Compute60_uninstall:
+          target: Compute60
+          activities:
+            - delegate: uninstall
+        Compute67_uninstall:
+          target: Compute67
+          activities:
+            - delegate: uninstall
+        Compute16_uninstall:
+          target: Compute16
+          activities:
+            - delegate: uninstall
+        Compute35_uninstall:
+          target: Compute35
+          activities:
+            - delegate: uninstall
+        Compute48_uninstall:
+          target: Compute48
+          activities:
+            - delegate: uninstall
+        Compute19_uninstall:
+          target: Compute19
+          activities:
+            - delegate: uninstall
+        Compute2_uninstall:
+          target: Compute2
+          activities:
+            - delegate: uninstall
+        Compute41_uninstall:
+          target: Compute41
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        Compute27_start:
+          target: Compute27
+          activities:
+            - delegate: start
+        Compute37_start:
+          target: Compute37
+          activities:
+            - delegate: start
+        Compute30_start:
+          target: Compute30
+          activities:
+            - delegate: start
+        Compute40_start:
+          target: Compute40
+          activities:
+            - delegate: start
+        Compute50_start:
+          target: Compute50
+          activities:
+            - delegate: start
+        Compute60_start:
+          target: Compute60
+          activities:
+            - delegate: start
+        Compute9_start:
+          target: Compute9
+          activities:
+            - delegate: start
+        Compute10_start:
+          target: Compute10
+          activities:
+            - delegate: start
+        Compute70_start:
+          target: Compute70
+          activities:
+            - delegate: start
+        Compute2_start:
+          target: Compute2
+          activities:
+            - delegate: start
+        Compute20_start:
+          target: Compute20
+          activities:
+            - delegate: start
+        Compute6_start:
+          target: Compute6
+          activities:
+            - delegate: start
+        Compute43_start:
+          target: Compute43
+          activities:
+            - delegate: start
+        Compute53_start:
+          target: Compute53
+          activities:
+            - delegate: start
+        Compute13_start:
+          target: Compute13
+          activities:
+            - delegate: start
+        Compute33_start:
+          target: Compute33
+          activities:
+            - delegate: start
+        Compute63_start:
+          target: Compute63
+          activities:
+            - delegate: start
+        Compute23_start:
+          target: Compute23
+          activities:
+            - delegate: start
+        Compute11_start:
+          target: Compute11
+          activities:
+            - delegate: start
+        Compute31_start:
+          target: Compute31
+          activities:
+            - delegate: start
+        Compute3_start:
+          target: Compute3
+          activities:
+            - delegate: start
+        Compute28_start:
+          target: Compute28
+          activities:
+            - delegate: start
+        Compute26_start:
+          target: Compute26
+          activities:
+            - delegate: start
+        Compute46_start:
+          target: Compute46
+          activities:
+            - delegate: start
+        Compute66_start:
+          target: Compute66
+          activities:
+            - delegate: start
+        Compute5_start:
+          target: Compute5
+          activities:
+            - delegate: start
+        Compute51_start:
+          target: Compute51
+          activities:
+            - delegate: start
+        Compute49_start:
+          target: Compute49
+          activities:
+            - delegate: start
+        Compute62_start:
+          target: Compute62
+          activities:
+            - delegate: start
+        Compute69_start:
+          target: Compute69
+          activities:
+            - delegate: start
+        Compute34_start:
+          target: Compute34
+          activities:
+            - delegate: start
+        Compute54_start:
+          target: Compute54
+          activities:
+            - delegate: start
+        Compute14_start:
+          target: Compute14
+          activities:
+            - delegate: start
+        Compute42_start:
+          target: Compute42
+          activities:
+            - delegate: start
+        Compute17_start:
+          target: Compute17
+          activities:
+            - delegate: start
+        Compute57_start:
+          target: Compute57
+          activities:
+            - delegate: start
+        Compute4_start:
+          target: Compute4
+          activities:
+            - delegate: start
+        Compute12_start:
+          target: Compute12
+          activities:
+            - delegate: start
+        Compute22_start:
+          target: Compute22
+          activities:
+            - delegate: start
+        Compute19_start:
+          target: Compute19
+          activities:
+            - delegate: start
+        Compute29_start:
+          target: Compute29
+          activities:
+            - delegate: start
+        Compute39_start:
+          target: Compute39
+          activities:
+            - delegate: start
+        Compute15_start:
+          target: Compute15
+          activities:
+            - delegate: start
+        Compute25_start:
+          target: Compute25
+          activities:
+            - delegate: start
+        Compute35_start:
+          target: Compute35
+          activities:
+            - delegate: start
+        Compute45_start:
+          target: Compute45
+          activities:
+            - delegate: start
+        Compute55_start:
+          target: Compute55
+          activities:
+            - delegate: start
+        Compute65_start:
+          target: Compute65
+          activities:
+            - delegate: start
+        Compute58_start:
+          target: Compute58
+          activities:
+            - delegate: start
+        Compute68_start:
+          target: Compute68
+          activities:
+            - delegate: start
+        Compute38_start:
+          target: Compute38
+          activities:
+            - delegate: start
+        Compute48_start:
+          target: Compute48
+          activities:
+            - delegate: start
+        Compute8_start:
+          target: Compute8
+          activities:
+            - delegate: start
+        Compute21_start:
+          target: Compute21
+          activities:
+            - delegate: start
+        Compute18_start:
+          target: Compute18
+          activities:
+            - delegate: start
+        Compute36_start:
+          target: Compute36
+          activities:
+            - delegate: start
+        Compute56_start:
+          target: Compute56
+          activities:
+            - delegate: start
+        Compute16_start:
+          target: Compute16
+          activities:
+            - delegate: start
+        Compute64_start:
+          target: Compute64
+          activities:
+            - delegate: start
+        Compute61_start:
+          target: Compute61
+          activities:
+            - delegate: start
+        Compute41_start:
+          target: Compute41
+          activities:
+            - delegate: start
+        Compute24_start:
+          target: Compute24
+          activities:
+            - delegate: start
+        Compute59_start:
+          target: Compute59
+          activities:
+            - delegate: start
+        Compute1_start:
+          target: Compute1
+          activities:
+            - delegate: start
+        Compute44_start:
+          target: Compute44
+          activities:
+            - delegate: start
+        Compute52_start:
+          target: Compute52
+          activities:
+            - delegate: start
+        Compute7_start:
+          target: Compute7
+          activities:
+            - delegate: start
+        Compute67_start:
+          target: Compute67
+          activities:
+            - delegate: start
+        Compute32_start:
+          target: Compute32
+          activities:
+            - delegate: start
+        Compute47_start:
+          target: Compute47
+          activities:
+            - delegate: start
+    stop:
+      steps:
+        Compute30_stop:
+          target: Compute30
+          activities:
+            - delegate: stop
+        Compute58_stop:
+          target: Compute58
+          activities:
+            - delegate: stop
+        Compute13_stop:
+          target: Compute13
+          activities:
+            - delegate: stop
+        Compute52_stop:
+          target: Compute52
+          activities:
+            - delegate: stop
+        Compute3_stop:
+          target: Compute3
+          activities:
+            - delegate: stop
+        Compute28_stop:
+          target: Compute28
+          activities:
+            - delegate: stop
+        Compute36_stop:
+          target: Compute36
+          activities:
+            - delegate: stop
+        Compute44_stop:
+          target: Compute44
+          activities:
+            - delegate: stop
+        Compute59_stop:
+          target: Compute59
+          activities:
+            - delegate: stop
+        Compute60_stop:
+          target: Compute60
+          activities:
+            - delegate: stop
+        Compute14_stop:
+          target: Compute14
+          activities:
+            - delegate: stop
+        Compute45_stop:
+          target: Compute45
+          activities:
+            - delegate: stop
+        Compute53_stop:
+          target: Compute53
+          activities:
+            - delegate: stop
+        Compute61_stop:
+          target: Compute61
+          activities:
+            - delegate: stop
+        Compute22_stop:
+          target: Compute22
+          activities:
+            - delegate: stop
+        Compute67_stop:
+          target: Compute67
+          activities:
+            - delegate: stop
+        Compute4_stop:
+          target: Compute4
+          activities:
+            - delegate: stop
+        Compute29_stop:
+          target: Compute29
+          activities:
+            - delegate: stop
+        Compute1_stop:
+          target: Compute1
+          activities:
+            - delegate: stop
+        Compute12_stop:
+          target: Compute12
+          activities:
+            - delegate: stop
+        Compute26_stop:
+          target: Compute26
+          activities:
+            - delegate: stop
+        Compute7_stop:
+          target: Compute7
+          activities:
+            - delegate: stop
+        Compute37_stop:
+          target: Compute37
+          activities:
+            - delegate: stop
+        Compute34_stop:
+          target: Compute34
+          activities:
+            - delegate: stop
+        Compute18_stop:
+          target: Compute18
+          activities:
+            - delegate: stop
+        Compute20_stop:
+          target: Compute20
+          activities:
+            - delegate: stop
+        Compute31_stop:
+          target: Compute31
+          activities:
+            - delegate: stop
+        Compute15_stop:
+          target: Compute15
+          activities:
+            - delegate: stop
+        Compute23_stop:
+          target: Compute23
+          activities:
+            - delegate: stop
+        Compute63_stop:
+          target: Compute63
+          activities:
+            - delegate: stop
+        Compute9_stop:
+          target: Compute9
+          activities:
+            - delegate: stop
+        Compute66_stop:
+          target: Compute66
+          activities:
+            - delegate: stop
+        Compute69_stop:
+          target: Compute69
+          activities:
+            - delegate: stop
+        Compute47_stop:
+          target: Compute47
+          activities:
+            - delegate: stop
+        Compute41_stop:
+          target: Compute41
+          activities:
+            - delegate: stop
+        Compute33_stop:
+          target: Compute33
+          activities:
+            - delegate: stop
+        Compute55_stop:
+          target: Compute55
+          activities:
+            - delegate: stop
+        Compute10_stop:
+          target: Compute10
+          activities:
+            - delegate: stop
+        Compute39_stop:
+          target: Compute39
+          activities:
+            - delegate: stop
+        Compute6_stop:
+          target: Compute6
+          activities:
+            - delegate: stop
+        Compute42_stop:
+          target: Compute42
+          activities:
+            - delegate: stop
+        Compute50_stop:
+          target: Compute50
+          activities:
+            - delegate: stop
+        Compute17_stop:
+          target: Compute17
+          activities:
+            - delegate: stop
+        Compute25_stop:
+          target: Compute25
+          activities:
+            - delegate: stop
+        Compute64_stop:
+          target: Compute64
+          activities:
+            - delegate: stop
+        Compute11_stop:
+          target: Compute11
+          activities:
+            - delegate: stop
+        Compute48_stop:
+          target: Compute48
+          activities:
+            - delegate: stop
+        Compute56_stop:
+          target: Compute56
+          activities:
+            - delegate: stop
+        Compute51_stop:
+          target: Compute51
+          activities:
+            - delegate: stop
+        Compute65_stop:
+          target: Compute65
+          activities:
+            - delegate: stop
+        Compute57_stop:
+          target: Compute57
+          activities:
+            - delegate: stop
+        Compute62_stop:
+          target: Compute62
+          activities:
+            - delegate: stop
+        Compute54_stop:
+          target: Compute54
+          activities:
+            - delegate: stop
+        Compute49_stop:
+          target: Compute49
+          activities:
+            - delegate: stop
+        Compute68_stop:
+          target: Compute68
+          activities:
+            - delegate: stop
+        Compute38_stop:
+          target: Compute38
+          activities:
+            - delegate: stop
+        Compute24_stop:
+          target: Compute24
+          activities:
+            - delegate: stop
+        Compute70_stop:
+          target: Compute70
+          activities:
+            - delegate: stop
+        Compute8_stop:
+          target: Compute8
+          activities:
+            - delegate: stop
+        Compute21_stop:
+          target: Compute21
+          activities:
+            - delegate: stop
+        Compute43_stop:
+          target: Compute43
+          activities:
+            - delegate: stop
+        Compute46_stop:
+          target: Compute46
+          activities:
+            - delegate: stop
+        Compute5_stop:
+          target: Compute5
+          activities:
+            - delegate: stop
+        Compute40_stop:
+          target: Compute40
+          activities:
+            - delegate: stop
+        Compute16_stop:
+          target: Compute16
+          activities:
+            - delegate: stop
+        Compute2_stop:
+          target: Compute2
+          activities:
+            - delegate: stop
+        Compute27_stop:
+          target: Compute27
+          activities:
+            - delegate: stop
+        Compute32_stop:
+          target: Compute32
+          activities:
+            - delegate: stop
+        Compute35_stop:
+          target: Compute35
+          activities:
+            - delegate: stop
+        Compute19_stop:
+          target: Compute19
+          activities:
+            - delegate: stop
+    run:
+    cancel:

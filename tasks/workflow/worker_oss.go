@@ -12,31 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collector
+// +build !premium
+
+package workflow
 
 import (
-	"testing"
-
-	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/testutil"
+	"context"
+	"github.com/pkg/errors"
 )
 
-// The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulCollectorPackageTests(t *testing.T) {
-	t.Parallel()
-	log.SetDebug(true)
-
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
-
-	populateKV(t, srv)
-
-	t.Run("groupCollector", func(t *testing.T) {
-		t.Run("testResumeTask", func(t *testing.T) {
-			testResumeTask(t, client)
-		})
-		t.Run("testRegisterTaskWithBigWorkflow", func(t *testing.T) {
-			testRegisterTaskWithBigWorkflow(t, client)
-		})
-	})
+func (w *worker) runAddRemoveNodes(ctx context.Context, t *taskExecution, wfName string) error {
+	return errors.New("runAddRemoveNodes is only supported only in premium versions")
 }

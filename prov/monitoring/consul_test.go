@@ -29,12 +29,18 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	cfg := config.Configuration{
 		HTTPAddress: "localhost",
 		ServerID:    "0",
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
 	}
 
 	// Register the consul service
 	chStop := make(chan struct{})
-	consulutil.RegisterServerAsConsulService(cfg, client, chStop)
-
+	err := consulutil.RegisterServerAsConsulService(cfg, client, chStop)
+	if err != nil {
+		t.Fatalf("failed to setup Yorc Consul service %v", err)
+	}
 	// Start/Stop the monitoring manager
 	Start(cfg, client)
 	defer func() {
@@ -54,6 +60,13 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/properties/time_interval": []byte("1s"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/targets":                  []byte("Compute1"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/type":                     []byte("yorc.policies.monitoring.TCPMonitoring"),
+
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.monitoring.HTTPMonitoring/derived_from": []byte("yorc.policies.Monitoring"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.monitoring.HTTPMonitoring/targets": []byte("		tosca.nodes.Compute,tosca.nodes.SoftwareComponent"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/properties/port":          []byte("22"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/properties/time_interval": []byte("1s"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/targets":                  []byte("Compute2"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/type":                     []byte("yorc.policies.monitoring.HTTPMonitoring"),
 
 		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/yorc.policies.monitoring.TCPMonitoring/derived_from": []byte("yorc.policies.Monitoring"),
 		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/yorc.policies.monitoring.TCPMonitoring/targets": []byte("		tosca.nodes.Compute,tosca.nodes.SoftwareComponent"),
@@ -76,6 +89,9 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/type":                             []byte("yorc.nodes.openstack.Compute"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/ip_address":      []byte("1.2.3.4"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/state":           []byte("started"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute2/type":                             []byte("yorc.nodes.openstack.Compute"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute2/0/attributes/ip_address":      []byte("10.20.30.40"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute2/0/attributes/state":           []byte("started"),
 
 		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Compute/derived_from":          []byte("tosca.nodes.Root"),
@@ -100,7 +116,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 
 	t.Run("groupMonitoring", func(t *testing.T) {
 		t.Run("testComputeMonitoringHook", func(t *testing.T) {
-			testComputeMonitoringHook(t, client, config.Configuration{})
+			testComputeMonitoringHook(t, client, cfg)
 		})
 		t.Run("testIsMonitoringRequiredWithNoPolicy", func(t *testing.T) {
 			testIsMonitoringRequiredWithNoPolicy(t, client)

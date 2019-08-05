@@ -23,13 +23,18 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
+const (
+	workflowsPrefix = "workflows"
+)
+
 // GetWorkflows returns the list of workflows names for a given deployment
 func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
-	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows")
+	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix)
 	keys, _, err := kv.Keys(workflowsPath+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -43,7 +48,7 @@ func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
 
 // ReadWorkflow reads a workflow definition from Consul and built its TOSCA representation
 func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error) {
-	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName)
+	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix, workflowName)
 	steps, _, err := kv.Keys(workflowPath+"/steps/", "/", nil)
 	wf := tosca.Workflow{}
 	if err != nil {
@@ -171,4 +176,56 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		}
 	}
 	return step, nil
+}
+
+// DeleteWorkflow deletes the given workflow from the Consul store
+func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+		workflowsPrefix, workflowName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {
+	wf, err := ReadWorkflow(kv, deploymentID, "run")
+	if err != nil {
+		return err
+	}
+	var wasUpdated bool
+	for sn, s := range wf.Steps {
+		var isCancellable bool
+		for _, a := range s.Activities {
+			switch strings.ToLower(a.CallOperation) {
+			case tosca.RunnableSubmitOperationName, tosca.RunnableRunOperationName:
+				isCancellable = true
+			}
+		}
+		if isCancellable && len(s.OnCancel) == 0 {
+			// Cancellable and on-cancel not defined
+			// Check if there is an cancel op
+			hasCancelOp, err := IsOperationImplemented(kv, deploymentID, s.Target, tosca.RunnableCancelOperationName)
+			if err != nil {
+				return err
+			}
+			if hasCancelOp {
+				cancelStep := &tosca.Step{
+					Target:             s.Target,
+					TargetRelationShip: s.TargetRelationShip,
+					OperationHost:      s.OperationHost,
+					Activities: []tosca.Activity{
+						tosca.Activity{
+							CallOperation: tosca.RunnableCancelOperationName,
+						},
+					},
+				}
+				csName := "yorc_automatic_cancellation_of_" + sn
+				wf.Steps[csName] = cancelStep
+				s.OnCancel = []string{csName}
+				wasUpdated = true
+			}
+		}
+	}
+	if wasUpdated {
+		internal.StoreWorkflow(consulStore, deploymentID, "run", wf)
+	}
+	return nil
 }

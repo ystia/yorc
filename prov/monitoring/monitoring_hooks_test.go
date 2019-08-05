@@ -12,31 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collector
+package monitoring
 
 import (
+	"context"
 	"testing"
 
-	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/testutil"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 )
 
-// The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulCollectorPackageTests(t *testing.T) {
-	t.Parallel()
-	log.SetDebug(true)
-
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
-
-	populateKV(t, srv)
-
-	t.Run("groupCollector", func(t *testing.T) {
-		t.Run("testResumeTask", func(t *testing.T) {
-			testResumeTask(t, client)
+func Test_addMonitoringHook(t *testing.T) {
+	type args struct {
+		ctx          context.Context
+		cfg          config.Configuration
+		taskID       string
+		deploymentID string
+		target       string
+		activity     builder.Activity
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addMonitoringHook(tt.args.ctx, tt.args.cfg, tt.args.taskID, tt.args.deploymentID, tt.args.target, tt.args.activity)
 		})
-		t.Run("testRegisterTaskWithBigWorkflow", func(t *testing.T) {
-			testRegisterTaskWithBigWorkflow(t, client)
-		})
-	})
+	}
 }

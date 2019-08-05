@@ -38,6 +38,12 @@ type anotherLivingTaskAlreadyExistsError struct {
 	status   string
 }
 
+const (
+	// stepRegistrationInProgressKey is the Consul key name, whose presence means the
+	// new steps are being registered in Consul for a given task
+	stepRegistrationInProgressKey = "stepRegistrationInProgress"
+)
+
 func (e anotherLivingTaskAlreadyExistsError) Error() string {
 	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
 }
@@ -59,7 +65,12 @@ func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
 
 // IsWorkflowTask returns true if the task type is related to workflow
 func IsWorkflowTask(taskType TaskType) bool {
-	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypePurge || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
+	switch taskType {
+	case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut, TaskTypeCustomWorkflow, TaskTypeAddNodes, TaskTypeRemoveNodes:
+		return true
+	default:
+		return false
+	}
 }
 
 type taskDataNotFound struct {
@@ -166,7 +177,7 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	if err != nil {
 		return TaskTypeDeploy, errors.Wrapf(err, "Invalid task type:")
 	}
-	if typeInt < 0 || typeInt > int(TaskTypeForcePurge) {
+	if typeInt < 0 || typeInt > int(TaskTypeRemoveNodes) {
 		return TaskTypeDeploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
@@ -213,6 +224,37 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 	return true, nil
 }
 
+// IsStepRegistrationInProgress checks if a task registration is still in progress,
+// in which case it should not yet be executed
+func IsStepRegistrationInProgress(kv *api.KV, taskID string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+// StoreOperations stores operations related to a task through a transaction
+// splitting this transaction if needed, in which case it will create a key
+// notifying a registration is in progress
+func StoreOperations(kv *api.KV, taskID string, operations api.KVTxnOps) error {
+
+	registrationStatusKeyPath := path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey)
+	preOpSplit := &api.KVTxnOp{
+		Verb:  api.KVSet,
+		Key:   registrationStatusKeyPath,
+		Value: []byte("true"),
+	}
+	postOpSplit := &api.KVTxnOp{
+		Verb: api.KVDelete,
+		Key:  registrationStatusKeyPath,
+	}
+	return consulutil.ExecuteSplittableTransaction(kv, operations, preOpSplit, postOpSplit)
+}
+
 // CancelTask marks a task as Canceled
 func CancelTask(kv *api.KV, taskID string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), "true")
@@ -246,7 +288,7 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 		}
 
 		switch tType {
-		case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut:
+		case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut, TaskTypeAddNodes, TaskTypeRemoveNodes:
 			if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
 				return true, taskID, tStatus.String(), nil
 			}
@@ -349,7 +391,7 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 	switch taskType {
 	case TaskTypeCustomCommand:
 		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
-	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge:
+	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeAddNodes, TaskTypeRemoveNodes:
 		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
 		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))

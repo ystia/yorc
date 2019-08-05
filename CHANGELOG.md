@@ -2,6 +2,13 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Allow to disable automatic Consul snapshots and restore when upgrading Yorc using ̀`YORC_DISABLE_CONSUL_SNAPSHOTS_ON_UPGRADE` env variable ([GH-486](https://github.com/ystia/yorc/issues/486))
+* Allow to update instance attribute when creating attribute notifications ([GH-491](https://github.com/ystia/yorc/issues/491))
+
+## 4.0.0-M1 (July 12, 2019)
+
 ### BREAKING CHANGES
 
 * Start v4.0 cycle ([GH-444](https://github.com/ystia/yorc/issues/444)):
@@ -10,6 +17,7 @@
 
 ### BUG FIXES
 
+* Failure to deploy/undeploy big application: Transaction contains too many operations ([GH-484](https://github.com/ystia/yorc/issues/484))
 * Wrong resources allocation on shareable Hosts Pool ([GH-426](https://github.com/ystia/yorc/issues/426))
 * Deleting one host in Pool deletes other hosts having as prefix the deleted hostname ([GH-430](https://github.com/ystia/yorc/issues/430))
 * Yorc should support long standard operation names as well as short ones ([GH-300](https://github.com/ystia/yorc/issues/300))
@@ -26,6 +34,7 @@
 * Support Alien4Cloud 2.2 ([GH-441](https://github.com/ystia/yorc/issues/441))
 * Allow to provide extra env vars to Alien4Cloud during bootstrap ([GH-452](https://github.com/ystia/yorc/issues/452))
 * Port CLI and Rest API minor changes for premium update feature ([GH-467](https://github.com/ystia/yorc/issues/467))
+* Port changes for update nodes ([GH-476](https://github.com/ystia/yorc/issues/476))
 
 ## 3.2.0 (May 31, 2019)
 

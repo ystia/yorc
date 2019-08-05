@@ -27,6 +27,8 @@ package tasks
 // Query,
 // Action
 // ForcePurge
+// AddNodes
+// RemoveNodes
 // )
 type TaskType int
 

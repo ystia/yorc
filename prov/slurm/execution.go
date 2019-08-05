@@ -613,7 +613,7 @@ func (e *executionCommon) resolveInstances() error {
 
 func (e *executionCommon) resolveExecution() error {
 	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
-	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
+	ovPath, err := operations.GetOverlayPath(e.kv, e.cfg, e.taskID, e.deploymentID)
 	if err != nil {
 		return err
 	}

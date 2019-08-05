@@ -12,31 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collector
+package operations
 
 import (
 	"testing"
 
+	consultests "github.com/hashicorp/consul/testutil"
+
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulCollectorPackageTests(t *testing.T) {
+func TestRunConsulTasksPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
 	defer srv.Stop()
 
 	populateKV(t, srv)
 
-	t.Run("groupCollector", func(t *testing.T) {
-		t.Run("testResumeTask", func(t *testing.T) {
-			testResumeTask(t, client)
-		})
-		t.Run("testRegisterTaskWithBigWorkflow", func(t *testing.T) {
-			testRegisterTaskWithBigWorkflow(t, client)
-		})
+	t.Run("TestGetOverlayPath", func(t *testing.T) {
+		testGetOverlayPath(t, kv)
+	})
+
+}
+
+func populateKV(t *testing.T, srv *consultests.TestServer) {
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.TasksPrefix + "/deployTask/targetId": []byte("id1"),
+		consulutil.TasksPrefix + "/deployTask/status":   []byte("0"),
+		consulutil.TasksPrefix + "/deployTask/type":     []byte("0"), // tasks.TaskTypeDeploy
+		consulutil.TasksPrefix + "/removeTask/targetId": []byte("id1"),
+		consulutil.TasksPrefix + "/removeTask/status":   []byte("0"),
+		consulutil.TasksPrefix + "/removeTask/type":     []byte("11"), // tasks.TaskTypeRemoveNodes
 	})
 }

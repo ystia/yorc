@@ -156,4 +156,11 @@ func testSubstitutionClientServiceInstance(t *testing.T, kv *api.KV) {
 	require.NoError(t, err, "Failed to get service capability attribute")
 	require.NotNil(t, value, "Found no ip_address attribute in capability appA_capA exposed by the service")
 	assert.Equal(t, "10.0.0.2", value.RawString(), "Wrong ip_address attribute in capability appA_capA exposed by the service")
+
+	// Get an instance attribute exposed by this service
+	value, err = GetInstanceAttributeValue(kv, deploymentID, serviceName,
+		substitutableNodeInstance, "web_ui_url")
+	require.NoError(t, err, "Failed to get service instance attribute")
+	require.NotNil(t, value, "Found no web_ui_url attribute exposed by the service")
+	assert.Equal(t, "http://10.1.2.3:8500", value.RawString(), "Wrong web_ui_url attribute exposed by the service")
 }
