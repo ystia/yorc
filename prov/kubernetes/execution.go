@@ -265,7 +265,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		if !namespaceProvided {
 			// Check if other deployments exist in the namespace
 			// In that case nothing to do
-			nbDeployments, err := deploymentsInNamespace(clientset, namespaceName)
+			nbDeployments, err := podControllersInNamespace(clientset, namespaceName)
 			if err != nil {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
 				return err
@@ -361,7 +361,26 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 		if err != nil {
 			return err
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s PVC %s deleted!", stfsName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s StatefulSet %s deleted!", stfsName)
+		// Delete namespace if it was not provided
+		if !nsProvided {
+			nbController, err := podControllersInNamespace(clientset, namespace)
+			if err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+				return err
+			}
+			if nbController > 0 {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Do not delete %s namespace as %d deployments exist", namespace, nbController)
+			} else {
+				err = deleteNamespace(namespace, clientset)
+				if err != nil {
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+					return err
+				}
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
+		}
+
 	// TODO: manage scale
 	//case k8sScaleOperation:
 	default:

@@ -166,6 +166,7 @@ func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) 
 	return false, nil
 }
 
+/* DEPRECATED Use podControllersInNamespace instead */
 func deploymentsInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
 	var nbDeployments int
 	deploymentsList, err := clientset.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
@@ -181,6 +182,21 @@ func deploymentsInNamespace(clientset kubernetes.Interface, namespace string) (i
 		}
 	}
 	return nbDeployments, nil
+}
+
+/* Return the number of pod controllers (Deployment and StatefulSet, more in the future) in a specific namespace or -1, err != nil in case of error */
+func podControllersInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
+	var nbcontrollers int
+	deploymentsList, err := clientset.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return -1, err
+	}
+	stsList, err := clientset.AppsV1beta1().StatefulSets(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return -1, err
+	}
+	nbcontrollers = len(deploymentsList.Items) + len(stsList.Items)
+	return nbcontrollers, nil
 }
 
 type reference struct {
