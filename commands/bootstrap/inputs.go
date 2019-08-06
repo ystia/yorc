@@ -1236,7 +1236,8 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 }
 
 func getPropertiesInput(topology tosca.Topology, properties map[string]tosca.PropertyDefinition,
-	askIfNotRequired bool, convertBooleanToString bool, msgPrefix string, resultMap *config.DynamicMap) error {
+	askIfNotRequired bool, convertBooleanToString bool, msgPrefix string, resultMap *config.DynamicMap,
+	opts ...survey.AskOpt) error {
 
 	for propName, definition := range properties {
 
@@ -1254,16 +1255,17 @@ func getPropertiesInput(topology tosca.Topology, properties map[string]tosca.Pro
 		}
 
 		if definition.Type == "boolean" {
-			getBooleanPropertyValue(propName, description, definition, convertBooleanToString, resultMap)
+			getBooleanPropertyValue(propName, description, definition, convertBooleanToString,
+				resultMap, opts...)
 		} else if isDatatype(topology, definition.Type) {
 			if err := getDatatypePropertyValue(topology, propName, description, definition,
-				required, askIfNotRequired, convertBooleanToString, resultMap); err != nil {
+				required, askIfNotRequired, convertBooleanToString, resultMap, opts...); err != nil {
 				return err
 			}
 		} else {
 
 			if err := getPropertyValue(propName, description, definition,
-				required, resultMap); err != nil {
+				required, resultMap, opts...); err != nil {
 				return err
 			}
 
@@ -1274,7 +1276,7 @@ func getPropertiesInput(topology tosca.Topology, properties map[string]tosca.Pro
 }
 
 func getBooleanPropertyValue(propName, description string, definition tosca.PropertyDefinition,
-	convertBooleanToString bool, resultMap *config.DynamicMap) {
+	convertBooleanToString bool, resultMap *config.DynamicMap, opts ...survey.AskOpt) {
 	defaultValue := "false"
 	if definition.Default != nil {
 		defaultValue = definition.Default.GetLiteral()
@@ -1285,7 +1287,7 @@ func getBooleanPropertyValue(propName, description string, definition tosca.Prop
 		Default: defaultValue,
 	}
 	var answer string
-	survey.AskOne(prompt, &answer, nil)
+	survey.AskOne(prompt, &answer, nil, opts...)
 	if convertBooleanToString {
 		resultMap.Set(propName, answer)
 	} else {
@@ -1300,7 +1302,8 @@ func getBooleanPropertyValue(propName, description string, definition tosca.Prop
 func getDatatypePropertyValue(topology tosca.Topology, propName, description string,
 	definition tosca.PropertyDefinition,
 	required, askIfNotRequired, convertBooleanToString bool,
-	resultMap *config.DynamicMap) error {
+	resultMap *config.DynamicMap,
+	opts ...survey.AskOpt) error {
 
 	propValueMap := make(config.DynamicMap)
 	if !required && askIfNotRequired {
@@ -1310,7 +1313,7 @@ func getDatatypePropertyValue(topology tosca.Topology, propName, description str
 			Default: "no",
 		}
 		var answer string
-		survey.AskOne(prompt, &answer, nil)
+		survey.AskOne(prompt, &answer, nil, opts...)
 
 		if answer == "no" {
 			return nil
@@ -1327,7 +1330,7 @@ func getDatatypePropertyValue(topology tosca.Topology, propName, description str
 }
 
 func getPropertyValue(propName, description string, definition tosca.PropertyDefinition,
-	required bool, resultMap *config.DynamicMap) error {
+	required bool, resultMap *config.DynamicMap, opts ...survey.AskOpt) error {
 
 	answer := struct {
 		Value string
@@ -1380,7 +1383,7 @@ func getPropertyValue(propName, description string, definition tosca.PropertyDef
 	if required {
 		question.Validate = survey.Required
 	}
-	if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+	if err := survey.Ask([]*survey.Question{question}, &answer, opts...); err != nil {
 		return err
 	}
 
