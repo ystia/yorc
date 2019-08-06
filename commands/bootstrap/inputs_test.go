@@ -35,7 +35,7 @@ import (
 const (
 	propertyDescription         = "Property value"
 	inputString                 = "test value"
-	inputBoolean                = "true"
+	inputBooleanString          = "true"
 	inputList                   = "item1,item2"
 	datatypeName                = "myDatatype"
 	datatypePropName            = "myDatatypeProperty"
@@ -54,6 +54,7 @@ func TestGetPropertiesInput(t *testing.T) {
 		definition   tosca.PropertyDefinition
 		question     string // Expected output in question before sending input
 		answer       string // Answer to question
+		convertBool  bool
 		want         interface{}
 	}{
 		{propertyName: "stringProperty",
@@ -65,6 +66,29 @@ func TestGetPropertiesInput(t *testing.T) {
 			answer:   inputString,
 			want:     inputString,
 		},
+		{propertyName: "stringSecretProperty",
+			definition: tosca.PropertyDefinition{
+				Type:        "string",
+				Description: propertyDescription,
+				Required:    &required},
+			question: propertyDescription,
+			answer:   inputString,
+			want:     inputString,
+		},
+		{propertyName: "booleanStringProperty",
+			definition: tosca.PropertyDefinition{
+				Type:        "boolean",
+				Description: propertyDescription,
+				Required:    &required,
+				Default: &tosca.ValueAssignment{
+					Type:  tosca.ValueAssignmentLiteral,
+					Value: "false",
+				}},
+			question:    propertyDescription,
+			answer:      inputBooleanString,
+			convertBool: true,
+			want:        inputBooleanString,
+		},
 		{propertyName: "booleanProperty",
 			definition: tosca.PropertyDefinition{
 				Type:        "boolean",
@@ -74,9 +98,10 @@ func TestGetPropertiesInput(t *testing.T) {
 					Type:  tosca.ValueAssignmentLiteral,
 					Value: "false",
 				}},
-			question: propertyDescription,
-			answer:   inputBoolean,
-			want:     inputBoolean,
+			question:    propertyDescription,
+			answer:      inputBooleanString,
+			convertBool: false,
+			want:        (inputBooleanString == "true"),
 		},
 		{propertyName: "listProperty",
 			definition: tosca.PropertyDefinition{
@@ -119,7 +144,8 @@ func TestGetPropertiesInput(t *testing.T) {
 		}
 
 		runTest(t, tt.question, tt.answer, func(stdio terminal.Stdio) error {
-			return getPropertiesInput(topology, properties, true, true, "", &resultMap, survey.WithStdio(stdio.In, stdio.Out, stdio.Err))
+			return getPropertiesInput(topology, properties, true, tt.convertBool, "", &resultMap,
+				survey.WithStdio(stdio.In, stdio.Out, stdio.Err))
 		})
 
 		assert.Equal(t, tt.want, resultMap[tt.propertyName], "Unexpected property value for %s", tt.propertyName)
