@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,32 +33,37 @@ import (
 )
 
 const (
-	propertyDescription = "Property value"
-	expectedStringValue = "test value"
-	expectedBoolValue   = "true"
+	propertyDescription         = "Property value"
+	inputString                 = "test value"
+	inputBoolean                = "true"
+	inputList                   = "item1,item2"
+	datatypeName                = "myDatatype"
+	datatypePropName            = "myDatatypeProperty"
+	datatypeInputFmtQuestion    = "Do you want to define property %q"
+	datatypePropertyDescription = "DatatypeProperty value"
+	datatypeInputAnswer         = "no"
 )
 
 // TestGetPropertiesInput checks functions getting interactive inputs
 func TestGetPropertiesInput(t *testing.T) {
 
 	required := false
-	definition := tosca.PropertyDefinition{
-		Type:        "string",
-		Description: "Property value",
-		Required:    &required,
-	}
 
 	tests := []struct {
 		propertyName string
 		definition   tosca.PropertyDefinition
-		input        string
+		question     string // Expected output in question before sending input
+		answer       string // Answer to question
+		want         interface{}
 	}{
 		{propertyName: "stringProperty",
 			definition: tosca.PropertyDefinition{
 				Type:        "string",
 				Description: propertyDescription,
 				Required:    &required},
-			input: expectedStringValue,
+			question: propertyDescription,
+			answer:   inputString,
+			want:     inputString,
 		},
 		{propertyName: "booleanProperty",
 			definition: tosca.PropertyDefinition{
@@ -68,38 +74,71 @@ func TestGetPropertiesInput(t *testing.T) {
 					Type:  tosca.ValueAssignmentLiteral,
 					Value: "false",
 				}},
-			input: expectedBoolValue,
+			question: propertyDescription,
+			answer:   inputBoolean,
+			want:     inputBoolean,
+		},
+		{propertyName: "listProperty",
+			definition: tosca.PropertyDefinition{
+				Type:        "list",
+				Description: propertyDescription,
+				Required:    &required},
+			question: propertyDescription,
+			answer:   inputList,
+			want:     strings.Split(inputList, ","),
+		},
+		{propertyName: "dataTypeProperty",
+			definition: tosca.PropertyDefinition{
+				Type:        datatypeName,
+				Description: propertyDescription,
+				Required:    &required},
+			question: fmt.Sprintf(datatypeInputFmtQuestion, propertyDescription),
+			answer:   datatypeInputAnswer,
+			want:     nil,
 		},
 	}
-	var topology tosca.Topology
+
+	topology := tosca.Topology{
+		DataTypes: map[string]tosca.DataType{
+			datatypeName: tosca.DataType{
+				Properties: map[string]tosca.PropertyDefinition{
+					datatypePropName: tosca.PropertyDefinition{
+						Type:        "string",
+						Description: datatypePropertyDescription,
+						Required:    &required},
+				},
+			},
+		},
+	}
+
 	for _, tt := range tests {
 
 		resultMap := make(config.DynamicMap)
 		properties := map[string]tosca.PropertyDefinition{
-			tt.propertyName: definition,
+			tt.propertyName: tt.definition,
 		}
 
-		runTest(t, tt.input, func(stdio terminal.Stdio) error {
+		runTest(t, tt.question, tt.answer, func(stdio terminal.Stdio) error {
 			return getPropertiesInput(topology, properties, true, true, "", &resultMap, survey.WithStdio(stdio.In, stdio.Out, stdio.Err))
 		})
 
-		assert.Equal(t, tt.input, resultMap[tt.propertyName], "Unexpected property value for %s", tt.propertyName)
+		assert.Equal(t, tt.want, resultMap[tt.propertyName], "Unexpected property value for %s", tt.propertyName)
 	}
 
 }
 
-func expectDescriptionSendInput(c *expect.Console, input string) {
-	res, err := c.ExpectString(propertyDescription)
+func expectOutputsSendInputs(c *expect.Console, output, input string) {
+
+	res, err := c.ExpectString(output)
 	if err != nil {
-		fmt.Printf("Failed to get expected output, go %s\n", res)
+		fmt.Printf("Failed to get expected output, got %s\n", res)
 	}
 	c.SendLine(input)
 	c.ExpectEOF()
 }
 
-func runTest(t *testing.T, input string, test func(terminal.Stdio) error) {
+func runTest(t *testing.T, question, answer string, test func(terminal.Stdio) error) {
 
-	// Multiplex output to a buffer as well for the raw bytes.
 	buf := new(bytes.Buffer)
 	c, _, err := vt10x.NewVT10XConsole(expect.WithStdout(buf), expect.WithDefaultTimeout(10*time.Second))
 	require.NoError(t, err, "Failed to create a console")
@@ -108,7 +147,7 @@ func runTest(t *testing.T, input string, test func(terminal.Stdio) error) {
 	donec := make(chan struct{})
 	go func() {
 		defer close(donec)
-		expectDescriptionSendInput(c, input)
+		expectOutputsSendInputs(c, question, answer)
 	}()
 
 	err = test(terminal.Stdio{c.Tty(), c.Tty(), c.Tty()})
