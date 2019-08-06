@@ -1336,31 +1336,10 @@ func getPropertyValue(propName, description string, definition tosca.PropertyDef
 		Value string
 	}{}
 
-	var additionalMsg string
-	if required {
-		additionalMsg = "(required"
-	}
-
 	isList := (definition.Type == "list")
 
-	if isList {
-		if additionalMsg == "" {
-			additionalMsg = " (comma-separated list"
-		} else {
-			additionalMsg += ", comma-separated list"
-		}
-
-	}
-	if definition.Default != nil {
-		if additionalMsg == "" {
-			additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
-		} else {
-			additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
-		}
-	}
-	if additionalMsg != "" {
-		additionalMsg += ")"
-	}
+	// Message to inform the user when the property is required, has a default value
+	additionalMsg := getAdditionalMessage(required, isList, definition)
 
 	var prompt survey.Prompt
 	loweredProp := strings.ToLower(propName)
@@ -1402,6 +1381,34 @@ func getPropertyValue(propName, description string, definition tosca.PropertyDef
 	}
 
 	return nil
+}
+
+func getAdditionalMessage(required, isList bool, definition tosca.PropertyDefinition) string {
+	var additionalMsg string
+	if required {
+		additionalMsg = "(required"
+	}
+
+	if isList {
+		if additionalMsg == "" {
+			additionalMsg = " (comma-separated list"
+		} else {
+			additionalMsg += ", comma-separated list"
+		}
+
+	}
+	if definition.Default != nil {
+		if additionalMsg == "" {
+			additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
+		} else {
+			additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
+		}
+	}
+	if additionalMsg != "" {
+		additionalMsg += ")"
+	}
+
+	return additionalMsg
 }
 
 func isDatatype(topology tosca.Topology, nodeType string) bool {
