@@ -43,5 +43,7 @@ Yorc |release| Documentation
    performance
    upgrade
    plugins
+   premium
    issues
+
 
