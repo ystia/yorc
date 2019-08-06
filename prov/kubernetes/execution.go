@@ -352,7 +352,8 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 		if err != nil {
 			return errors.Wrapf(err, "StatefuSet %s does not exists", stfs.Name)
 		}
-		err = clientset.AppsV1beta1().StatefulSets(namespace).Delete(stfsName, nil)
+		deletePolicy := metav1.DeletePropagationForeground
+		err = clientset.AppsV1beta1().StatefulSets(namespace).Delete(stfsName, &metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 		if err != nil {
 			return errors.Wrapf(err, "Failed to delete StatefulSet %s", stfsName)
 		}

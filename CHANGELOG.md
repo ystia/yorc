@@ -8,6 +8,10 @@
   * deprecated API functions are now removed
   * the former and deprecated way to handle Kubernetes deployments is not supported anymore
 
+### FEATURES
+
+* Yorc support of Kubernetes StatefulSet ([GH-206](https://github.com/ystia/yorc/issues/206))
+
 ### BUG FIXES
 
 * Wrong resources allocation on shareable Hosts Pool ([GH-426](https://github.com/ystia/yorc/issues/426))
