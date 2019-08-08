@@ -36,7 +36,6 @@ import (
 	"github.com/ystia/yorc/v4/commands"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
-	"github.com/ystia/yorc/v4/resources"
 	"github.com/ystia/yorc/v4/rest"
 	"github.com/ystia/yorc/v4/tosca"
 )
@@ -632,7 +631,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	// Get on-demand resources definition for this infrastructure type
 	onDemandResourceName := fmt.Sprintf("yorc-%s-types.yml", infrastructureType)
 
-	data, err = resources.GetTOSCADefinition(onDemandResourceName)
+	data, err = getTOSCADefinition(onDemandResourceName)
 	if err != nil {
 		return err
 	}
@@ -1229,7 +1228,18 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 		return fmt.Errorf("Unknown node type %s", resourceName)
 	}
 
-	for propName, definition := range nodeType.Properties {
+	err := getPropertiesInput(topology, nodeType.Properties, askIfNotRequired,
+		convertBooleanToString, "", resultMap)
+
+	return err
+
+}
+
+func getPropertiesInput(topology tosca.Topology, properties map[string]tosca.PropertyDefinition,
+	askIfNotRequired bool, convertBooleanToString bool, msgPrefix string, resultMap *config.DynamicMap,
+	opts ...survey.AskOpt) error {
+
+	for propName, definition := range properties {
 
 		// Check if a value is already provided before asking for user input
 		// ot if the value is not required
@@ -1240,102 +1250,170 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 		}
 
 		description := getFormattedDescription(definition.Description)
+		if msgPrefix != "" {
+			description = fmt.Sprintf("%s - %s", msgPrefix, description)
+		}
 
-		isList := (definition.Type == "list")
 		if definition.Type == "boolean" {
-			defaultValue := "false"
-			if definition.Default != nil {
-				defaultValue = definition.Default.GetLiteral()
+			getBooleanPropertyValue(propName, description, definition, convertBooleanToString,
+				resultMap, opts...)
+		} else if isDatatype(topology, definition.Type) {
+			if err := getDatatypePropertyValue(topology, propName, description, definition,
+				required, askIfNotRequired, convertBooleanToString, resultMap, opts...); err != nil {
+				return err
 			}
-			prompt := &survey.Select{
-				Message: fmt.Sprintf("%s:", description),
-				Options: []string{"true", "false"},
-				Default: defaultValue,
-			}
-			var answer string
-			survey.AskOne(prompt, &answer, nil)
-			if convertBooleanToString {
-				resultMap.Set(propName, answer)
-			} else {
-				value := false
-				if answer == "true" {
-					value = true
-				}
-				resultMap.Set(propName, value)
-			}
-
 		} else {
 
-			answer := struct {
-				Value string
-			}{}
-
-			var additionalMsg string
-			if required {
-				additionalMsg = "(required"
-			}
-			if isList {
-				if additionalMsg == "" {
-					additionalMsg = " (comma-separated list"
-				} else {
-					additionalMsg += ", comma-separated list"
-				}
-
-			}
-			if definition.Default != nil {
-				if additionalMsg == "" {
-					additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
-				} else {
-					additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
-				}
-			}
-			if additionalMsg != "" {
-				additionalMsg += ")"
-			}
-
-			var prompt survey.Prompt
-			loweredProp := strings.ToLower(propName)
-			if strings.Contains(loweredProp, "password") ||
-				strings.Contains(loweredProp, "secret") {
-				prompt = &survey.Password{
-					Message: fmt.Sprintf("%s%s:",
-						description,
-						additionalMsg)}
-			} else {
-				prompt = &survey.Input{
-					Message: fmt.Sprintf("%s%s:",
-						description,
-						additionalMsg)}
-			}
-			question := &survey.Question{
-				Name:   "value",
-				Prompt: prompt,
-			}
-			if required {
-				question.Validate = survey.Required
-			}
-			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			if err := getPropertyValue(propName, description, definition,
+				required, resultMap, opts...); err != nil {
 				return err
 			}
 
-			if answer.Value != "" {
-				if !isList {
-					resultMap.Set(propName, answer.Value)
-				} else {
-					value := strings.Split(answer.Value, ",")
-					for i, val := range value {
-						value[i] = strings.TrimSpace(val)
-					}
-					resultMap.Set(propName, value)
-				}
-			} else if definition.Default != nil {
-				resultMap.Set(propName, definition.Default.GetLiteral())
-			}
 		}
 	}
 
 	return nil
+}
 
+func getBooleanPropertyValue(propName, description string, definition tosca.PropertyDefinition,
+	convertBooleanToString bool, resultMap *config.DynamicMap, opts ...survey.AskOpt) {
+	defaultValue := "false"
+	if definition.Default != nil {
+		defaultValue = definition.Default.GetLiteral()
+	}
+	prompt := &survey.Select{
+		Message: fmt.Sprintf("%s:", description),
+		Options: []string{"true", "false"},
+		Default: defaultValue,
+	}
+	var answer string
+	survey.AskOne(prompt, &answer, nil, opts...)
+	if convertBooleanToString {
+		resultMap.Set(propName, answer)
+	} else {
+		value := false
+		if answer == "true" {
+			value = true
+		}
+		resultMap.Set(propName, value)
+	}
+}
+
+func getDatatypePropertyValue(topology tosca.Topology, propName, description string,
+	definition tosca.PropertyDefinition,
+	required, askIfNotRequired, convertBooleanToString bool,
+	resultMap *config.DynamicMap,
+	opts ...survey.AskOpt) error {
+
+	propValueMap := make(config.DynamicMap)
+	if !required && askIfNotRequired {
+		prompt := &survey.Select{
+			Message: fmt.Sprintf("Do you want to define property %q", description),
+			Options: []string{"yes", "no"},
+			Default: "no",
+		}
+		var answer string
+		survey.AskOne(prompt, &answer, nil, opts...)
+
+		if answer == "no" {
+			return nil
+		}
+
+		if err := getPropertiesInput(topology, topology.DataTypes[definition.Type].Properties,
+			askIfNotRequired, convertBooleanToString, description, &propValueMap); err != nil {
+			return err
+		}
+		resultMap.Set(propName, propValueMap)
+	}
+
+	return nil
+}
+
+func getPropertyValue(propName, description string, definition tosca.PropertyDefinition,
+	required bool, resultMap *config.DynamicMap, opts ...survey.AskOpt) error {
+
+	answer := struct {
+		Value string
+	}{}
+
+	isList := (definition.Type == "list")
+
+	// Message to inform the user when the property is required, has a default value
+	additionalMsg := getAdditionalMessage(required, isList, definition)
+
+	var prompt survey.Prompt
+	loweredProp := strings.ToLower(propName)
+	if strings.Contains(loweredProp, "password") ||
+		strings.Contains(loweredProp, "secret") {
+		prompt = &survey.Password{
+			Message: fmt.Sprintf("%s%s:",
+				description,
+				additionalMsg)}
+	} else {
+		prompt = &survey.Input{
+			Message: fmt.Sprintf("%s%s:",
+				description,
+				additionalMsg)}
+	}
+	question := &survey.Question{
+		Name:   "value",
+		Prompt: prompt,
+	}
+	if required {
+		question.Validate = survey.Required
+	}
+	if err := survey.Ask([]*survey.Question{question}, &answer, opts...); err != nil {
+		return err
+	}
+
+	if answer.Value != "" {
+		if !isList {
+			resultMap.Set(propName, answer.Value)
+		} else {
+			value := strings.Split(answer.Value, ",")
+			for i, val := range value {
+				value[i] = strings.TrimSpace(val)
+			}
+			resultMap.Set(propName, value)
+		}
+	} else if definition.Default != nil {
+		resultMap.Set(propName, definition.Default.GetLiteral())
+	}
+
+	return nil
+}
+
+func getAdditionalMessage(required, isList bool, definition tosca.PropertyDefinition) string {
+	var additionalMsg string
+	if required {
+		additionalMsg = "(required"
+	}
+
+	if isList {
+		if additionalMsg == "" {
+			additionalMsg = " (comma-separated list"
+		} else {
+			additionalMsg += ", comma-separated list"
+		}
+
+	}
+	if definition.Default != nil {
+		if additionalMsg == "" {
+			additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
+		} else {
+			additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
+		}
+	}
+	if additionalMsg != "" {
+		additionalMsg += ")"
+	}
+
+	return additionalMsg
+}
+
+func isDatatype(topology tosca.Topology, nodeType string) bool {
+	_, ok := topology.DataTypes[nodeType]
+	return ok
 }
 
 // prepareGoogleInfraInputs updates inputs for a Google Infrastructure if needed

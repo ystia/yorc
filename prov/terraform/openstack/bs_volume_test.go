@@ -210,3 +210,29 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)
 }
+
+func testComputeBootVolumeWrongSize(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+	t.Parallel()
+	log.SetDebug(true)
+
+	depID := path.Base(t.Name())
+	yamlName := "testdata/BootVolumeWrongSize.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
+	_, err = computeBootVolume(kv, depID, "Compute")
+	require.Error(t, err, "Expected a failure to parse %s boot volume definition", yamlName)
+}
+
+func testComputeBootVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+	t.Parallel()
+	log.SetDebug(true)
+
+	depID := path.Base(t.Name())
+	yamlName := "testdata/BootVolumeWrongType.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
+	_, err = computeBootVolume(kv, depID, "Compute")
+	require.Error(t, err, "Expected a failure to parse %s boot volume definition", yamlName)
+}

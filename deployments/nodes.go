@@ -474,6 +474,23 @@ func GetNodeAttributesValues(kv *api.KV, deploymentID, nodeName, attributeName s
 	return attributes, nil
 }
 
+// GetStringNodePropertyValue returns the string value of a property.
+// If there is no such property defined, an empty string is returned
+func GetStringNodePropertyValue(kv *api.KV, deploymentID, nodeName, propertyName string,
+	nestedKeys ...string) (string, error) {
+
+	var result string
+	propVal, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys...)
+	if err != nil {
+		return "", err
+	}
+
+	if propVal != nil {
+		result = propVal.RawString()
+	}
+	return result, err
+}
+
 // GetNodes returns the names of the different nodes for a given deployment.
 func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)

@@ -18,8 +18,16 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-const defaultOSRegion = "RegionOne"
-const infrastructureName = "openstack"
+const (
+	defaultOSRegion             = "RegionOne"
+	infrastructureName          = "openstack"
+	bootVolumeTOSCAAttr         = "boot_volume"
+	uuidTOSCAKey                = "uuid"
+	sourceTOSCAKey              = "source"
+	destinationTOSCAKey         = "destination"
+	sizeTOSCAKey                = "size"
+	deleteOnTerminationTOSCAKey = "delete_on_termination"
+)
 
 // A ComputeInstance represent an OpenStack compute
 type ComputeInstance struct {
@@ -27,6 +35,7 @@ type ComputeInstance struct {
 	Name             string           `json:"name,omitempty"`
 	ImageID          string           `json:"image_id,omitempty"`
 	ImageName        string           `json:"image_name,omitempty"`
+	BootVolume       *BootVolume      `json:"block_device,omitempty"`
 	FlavorID         string           `json:"flavor_id,omitempty"`
 	FlavorName       string           `json:"flavor_name,omitempty"`
 	FloatingIP       string           `json:"floating_ip,omitempty"`
@@ -37,6 +46,15 @@ type ComputeInstance struct {
 	SchedulerHints   SchedulerHints   `json:"scheduler_hints,omitempty"`
 
 	commons.Resource
+}
+
+// BootVolume used by a Compute Instance and its terraform json attributes
+type BootVolume struct {
+	UUID                string `json:"uuid,,omitempty"`
+	Source              string `json:"source_type"`
+	Destination         string `json:"destination_type,omitempty"`
+	Size                int    `json:"volume_size,omitempty"`
+	DeleteOnTermination bool   `json:"delete_on_termination,omitempty"`
 }
 
 // A Volume represent an OpenStack volume (BlockStorage) attachment to a ComputeInstance

@@ -4,6 +4,7 @@
 
 ### ENHANCEMENTS
 
+* Should support the creation of OpenStack Compute instances using bootable volume ([GH-461](https://github.com/ystia/yorc/issues/461))
 * Allow to disable automatic Consul snapshots and restore when upgrading Yorc using ̀`YORC_DISABLE_CONSUL_SNAPSHOTS_ON_UPGRADE` env variable ([GH-486](https://github.com/ystia/yorc/issues/486))
 * Allow to update instance attribute when creating attribute notifications ([GH-491](https://github.com/ystia/yorc/issues/491))
 * Missing documentation on premium features ([GH-407](https://github.com/ystia/yorc/issues/407))

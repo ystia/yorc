@@ -116,53 +116,55 @@ func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nod
 
 func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
-	kv := opts.kv
-	cfg := opts.cfg
-	deploymentID := opts.deploymentID
-	nodeName := opts.nodeName
-	instanceName := opts.instanceName
-
 	instance := ComputeInstance{}
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(opts.kv, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return instance, err
 	}
 	if nodeType != "yorc.nodes.openstack.Compute" {
-		return instance, errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
+		return instance, errors.Errorf("Unsupported node type for %q: %s", opts.nodeName, nodeType)
 	}
 
-	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
+	instance.Name = opts.cfg.ResourcesPrefix + opts.nodeName + "-" + opts.instanceName
 
-	if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
-		kv, deploymentID, nodeName, "image", "imageName"); err != nil {
+	if instance.BootVolume, err = computeBootVolume(opts.kv, opts.deploymentID, opts.nodeName); err != nil {
 		return instance, err
+	}
+
+	if instance.BootVolume == nil {
+		// When no boot volume is defined, it is mandatory to define an image
+		// or an image name
+		if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
+			opts.kv, opts.deploymentID, opts.nodeName, "image", "imageName"); err != nil {
+			return instance, err
+		}
 	}
 
 	if instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
-		kv, deploymentID, nodeName, "flavor", "flavorName"); err != nil {
+		opts.kv, opts.deploymentID, opts.nodeName, "flavor", "flavorName"); err != nil {
 		return instance, err
 	}
 
-	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(kv, deploymentID,
-		nodeName, "availability_zone", false)
+	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID,
+		opts.nodeName, "availability_zone", false)
 	if err != nil {
 		return instance, err
 	}
-	instance.Region, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "region", false)
+	instance.Region, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "region", false)
 	if err != nil {
 		return instance, err
 	}
 	if instance.Region == "" {
-		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
+		instance.Region = opts.cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	instance.KeyPair, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "key_pair", false)
+	instance.KeyPair, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "key_pair", false)
 	if err != nil {
 		return instance, err
 	}
 
-	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
-	secGroups, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "security_groups", false)
+	instance.SecurityGroups = opts.cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
+	secGroups, err := deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "security_groups", false)
 	if err != nil {
 		return instance, err
 	}
