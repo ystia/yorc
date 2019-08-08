@@ -154,12 +154,12 @@ topology_template:
           file: alien4cloud-dist.tar.gz
           type: tosca.artifacts.File
     YorcPlugin:
-      type: org.ystia.yorc.alien4cloud.nodes.YorcPlugin
+      type: org.ystia.yorc.alien4cloud.nodes.YorcProvider
       properties:
         download_url: "{{.YorcPlugin.DownloadURL}}"
         name: Yorc
         discriminator: yorc
-        pluginId: "alien4cloud-yorc-plugin"
+        pluginId: "alien4cloud-yorc-provider"
         pluginBean: "yorc-orchestrator-factory"
         yorc_address_ha: "yorc.service.consul"
       requirements:

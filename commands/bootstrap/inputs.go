@@ -106,7 +106,7 @@ var (
 	yorcPluginDefaultInputs = map[string]defaultInputType{
 		"yorc_plugin.download_url": defaultInputType{
 			description: "Yorc plugin download URL",
-			value:       getYorcPluginDownloadURL(),
+			value:       "",
 		},
 	}
 
@@ -1503,22 +1503,6 @@ func getYorcDownloadURL() string {
 	} else {
 		downloadURL = fmt.Sprintf(
 			"https://dl.bintray.com/ystia/yorc-engine/%s/yorc-%s.tgz",
-			yorcVersion, yorcVersion)
-	}
-	return downloadURL
-}
-
-// getYorcPluginDownloadURL returns Yorc plugin download URL,
-// either a snapshot download or a release/milestone URL
-func getYorcPluginDownloadURL() string {
-	var downloadURL string
-	if strings.Contains(yorcVersion, "SNAPSHOT") {
-		downloadURL = fmt.Sprintf(
-			"https://ystia.jfrog.io/ystia/binaries/ystia/yorc-a4c-plugin/dist/develop/alien4cloud-yorc-plugin-%s.zip",
-			yorcVersion)
-	} else {
-		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-a4c-plugin/%s/alien4cloud-yorc-plugin-%s.zip",
 			yorcVersion, yorcVersion)
 	}
 	return downloadURL
