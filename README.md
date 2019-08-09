@@ -13,8 +13,8 @@ Yorc is designed for large-scale, it is built with a tasks / stateless workers m
 horizontally easily.
 
 Finally, while you can easily interact with Yorc directly thanks to its comprehensive REST API and a modern CLI,
-the recommended way to use Yorc is to model your applications in a powerful TOSCA designer called [alien4cloud](https://alien4cloud.github.io) and to use it to deploy and interact with your application at runtime. To do it
-we developed an [Alien4Cloud plugin for Yorc](https://github.com/ystia/yorc-a4c-plugin)
+the recommended way to use Yorc is to model your applications in a powerful TOSCA designer called [alien4cloud](https://alien4cloud.github.io) and to use it to deploy and interact with your application at runtime.
+Yorc is now the official orchestrator for Alien4Cloud and Alien4Cloud distributions comes with a specific plugin for Yorc. Sources of this plugin could be found here <https://github.com/alien4cloud/alien4cloud-yorc-provider>
 
 ## How to download the Ystia Orchestrator
 
