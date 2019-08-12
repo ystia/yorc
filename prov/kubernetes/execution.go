@@ -362,7 +362,15 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 			return err
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s StatefulSet %s deleted!", stfsName)
-		// Delete namespace if it was not provided
+		// Delete namespace if it was not provided and volumes marked as removable
+		volDeletable, err := deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.nodeName, "volumeDeletable")
+		if err != nil {
+			return err
+		}
+		if !volDeletable {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Volumes keeped and k8s Namespace %s not deleted", namespace)
+			return nil
+		}
 		if !nsProvided {
 			nbController, err := podControllersInNamespace(clientset, namespace)
 			if err != nil {
@@ -381,8 +389,32 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
 		}
 
-	// TODO: manage scale
-	//case k8sScaleOperation:
+	case k8sScaleOperation:
+		expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
+		if err != nil {
+			return err
+		}
+		r, err := strconv.ParseInt(expectedInstances, 10, 32)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse EXPECTED_INSTANCES: %q parameter as integer", expectedInstances)
+		}
+		replicas := int32(r)
+		stfsRepr.Spec.Replicas = &replicas
+
+		sts, err := clientset.AppsV1beta1().StatefulSets(namespace).Update(&stfsRepr)
+		if err != nil {
+			return errors.Wrap(err, "failed to update kubernetes statefulSet for scaling")
+		}
+
+		err = waitForK8sObjectCompletion(ctx, e.deploymentID, clientset, sts)
+		if err != nil {
+			return err
+		}
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", expectedInstances)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s StatefulSet %s scaled to %s instances in namespace %s", sts.Name, expectedInstances, namespace)
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
