@@ -268,8 +268,8 @@ func DeleteTask(kv *api.KV, taskID string) error {
 
 // TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
 //
-// Only Deploy, UnDeploy, ScaleOut, ScaleIn and Purge task type are considered.
-func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
+// The last argument specifies tasks types which should be ignored.
+func TargetHasLivingTasks(kv *api.KV, targetID string, tasksTypesToIgnore []TaskType) (bool, string, string, error) {
 
 	taskIDs, err := GetTasksIdsForTarget(kv, targetID)
 	if err != nil {
@@ -282,14 +282,15 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 		if err != nil {
 			return false, "", "", err
 		}
-		tType, err := GetTaskType(kv, taskID)
-		if err != nil {
-			return false, "", "", err
-		}
 
-		switch tType {
-		case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut, TaskTypeAddNodes, TaskTypeRemoveNodes:
-			if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
+		if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
+
+			// Check if this task type should be ignored
+			tType, err := GetTaskType(kv, taskID)
+			if err != nil {
+				return false, "", "", err
+			}
+			if !isInTaskTypeSlice(tType, tasksTypesToIgnore) {
 				return true, taskID, tStatus.String(), nil
 			}
 		}
@@ -580,4 +581,14 @@ func monitorTaskFlag(ctx context.Context, kv *api.KV, taskID, flag string, value
 			}
 		}
 	}()
+}
+
+func isInTaskTypeSlice(taskType TaskType, slice []TaskType) bool {
+	for _, val := range slice {
+		if val == taskType {
+			return true
+		}
+	}
+
+	return false
 }

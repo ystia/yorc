@@ -3,6 +3,10 @@ module github.com/ystia/yorc/v4
 // Makefile should also be updated when changing module major version (for injected variables)
 
 require (
+	github.com/Bowery/prompt v0.0.0-20190419144237-972d0ceb96f5 // indirect
+	github.com/Masterminds/goutils v1.1.0 // indirect
+	github.com/Masterminds/semver v1.4.2 // indirect
+	github.com/Masterminds/sprig v2.20.0+incompatible // indirect
 	github.com/Netflix/go-expect v0.0.0-20190729225929-0e00d9168667
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
@@ -25,6 +29,7 @@ require (
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/addlicense v0.0.0-20190107131845-2e5cf00261bf
 	github.com/google/gofuzz v1.0.0 // indirect
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/goware/urlx v0.0.0-20160722204212-8bb4a2e4339f55b15164907177e96e9faf885504
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
@@ -39,17 +44,20 @@ require (
 	github.com/hashicorp/serf v0.8.3 // indirect
 	github.com/hashicorp/vault v0.9.0
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c
+	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/justinas/alice v0.0.0-20160512134231-052b8b6c18ed
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kr/pty v1.1.8 // indirect
+	github.com/labstack/gommon v0.2.9 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
-	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
+	github.com/mkideal/cli v0.0.3 // indirect
+	github.com/mkideal/pkg v0.0.0-20170503154153-3e188c9e7ecc // indirect
 	github.com/moby/moby v0.0.0-20170504205632-89658bed64c2
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect

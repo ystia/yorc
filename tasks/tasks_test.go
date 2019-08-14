@@ -306,8 +306,9 @@ func testCancelTask(t *testing.T, kv *api.KV) {
 
 func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 	type args struct {
-		kv       *api.KV
-		targetID string
+		kv            *api.KV
+		targetID      string
+		typesToIgnore []TaskType
 	}
 	tests := []struct {
 		name    string
@@ -317,14 +318,16 @@ func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 		want2   string
 		wantErr bool
 	}{
-		{"TargetHasRunningTasks", args{kv, "id1"}, true, "t1", "INITIAL", false},
-		{"TargetHasNoRunningTasks", args{kv, "id2"}, false, "", "", false},
-		{"TargetDoesntExist", args{kv, "TargetDoesntExist"}, false, "", "", false},
-		{"TargetNotInt", args{kv, "targetNotInt"}, false, "", "", true},
+		{"TargetHasRunningTasks", args{kv, "id1", []TaskType{}}, true, "t1", "INITIAL", false},
+		{"TargetHasNoRunningDeployTasks", args{kv, "id1",
+			[]TaskType{TaskTypeDeploy, TaskTypeUnDeploy, TaskTypeScaleIn}}, false, "", "", false},
+		{"TargetHasNoRunningTasks", args{kv, "id2", []TaskType{}}, false, "", "", false},
+		{"TargetDoesntExist", args{kv, "TargetDoesntExist", []TaskType{}}, false, "", "", false},
+		{"TargetNotInt", args{kv, "targetNotInt", []TaskType{}}, false, "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := TargetHasLivingTasks(tt.args.kv, tt.args.targetID)
+			got, got1, got2, err := TargetHasLivingTasks(tt.args.kv, tt.args.targetID, tt.args.typesToIgnore)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TargetHasLivingTasks() error = %v, wantErr %v", err, tt.wantErr)
 				return
