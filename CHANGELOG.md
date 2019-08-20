@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Undeploying an application with a running workflow should not be possible ([GH-460](https://github.com/ystia/yorc/issues/460))
+
 ## 4.0.0-M2 (August 09, 2019)
 
 ### ENHANCEMENTS

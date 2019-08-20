@@ -116,7 +116,24 @@ func (c *Collector) ResumeTask(taskID string) error {
 func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
 	// First check if other tasks are running for this target before creating a new one except for Action tasks
 	if tasks.TaskTypeAction != taskType {
-		hasLivingTask, livingTaskID, livingTaskStatus, err := tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID)
+
+		tasksTypesToIgnore := []tasks.TaskType{
+			tasks.TaskTypeQuery, tasks.TaskTypeAction,
+		}
+		// Concurrent executions of custom commands and custom workflows are
+		// allowed, so the registration of a custom command or custom workflow task
+		// is allowed if another custom command or custom workflow task is on-going.
+		// Adding the corresponding task types to the list of types to ignore
+		// when checking if a task is already registered for this target. 
+		if taskType == tasks.TaskTypeCustomCommand ||
+			taskType == tasks.TaskTypeCustomWorkflow {
+
+			tasksTypesToIgnore = append(tasksTypesToIgnore, tasks.TaskTypeCustomCommand,
+				tasks.TaskTypeCustomWorkflow)
+		}
+
+		hasLivingTask, livingTaskID, livingTaskStatus, err :=
+			tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID, tasksTypesToIgnore)
 		if err != nil {
 			return "", err
 		} else if hasLivingTask {
