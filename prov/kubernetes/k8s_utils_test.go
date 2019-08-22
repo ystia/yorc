@@ -148,3 +148,47 @@ func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
 		//Wait for test to be well done
 	}
 }
+
+func TestWaitForK8sObjectDeletion(t *testing.T) {
+	k8s := newTestK8s()
+	errorChan := make(chan struct{})
+	finishedChan := make(chan struct{})
+	ctx := context.Background()
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
+	// TODO: run on other k8s objects (in parallel maybe)
+	k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", ObjectReaction(pvc, errorChan))
+	go func() {
+		err := waitForK8sObjectDeletion(ctx, k8s.clientset, pvc)
+		if err != nil {
+			t.Logf("Error : %s", err.Error())
+			t.Fatal("Deleted pvc should not raise an error")
+		}
+		close(finishedChan)
+	}()
+	select {
+	case <-errorChan:
+		t.Fatal("Function waitForPVCDeletion is still polling API even though it is deleted")
+	case <-finishedChan:
+		//Wait for test to be well done
+	}
+}
+
+/*  Simulate a deletion in progress : wait for 2 get that return the k8s object and then fakely delete it
+If the API continue to receive GET, raise error by signaling the errorChan */
+func ObjectReaction(k8sObject runtime.Object, errorChan chan struct{}) k8stesting.ReactionFunc {
+	getCount := 0
+	return func(action k8stesting.Action) (bool, runtime.Object, error) {
+		// TODO: manage error another way
+		if action.GetVerb() != "get" {
+			close(errorChan)
+		}
+
+		getCount++
+		if getCount > 5 {
+			close(errorChan)
+		} else if getCount > 2 {
+			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
+		}
+		return true, nil, nil
+	}
+}
