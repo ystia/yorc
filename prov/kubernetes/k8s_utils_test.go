@@ -153,24 +153,16 @@ func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
 	}
 }
 
-/* Test function that wait for K8s object deletion. Currently support only : StatefulSet, PVC and Deployment  */
+/* Test function that wait for K8s object deletion.  */
 func TestWaitForK8sObjectDeletion(t *testing.T) {
 	k8s := newTestK8s()
 	ctx := context.Background()
-	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-	dep := &v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploymentTest", Namespace: "test-ns"}}
-	sts := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "statefulSetTest", Namespace: "test-ns"}}
-	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "serviceTest", Namespace: "test-ns"}}
-	m := make(map[string]runtime.Object)
-	m["persistentvolumeclaims"] = pvc
-	m["statefulsets"] = sts
-	m["deployments"] = dep
-	m["services"] = svc
+	supportedResources := mockSupportedResources()
 	// Waitgroup for parallel execution
 	var wg sync.WaitGroup
-	wg.Add(len(m))
+	wg.Add(len(supportedResources))
 
-	for resourceName, resource := range m {
+	for resourceName, resource := range supportedResources {
 		go func(resourceName string, resource runtime.Object) {
 			defer wg.Done()
 			t.Logf("Testing deletion of %s\n", resourceName)
@@ -195,6 +187,22 @@ func TestWaitForK8sObjectDeletion(t *testing.T) {
 		}(resourceName, resource)
 	}
 	wg.Wait()
+}
+
+/* Return a map of mocked k8s objects corresponding to their resource in
+Currently support only : StatefulSet, PVC, Service and Deployment */
+func mockSupportedResources() map[string]runtime.Object {
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
+	dep := &v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploymentTest", Namespace: "test-ns"}}
+	sts := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "statefulSetTest", Namespace: "test-ns"},
+		Spec: appsv1.StatefulSetSpec{}}
+	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "serviceTest", Namespace: "test-ns"}}
+	supportedRes := make(map[string]runtime.Object)
+	supportedRes["persistentvolumeclaims"] = pvc
+	supportedRes["deployments"] = dep
+	supportedRes["statefulsets"] = sts
+	supportedRes["services"] = svc
+	return supportedRes
 }
 
 /*  React to get on k8s objects. After 2 get if deleteObj boolean is set to true then it fakely delete it. If the boolean is set to false,
