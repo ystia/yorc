@@ -414,35 +414,36 @@ func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, client
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		switch concreteObj := k8sObject.(type) {
 		case *v1beta1.Deployment:
-			if dep, err := clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+			dep, err := clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+			if err != nil {
 				return false, err
-			} else {
-				if dep.Status.AvailableReplicas == *concreteObj.Spec.Replicas {
-					return true, nil
-				}
-				if failed, msg := isDeploymentFailed(clientset, concreteObj); failed {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", concreteObj.Name, msg)
-					return false, errors.Errorf("Kubernetes deployment %q: %s", concreteObj.Name, msg)
-				}
+			}
+			if dep.Status.AvailableReplicas == *concreteObj.Spec.Replicas {
+				return true, nil
+			}
+			if failed, msg := isDeploymentFailed(clientset, concreteObj); failed {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", concreteObj.Name, msg)
+				return false, errors.Errorf("Kubernetes deployment %q: %s", concreteObj.Name, msg)
 			}
 
 		case *appsv1.StatefulSet:
-			if stfs, err := clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+			stfs, err := clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+			if err != nil {
 				return false, err
-			} else {
-				if stfs.Status.ReadyReplicas == *concreteObj.Spec.Replicas {
-					return true, nil
-				}
+			}
+			if stfs.Status.ReadyReplicas == *concreteObj.Spec.Replicas {
+				return true, nil
 			}
 
 		case *corev1.PersistentVolumeClaim:
-			if pvc, err := clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{}); err != nil {
+			pvc, err := clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+			if err != nil {
 				return false, err
-			} else {
-				if pvc.Status.Phase == corev1.ClaimBound {
-					return true, nil
-				}
 			}
+			if pvc.Status.Phase == corev1.ClaimBound {
+				return true, nil
+			}
+
 		default:
 			return false, nil
 		}
