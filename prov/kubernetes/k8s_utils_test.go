@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1beta1"
@@ -117,6 +118,7 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	}
 }
 
+/* DEPRECATED Use more generic test TestWaitForK8sObjectDeletion instead */
 func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
 	k8s := newTestK8s()
 	errorChan := make(chan struct{})
@@ -164,32 +166,41 @@ func TestWaitForK8sObjectDeletion(t *testing.T) {
 	m["statefulsets"] = sts
 	m["deployments"] = dep
 	m["services"] = svc
-	// TODO: run in parallel for faster tests
-	//k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", ObjectReaction(pvc, errorChan))
+	// Waitgroup for parallel execution
+	var wg sync.WaitGroup
+	wg.Add(len(m))
+
 	for resourceName, resource := range m {
-		errorChan := make(chan struct{})
-		finishedChan := make(chan struct{})
-		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", resourceName, ObjectReaction(resource, errorChan))
-		go func() {
-			err := waitForK8sObjectDeletion(ctx, k8s.clientset, resource)
-			if err != nil {
-				t.Logf("Error : %s", err.Error())
-				t.Fatalf("Deleting %s should not raise an error", resourceName)
+		go func(resourceName string, resource runtime.Object) {
+			defer wg.Done()
+			t.Logf("Testing deletion of %s\n", resourceName)
+			errorChan := make(chan struct{})
+			finishedChan := make(chan struct{})
+			k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", resourceName, fakeGetObjectReaction(resource, errorChan, true))
+			go func() {
+				err := waitForK8sObjectDeletion(ctx, k8s.clientset, resource)
+				if err != nil {
+					t.Logf("Error : %s", err.Error())
+					t.Fatalf("Deleting %s should not raise an error", resourceName)
+				}
+				close(finishedChan)
+			}()
+			select {
+			case <-errorChan:
+				t.Fatalf("Function is still polling API even though %s it is deleted", resourceName)
+			case <-finishedChan:
+				//Wait for test to be well done
+				t.Logf("OK for %s.\n", resourceName)
 			}
-			close(finishedChan)
-		}()
-		select {
-		case <-errorChan:
-			t.Fatalf("Function is still polling API even though %s it is deleted", resourceName)
-		case <-finishedChan:
-			//Wait for test to be well done
-		}
+		}(resourceName, resource)
 	}
+	wg.Wait()
 }
 
-/*  Simulate a deletion in progress : wait for 2 get that return the k8s object and then fakely delete it
+/*  React to get on k8s objects. After 2 get if deleteObj boolean is set to true then it fakely delete it. If the boolean is set to false,
+then it marked the object as succefully present or deployed for pods controllers.
 If the API continue to receive GET, raise error by signaling the errorChan */
-func ObjectReaction(k8sObject runtime.Object, errorChan chan struct{}) k8stesting.ReactionFunc {
+func fakeGetObjectReaction(k8sObject runtime.Object, errorChan chan struct{}, deleteObj bool) k8stesting.ReactionFunc {
 	getCount := 0
 	return func(action k8stesting.Action) (bool, runtime.Object, error) {
 		// TODO: manage error another way
@@ -201,7 +212,11 @@ func ObjectReaction(k8sObject runtime.Object, errorChan chan struct{}) k8stestin
 		if getCount > 5 {
 			close(errorChan)
 		} else if getCount > 2 {
-			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
+			if deleteObj {
+				return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
+			}
+			return true, k8sObject, nil
+
 		}
 		return true, nil, nil
 	}
