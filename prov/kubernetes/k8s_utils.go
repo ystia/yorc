@@ -394,7 +394,7 @@ func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interfac
 		case *corev1.Service:
 			_, err = clientset.CoreV1().Services(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 		case *appsv1.StatefulSet:
-			_, err = clientset.Apps().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
+			_, err = clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 		default:
 			return false, nil
 		}

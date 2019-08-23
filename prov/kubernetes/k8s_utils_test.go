@@ -18,7 +18,9 @@ import (
 	"context"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -149,27 +151,39 @@ func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
 	}
 }
 
+/* Test function that wait for K8s object deletion. Currently support only : StatefulSet, PVC and Deployment  */
 func TestWaitForK8sObjectDeletion(t *testing.T) {
 	k8s := newTestK8s()
-	errorChan := make(chan struct{})
-	finishedChan := make(chan struct{})
 	ctx := context.Background()
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-	// TODO: run on other k8s objects (in parallel maybe)
-	k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", ObjectReaction(pvc, errorChan))
-	go func() {
-		err := waitForK8sObjectDeletion(ctx, k8s.clientset, pvc)
-		if err != nil {
-			t.Logf("Error : %s", err.Error())
-			t.Fatal("Deleted pvc should not raise an error")
+	dep := &v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploymentTest", Namespace: "test-ns"}}
+	sts := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "statefulSetTest", Namespace: "test-ns"}}
+	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "serviceTest", Namespace: "test-ns"}}
+	m := make(map[string]runtime.Object)
+	m["persistentvolumeclaims"] = pvc
+	m["statefulsets"] = sts
+	m["deployments"] = dep
+	m["services"] = svc
+	// TODO: run in parallel for faster tests
+	//k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", ObjectReaction(pvc, errorChan))
+	for resourceName, resource := range m {
+		errorChan := make(chan struct{})
+		finishedChan := make(chan struct{})
+		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", resourceName, ObjectReaction(resource, errorChan))
+		go func() {
+			err := waitForK8sObjectDeletion(ctx, k8s.clientset, resource)
+			if err != nil {
+				t.Logf("Error : %s", err.Error())
+				t.Fatalf("Deleting %s should not raise an error", resourceName)
+			}
+			close(finishedChan)
+		}()
+		select {
+		case <-errorChan:
+			t.Fatalf("Function is still polling API even though %s it is deleted", resourceName)
+		case <-finishedChan:
+			//Wait for test to be well done
 		}
-		close(finishedChan)
-	}()
-	select {
-	case <-errorChan:
-		t.Fatal("Function waitForPVCDeletion is still polling API even though it is deleted")
-	case <-finishedChan:
-		//Wait for test to be well done
 	}
 }
 
