@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### SECURITY FIXES
+
+* Fixed a vulnerability that could allow an attacker to read the content of a file stored on Yorc host by pretending it is an ssh key. ([GHSA-8vhw-qv5r-38h5](https://github.com/ystia/yorc/security/advisories/GHSA-8vhw-qv5r-38h5))
+
 ### BUG FIXES
 
 * Undeploying an application with a running workflow should not be possible ([GH-460](https://github.com/ystia/yorc/issues/460))
