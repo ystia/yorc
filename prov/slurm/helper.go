@@ -17,13 +17,14 @@ package slurm
 import (
 	"bufio"
 	"fmt"
-	"github.com/dustin/go-humanize"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tosca/datatypes"
 )
 
 const reSbatch = `^Submitted batch job (\d+)`
@@ -39,47 +41,40 @@ const invalidJob = "Invalid job id specified"
 
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
-func getSSHClient(userName string, privateKey string, password string, cfg config.Configuration) (*sshutil.SSHClient, error) {
+func getSSHClient(credentials *datatypes.Credential, cfg config.Configuration) (*sshutil.SSHClient, error) {
 	// Check manadatory slurm configuration
 	if err := checkInfraConfig(cfg); err != nil {
 		log.Printf("Unable to provide SSH client due to:%+v", err)
 		return nil, err
 	}
-
-	// Get user credentials provided by the deployment, if any
-	if userName != "" {
-		if password == "" && privateKey == "" {
-			return nil, errors.New("Slurm missing authentication details in deployment properties, password or private_key should be set")
-		}
-	} else {
-		// Get user credentials from the yorc configuration
-		if err := checkInfraUserConfig(cfg); err != nil {
-			log.Printf("Unable to provide SSH client due to:%+v", err)
-			return nil, err
-		}
-		userName = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "")
-		privateKey = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("private_key"), "")
-		password = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "")
+	if credentials.Token == "" && len(credentials.Keys) == 0 {
+		return nil, errors.New("Slurm missing authentication details in deployment properties, password or private_key should be set")
+	}
+	keys, err := sshutil.GetKeysFromCredentialsDataType(credentials)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get SSH client
 	SSHConfig := &ssh.ClientConfig{
-		User:            userName,
+		User:            credentials.User,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	// Set an authentication method. At least one authentication method
 	// has to be set, private/public key or password.
-	if privateKey != "" {
-		keyAuth, err := sshutil.ReadPrivateKey(privateKey)
-		if err != nil {
-			return nil, err
+	if len(keys) > 0 {
+		for keyName, pk := range keys {
+			keyAuth, err := sshutil.ReadSSHPrivateKey(pk)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to read key %q", keyName)
+			}
+			SSHConfig.Auth = append(SSHConfig.Auth, keyAuth)
 		}
-		SSHConfig.Auth = append(SSHConfig.Auth, keyAuth)
 	}
 
-	if password != "" {
-		SSHConfig.Auth = append(SSHConfig.Auth, ssh.Password(password))
+	if credentials.Token != "" {
+		SSHConfig.Auth = append(SSHConfig.Auth, ssh.Password(credentials.Token))
 	}
 
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
@@ -98,80 +93,52 @@ func getSSHClient(userName string, privateKey string, password string, cfg confi
 
 // getUserCredentials returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
-func getUserCredentials(kv *api.KV, deploymentID string, nodeName string, capabilityName, propertyName string) (*UserCredentials, error) {
-	// Check if user credentials provided in node definition
-	userName, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "user")
-	if err != nil {
-		return nil, err
-	}
-	if userName != "" {
-		log.Debugf("Got user name %s from property %s", userName, propertyName)
-	}
-
-	// Check for token-type
-	tokenType, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "token_type")
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugf("Got token_type %s from property %s", tokenType, propertyName)
-
-	var password, privateKey string
-	switch tokenType {
-	case "password":
-		password, err = getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "token")
-		if err != nil {
-			return nil, err
-		}
-		if password != "" {
-			log.Debugf("Got password from property")
-		}
-	case "private_key":
-		privateKey, err = getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "keys", "0")
-		if err != nil {
-			return nil, err
-		}
-		if privateKey != "" {
-			log.Debugf("Got private key from property")
-		}
-	default:
-		// password or private_key expected as token_type
-		if capabilityName != "" {
-			return nil, errors.Errorf("Unsupported token_type %s in capability %s property %s. One of password or private_key expected", tokenType, capabilityName, propertyName)
-		} else {
-			return nil, errors.Errorf("Unsupported token_type %s in property %s. One of password or private_key expected", tokenType, propertyName)
-		}
-
-	}
-
-	return &UserCredentials{UserName: userName, PrivateKey: privateKey, Password: password}, nil
-
-}
-
-func getPropertyValue(kv *api.KV, deploymentID string, nodeName string, capabilityName string, propertyName string, nestedKeys ...string) (string, error) {
-	var value string
-	var propValue *deployments.TOSCAValue
+func getUserCredentials(kv *api.KV, cfg config.Configuration, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
 	var err error
+	var credentialsValue *deployments.TOSCAValue
 	if capabilityName != "" {
-		if len(nestedKeys) == 1 {
-			propValue, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, nestedKeys[0])
-		} else {
-			propValue, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, nestedKeys[0], nestedKeys[1])
+		credentialsValue, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, "credentials")
+	} else {
+		credentialsValue, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "credentials")
+	}
+	if err != nil {
+		return nil, err
+	}
+	creds := new(datatypes.Credential)
+	if credentialsValue != nil && credentialsValue.RawString() != "" {
+		err = mapstructure.Decode(credentialsValue.Value, creds)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to decode credentials for node %q", nodeName)
+		}
+	}
+
+	// Get user credentials provided by the deployment, if any
+	if creds.User != "" {
+		if creds.Token == "" && len(creds.Keys) == 0 {
+			return nil, errors.New("Slurm missing authentication details in deployment properties, password or private_key should be set")
 		}
 	} else {
-		if len(nestedKeys) == 1 {
-			propValue, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys[0])
-		} else {
-			propValue, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys[0], nestedKeys[1])
+		// Get user credentials from the yorc configuration
+		if err := checkInfraUserConfig(cfg); err != nil {
+			log.Printf("Unable to provide SSH client due to:%+v", err)
+			return nil, err
 		}
+		creds.User = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "")
+		creds.User = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("slurm.user_name", creds.User).(string)
+		privateKey := strings.Trim(cfg.Infrastructures[infrastructureName].GetString("private_key"), "")
+		if privateKey != "" {
+			privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("slurm.private_key", privateKey).(string)
+			if creds.Keys == nil {
+				creds.Keys = make(map[string]string)
+			}
+			creds.Keys["default"] = privateKey
+		}
+		creds.Token = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "")
+		creds.Token = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("slurm.password", creds.Token).(string)
 	}
-	if err != nil {
-		return "", err
-	}
-	if propValue != nil {
-		value = propValue.RawString()
-	}
-	return value, nil
+
+	return creds, nil
+
 }
 
 // checkInfraConfig checks slurm infrastructure mandatory configuration parameters :

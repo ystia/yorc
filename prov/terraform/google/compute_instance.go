@@ -17,18 +17,16 @@ package google
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh"
 	"path"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/helper/pathutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
-	"github.com/ystia/yorc/v3/helper/stringutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
@@ -36,7 +34,7 @@ import (
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
 	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
 	infrastructure *commons.Infrastructure,
-	outputs map[string]string, env *[]string, sshAgent *sshutil.SSHAgent) error {
+	outputs map[string]string, env *[]string) error {
 
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
@@ -194,7 +192,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -273,15 +271,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Retrieve devices
 	if len(devices) > 0 {
-		// need to use an SSH Agent to make it if allowed by config
-		if !cfg.DisableSSHAgent && sshAgent == nil {
-			sshAgent, err = commons.GetSSHAgent(ctx, privateKey)
-			if err != nil {
-				return err
-			}
-		}
-
-		if err = handleDeviceAttributes(cfg, infrastructure, &instance, devices, user, privateKey, accessIP, sshAgent); err != nil {
+		if err = handleDeviceAttributes(ctx, cfg, infrastructure, &instance, devices, user, privateKey, accessIP); err != nil {
 			return err
 		}
 	}
@@ -289,7 +279,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	return nil
 }
 
-func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKey, accessIP string, sshAgent *sshutil.SSHAgent) error {
+func handleDeviceAttributes(ctx context.Context, cfg config.Configuration, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user string, privateKey *sshutil.PrivateKey, accessIP string) error {
 	var env map[string]interface{}
 	// Retrieve devices {
 	for _, dev := range devices {
@@ -310,21 +300,16 @@ func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.In
 
 		// local exec to scp the stdout file locally (use ssh-agent to make it if allowed by config)
 		var scpCommand string
-		if !cfg.DisableSSHAgent {
+		sshAgent, ok := commons.SSHAgentFromContext(ctx)
+		if ok {
 			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s:~/%s %s", user, accessIP, dev, dev)
 			env = make(map[string]interface{})
 			env["SSH_AUTH_SOCK"] = sshAgent.Socket
 		} else {
-			// check privateKey's a valid path
-			if is, err := pathutil.IsValidPath(privateKey); err != nil || !is {
-				// Truncate it if it's a private key
-				ufo := privateKey
-				if _, err = ssh.ParsePrivateKey([]byte(privateKey)); err == nil {
-					ufo = stringutil.Truncate(privateKey, 20)
-				}
-				return errors.Errorf("%q is not a valid path", ufo)
+			if privateKey.Path == "" {
+				return errors.New("trying to get GCP volumes devices with an ssh private key that is not stored on disk, this is possible only with an ssh agent, unfortunately ssh-agent is currently disabled by configuration")
 			}
-			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKey, user, accessIP, dev, dev)
+			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKey.Path, user, accessIP, dev, dev)
 		}
 		loc := commons.LocalExec{
 			Command:     scpCommand,

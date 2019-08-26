@@ -20,14 +20,17 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v3/config"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/tosca/datatypes"
 )
 
 // MockSSHSession allows to mock an SSH session
@@ -257,9 +260,7 @@ func TestPrivateKey(t *testing.T) {
 
 	err = checkInfraUserConfig(cfg)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
-	_, err = getSSHClient("", "", "", cfg)
-	assert.NoError(t, err, "Unexpected error getting a ssh client using a configuration with private key")
-	_, err = getSSHClient("jdoe", privateKeyContent, "", cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": privateKeyContent}}, cfg)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using provided properties with private key")
 
 	// Remove the private key.
@@ -267,9 +268,9 @@ func TestPrivateKey(t *testing.T) {
 	cfg.Infrastructures["slurm"].Set("private_key", "")
 	err = checkInfraUserConfig(cfg)
 	assert.Error(t, err, "Expected an error parsing a wrong configuration with no private key and no password defined")
-	_, err = getSSHClient("", "", "", cfg)
+	_, err = getSSHClient(&datatypes.Credential{}, cfg)
 	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with no private key and no password defined")
-	_, err = getSSHClient("jdoe", "", "", cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe"}, cfg)
 	assert.Error(t, err, "Expected an error getting a ssh client using a provided user name property but no private key and no password provided")
 
 	// Setting a wrong private key path
@@ -277,9 +278,9 @@ func TestPrivateKey(t *testing.T) {
 	cfg.Infrastructures["slurm"].Set("private_key", "invalid_path_to_key.pem")
 	err = checkInfraUserConfig(cfg)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
-	_, err = getSSHClient("", "", "", cfg)
+	_, err = getSSHClient(&datatypes.Credential{}, cfg)
 	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with bad private key and no password defined")
-	_, err = getSSHClient("jdo", "invalid_path_to_key.pem", "", cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": "invalid_path_to_key.pem"}}, cfg)
 	assert.Error(t, err, "Expected an error getting a ssh client using provided credentials with bad private key and no password defined")
 
 	// Slurm Configuration with no private key but a password, the config should be valid
@@ -292,9 +293,7 @@ func TestPrivateKey(t *testing.T) {
 
 	err = checkInfraUserConfig(cfg)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with password")
-	_, err = getSSHClient("", "", "", cfg)
-	assert.NoError(t, err, "Unexpected error getting a ssh client using a configuration with password")
-	_, err = getSSHClient("jdoe", "", "test", cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Token: "test"}, cfg)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using provided credentials with password")
 }
 

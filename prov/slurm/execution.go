@@ -107,12 +107,12 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 	// Get user credentials from credentials node property
 	// Its not a capability, so capabilityName set to empty string
-	creds, err := getUserCredentials(kv, deploymentID, nodeName, "", "credentials")
+	creds, err := getUserCredentials(kv, cfg, deploymentID, nodeName, "")
 	if err != nil {
 		return nil, err
 	}
 	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
-	execCommon.client, err = getSSHClient(creds.UserName, creds.PrivateKey, creds.Password, cfg)
+	execCommon.client, err = getSSHClient(creds, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal stored Slurm job information")
 	}
-	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.Credentials.UserName)
+	log.Debugf("Unmarshal Job info for task %s, Job ID %q.", e.taskID, jobInfo.ID)
 	return jobInfo, nil
 }
 
@@ -243,9 +243,6 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["stepName"] = e.stepName
 	data["nodeName"] = e.NodeName
 	data["workingDir"] = e.jobInfo.WorkingDir
-	data["userName"] = e.jobInfo.Credentials.UserName
-	data["password"] = e.jobInfo.Credentials.Password
-	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
 	data["artifacts"] = strings.Join(e.jobInfo.Artifacts, ",")
 
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
@@ -344,13 +341,6 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	} else if id != nil && id.RawString() != "" {
 		e.jobInfo.ID = id.String()
-	}
-
-	// Get user credentials from credentials node property, if values are provided
-	// Its not a capability property so capability name is empty
-	e.jobInfo.Credentials, err = getUserCredentials(e.kv, e.deploymentID, e.NodeName, "", "credentials")
-	if err != nil {
-		return err
 	}
 
 	// Job account

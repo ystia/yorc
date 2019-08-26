@@ -14,17 +14,14 @@
 
 package slurm
 
-import "time"
+import (
+	"time"
+
+	"github.com/ystia/yorc/v3/tosca/datatypes"
+)
 
 type infrastructure struct {
 	nodes []*nodeAllocation
-}
-
-// UserCredentials represents the Slurm user credentials
-type UserCredentials struct {
-	UserName   string `json:"user_name,omitempty"`
-	Password   string `json:"password,omitempty"`
-	PrivateKey string `json:"private_key,omitempty"`
 }
 
 type nodeAllocation struct {
@@ -34,7 +31,7 @@ type nodeAllocation struct {
 	constraint   string
 	partition    string
 	jobName      string
-	credentials  *UserCredentials
+	credentials  *datatypes.Credential
 	instanceName string
 	account      string
 	reservation  string
@@ -53,7 +50,6 @@ type jobInfo struct {
 	EnvVars                []string          `json:"env_vars,omitempty"`
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
-	Credentials            *UserCredentials  `json:"credentials,omitempty"`
 	Account                string            `json:"account,omitempty"`
 	Reservation            string            `json:"reservation,omitempty"`
 	Command                string            `json:"command,omitempty"`

@@ -28,7 +28,6 @@ import (
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/consulutil"
-	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov/terraform/commons"
 	"github.com/ystia/yorc/v3/tosca"
@@ -89,8 +88,6 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 		return false, nil, nil, nil, err
 	}
 
-	var sshAgent *sshutil.SSHAgent
-
 	for instNb, instanceName := range instances {
 		instanceState, err := deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 		if err != nil {
@@ -108,7 +105,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 				return false, nil, nil, nil, err
 			}
 
-			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv, sshAgent)
+			err := g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
@@ -138,24 +135,6 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 	}
 
-	// If ssh-agent has been created, it needs to be stopped after the infrastructure creation
-	// This is done with this callback
-	var postInstallCb func()
-	if sshAgent != nil {
-		postInstallCb = func() {
-			// Stop the sshAgent if used during provisioning
-			// Do not return any error if failure occured during this
-			err := sshAgent.RemoveAllKeys()
-			if err != nil {
-				log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
-			}
-			err = sshAgent.Stop()
-			if err != nil {
-				log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
-			}
-		}
-	}
-
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
 	if err != nil {
 		return false, nil, nil, nil, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
@@ -166,5 +145,5 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	}
 
 	log.Debugf("Infrastructure generated for deployment with id %s", deploymentID)
-	return true, outputs, cmdEnv, postInstallCb, nil
+	return true, outputs, cmdEnv, nil, nil
 }
