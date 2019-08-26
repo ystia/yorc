@@ -24,6 +24,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -32,6 +33,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/labelsutil"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tosca"
+	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
 type defaultExecutor struct {
@@ -221,15 +223,23 @@ func (e *defaultExecutor) updateConnectionSettings(
 	if err != nil {
 		return err
 	}
-	credentials := map[string]interface{}{"user": host.Connection.User}
-	if host.Connection.Password != "" {
-		credentials["token"] = host.Connection.Password
+	credentials := datatypes.Credential{
+		User:  host.Connection.User,
+		Token: host.Connection.Password,
+		Keys: map[string]string{
+			// 0 is the default key name we are trying to remove this by allowing multiple keys
+			"0": host.Connection.PrivateKey,
+		},
 	}
-	if host.Connection.PrivateKey != "" {
-		credentials["keys"] = []string{host.Connection.PrivateKey}
+
+	var credentialsMap map[string]interface{}
+	err = mapstructure.Decode(credentials, &credentialsMap)
+	if err != nil {
+		return err
 	}
+
 	err = deployments.SetInstanceCapabilityAttributeComplex(op.deploymentID,
-		op.nodeName, instance, tosca.ComputeNodeEndpointCapabilityName, "credentials", credentials)
+		op.nodeName, instance, tosca.ComputeNodeEndpointCapabilityName, "credentials", credentialsMap)
 	if err != nil {
 		return err
 	}
@@ -244,12 +254,18 @@ func (e *defaultExecutor) updateConnectionSettings(
 	}
 	err = setInstanceAttributesValue(op, instance, privateAddress,
 		[]string{tosca.EndpointCapabilityIPAddressAttribute, tosca.ComputeNodePrivateAddressAttributeName})
+	if err != nil {
+		return err
+	}
 
 	if publicAddress, ok := host.Labels[tosca.ComputeNodePublicAddressAttributeName]; ok {
 		// For compatibility with components referencing a host public_ip_address,
 		// defining an attribute public_ip_address as well
 		err = setInstanceAttributesValue(op, instance, privateAddress,
 			[]string{tosca.ComputeNodePublicAddressAttributeName, "public_ip_address"})
+		if err != nil {
+			return err
+		}
 
 		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
 			instance, tosca.ComputeNodePublicAddressAttributeName, publicAddress)

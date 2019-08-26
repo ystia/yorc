@@ -163,6 +163,7 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	}
 	if kvp != nil {
 		conn.Host = string(kvp.Value)
+		conn.Host = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Host", conn.Host).(string)
 	}
 	kvp, _, err = kv.Get(path.Join(connKVPrefix, "user"), nil)
 	if err != nil {
@@ -170,6 +171,7 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	}
 	if kvp != nil {
 		conn.User = string(kvp.Value)
+		conn.User = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.User", conn.User).(string)
 	}
 	kvp, _, err = kv.Get(path.Join(connKVPrefix, "password"), nil)
 	if err != nil {
@@ -177,6 +179,7 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	}
 	if kvp != nil {
 		conn.Password = string(kvp.Value)
+		conn.Password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Password", conn.Password).(string)
 	}
 	kvp, _, err = kv.Get(path.Join(connKVPrefix, "private_key"), nil)
 	if err != nil {
@@ -184,6 +187,7 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	}
 	if kvp != nil {
 		conn.PrivateKey = string(kvp.Value)
+		conn.PrivateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.PrivateKey", conn.PrivateKey).(string)
 	}
 	kvp, _, err = kv.Get(path.Join(connKVPrefix, "port"), nil)
 	if err != nil {
@@ -199,13 +203,6 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	return conn, nil
 }
 
-func resolveTemplatesInConnection(conn *Connection) {
-	conn.User = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.User", conn.User).(string)
-	conn.Password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Password", conn.Password).(string)
-	conn.PrivateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.PrivateKey", conn.PrivateKey).(string)
-	conn.Host = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Host", conn.Host).(string)
-}
-
 // Check if we can log into an host given a connection
 func (cm *consulManager) checkConnection(hostname string) error {
 
@@ -213,7 +210,6 @@ func (cm *consulManager) checkConnection(hostname string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
-	resolveTemplatesInConnection(&conn)
 	conf, err := getSSHConfig(conn)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
