@@ -412,12 +412,11 @@ func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interfac
 // Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
 func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject runtime.Object) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		var err error
 		switch concreteObj := k8sObject.(type) {
 		case *v1beta1.Deployment:
-			dep, err := clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
+			var dep *v1beta1.Deployment
+			dep, err = clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 			if dep.Status.AvailableReplicas == *concreteObj.Spec.Replicas {
 				return true, nil
 			}
@@ -425,27 +424,24 @@ func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, client
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", concreteObj.Name, msg)
 				return false, errors.Errorf("Kubernetes deployment %q: %s", concreteObj.Name, msg)
 			}
-
 		case *appsv1.StatefulSet:
-			stfs, err := clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
+			var stfs *appsv1.StatefulSet
+			stfs, err = clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 			if stfs.Status.ReadyReplicas == *concreteObj.Spec.Replicas {
 				return true, nil
 			}
-
 		case *corev1.PersistentVolumeClaim:
-			pvc, err := clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
+			var pvc *corev1.PersistentVolumeClaim
+			pvc, err = clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
 			if pvc.Status.Phase == corev1.ClaimBound {
 				return true, nil
 			}
-
 		default:
 			return false, nil
+		}
+
+		if err != nil {
+			return false, err
 		}
 		return false, nil
 	}, ctx.Done())
