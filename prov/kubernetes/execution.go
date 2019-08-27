@@ -68,6 +68,11 @@ type execution struct {
 	nodeType     string
 }
 
+const namespaceCreatedMessage string = "K8's Namespace %s created"
+const namespaceDeletedMessage string = "K8's Namespace %s deleted"
+const namespaceDeletionFailedMessage string = "Cannot delete K8's Namespace %s"
+const unsupportedOperationOnK8sResource string = "Unsupported operation on k8s resource"
+
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
 	taskType, err := tasks.GetTaskType(kv, taskID)
 	if err != nil {
@@ -204,7 +209,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 			if err != nil {
 				return err
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceCreatedMessage, namespaceName)
 		}
 		// Update resource_spec with actual reference to used services, if necessary
 		rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespaceName, rSpec)
@@ -267,7 +272,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 			// In that case nothing to do
 			nbDeployments, err := podControllersInNamespace(clientset, namespaceName)
 			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
 				return err
 			}
 			if nbDeployments > 0 {
@@ -275,13 +280,13 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 			} else {
 				err = deleteNamespace(namespaceName, clientset)
 				if err != nil {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
 					return err
 				}
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespaceName)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletedMessage, namespaceName)
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespaceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletedMessage, namespaceName)
 	case k8sScaleOperation:
 		expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
 		if err != nil {
@@ -310,7 +315,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s scaled to %s instances in namespace %s", deployment.Name, expectedInstances, namespaceName)
 	default:
-		return errors.Errorf("Unsupported operation on k8s resource")
+		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
 
 	return nil
@@ -334,7 +339,7 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 			if err != nil {
 				return err
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceCreatedMessage, namespace)
 		}
 		stfs, err := clientset.AppsV1beta1().StatefulSets(namespace).Create(&stfsRepr)
 		if err != nil {
@@ -374,7 +379,7 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 		if !nsProvided {
 			nbController, err := podControllersInNamespace(clientset, namespace)
 			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespace)
 				return err
 			}
 			if nbController > 0 {
@@ -382,11 +387,11 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 			} else {
 				err = deleteNamespace(namespace, clientset)
 				if err != nil {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespace)
 					return err
 				}
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletedMessage, namespace)
 		}
 
 	case k8sScaleOperation:
@@ -416,7 +421,7 @@ func (e *execution) manageStatefulSetResource(ctx context.Context, clientset kub
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s StatefulSet %s scaled to %s instances in namespace %s", sts.Name, expectedInstances, namespace)
 	default:
-		return errors.Errorf("Unsupported operation on k8s resource")
+		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
 	return nil
 }
@@ -481,7 +486,7 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Service %s deleted!", serviceName)
 	default:
-		return errors.Errorf("Unsupported operation on k8s resource")
+		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
 	return nil
 }
@@ -508,7 +513,7 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 			if err != nil {
 				return err
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceCreatedMessage, namespace)
 		}
 		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Create(&pvcRepr)
 		if err != nil {
