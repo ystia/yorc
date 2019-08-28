@@ -382,6 +382,7 @@ func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, p
 
 }
 
+/*
 // Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
 func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject runtime.Object) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
@@ -448,6 +449,47 @@ func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, client
 			return false, nil
 		}
 		return false, nil
+	}, ctx.Done())
+
+} */
+
+// Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
+func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject runtime.Object) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		var myObj yorcK8sObject
+
+		switch concreteObj := k8sObject.(type) {
+		case *v1beta1.Deployment:
+			myObj = yorcK8sDeployment(*concreteObj)
+		case *appsv1.StatefulSet:
+			myObj = yorcK8sStatefulSet(*concreteObj)
+		case *corev1.PersistentVolumeClaim:
+			myObj = yorcK8sPersistentVolumeClaim(*concreteObj)
+		default:
+			return false, errors.New("Unsupported k8s resource")
+		}
+
+		return myObj.isSuccessfullyDeleted(ctx, "", clientset)
+	}, ctx.Done())
+}
+
+// Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
+func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject runtime.Object) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		var myObj yorcK8sObject
+
+		switch concreteObj := k8sObject.(type) {
+		case *v1beta1.Deployment:
+			myObj = yorcK8sDeployment(*concreteObj)
+		case *appsv1.StatefulSet:
+			myObj = yorcK8sStatefulSet(*concreteObj)
+		case *corev1.PersistentVolumeClaim:
+			myObj = yorcK8sPersistentVolumeClaim(*concreteObj)
+		default:
+			return false, errors.New("Unsupported k8s resource")
+		}
+		return myObj.isSuccessfullyDeployed(ctx, deploymentID, clientset)
+
 	}, ctx.Done())
 
 }
