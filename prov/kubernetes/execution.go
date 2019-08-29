@@ -16,17 +16,10 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1beta1"
-	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -133,6 +126,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 	if rSpec == nil {
 		return errors.Errorf("no resource_spec defined for node %q", e.nodeName)
 	}
+	rSpecString := rSpec.RawString()
 	var K8sObj yorcK8sObject
 	switch e.nodeType {
 	case deploymentResourceType:
@@ -155,7 +149,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
-	return e.manageK8sResource(ctx, clientset, generator, K8sObj, op, rSpec.RawString())
+	return e.manageK8sResource(ctx, clientset, generator, K8sObj, op, rSpecString)
 }
 
 func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, k8sResource yorcK8sObject, operationType k8sResourceOperation, rSpec string) (err error) {
@@ -169,16 +163,16 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 	namespaceName, namespaceProvided := getK8sResourceNamespace(e.deploymentID, k8sResource)
-
+	k8sObjectMeta := k8sResource.getObjectMeta()
 	switch operationType {
 	case k8sCreateOperation:
 		/*
 			  Creation steps :
-				create ns if missing
-				create Resource
-				(stream logs)
-				wait for completion
-				set attributes
+				create ns if missing 	OK
+				create Resource   		OK
+				(stream logs)			TODO
+				wait for completion		OK
+				set attributes			TODO
 		*/
 		if !namespaceProvided {
 			err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
@@ -187,29 +181,74 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 			}
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceCreatedMessage, namespaceName)
 		}
-		k8sResource.createResource(ctx, e.deploymentID, clientset, namespaceName)
-		waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
-		// TODO: set attributes
+		err := k8sResource.createResource(ctx, e.deploymentID, clientset, namespaceName)
+		if err != nil {
+			return err
+		}
+		// stream logs
+		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s created in namespace %s", k8sResource, k8sObjectMeta.Name, namespaceName)
+		// set attributes
+		/*
+			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
+			if err != nil {
+				return err
+			}
+		*/
 	case k8sDeleteOperation:
 		/*
 			Deletion steps :
-				delete resource
-				wait for deletion
-				delete ns if not provided
+				delete resource				OK
+				wait for deletion			OK
+				delete ns if not provided	OK
 		*/
-		k8sResource.deleteResource(ctx, e.deploymentID, clientset, namespaceName)
-		waitForYorcK8sObjectDeletion(ctx, clientset, k8sResource)
-		//TODO: delete namespace
+		err := k8sResource.deleteResource(ctx, e.deploymentID, clientset, namespaceName)
+		if err != nil {
+			return err
+		}
+		err = waitForYorcK8sObjectDeletion(ctx, clientset, k8sResource)
+		if err != nil {
+			return err
+		}
+		if !namespaceProvided {
+			// Check if other deployments exist in the namespace
+			// In that case nothing to do
+			nbControllers, err := podControllersInNamespace(clientset, namespaceName)
+			if err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
+				return err
+			}
+			if nbControllers > 0 {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Do not delete %s namespace as %d deployments exist", namespaceName, nbControllers)
+			} else {
+				err = deleteNamespace(namespaceName, clientset)
+				if err != nil {
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
+					return err
+				}
+			}
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s deleted in namespace %s", k8sResource, k8sObjectMeta.Name, namespaceName)
 	case k8sScaleOperation:
 		/*
 			Scale steps :
-				get nb instances
-				Updtade resource
-				(stream logs)
-				wait for completion
-				set attr
+				get nb instances		TODO
+				Updtade resource		OK
+				(stream logs)			TODO
+				wait for completion		OK
+				set attr				TODO
 		*/
-		waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
+		k8sResource.scaleResource(ctx, e.deploymentID, clientset, namespaceName, 0)
+		if err != nil {
+			return err
+		}
+		err := waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
@@ -245,6 +284,7 @@ func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, client
 	return rSpec, nil
 }
 
+/* TO BE DELETED
 func (e *execution) manageDeploymentResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
@@ -606,3 +646,4 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 	}
 	return nil
 }
+*/

@@ -499,7 +499,7 @@ func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, client
 }
 
 func getK8sResourceNamespace(deploymentID string, k8sResource yorcK8sObject) (string, bool) {
-	var isProvided bool
+	isProvided := false
 	var namespace string
 	var providedNamespace string
 	objectMeta := k8sResource.getObjectMeta()
