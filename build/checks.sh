@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #      http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ fi
 
 if [[ ${BUILD_ARGS} == *"-tags"* ]]; then
     error_exit "Variable BUILD_ARGS (\"${BUILD_ARGS}\") contains -tags option, this is deprecated. Use BUILD_TAGS variable to provide a tag list (space-separated) instead."
-fi 
+fi
 
 for tool in $@; do
     #Suppress trailing /... in url if any
@@ -71,4 +71,10 @@ else
         rm -f "${binDir}/consul"
         install_consul
     fi
+fi
+
+if [[ ! -r "${HOME}/.ssh/yorc.pem" ]]; then
+    echo "Installing a testing ssh key under ${HOME}/.ssh/yorc.pem"
+    mkdir -p "${HOME}/.ssh/" || error_exit "Can't create ${HOME}/.ssh/ directory"
+    cp "${scriptDir}/yorc.pem"  "${HOME}/.ssh/yorc.pem" || error_exit "Can't copy testing key to ${HOME}/.ssh/ directory"
 fi
