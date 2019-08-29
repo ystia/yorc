@@ -31,6 +31,7 @@ import (
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/executil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 	"github.com/ystia/yorc/v3/prov/terraform/commons"
@@ -93,16 +94,36 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		}
 	}
 
-	infraGenerated, outputs, env, cb, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
-	if err != nil {
-		return err
+	if !cfg.DisableSSHAgent {
+		sshAgent, err := sshutil.NewSSHAgent(ctx)
+		if err != nil {
+			return err
+		}
+		ctx = commons.StoreSSHAgentInContext(ctx, sshAgent)
+		defer func() {
+			// Stop the sshAgent if used during provisioning
+			// Do not return any error if failure occured during this
+			err := sshAgent.RemoveAllKeys()
+			if err != nil {
+				log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+			}
+			err = sshAgent.Stop()
+			if err != nil {
+				log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+			}
+		}()
 	}
-	// Execute callback if needed
+
+	infraGenerated, outputs, env, cb, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
+	// Execute callback if needed even if there is an error
 	defer func() {
 		if cb != nil {
 			cb()
 		}
 	}()
+	if err != nil {
+		return err
+	}
 	if infraGenerated {
 		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath, outputs, env); err != nil {
 			return err

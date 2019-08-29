@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### SECURITY FIXES
+
+* Fixed a vulnerability that could allow an attacker to read the content of a file stored on Yorc host by pretending it is an ssh key. ([GHSA-8vhw-qv5r-38h5](https://github.com/ystia/yorc/security/advisories/GHSA-8vhw-qv5r-38h5))
+
 ## 3.2.3 (July 16, 2019)
 
 ### ENHANCEMENTS
@@ -11,7 +15,6 @@
 ### BUG FIXES
 
 * Failure to deploy/undeploy big application: Transaction contains too many operations ([GH-484](https://github.com/ystia/yorc/issues/484))
-
 
 ## 3.2.2 (July 09, 2019)
 

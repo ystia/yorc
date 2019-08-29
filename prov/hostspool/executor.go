@@ -23,6 +23,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v3/config"
@@ -31,6 +32,7 @@ import (
 	"github.com/ystia/yorc/v3/helper/labelsutil"
 	"github.com/ystia/yorc/v3/tasks"
 	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v3/tosca/datatypes"
 )
 
 type defaultExecutor struct {
@@ -143,14 +145,23 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		if err != nil {
 			return err
 		}
-		credentials := map[string]interface{}{"user": host.Connection.User}
-		if host.Connection.Password != "" {
-			credentials["token"] = host.Connection.Password
+		credentials := datatypes.Credential{
+			User:  host.Connection.User,
+			Token: host.Connection.Password,
+			Keys: map[string]string{
+				// 0 is the default key name we are trying to remove this by allowing multiple keys
+				"0": host.Connection.PrivateKey,
+			},
 		}
-		if host.Connection.PrivateKey != "" {
-			credentials["keys"] = []string{host.Connection.PrivateKey}
+
+		var credentialsMap map[string]interface{}
+		err = mapstructure.Decode(credentials, &credentialsMap)
+		if err != nil {
+			return err
 		}
-		err = deployments.SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instance, "endpoint", "credentials", credentials)
+
+		err = deployments.SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instance, "endpoint", "credentials", credentialsMap)
+
 		if err != nil {
 			return err
 		}

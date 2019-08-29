@@ -184,7 +184,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.C
 
 	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
 	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(nodeAlloc.credentials.UserName, nodeAlloc.credentials.PrivateKey, nodeAlloc.credentials.Password, cfg)
+	sshClient, err := getSSHClient(nodeAlloc.credentials, cfg)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
@@ -342,7 +342,7 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, cfg config.
 
 	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
 	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(nodeAlloc.credentials.UserName, nodeAlloc.credentials.PrivateKey, nodeAlloc.credentials.Password, cfg)
+	sshClient, err := getSSHClient(nodeAlloc.credentials, cfg)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err

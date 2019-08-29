@@ -56,7 +56,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 
 	// Get user credentials from capability endpoint credentials property, if values are provided
-	node.credentials, err = getUserCredentials(kv, deploymentID, nodeName, "endpoint", "credentials")
+	node.credentials, err = getUserCredentials(kv, cfg, deploymentID, nodeName, "endpoint")
 	if err != nil {
 		return err
 	}

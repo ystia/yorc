@@ -145,12 +145,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		instance.Networks = append(instance.Networks, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
 	}
 
-	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-
 	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
@@ -364,6 +358,11 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return errors.Wrapf(err, "failed to add serverGroup membership for deploymentID:%q, nodeName:%q, instance:%q", deploymentID, nodeName, instanceName)
 	}
 
+	// Get connection info (user, private key)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
 	return commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env)
 }
 

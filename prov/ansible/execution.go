@@ -32,10 +32,10 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/mitchellh/mapstructure"
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v3/config"
@@ -43,7 +43,6 @@ import (
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/executil"
-	"github.com/ystia/yorc/v3/helper/pathutil"
 	"github.com/ystia/yorc/v3/helper/provutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/helper/stringutil"
@@ -52,6 +51,7 @@ import (
 	"github.com/ystia/yorc/v3/prov/operations"
 	"github.com/ystia/yorc/v3/tasks"
 	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v3/tosca/datatypes"
 )
 
 const taskContextOutput = "task_context"
@@ -120,18 +120,18 @@ func (oni operationNotImplemented) Error() string {
 }
 
 type hostConnection struct {
-	host       string
-	port       int
-	user       string
-	instanceID string
-	privateKey string
-	password   string
+	host        string
+	port        int
+	user        string
+	instanceID  string
+	privateKeys map[string]*sshutil.PrivateKey
+	password    string
 }
 
 type sshCredentials struct {
-	user       string
-	privateKey string
-	password   string
+	user        string
+	privateKeys map[string]*sshutil.PrivateKey
+	password    string
 }
 
 type execution interface {
@@ -364,30 +364,31 @@ func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capTyp
 		return err
 	}
 	if hasEndpoint {
-		user, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "user")
+		credentialValue, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials")
 		if err != nil {
 			return err
 		}
-		if user != nil {
-			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", user.RawString()).(string)
+		credentials := new(datatypes.Credential)
+		if credentialValue != nil && credentialValue.RawString() != "" {
+			err = mapstructure.Decode(credentialValue.Value, credentials)
+			if err != nil {
+				return errors.Wrapf(err, "failed to decode credentials for node %q", host)
+			}
+		}
+		if credentials.User != "" {
+			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", credentials.User).(string)
 		} else {
 			mess := fmt.Sprintf("[Warning] No user set for connection:%+v", conn)
 			log.Printf(mess)
 			events.WithContextOptionalFields(e.ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString(mess)
 		}
-		password, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "token")
+		if credentials.Token != "" {
+			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", credentials.Token).(string)
+		}
+
+		conn.privateKeys, err = sshutil.GetKeysFromCredentialsDataType(credentials)
 		if err != nil {
 			return err
-		}
-		if password != nil && password.RawString() != "" {
-			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", password.RawString()).(string)
-		}
-		privateKey, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "keys", "0")
-		if err != nil {
-			return err
-		}
-		if privateKey != nil && privateKey.RawString() != "" {
-			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey.RawString()).(string)
 		}
 
 		port, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "port")
@@ -800,21 +801,30 @@ func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx con
 	return nil
 }
 
-func (e *executionCommon) getSSHCredentials(ctx context.Context, host *hostConnection, warnOfMissingValues bool) sshCredentials {
+func (e *executionCommon) getSSHCredentials(ctx context.Context, host *hostConnection) (sshCredentials, error) {
+
+	creds := sshCredentials{}
 	sshUser := host.user
 	if sshUser == "" {
 		// Use root as default user
 		sshUser = "root"
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
 	}
+	creds.user = sshUser
 	sshPassword := host.password
-	sshPrivateKey := host.privateKey
-	if sshPrivateKey == "" && sshPassword == "" {
-		sshPrivateKey = "~/.ssh/yorc.pem"
-		host.privateKey = sshPrivateKey
+	sshPrivateKeys := host.privateKeys
+	if len(sshPrivateKeys) == 0 && sshPassword == "" {
+		defaultKey, err := sshutil.GetDefaultKey()
+		if err != nil {
+			return creds, err
+		}
+		sshPrivateKeys = map[string]*sshutil.PrivateKey{"0": defaultKey}
+		host.privateKeys = sshPrivateKeys
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
 	}
-	return sshCredentials{user: sshUser, password: sshPassword, privateKey: sshPrivateKey}
+	creds.privateKeys = sshPrivateKeys
+	creds.password = sshPassword
+	return creds, nil
 }
 
 func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host *hostConnection) error {
@@ -825,22 +835,20 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 			return err
 		}
 	} else {
-		sshCredentials := e.getSSHCredentials(ctx, host, true)
+		sshCredentials, err := e.getSSHCredentials(ctx, host)
+		if err != nil {
+			return err
+		}
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s", sshCredentials.user))
 		// Set with priority private key against password
-		if e.cfg.DisableSSHAgent && sshCredentials.privateKey != "" {
-			// check privateKey's a valid path
-			if is, err := pathutil.IsValidPath(sshCredentials.privateKey); err != nil || !is {
-				// Truncate it if it's a private key
-				ufo := sshCredentials.privateKey
-				if _, err = ssh.ParsePrivateKey([]byte(sshCredentials.privateKey)); err == nil {
-					ufo = stringutil.Truncate(sshCredentials.privateKey, 20)
-				}
-				return errors.Errorf("%q is not a valid path", ufo)
+		if e.cfg.DisableSSHAgent && len(sshCredentials.privateKeys) > 0 {
+			key := sshutil.SelectPrivateKeyOnName(sshCredentials.privateKeys, true)
+			if key == nil {
+				return errors.Errorf("%d private keys provided (may include the default key %q) but none are stored on disk. As ssh-agent is disabled by configuration we can't use direct key content.", len(sshCredentials.privateKeys), sshutil.DefaultSSHPrivateKeyFilePath)
 			}
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", key.Path))
 		} else if sshCredentials.password != "" {
-			// TODO use vault
+			// TODO use ansible vault
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshCredentials.password))
 		}
 		// Specify SSH port when different than default 22
@@ -1001,7 +1009,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 		if perInstanceInputsBuffer.Len() > 0 {
 			if err = ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host.host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
-				return errors.Wrapf(err, "Failed to write vars for host %q file: %v", host, err)
+				return errors.Wrapf(err, "Failed to write vars for host %q file: %v", host.host, err)
 			}
 		}
 	}
@@ -1235,7 +1243,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAgent, error) {
 	var addSSHAgent bool
 	for _, host := range e.hosts {
-		if host.privateKey != "" {
+		if len(host.privateKeys) > 0 {
 			addSSHAgent = true
 			break
 		}
@@ -1249,8 +1257,8 @@ func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAg
 		return nil, err
 	}
 	for _, host := range e.hosts {
-		if host.privateKey != "" {
-			if err = agent.AddKey(host.privateKey, 3600); err != nil {
+		for _, key := range host.privateKeys {
+			if err = agent.AddPrivateKey(key, 3600); err != nil {
 				return nil, err
 			}
 		}

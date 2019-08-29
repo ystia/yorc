@@ -91,7 +91,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}

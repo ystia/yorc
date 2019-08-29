@@ -28,7 +28,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -163,41 +162,6 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 	return sw.session.Run(cmd)
 }
 
-// ReadPrivateKey returns an authentication method relying on private/public key pairs
-// The argument is :
-// - either a path to the private key file,
-// - or the content or this private key file
-func ReadPrivateKey(pk string) (ssh.AuthMethod, error) {
-	raw, err := ToPrivateKeyContent(pk)
-	if err != nil {
-		return nil, err
-	}
-	signer, err := ssh.ParsePrivateKey(raw)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
-	}
-	return ssh.PublicKeys(signer), nil
-}
-
-// ToPrivateKeyContent allows to convert private key content or file to byte array
-func ToPrivateKeyContent(pk string) ([]byte, error) {
-	var p []byte
-	// check if pk is a path
-	keyPath, err := homedir.Expand(pk)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to expand key path")
-	}
-	if _, err := os.Stat(keyPath); err == nil {
-		p, err = ioutil.ReadFile(keyPath)
-		if err != nil {
-			p = []byte(pk)
-		}
-	} else {
-		p = []byte(pk)
-	}
-	return p, nil
-}
-
 // CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
 // CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
 func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissions string) error {
@@ -324,15 +288,8 @@ func NewSSHAgent(ctx context.Context) (*SSHAgent, error) {
 	}, nil
 }
 
-// AddKey allows to add a key into ssh-agent keys list
-func (sa *SSHAgent) AddKey(privateKey string, lifeTime uint32) error {
-	log.Debugf("Add key for SSH-AGENT")
-	keyContent, err := ToPrivateKeyContent(privateKey)
-	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve private key content")
-	}
-
-	rawKey, err := ssh.ParseRawPrivateKey(keyContent)
+func (sa *SSHAgent) addKey(privateKey []byte, lifeTime uint32) error {
+	rawKey, err := ssh.ParseRawPrivateKey(privateKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse raw private key")
 	}
@@ -342,6 +299,22 @@ func (sa *SSHAgent) AddKey(privateKey string, lifeTime uint32) error {
 		LifetimeSecs: lifeTime,
 	}
 	return sa.agent.Add(*addedKey)
+}
+
+// AddKey allows to add a key into ssh-agent keys list
+func (sa *SSHAgent) AddKey(privateKey string, lifeTime uint32) error {
+	log.Debugf("Add key for SSH-AGENT")
+	keyContent, err := ToPrivateKeyContent(privateKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
+	return sa.addKey(keyContent, lifeTime)
+}
+
+// AddPrivateKey allows to add a key into ssh-agent keys list
+func (sa *SSHAgent) AddPrivateKey(privateKey *PrivateKey, lifeTime uint32) error {
+	log.Debugf("Add key for SSH-AGENT")
+	return sa.addKey(privateKey.Content, lifeTime)
 }
 
 // RemoveKey allows to remove a key into ssh-agent keys list
