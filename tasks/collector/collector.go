@@ -124,7 +124,7 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 		// allowed, so the registration of a custom command or custom workflow task
 		// is allowed if another custom command or custom workflow task is on-going.
 		// Adding the corresponding task types to the list of types to ignore
-		// when checking if a task is already registered for this target. 
+		// when checking if a task is already registered for this target.
 		if taskType == tasks.TaskTypeCustomCommand ||
 			taskType == tasks.TaskTypeCustomWorkflow {
 

@@ -147,41 +147,48 @@ func AddOutput(infrastructure *Infrastructure, outputName string, output *Output
 }
 
 // GetConnInfoFromEndpointCredentials allow to retrieve user and private key path for connection needs from endpoint credentials
-func GetConnInfoFromEndpointCredentials(kv *api.KV, deploymentID, nodeName string) (string, string, error) {
+func GetConnInfoFromEndpointCredentials(ctx context.Context, kv *api.KV, deploymentID, nodeName string) (string, *sshutil.PrivateKey, error) {
 	user, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "user")
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	} else if user == nil || user.RawString() == "" {
-		return "", "", errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
+		return "", nil, errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
-	var pkfp string
-	privateKeyFilePath, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
+	keys, err := sshutil.GetKeysFromCredentialsAttribute(kv, deploymentID, nodeName, "0", "endpoint")
 	if err != nil {
-		return "", "", err
-	} else if privateKeyFilePath == nil || privateKeyFilePath.RawString() == "" {
-		// Using default value
-		pkfp = DefaultSSHPrivateKeyFilePath
-		log.Printf("No private key defined for user %s, using default %s", user.RawString(), pkfp)
-	} else {
-		pkfp = privateKeyFilePath.RawString()
+		return "", nil, err
 	}
-	return user.RawString(), pkfp, nil
+
+	var pk *sshutil.PrivateKey
+	if len(keys) == 0 {
+		pk, err = sshutil.GetDefaultKey()
+		if err != nil {
+			return "", nil, err
+		}
+		keys["default"] = pk
+	} else {
+		pk = sshutil.SelectPrivateKeyOnName(keys, false)
+
+	}
+
+	keysList := make([]*sshutil.PrivateKey, 0, len(keys))
+	for _, k := range keys {
+		keysList = append(keysList, k)
+	}
+
+	addKeysToContextualSSHAgent(ctx, keysList)
+
+	return user.RawString(), pk, nil
 }
 
 // AddConnectionCheckResource builds a null specific resource to check SSH connection with SSH key passed via env variable
-func AddConnectionCheckResource(infrastructure *Infrastructure, user, privateKey, accessIP, resourceName string, env *[]string) error {
-	// Check the connection in order to be sure that ansible will be able to log on the instance
-	pkeyContent, err := sshutil.ToPrivateKeyContent(privateKey)
-	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve private key content")
-	}
-
+func AddConnectionCheckResource(infrastructure *Infrastructure, user string, privateKey *sshutil.PrivateKey, accessIP, resourceName string, env *[]string) error {
 	// Define private_key variable
 	infrastructure.Variable = make(map[string]interface{})
 	infrastructure.Variable["private_key"] = struct{}{}
 
 	// Add env TF variable for private key
-	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(pkeyContent)))
+	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(privateKey.Content)))
 
 	// Build null Resource
 	nullResource := Resource{}
@@ -198,19 +205,6 @@ func AddConnectionCheckResource(infrastructure *Infrastructure, user, privateKey
 
 	AddResource(infrastructure, "null_resource", resourceName+"-ConnectionCheck", &nullResource)
 	return nil
-}
-
-// GetSSHAgent provides an SSH-agent for specific Terraform needs
-func GetSSHAgent(ctx context.Context, privateKey string) (*sshutil.SSHAgent, error) {
-	sshAgent, err := sshutil.NewSSHAgent(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = sshAgent.AddKey(privateKey, 3600)
-	if err != nil {
-		return nil, err
-	}
-	return sshAgent, nil
 }
 
 // GetBackendConfiguration returns the Terraform Backend configuration

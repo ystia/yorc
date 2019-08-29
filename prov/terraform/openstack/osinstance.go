@@ -392,13 +392,10 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 		}
 	}
 
-	return addResources(opts, fipAssociateName, instancesKey, instance, outputs, env)
+	return addResources(ctx, opts, fipAssociateName, instancesKey, instance, outputs, env)
 }
 
-func addResources(opts osInstanceOptions,
-	fipAssociateName, instancesKey string,
-	instance *ComputeInstance,
-	outputs map[string]string,
+func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName, instancesKey string, instance *ComputeInstance, outputs map[string]string,
 	env *[]string) error {
 
 	commons.AddResource(opts.infrastructure, opts.resourceTypes[computeInstance], instance.Name, instance)
@@ -432,8 +429,7 @@ func addResources(opts osInstanceOptions,
 		"/attributes/private_address")] = privateIPKey
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(opts.kv,
-		opts.deploymentID, opts.nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, opts.kv, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}

@@ -100,8 +100,13 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		actionData.artifacts = strings.Split(artifactsStr, ",")
 	}
 
+	nodeName := action.Data["nodeName"]
+	credentials, err := getUserCredentials(consulutil.GetKV(), cfg, deploymentID, nodeName, "")
+	if err != nil {
+		return true, err
+	}
 	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
-	sshClient, err := getSSHClient(action.Data["userName"], action.Data["privateKey"], action.Data["password"], cfg)
+	sshClient, err := getSSHClient(credentials, cfg)
 	if err != nil {
 		return true, err
 	}
@@ -110,7 +115,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	if err != nil {
 		if isNoJobFoundError(err) {
 			// the job is not found in slurm database (should have been purged) : pass its status to "UNKNOWN"
-			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", "UNKNOWN")
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, nodeName, "0", "UNKNOWN")
 		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
 	}
@@ -141,12 +146,12 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
-	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
+	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, nodeName, "0")
 	if err != nil {
 		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
 	}
 	if previousJobState != info["JobState"] {
-		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", info["JobState"])
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, nodeName, "0", info["JobState"])
 	}
 
 	// See if monitoring must be continued and set job state if terminated
