@@ -25,9 +25,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -47,40 +45,6 @@ func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Depl
 		}
 	}
 	return false, ""
-}
-
-// /!\ Deprecated, use waitForK8sObjectDeletion instead /!\
-func waitForDeploymentDeletion(ctx context.Context, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		_, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		return false, nil
-	}, ctx.Done())
-
-}
-
-// /!\ Deprecated, use waitForK8sObjectCompletion instead /!\
-func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas {
-			return true, nil
-		}
-
-		if failed, msg := isDeploymentFailed(clientset, deployment); failed {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", deployment.Name, msg)
-			return false, errors.Errorf("Kubernetes deployment %q: %s", deployment.Name, msg)
-		}
-		return false, nil
-	}, ctx.Done())
 }
 
 func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) {
@@ -349,153 +313,6 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 		return "", err
 	}
 	return version.String(), nil
-}
-
-// /!\ Deprecated, use waitForK8sObjectDeletion instead /!\
-func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		_, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		return false, nil
-	}, ctx.Done())
-
-}
-
-// /!\ Deprecated, use waitForK8sObjectCompletion instead /!\
-func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		pvc, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		if pvc.Status.Phase == corev1.ClaimBound {
-			return true, nil
-		}
-		return false, nil
-	}, ctx.Done())
-
-}
-
-/*
-// Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
-func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject runtime.Object) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		var err error
-		switch concreteObj := k8sObject.(type) {
-		case *corev1.PersistentVolumeClaim:
-			_, err = clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-		case *v1beta1.Deployment:
-			_, err = clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-		case *corev1.Service:
-			_, err = clientset.CoreV1().Services(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-		case *appsv1.StatefulSet:
-			_, err = clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-		default:
-			return false, nil
-		}
-
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		return false, nil
-	}, ctx.Done())
-}
-
-// Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
-func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject runtime.Object) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		switch concreteObj := k8sObject.(type) {
-		case *v1beta1.Deployment:
-			dep, err := clientset.ExtensionsV1beta1().Deployments(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			if dep.Status.AvailableReplicas == *concreteObj.Spec.Replicas {
-				return true, nil
-			}
-			if failed, msg := isDeploymentFailed(clientset, concreteObj); failed {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", concreteObj.Name, msg)
-				return false, errors.Errorf("Kubernetes deployment %q: %s", concreteObj.Name, msg)
-			}
-
-		case *appsv1.StatefulSet:
-			stfs, err := clientset.AppsV1beta1().StatefulSets(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			if stfs.Status.ReadyReplicas == *concreteObj.Spec.Replicas {
-				return true, nil
-			}
-
-		case *corev1.PersistentVolumeClaim:
-			pvc, err := clientset.CoreV1().PersistentVolumeClaims(concreteObj.Namespace).Get(concreteObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			if pvc.Status.Phase == corev1.ClaimBound {
-				return true, nil
-			}
-
-		default:
-			return false, nil
-		}
-		return false, nil
-	}, ctx.Done())
-
-} */
-
-// Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
-func waitForK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject runtime.Object) error {
-	return nil
-	/*
-		return wait.PollUntil(2*time.Second, func() (bool, error) {
-			var myObj yorcK8sObject
-
-			switch concreteObj := k8sObject.(type) {
-			case *v1beta1.Deployment:
-				myObj = yorcK8sDeployment(*concreteObj)
-			case *appsv1.StatefulSet:
-				myObj = yorcK8sStatefulSet(*concreteObj)
-			case *corev1.PersistentVolumeClaim:
-				myObj = yorcK8sPersistentVolumeClaim(*concreteObj)
-			default:
-				return false, errors.New("Unsupported k8s resource")
-			}
-
-			return myObj.isSuccessfullyDeleted(ctx, "", clientset)
-		}, ctx.Done())
-	*/
-}
-
-// Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
-func waitForK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject runtime.Object) error {
-	return nil
-	/*
-		return wait.PollUntil(2*time.Second, func() (bool, error) {
-			var myObj yorcK8sObject
-
-			switch concreteObj := k8sObject.(type) {
-			case *v1beta1.Deployment:
-				myObj = yorcK8sDeployment(*concreteObj)
-			case *appsv1.StatefulSet:
-				myObj = yorcK8sStatefulSet(*concreteObj)
-			case *corev1.PersistentVolumeClaim:
-				myObj = yorcK8sPersistentVolumeClaim(*concreteObj)
-			default:
-				return false, errors.New("Unsupported k8s resource")
-			}
-			return myObj.isSuccessfullyDeployed(ctx, deploymentID, clientset)
-
-		}, ctx.Done())
-	*/
 }
 
 func getK8sResourceNamespace(deploymentID string, k8sResource yorcK8sObject) (string, bool) {
