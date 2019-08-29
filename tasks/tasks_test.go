@@ -685,8 +685,9 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 }
 
 func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
-
-	badClient, err := api.NewClient(api.DefaultConfig())
+	cc := api.DefaultConfig()
+	cc.Address = "my.dummy.test.server:8500"
+	badClient, err := api.NewClient(cc)
 	require.NoError(t, err, "Failed to create bad consul client")
 
 	type args struct {
