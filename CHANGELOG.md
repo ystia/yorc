@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 3.2.4 (August 30, 2019)
 
 ### SECURITY FIXES
