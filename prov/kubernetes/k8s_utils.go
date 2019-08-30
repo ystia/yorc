@@ -315,6 +315,7 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 	return version.String(), nil
 }
 
+// Return the namespace of the resource if provided or generate one with deploymentID in lowercase ; and a boolean telling if it was provided
 func getK8sResourceNamespace(deploymentID string, k8sResource yorcK8sObject) (string, bool) {
 	isProvided := false
 	var namespace string

@@ -15,8 +15,7 @@
 package kubernetes
 
 import (
-	"context"
-	"sync"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1beta1"
@@ -118,77 +117,6 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	}
 }
 
-/* DEPRECATED Use more generic test TestWaitForK8sObjectDeletion instead */
-func TestWaitForPVCDeletionAndDeleted(t *testing.T) {
-	k8s := newTestK8s()
-	errorChan := make(chan struct{})
-	finishedChan := make(chan struct{})
-	getCount := 0
-	ctx := context.Background()
-	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-	//Simulate a deletion in progress : wait for 2 get that return the volume and then fakely delete it
-	//If the API continue to receive GET, raise error
-	k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
-		getCount++
-		if getCount > 5 {
-			close(errorChan)
-		} else if getCount > 2 {
-			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
-		}
-		return true, pvc, nil
-	})
-	go func() {
-		err := waitForK8sObjectDeletion(ctx, k8s.clientset, pvc)
-		if err != nil {
-			t.Logf("Error : %s", err.Error())
-			t.Fatal("Deleted pvc should not raise an error")
-		}
-		close(finishedChan)
-	}()
-	select {
-	case <-errorChan:
-		t.Fatal("Function waitForPVCDeletion is still polling API even though it is deleted")
-	case <-finishedChan:
-		//Wait for test to be well done
-	}
-}
-
-/* Test function that wait for K8s object deletion.  */
-func TestWaitForK8sObjectDeletion(t *testing.T) {
-	k8s := newTestK8s()
-	ctx := context.Background()
-	supportedResources := mockSupportedResources()
-	// Waitgroup for parallel execution
-	var wg sync.WaitGroup
-	wg.Add(len(supportedResources))
-
-	for resourceName, resource := range supportedResources {
-		go func(resourceName string, resource runtime.Object) {
-			defer wg.Done()
-			t.Logf("Testing deletion of %s\n", resourceName)
-			errorChan := make(chan struct{})
-			finishedChan := make(chan struct{})
-			k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", resourceName, fakeGetObjectReaction(resource, errorChan, true))
-			go func() {
-				err := waitForK8sObjectDeletion(ctx, k8s.clientset, resource)
-				if err != nil {
-					t.Logf("Error : %s", err.Error())
-					t.Fatalf("Deleting %s should not raise an error", resourceName)
-				}
-				close(finishedChan)
-			}()
-			select {
-			case <-errorChan:
-				t.Fatalf("Function is still polling API even though %s it is deleted", resourceName)
-			case <-finishedChan:
-				//Wait for test to be well done
-				t.Logf("OK for %s.\n", resourceName)
-			}
-		}(resourceName, resource)
-	}
-	wg.Wait()
-}
-
 /* Return a map of mocked k8s objects corresponding to their resource in
 Currently support only : StatefulSet, PVC, Service and Deployment */
 func mockSupportedResources() map[string]runtime.Object {
@@ -227,5 +155,44 @@ func fakeGetObjectReaction(k8sObject runtime.Object, errorChan chan struct{}, de
 
 		}
 		return true, nil, nil
+	}
+}
+
+func Test_getK8sResourceNamespace(t *testing.T) {
+	depID := "DepID"
+	nsName := "my-namespace"
+	type args struct {
+		deploymentID string
+		k8sResource  yorcK8sObject
+	}
+	tests := []struct {
+		name      string
+		args      args
+		namespace string
+		provided  bool
+	}{
+		{
+			"Test no ns provided",
+			args{depID, &yorcK8sDeployment{}},
+			strings.ToLower(depID),
+			false,
+		},
+		{
+			"Test ns provided",
+			args{depID, &yorcK8sService{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: nsName}}},
+			nsName,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := getK8sResourceNamespace(tt.args.deploymentID, tt.args.k8sResource)
+			if got != tt.namespace {
+				t.Errorf("getK8sResourceNamespace() namespace = %v, want %v", got, tt.namespace)
+			}
+			if got1 != tt.provided {
+				t.Errorf("getK8sResourceNamespace() provided = %v, want %v", got1, tt.provided)
+			}
+		})
 	}
 }
