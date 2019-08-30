@@ -196,3 +196,61 @@ func Test_getK8sResourceNamespace(t *testing.T) {
 		})
 	}
 }
+
+func Test_podControllersInNamespace(t *testing.T) {
+	nsName := "my-test-namespace"
+	type args struct {
+		namespace string
+	}
+	tests := []struct {
+		name    string
+		setup   func() kubernetes.Interface
+		args    args
+		want    int
+		wantErr bool
+	}{
+		{
+			"Test no controller left",
+			func() kubernetes.Interface {
+				k8s := newTestSimpleK8s()
+				return k8s.clientset
+			},
+			args{namespace: nsName},
+			0, false,
+		},
+		{
+			"Test one deployment left",
+			func() kubernetes.Interface {
+				k8s := newTestSimpleK8s()
+				k8s.clientset.ExtensionsV1beta1().Deployments(nsName).Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
+				return k8s.clientset
+			},
+			args{namespace: nsName},
+			1, false,
+		},
+		{
+			"Test one deployment & 2 statefulSets left",
+			func() kubernetes.Interface {
+				k8s := newTestSimpleK8s()
+				k8s.clientset.AppsV1beta1().StatefulSets(nsName).Create(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-1", Namespace: nsName}})
+				k8s.clientset.AppsV1beta1().StatefulSets(nsName).Create(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-2", Namespace: nsName}})
+				k8s.clientset.ExtensionsV1beta1().Deployments(nsName).Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
+				return k8s.clientset
+			},
+			args{namespace: nsName},
+			3, false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := podControllersInNamespace(tt.setup(), tt.args.namespace)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("podControllersInNamespace() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("podControllersInNamespace() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
