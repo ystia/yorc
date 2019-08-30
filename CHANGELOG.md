@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 4.0.0-M3 (August 30, 2019)
 
 ### SECURITY FIXES
