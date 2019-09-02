@@ -158,7 +158,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 	get NS
 	switch OPtype
 	*/
-	err = k8sResource.unmarshallResource(rSpec)
+	err = k8sResource.unmarshalResource(rSpec)
 	if err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}

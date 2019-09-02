@@ -17,6 +17,7 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1beta1"
@@ -37,10 +38,12 @@ type yorcK8sObject interface {
 	isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
 	// Return if the specified resource is correctly deleted
 	isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
-	// Unmarshall the resourceSpec into struct
-	unmarshallResource(rSpec string) error
+	// unmarshal the resourceSpec into struct
+	unmarshalResource(rSpec string) error
 
 	getObjectMeta() metav1.ObjectMeta
+	// Implem of the stringer interface
+	fmt.Stringer
 }
 
 // Supported k8s resources
@@ -55,7 +58,7 @@ type yorcK8sStatefulSet appsv1.StatefulSet
 	----------------------------------------------
 */
 //Implem of yorcK8sObject interface for PersistentVolumeClaim
-func (yorcPVC *yorcK8sPersistentVolumeClaim) unmarshallResource(rSpec string) error {
+func (yorcPVC *yorcK8sPersistentVolumeClaim) unmarshalResource(rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcPVC)
 }
 
@@ -100,12 +103,16 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeleted(ctx context.C
 	return false, nil
 }
 
+func (yorcPVC *yorcK8sPersistentVolumeClaim) String() string {
+	return "YorcPersistentVolumeClaim"
+}
+
 /*
 	----------------------------------------------
 	| 				Deployment					 |
 	----------------------------------------------
 */
-func (yorcDep *yorcK8sDeployment) unmarshallResource(rSpec string) error {
+func (yorcDep *yorcK8sDeployment) unmarshalResource(rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcDep)
 }
 
@@ -167,12 +174,16 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeleted(ctx context.Context, dep
 	return false, nil
 }
 
+func (yorcDep *yorcK8sDeployment) String() string {
+	return "YorcDeployment"
+}
+
 /*
 	----------------------------------------------
 	| 				StatefulSet					 |
 	----------------------------------------------
 */
-func (yorcSts *yorcK8sStatefulSet) unmarshallResource(rSpec string) error {
+func (yorcSts *yorcK8sStatefulSet) unmarshalResource(rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcSts)
 }
 
@@ -217,12 +228,16 @@ func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeleted(ctx context.Context, de
 	return false, nil
 }
 
+func (yorcSts *yorcK8sStatefulSet) String() string {
+	return "YorcStatefulSet"
+}
+
 /*
 	----------------------------------------------
 	| 					Service					 |
 	----------------------------------------------
 */
-func (yorcSvc *yorcK8sService) unmarshallResource(rSpec string) error {
+func (yorcSvc *yorcK8sService) unmarshalResource(rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcSvc)
 }
 
@@ -262,4 +277,8 @@ func (yorcSvc *yorcK8sService) isSuccessfullyDeleted(ctx context.Context, deploy
 		return false, err
 	}
 	return false, nil
+}
+
+func (yorcSvc *yorcK8sService) String() string {
+	return "YorcService"
 }
