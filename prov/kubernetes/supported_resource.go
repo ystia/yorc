@@ -25,6 +25,7 @@ import (
 	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -44,6 +45,8 @@ type yorcK8sObject interface {
 	getObjectMeta() metav1.ObjectMeta
 	// Implem of the stringer interface
 	fmt.Stringer
+
+	getObjectRuntime() runtime.Object
 }
 
 // Supported k8s resources
@@ -107,6 +110,11 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) String() string {
 	return "YorcPersistentVolumeClaim"
 }
 
+func (yorcPVC *yorcK8sPersistentVolumeClaim) getObjectRuntime() runtime.Object {
+	pvc := corev1.PersistentVolumeClaim(*yorcPVC)
+	return &pvc
+}
+
 /*
 	----------------------------------------------
 	| 				Deployment					 |
@@ -151,6 +159,9 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, de
 	if err != nil {
 		return false, err
 	}
+	if dep == nil {
+		return false, nil
+	}
 	if dep.Status.AvailableReplicas == *yorcDep.Spec.Replicas {
 		return true, nil
 	}
@@ -176,6 +187,11 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeleted(ctx context.Context, dep
 
 func (yorcDep *yorcK8sDeployment) String() string {
 	return "YorcDeployment"
+}
+
+func (yorcDep *yorcK8sDeployment) getObjectRuntime() runtime.Object {
+	deploy := v1beta1.Deployment(*yorcDep)
+	return &deploy
 }
 
 /*
@@ -232,6 +248,11 @@ func (yorcSts *yorcK8sStatefulSet) String() string {
 	return "YorcStatefulSet"
 }
 
+func (yorcSts *yorcK8sStatefulSet) getObjectRuntime() runtime.Object {
+	sts := appsv1.StatefulSet(*yorcSts)
+	return &sts
+}
+
 /*
 	----------------------------------------------
 	| 					Service					 |
@@ -281,4 +302,9 @@ func (yorcSvc *yorcK8sService) isSuccessfullyDeleted(ctx context.Context, deploy
 
 func (yorcSvc *yorcK8sService) String() string {
 	return "YorcService"
+}
+
+func (yorcSvc *yorcK8sService) getObjectRuntime() runtime.Object {
+	svc := corev1.Service(*yorcSvc)
+	return &svc
 }

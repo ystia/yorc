@@ -16,13 +16,16 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/testutil"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var JSONvalidDeployment = `
@@ -244,17 +247,36 @@ func Test_execution_invalid_JSON(t *testing.T) {
 }
 
 func Test_execution_valid_JSON(t *testing.T) {
-	k8s := newTestSimpleK8s()
+	//t.SkipNow()
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+	e := &execution{
+		kv:           kv,
+		deploymentID: "Dep-ID",
+		operation:    prov.Operation{},
+	}
+	k8s := newTestK8s()
+	ctx := context.Background()
 	operationType := k8sCreateOperation
-	e := &execution{deploymentID: "Dep-ID"}
 	wantErr := false
 	for k8sRes, rSpec := range getSupportedResourceAndJSON() {
+		errorChan := make(chan struct{})
+		okChan := make(chan struct{})
+		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", "*", fakeObjectCompletion(k8sRes, errorChan))
 		t.Run("Test resource "+k8sRes.String(), func(t *testing.T) {
-			t.SkipNow()
-			if err := e.manageK8sResource(nil, k8s.clientset, nil, k8sRes, operationType, rSpec); (err != nil) != wantErr {
+			fmt.Printf("Testing %s\n", k8sRes)
+			if err := e.manageK8sResource(ctx, k8s.clientset, nil, k8sRes, operationType, rSpec); (err != nil) != wantErr {
 				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, wantErr)
 			}
+			close(okChan)
 		})
+		select {
+		case <-errorChan:
+			t.Fatal("fatal")
+		case <-okChan:
+			t.Logf("Execution ok for %s\n", k8sRes)
+		}
 	}
 
 }
