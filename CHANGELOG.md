@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* A deployment may disappear from the deployments list while its currently running a purge task ([GH-504](https://github.com/ystia/yorc/issues/504))
+
 ## 4.0.0-M3 (August 30, 2019)
 
 ### SECURITY FIXES
