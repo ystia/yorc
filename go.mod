@@ -74,7 +74,7 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stevedomin/termtable v0.0.0-20150929082024-09d29f3fd628
 	github.com/stretchr/testify v1.3.0
-	github.com/tmc/dot v0.0.0-20140217084426-2ca5f650b7700041dd0a689af81eb8e46c5158d1
+	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
