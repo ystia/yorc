@@ -89,6 +89,9 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeployed(ctx context.
 	if err != nil {
 		return false, err
 	}
+	if pvc == nil {
+		return false, nil
+	}
 	if pvc.Status.Phase == corev1.ClaimBound {
 		return true, nil
 	}
@@ -226,6 +229,9 @@ func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, d
 	stfs, err := clientset.AppsV1beta1().StatefulSets(yorcSts.Namespace).Get(yorcSts.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
+	}
+	if stfs == nil {
+		return false, nil
 	}
 	if stfs.Status.ReadyReplicas == *yorcSts.Spec.Replicas {
 		return true, nil
