@@ -1,6 +1,6 @@
 language: go
 go:
-  - stable
+  - 1.12.x
 
 dist: trusty
 sudo: required
