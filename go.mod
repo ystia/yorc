@@ -12,7 +12,7 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 // indirect
 	github.com/abice/go-enum v0.1.4
-	github.com/alecthomas/participle v0.0.0-20180201003711-224bfdc38a4de4f407a47c576dd127413e0a1361
+	github.com/alecthomas/participle v0.3.0
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/docker/distribution v2.7.1+incompatible // indirect
@@ -97,3 +97,5 @@ require (
 
 // Due to this capital letter thing we have troubles and we have to replace it explicitly
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+
+go 1.13

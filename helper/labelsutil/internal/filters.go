@@ -58,23 +58,27 @@ const (
 	nexists string = `!`
 )
 
-var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
-	`(\s+)`+
-		`|(?P<Keyword>(?i)`+in+`|`+notIn+`|`+notin+`)`+
-		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
-		`|(?P<String>'[^']*'|"[^"]*")`+
-		`|(?P<EqOperator>`+neqOp+`|`+deqOp+`|`+eqOp+`)`+
-		`|(?P<RegexOperator>`+reqOp+`|`+nreqOp+`)`+
+var myLexer = lexer.Must(lexer.Regexp(
+	`(\s+)` +
+		`|(?P<Keyword>(?i)` + in + `|` + notIn + `|` + notin + `)` +
+		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
+		`|(?P<String>'[^']*'|"[^"]*")` +
+		`|(?P<EqOperator>` + neqOp + `|` + deqOp + `|` + eqOp + `)` +
+		`|(?P<RegexOperator>` + reqOp + `|` + nreqOp + `)` +
 
-		`|(?P<NotExists>(?i)`+nexists+`)`+
+		`|(?P<NotExists>(?i)` + nexists + `)` +
 		//`|(?P<Regex>Ll*)`+
-		`|(?P<CompOperators>`+infeqOp+`|`+supeqOp+`|[`+infOp+supOp+`])`+
-		`|(?P<Ident>[-\d\w_\./\\]+)`+
-		`|(?P<SetMarks>[(),])`)), "Keyword"), "String")
+		`|(?P<CompOperators>` + infeqOp + `|` + supeqOp + `|[` + infOp + supOp + `])` +
+		`|(?P<Ident>[-\d\w_\./\\]+)` +
+		`|(?P<SetMarks>[(),])`))
+
+var filterParser = participle.MustBuild(&ParsedFilter{},
+	participle.Lexer(myLexer),
+	participle.Upper("Keyword"),
+	participle.Unquote("String"),
+)
 
 //`|(?P<Regex>^.+$)`
-
-var filterParser = participle.MustBuild(&ParsedFilter{}, fLexer)
 
 // ParsedFilter is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type ParsedFilter struct {
