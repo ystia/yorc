@@ -4,7 +4,7 @@
 
 ### BUG FIXES
 
-* Slurm job Logs are displaying stack error ([GH-460](https://github.com/ystia/yorc/issues/503))
+* A4C Logs are displaying stack error when workflow step fails ([GH-460](https://github.com/ystia/yorc/issues/503))
 
 ## 4.0.0-M3 (August 30, 2019)
 
