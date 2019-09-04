@@ -8,8 +8,6 @@ require (
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.20.0+incompatible // indirect
 	github.com/Netflix/go-expect v0.0.0-20190729225929-0e00d9168667
-	github.com/PuerkitoBio/purell v1.1.1 // indirect
-	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 // indirect
 	github.com/abice/go-enum v0.1.4
 	github.com/alecthomas/participle v0.3.0
@@ -31,7 +29,7 @@ require (
 	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gnostic v0.3.0 // indirect
-	github.com/goware/urlx v0.0.0-20160722204212-8bb4a2e4339f55b15164907177e96e9faf885504
+	github.com/goware/urlx v0.3.1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/consul v1.2.3
 	github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d
