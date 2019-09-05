@@ -592,8 +592,8 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
-	// Set status to UNDEPLOYMENT_PURGING
-	deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_PURGING)
+	// Set status to PURGE_IN_PROGRESS
+	deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.PURGE_IN_PROGRESS)
 
 	kv := w.consulClient.KV()
 	// Remove from KV all tasks from the current target deployment, except this purge task
