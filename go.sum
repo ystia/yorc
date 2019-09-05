@@ -454,6 +454,8 @@ github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/tmc/dot v0.0.0-20140217084426-2ca5f650b7700041dd0a689af81eb8e46c5158d1 h1:HNeCDcnwmxb0ZjR1e5ZJBPxRJlJ5eq5snttG5cTDqxw=
 github.com/tmc/dot v0.0.0-20140217084426-2ca5f650b7700041dd0a689af81eb8e46c5158d1/go.mod h1:S7t2g417AjtCWMwli446SApYIbTSpd+2z1kDFLVP2Vs=
+github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882 h1:JJYquzshG8JY6jr2R+TnXgOH4hfLTbWJth+HEVc8txY=
+github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882/go.mod h1:S7t2g417AjtCWMwli446SApYIbTSpd+2z1kDFLVP2Vs=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasttemplate v1.0.1/go.mod h1:UQGH1tvbgY+Nz5t2n7tXsz52dQxojPUpymEIMZ47gx8=
 github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 h1:j2hhcujLRHAg872RWAV5yaUrEjHEObwDv3aImCaNLek=
