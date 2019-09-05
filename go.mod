@@ -8,11 +8,9 @@ require (
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.20.0+incompatible // indirect
 	github.com/Netflix/go-expect v0.0.0-20190729225929-0e00d9168667
-	github.com/PuerkitoBio/purell v1.1.1 // indirect
-	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 // indirect
 	github.com/abice/go-enum v0.1.4
-	github.com/alecthomas/participle v0.0.0-20180201003711-224bfdc38a4de4f407a47c576dd127413e0a1361
+	github.com/alecthomas/participle v0.3.0
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/docker/distribution v2.7.1+incompatible // indirect
@@ -31,10 +29,10 @@ require (
 	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gnostic v0.3.0 // indirect
-	github.com/goware/urlx v0.0.0-20160722204212-8bb4a2e4339f55b15164907177e96e9faf885504
+	github.com/goware/urlx v0.3.1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/consul v1.2.3
-	github.com/hashicorp/go-cleanhttp v0.0.0-20171218145408-d5fe4b57a186c716b0e00b8c301cbd9b4182694d
+	github.com/hashicorp/go-cleanhttp v0.5.1
 	github.com/hashicorp/go-hclog v0.8.0
 	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.0.0
@@ -76,7 +74,7 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stevedomin/termtable v0.0.0-20150929082024-09d29f3fd628
 	github.com/stretchr/testify v1.3.0
-	github.com/tmc/dot v0.0.0-20140217084426-2ca5f650b7700041dd0a689af81eb8e46c5158d1
+	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
@@ -97,3 +95,5 @@ require (
 
 // Due to this capital letter thing we have troubles and we have to replace it explicitly
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+
+go 1.13
