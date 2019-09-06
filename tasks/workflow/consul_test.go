@@ -17,6 +17,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -32,5 +33,18 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
 			testRegisterInlineWorkflow(t, srv, client)
 		})
+	})
+}
+
+func TestRunConsulWorkerTests(t *testing.T) {
+	log.SetDebug(true)
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+
+	populateKV(t, srv)
+
+	t.Run("TestRunPurge", func(t *testing.T) {
+		testRunPurge(t, kv, client)
 	})
 }
