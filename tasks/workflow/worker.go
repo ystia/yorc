@@ -228,6 +228,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 	}
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("%v", err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, t.targetID).Registerf("%+v", err)
 	}
 }
 
