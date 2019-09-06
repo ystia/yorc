@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* A4C Logs are displaying stack error when workflow step fails ([GH-460](https://github.com/ystia/yorc/issues/503))
+
 ## 4.0.0-M3 (August 30, 2019)
 
 ### SECURITY FIXES
