@@ -1,6 +1,6 @@
 yorc_version: 4.0.0-SNAPSHOT
 # Alien4Cloud version used by the bootstrap as the default version to download/install
-alien4cloud_version: 2.2.0-SM6
+alien4cloud_version: 2.2.0-SM8
 consul_version: 1.2.3
 terraform_version: 0.11.8
 ansible_version: 2.7.9

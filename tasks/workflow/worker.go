@@ -228,9 +228,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 	}
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("%v", err)
-		if log.IsDebug() {
-			log.Debugf("%+v", err)
-		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, t.targetID).Registerf("%+v", err)
 	}
 }
 
@@ -747,8 +745,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	s := wrapBuilderStep(bs, w.consulClient, t)
 	err = s.run(ctx, w.cfg, w.consulClient.KV(), t.targetID, continueOnError, workflowName, w)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).RegisterAsString(fmt.Sprintf("Error '%+v' happened in workflow %q.", err, workflowName))
-		return errors.Wrapf(err, "The workflow %s step %s ended with error:%+v", workflowName, t.step, err)
+		return errors.Wrapf(err, "The workflow %s step %s ended on error", workflowName, t.step)
 	}
 	if !s.Async {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.targetID, workflowName, t.step))
