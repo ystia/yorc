@@ -73,25 +73,25 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *ap
 }
 
 // Construct key/value to initialise KV before running test
-func testData(deploymentId string) map[string][]byte {
+func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
 		// Add Test deployment
-		consulutil.DeploymentKVPrefix + "/" + deploymentId + "/status": []byte(deploymentId),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deploymentID),
 		// deploy task
-		consulutil.TasksPrefix + "/t1/targetId": []byte(deploymentId),
+		consulutil.TasksPrefix + "/t1/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t1/type":     []byte("0"),
 		// undeploy task
-		consulutil.TasksPrefix + "/t2/targetId": []byte(deploymentId),
+		consulutil.TasksPrefix + "/t2/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t2/type":     []byte("1"),
 		// purge task
-		consulutil.TasksPrefix + "/t3/targetId": []byte(deploymentId),
+		consulutil.TasksPrefix + "/t3/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t3/type":     []byte("4"),
 		// some events
 		// event should have "deploymentId":"Test-Env" and "type":"anyType but not purge"
-		consulutil.EventsPrefix + "/" + deploymentId + "/e1": []byte("aaaa"),
-		consulutil.EventsPrefix + "/" + deploymentId + "/e2": []byte("bbbb"),
+		consulutil.EventsPrefix + "/" + deploymentID + "/e1": []byte("aaaa"),
+		consulutil.EventsPrefix + "/" + deploymentID + "/e2": []byte("bbbb"),
 		// some logs
-		consulutil.LogsPrefix + "/" + deploymentId + "/l1":   []byte("xxxx"),
-		consulutil.EventsPrefix + "/" + deploymentId + "/l2": []byte("yyyy"),
+		consulutil.LogsPrefix + "/" + deploymentID + "/l1":   []byte("xxxx"),
+		consulutil.EventsPrefix + "/" + deploymentID + "/l2": []byte("yyyy"),
 	}
 }
