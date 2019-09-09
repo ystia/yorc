@@ -18,39 +18,72 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/helper/consulutil"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 )
 
+// Test deployment ID
+const deploymentID string = "Test.Env"
+
 func populateKV(t *testing.T, srv *testutil.TestServer) {
-	srv.PopulateKV(t, testData())
+	srv.PopulateKV(t, testData(deploymentID))
 }
 
-func testRunPurge(t *testing.T, kv *api.KV, client *api.Client) {
+func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *api.Client) {
 	var myWorker worker
 	myWorker.consulClient = client
 	var myTaskExecution taskExecution
 	myTaskExecution.cc = client
 	// This execution corresponds to the purge task
 	// Set targetID to the Test deployment ID
-	myTaskExecution.targetID = "Test.Env"
-	myTaskExecution.taskID = "purgeTask"
+	myTaskExecution.targetID = deploymentID
 	err := myWorker.runPurge(context.Background(), &myTaskExecution)
 	if err != nil {
-		t.Errorf("TaskExists() error = %v", err)
+		t.Errorf("runPurge() error = %v", err)
 		return
 	}
 	// Test that KV contains expected resultData
-	// (no more deployment, nor tasks, but one log and one event corresponding to purged status,
-	// and also a purged/deploymentID key)
+	// No more deployments
+	kvp, _, err := kv.Get(consulutil.DeploymentKVPrefix, nil)
+	require.Nil(t, kvp)
+	// No more tasks
+	kvp, _, err = kv.Get(consulutil.TasksPrefix, nil)
+	require.Nil(t, kvp)
+	// One event with value containing "deploymentId":"Test-Env","status":"purged"
+	kvps, _, err := kv.List(consulutil.EventsPrefix+"/"+deploymentID, nil)
+	require.True(t, len(kvps) == 1)
+	// One log with value containing "content":"Status for deployment \"Test-Env\" changed to \"purged\"
+	kvps, _, err = kv.List(consulutil.LogsPrefix+"/"+deploymentID, nil)
+	require.True(t, len(kvps) == 1)
+	// One purge
+	kvps, _, err = kv.List(consulutil.PurgedDeploymentKVPrefix+"/"+deploymentID, nil)
+	require.True(t, len(kvps) == 1)
 }
 
 // Construct key/value to initialise KV before running test
-// TODO :
-// add KVs corresponding to
-// - one Test deployment
-// - several tasks for the Test deployment
-// - several events and logs for the Test deployment
-func testData() map[string][]byte {
-	return map[string][]byte{}
+func testData(deploymentId string) map[string][]byte {
+	return map[string][]byte{
+		// Add Test deployment
+		consulutil.DeploymentKVPrefix + "/" + deploymentId + "/status": []byte(deploymentId),
+		// deploy task
+		consulutil.TasksPrefix + "/t1/targetId": []byte(deploymentId),
+		consulutil.TasksPrefix + "/t1/type":     []byte("0"),
+		// undeploy task
+		consulutil.TasksPrefix + "/t2/targetId": []byte(deploymentId),
+		consulutil.TasksPrefix + "/t2/type":     []byte("1"),
+		// purge task
+		consulutil.TasksPrefix + "/t3/targetId": []byte(deploymentId),
+		consulutil.TasksPrefix + "/t3/type":     []byte("4"),
+		// some events
+		// event should have "deploymentId":"Test-Env" and "type":"anyType but not purge"
+		consulutil.EventsPrefix + "/" + deploymentId + "/e1": []byte("aaaa"),
+		consulutil.EventsPrefix + "/" + deploymentId + "/e2": []byte("bbbb"),
+		// some logs
+		consulutil.LogsPrefix + "/" + deploymentId + "/l1":   []byte("xxxx"),
+		consulutil.EventsPrefix + "/" + deploymentId + "/l2": []byte("yyyy"),
+	}
 }

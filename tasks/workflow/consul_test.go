@@ -45,6 +45,6 @@ func TestRunConsulWorkerTests(t *testing.T) {
 	populateKV(t, srv)
 
 	t.Run("TestRunPurge", func(t *testing.T) {
-		testRunPurge(t, kv, client)
+		testRunPurge(t, srv, kv, client)
 	})
 }
