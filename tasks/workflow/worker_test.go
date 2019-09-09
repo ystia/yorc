@@ -16,8 +16,10 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -56,6 +58,12 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *ap
 	// One event with value containing "deploymentId":"Test-Env","status":"purged"
 	kvps, _, err := kv.List(consulutil.EventsPrefix+"/"+deploymentID, nil)
 	require.True(t, len(kvps) == 1)
+	var eventData map[string]string
+	err = json.Unmarshal([]byte(string(kvps[0].Value)), &eventData)
+	require.Nil(t, err)
+	assert.Equal(t, eventData["deploymentId"], deploymentID)
+	assert.Equal(t, eventData["status"], "purged")
+
 	// One log with value containing "content":"Status for deployment \"Test-Env\" changed to \"purged\"
 	kvps, _, err = kv.List(consulutil.LogsPrefix+"/"+deploymentID, nil)
 	require.True(t, len(kvps) == 1)
