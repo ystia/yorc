@@ -29,13 +29,12 @@ func TestRunConsulGooglePackageTests(t *testing.T) {
 
 	// AWS infrastructure config
 	cfg := config.Configuration{
-		DisableSSHAgent: true,
+		DisableSSHAgent: false,
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
 				"credentials": "/tmp/creds.json",
 				"region":      "europe-west-1",
 			}}}
-
 	t.Run("googleProvider", func(t *testing.T) {
 		t.Run("simpleComputeInstance", func(t *testing.T) {
 			testSimpleComputeInstance(t, kv, cfg)

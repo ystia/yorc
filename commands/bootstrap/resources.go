@@ -134,12 +134,12 @@ func getForgeVersionFromTOSCATypes() string {
 func getVersionFromTOSCATypes(path string) string {
 	// Use the embedded resources
 	version := "unknown"
-	exePath, err := resources.ExecutablePath()
+	zipPath, err := getResourcesZipPath()
 	if err != nil {
 		fmt.Println("Failed to get resources bundle", err)
 		return version
 	}
-	bundle, err := resources.OpenZip(exePath)
+	bundle, err := resources.OpenZip(zipPath)
 	if err != nil {
 		fmt.Println("Failed to open resources bundle", err)
 		return version

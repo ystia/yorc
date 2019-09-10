@@ -1,0 +1,48 @@
+alien4cloud:
+  extra_env: |
+    localAddr=$(ip a s | grep inet | awk '{print $2}' | sed -e "s/\/[0-9]\+$//g" | paste -sd "|")
+    export JAVA_EXT_OPTIONS="-Dhttps.proxyHost=1.2.3.4 -Dhttps.proxyPort=8888 -Dhttp.nonProxyHosts=\"localhost|${localAddr}\" -Dhttp.proxyHost=1.2.3.4 -Dhttp.proxyPort=8888"
+consul:
+  download_url: http://1.2.3.4/ystia/yorc-deploy/consul_1.2.3_linux_amd64.zip
+terraform:
+  download_url: http://1.2.3.4/ystia/yorc-deploy/terraform_0.11.8_linux_amd64.zip
+  plugins_download_urls:
+  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-null_1.0.0_linux_amd64.zip
+  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-consul_2.1.0_linux_amd64.zip
+  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-openstack_1.9.0_linux_amd64.zip
+  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-aws_1.36.0_linux_amd64.zip
+  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-google_1.18.0_linux_amd64.zip
+jdk:
+  download_url: http://1.2.3.4/ystia/java-a4c/jdk-8u131-linux-x64.tar.gz
+  version: 1.8.0-131-b11
+yorc:
+  download_url: https://ystia.jfrog.io/ystia/binaries/ystia/yorc/dist/develop/yorc-4.0.0-SNAPSHOT.tgz
+  resources_prefix: yorc-test-
+  private_key_file: ../../pkg/rootfs/var/yorc/.ssh/yorc.pem
+  ca_passphrase: tmp123
+yorc_plugin:
+  download_url: https://ystia.jfrog.io/ystia/binaries/ystia/yorc-a4c-plugin/dist/develop/alien4cloud-yorc-plugin-4.0.0-SNAPSHOT.zip
+infrastructures:
+  openstack:
+    auth_url: http://1.2.3.5:5000/v2.0
+    default_security_groups:
+    - open
+    - default
+    password: mypasswd
+    private_network_name: private-test
+    region: RegionOne
+    tenant_name: mytenant
+    user_name: myuser
+address:
+  floating_network_name: public-net
+compute:
+  flavorName: m1.medium
+  key_pair: yorc
+  boot_volume:
+    uuid: a460db41-e574-416f-9634-96f2862f10fe
+    source: image
+    destination: volume
+    size: 20 GB
+    delete_on_termination: true
+credentials:
+  user: centos

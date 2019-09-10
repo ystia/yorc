@@ -2,6 +2,34 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+
+* A deployment may disappear from the deployments list while its currently running a purge task ([GH-504](https://github.com/ystia/yorc/issues/504))
+* A4C Logs are displaying stack error when workflow step fails ([GH-460](https://github.com/ystia/yorc/issues/503))
+
+## 4.0.0-M3 (August 30, 2019)
+
+### SECURITY FIXES
+
+* Fixed a vulnerability that could allow an attacker to read the content of a file stored on Yorc host by pretending it is an ssh key. ([GHSA-8vhw-qv5r-38h5](https://github.com/ystia/yorc/security/advisories/GHSA-8vhw-qv5r-38h5))
+
+### BUG FIXES
+
+* Undeploying an application with a running workflow should not be possible ([GH-460](https://github.com/ystia/yorc/issues/460))
+
+## 4.0.0-M2 (August 09, 2019)
+
+### ENHANCEMENTS
+
+* Should support the creation of OpenStack Compute instances using bootable volume ([GH-461](https://github.com/ystia/yorc/issues/461))
+* Allow to disable automatic Consul snapshots and restore when upgrading Yorc using ̀`YORC_DISABLE_CONSUL_SNAPSHOTS_ON_UPGRADE` env variable ([GH-486](https://github.com/ystia/yorc/issues/486))
+* Allow to update instance attribute when creating attribute notifications ([GH-491](https://github.com/ystia/yorc/issues/491))
+* Use the new Yorc plugin provided by Alien4Cloud (the Yorc Provider) in the bootstrap process. ([GH-494](https://github.com/ystia/yorc/issues/494))
+* Missing documentation on premium features ([GH-407](https://github.com/ystia/yorc/issues/407))
+
+## 4.0.0-M1 (July 12, 2019)
+
 ### BREAKING CHANGES
 
 * Start v4.0 cycle ([GH-444](https://github.com/ystia/yorc/issues/444)):
@@ -14,6 +42,7 @@
 
 ### BUG FIXES
 
+* Failure to deploy/undeploy big application: Transaction contains too many operations ([GH-484](https://github.com/ystia/yorc/issues/484))
 * Wrong resources allocation on shareable Hosts Pool ([GH-426](https://github.com/ystia/yorc/issues/426))
 * Deleting one host in Pool deletes other hosts having as prefix the deleted hostname ([GH-430](https://github.com/ystia/yorc/issues/430))
 * Yorc should support long standard operation names as well as short ones ([GH-300](https://github.com/ystia/yorc/issues/300))
@@ -25,10 +54,12 @@
 
 ### ENHANCEMENTS
 
+* Support OpenStack Block storage API v3 ([GH-440](https://github.com/ystia/yorc/issues/440))
 * Expose bypass error parameter on workflow ([GH-425](https://github.com/ystia/yorc/issues/425))
 * Support Alien4Cloud 2.2 ([GH-441](https://github.com/ystia/yorc/issues/441))
 * Allow to provide extra env vars to Alien4Cloud during bootstrap ([GH-452](https://github.com/ystia/yorc/issues/452))
 * Port CLI and Rest API minor changes for premium update feature ([GH-467](https://github.com/ystia/yorc/issues/467))
+* Port changes for update nodes ([GH-476](https://github.com/ystia/yorc/issues/476))
 
 ## 3.2.0 (May 31, 2019)
 

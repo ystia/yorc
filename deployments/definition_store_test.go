@@ -951,6 +951,25 @@ func testInlineWorkflow(t *testing.T, kv *api.KV) {
 	require.Equal(t, len(wfInception.Steps), 1)
 }
 
+func testDeleteWorkflow(t *testing.T, kv *api.KV) {
+	// t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/inline_workflow.yaml")
+	require.Nil(t, err)
+
+	workflows, err := GetWorkflows(kv, deploymentID)
+	require.Nil(t, err)
+	require.Equal(t, len(workflows), 3)
+
+	err = DeleteWorkflow(kv, deploymentID, "install")
+	require.NoError(t, err, "Unexpected error deleting install workflow")
+
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
+	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
+
+}
+
 func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
@@ -1059,6 +1078,20 @@ func testAttributeNotifications(t *testing.T, kv *api.KV, deploymentID string) {
 		require.NoError(t, err, "Error getting value for key %s", consulKey)
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
+	}
+}
+
+// Testing topology template metadata
+func testNotifyAttributeOnValueChange(t *testing.T, kv *api.KV, deploymentID string) {
+	notifPaths := []string{"topology/instances/TestCompute/0/attribute_notifications/public_ip_address/0",
+		"topology/instances/TestCompute/0/capabilities/endpoint/attribute_notifications/ip_address/0",
+		"topology/instances/TestContainer/0/attribute_notifications/my_attribute/0",
+		"topology/instances/TestComponent/0/outputs/standard/create/attribute_notifications/URL/0",
+	}
+
+	for _, p := range notifPaths {
+		err := notifyAttributeOnValueChange(kv, p, deploymentID)
+		require.NoError(t, err, "Error notifying attribute on value change for path %s", p)
 	}
 }
 

@@ -30,6 +30,9 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("simpleOSInstance", func(t *testing.T) {
 			testSimpleOSInstance(t, kv)
 		})
+		t.Run("OSInstanceWithBootVolume", func(t *testing.T) {
+			testOSInstanceWithBootVolume(t, kv)
+		})
 		t.Run("fipOSInstance", func(t *testing.T) {
 			testFipOSInstance(t, kv, srv)
 		})
@@ -65,6 +68,15 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		})
 		t.Run("OSInstanceWithServerGroup", func(t *testing.T) {
 			testOSInstanceWithServerGroup(t, kv, srv)
+		})
+		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
+			testGenerateTerraformInfo(t, srv, kv)
+		})
+		t.Run("TestComputeBootVolumeWrongSize", func(t *testing.T) {
+			testComputeBootVolumeWrongSize(t, srv, kv)
+		})
+		t.Run("TestComputeBootVolumeWrongType", func(t *testing.T) {
+			testComputeBootVolumeWrongType(t, srv, kv)
 		})
 	})
 }

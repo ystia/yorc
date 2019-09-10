@@ -1,6 +1,6 @@
 # Ystia Orchestrator
 
-[![Download](https://api.bintray.com/packages/ystia/yorc-engine/distributions/images/download.svg?version=3.2.0-RC1)](https://bintray.com/ystia/yorc-engine/distributions/3.2.0-RC1/link) [![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=develop)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) [![Docker Pulls](https://img.shields.io/docker/pulls/ystia/yorc.svg?style=flat)](https://hub.docker.com/r/ystia/yorc) [![Join the chat at https://gitter.im/ystia/yorc](https://badges.gitter.im/ystia/yorc.svg)](https://gitter.im/ystia/yorc?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Download](https://api.bintray.com/packages/ystia/yorc-engine/distributions/images/download.svg?version=4.0.0-M3)](https://bintray.com/ystia/yorc-engine/distributions/4.0.0-M3/link) [![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=develop)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) [![Docker Pulls](https://img.shields.io/docker/pulls/ystia/yorc.svg?style=flat)](https://hub.docker.com/r/ystia/yorc) [![Join the chat at https://gitter.im/ystia/yorc](https://badges.gitter.im/ystia/yorc.svg)](https://gitter.im/ystia/yorc?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Yorc is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html) orchestrator.
 
@@ -13,8 +13,8 @@ Yorc is designed for large-scale, it is built with a tasks / stateless workers m
 horizontally easily.
 
 Finally, while you can easily interact with Yorc directly thanks to its comprehensive REST API and a modern CLI,
-the recommended way to use Yorc is to model your applications in a powerful TOSCA designer called [alien4cloud](https://alien4cloud.github.io) and to use it to deploy and interact with your application at runtime. To do it
-we developed an [Alien4Cloud plugin for Yorc](https://github.com/ystia/yorc-a4c-plugin)
+the recommended way to use Yorc is to model your applications in a powerful TOSCA designer called [alien4cloud](https://alien4cloud.github.io) and to use it to deploy and interact with your application at runtime.
+Yorc is now the official orchestrator for Alien4Cloud and Alien4Cloud distributions comes with a specific plugin for Yorc. Sources of this plugin could be found here <https://github.com/alien4cloud/alien4cloud-yorc-provider>
 
 ## How to download the Ystia Orchestrator
 

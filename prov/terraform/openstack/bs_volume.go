@@ -17,6 +17,7 @@ package openstack
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"strconv"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -66,4 +67,46 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, d
 		volume.AvailabilityZone = az.RawString()
 	}
 	return volume, nil
+}
+
+// computeBootVolume gets value of a boot volume if any is defined
+// If none, nil is returned
+func computeBootVolume(kv *api.KV, deploymentID, nodeName string) (*BootVolume, error) {
+	var vol BootVolume
+	var err error
+	// If a boot volume is defined, its source definition is mandatory
+	vol.Source, err = deployments.GetStringNodePropertyValue(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
+	if err != nil || vol.Source == "" {
+		return nil, err
+	}
+
+	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, deleteOnTerminationTOSCAKey}
+	strValues := make(map[string]string, len(keys))
+	for _, key := range keys {
+		strValues[key], err = deployments.GetStringNodePropertyValue(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	vol.UUID = strValues[uuidTOSCAKey]
+	vol.Destination = strValues[destinationTOSCAKey]
+	if strValues[sizeTOSCAKey] != "" {
+		vol.Size, err = sizeutil.ConvertToGB(strValues[sizeTOSCAKey])
+		if err != nil {
+			log.Printf("Failed to convert %s %s boot volume size %q : %s", deploymentID,
+				nodeName, strValues[sizeTOSCAKey], err.Error())
+			return nil, err
+		}
+	}
+	if strValues[deleteOnTerminationTOSCAKey] != "" {
+		vol.DeleteOnTermination, err = strconv.ParseBool(strValues[deleteOnTerminationTOSCAKey])
+		if err != nil {
+			log.Printf("Failed to convert %s %s %s boolean value %q : %s", deploymentID,
+				nodeName, deleteOnTerminationTOSCAKey, strValues[sizeTOSCAKey], err.Error())
+			return nil, err
+		}
+	}
+
+	return &vol, err
 }

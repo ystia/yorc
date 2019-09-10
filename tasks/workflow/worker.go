@@ -208,6 +208,8 @@ func (w *worker) handleExecution(t *taskExecution) {
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
 		err = w.runDeploy(ctx, t)
+	case tasks.TaskTypeAddNodes, tasks.TaskTypeRemoveNodes:
+		err = w.runAddRemoveNodes(ctx, t, wfName)
 	case tasks.TaskTypeUnDeploy, tasks.TaskTypePurge:
 		err = w.runUndeploy(ctx, t)
 	case tasks.TaskTypeScaleOut:
@@ -226,9 +228,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 	}
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("%v", err)
-		if log.IsDebug() {
-			log.Debugf("%+v", err)
-		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, t.targetID).Registerf("%+v", err)
 	}
 }
 
@@ -590,11 +590,11 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
+	// Set status to PURGE_IN_PROGRESS
+	deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.PURGE_IN_PROGRESS)
+
 	kv := w.consulClient.KV()
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.targetID), nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
+	// Remove from KV all tasks from the current target deployment, except this purge task
 	tasksList, err := tasks.GetTasksIdsForTarget(kv, t.targetID)
 	if err != nil {
 		return err
@@ -621,10 +621,16 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
+	// Remove the working directory of the current target deployment
 	overlayPath := filepath.Join(w.cfg.WorkingDirectory, "deployments", t.targetID)
 	err = os.RemoveAll(overlayPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
+	}
+	// Remove from KV this purge tasks
+	_, err = kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.targetID), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
 	checkAndSetTaskStatus(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE)
@@ -739,8 +745,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	s := wrapBuilderStep(bs, w.consulClient, t)
 	err = s.run(ctx, w.cfg, w.consulClient.KV(), t.targetID, continueOnError, workflowName, w)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).RegisterAsString(fmt.Sprintf("Error '%+v' happened in workflow %q.", err, workflowName))
-		return errors.Wrapf(err, "The workflow %s step %s ended with error:%+v", workflowName, t.step, err)
+		return errors.Wrapf(err, "The workflow %s step %s ended on error", workflowName, t.step)
 	}
 	if !s.Async {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.targetID, workflowName, t.step))

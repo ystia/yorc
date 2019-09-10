@@ -27,6 +27,11 @@ Upgrade dependencies like Consul, Terraform, Ansible for instance, then upgrade 
 Yorc will automatically take care of upgrading its database schema by its own from version 3.0.0 up to its
 current version.
 
+By default Yorc takes a snapshot of the Consul database before upgrading and automatically rollback to this snapshot
+if an error occurs during the upgrade process. If you are running Consul with ACL enabled the snapshot and restore
+feature requires to have the ``management`` ACL. It is possible to disable this feature by setting the
+``YORC_DISABLE_CONSUL_SNAPSHOTS_ON_UPGRADE`` environment variable to ``1`` or ``true``.
+
 .. note:: A rolling upgrade without interruption feature is planned for future versions.
 
 .. _yorc_upgrades_320_section:

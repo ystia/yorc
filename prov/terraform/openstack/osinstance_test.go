@@ -39,7 +39,8 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 	return deploymentID
 }
 
-func testSimpleOSInstance(t *testing.T, kv *api.KV) {
+// initTestInfra loads a deployment topology and creates resources
+func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []string, map[string]string, error) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
@@ -49,12 +50,30 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 				"region":               "RegionTwo",
 				"private_network_name": "test",
 			}}}
+
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
+	return deploymentID, infrastructure, env, outputs, err
+}
+
+func testSimpleOSInstance(t *testing.T, kv *api.KV) {
+	deploymentID, infrastructure, env, outputs, err := initTestInfra(t, kv)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -100,6 +119,36 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 }
 
+func testOSInstanceWithBootVolume(t *testing.T, kv *api.KV) {
+	_, infrastructure, _, _, err := initTestInfra(t, kv)
+	require.NoError(t, err, "Failed to create an OS instance with boot volume")
+
+	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
+	instancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "Compute-0")
+
+	compute, ok := instancesMap["Compute-0"].(*ComputeInstance)
+	assert.True(t, ok, "Compute-0 is not a ComputeInstance")
+	assert.Equal(t, "4bde6002-649d-4868-a5cb-fcd36d5ffa63", compute.BootVolume.UUID,
+		"Wrong boot volume UUID value")
+	assert.Equal(t, "image", compute.BootVolume.Source,
+		"Wrong boot volume source value")
+	assert.Equal(t, "volume", compute.BootVolume.Destination,
+		"Wrong boot volume destination value")
+	assert.Equal(t, 10, compute.BootVolume.Size,
+		"Wrong boot volume size value")
+	assert.Equal(t, true, compute.BootVolume.DeleteOnTermination,
+		"Wrong boot volume deleta on termination value")
+
+	assert.Equal(t, "yorc", compute.KeyPair)
+	assert.Equal(t, "2", compute.FlavorID)
+	assert.Equal(t, "RegionTwo", compute.Region)
+	assert.Len(t, compute.SecurityGroups, 2)
+	assert.Contains(t, compute.SecurityGroups, "default")
+	assert.Contains(t, compute.SecurityGroups, "openbar")
+}
+
 func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
@@ -117,7 +166,19 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -185,7 +246,19 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure, make(map[string]string), &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -249,7 +322,19 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/ServerGroupPolicy_sg/0/attributes/id"): []byte("my_sg_id"),
 	})
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "ComputeA", "0", &infrastructure, outputs, &env)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			kv:             kv,
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			deploymentID:   deploymentID,
+			nodeName:       "ComputeA",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -263,4 +348,45 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 	require.Equal(t, "7d9bd308-d9c1-4952-a410-95b761672499", compute.ImageID)
 	require.Equal(t, "4", compute.FlavorID)
 	require.Equal(t, "my_sg_id", compute.SchedulerHints.Group)
+}
+
+func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
+				"provisioning_over_fip_allowed": false,
+				"private_network_name":          "test",
+			}}}
+	infrastructure := commons.Infrastructure{}
+	outputs := make(map[string]string, 0)
+	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	opts := osInstanceOptions{
+		kv:             kv,
+		cfg:            cfg,
+		infrastructure: &infrastructure,
+		deploymentID:   deploymentID,
+		nodeName:       "ComputeA",
+		instanceName:   "0",
+		resourceTypes:  resourceTypes,
+	}
+
+	networkNodeName := "Network"
+	networkID := "netID"
+	instKey := "instKey"
+	srv.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+			"/topology/instances", networkNodeName, opts.instanceName, "attributes", "network_id"): []byte(networkID),
+	})
+
+	instance := ComputeInstance{
+		Name: "instanceName",
+	}
+	err := computeNetworkAttributes(context.Background(), opts, networkNodeName, instKey,
+		&instance, outputs)
+	require.NoError(t, err, "Failed to compute network attributes")
+	require.Equal(t, 1, len(instance.Networks), "Expected to have one compute instance network")
+	assert.Equal(t, networkID, instance.Networks[0].UUID, "Wrong network ID")
 }

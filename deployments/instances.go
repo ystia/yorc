@@ -17,6 +17,7 @@ package deployments
 import (
 	"context"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -80,6 +81,12 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
+// DeleteAllInstances deletes all instances of the given node from the Consul store
+func DeleteAllInstances(kv *api.KV, deploymentID, nodeName string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 // LookupInstanceAttributeValue executes a lookup to retrieve instance attribute value when attribute can be long to retrieve
 func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, attribute string, nestedKeys ...string) (string, error) {
 	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
@@ -109,6 +116,19 @@ func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID,
 	}
 }
 
+// updateInstanceAttributeValue allows to update instance attribute value if possible
+// it resolves instance attribute value skipping existing one
+func updateInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) error {
+	value, err := getInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attributeName, true, nestedKeys...)
+	if err != nil {
+		return nil
+	}
+	if value != nil && strings.TrimSpace(value.String()) != "" {
+		return SetInstanceAttribute(deploymentID, nodeName, instanceName, attributeName, value.String())
+	}
+	return nil
+}
+
 // GetInstanceAttributeValue retrieves the given attribute for a node instance
 //
 // It returns true if a value is found false otherwise as first return parameter.
@@ -116,6 +136,10 @@ func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID,
 // If the attribute is still not found then it will explore the HostedOn hierarchy.
 // If still not found then it will check node properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 func GetInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+	return getInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attributeName, false, nestedKeys...)
+}
+
+func getInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, skipInstanceLevel bool, nestedKeys ...string) (*TOSCAValue, error) {
 
 	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
@@ -157,21 +181,23 @@ func GetInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName,
 		}
 	}
 
-	// First look at instance-scoped attributes
-	// except if this is a substitutable node instance, in which case
-	// attributes are stored at the node level
-	if substitutionInstance {
-		found, result := getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attributeName)
-		if found {
-			return &TOSCAValue{Value: result}, nil
-		}
-	} else {
-		result, err := getValueAssignmentWithDataType(kv, deploymentID,
-			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
-			nodeName, instanceName, "", attrDataType, nestedKeys...)
-		if err != nil || result != nil {
-			return result, errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)",
-				attributeName, nodeName, instanceName)
+	if !skipInstanceLevel {
+		// First look at instance-scoped attributes
+		// except if this is a substitutable node instance, in which case
+		// attributes are stored at the node level
+		if substitutionInstance {
+			found, result := getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attributeName)
+			if found {
+				return &TOSCAValue{Value: result}, nil
+			}
+		} else {
+			result, err := getValueAssignmentWithDataType(kv, deploymentID,
+				path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
+				nodeName, instanceName, "", attrDataType, nestedKeys...)
+			if err != nil || result != nil {
+				return result, errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)",
+					attributeName, nodeName, instanceName)
+			}
 		}
 	}
 

@@ -3,11 +3,44 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-openstack-types
   template_author: yorc
-  template_version: 1.1.0
+  template_version: 1.2.0
 
 imports:
   - yorc: <yorc-types.yml>
 
+data_types:
+  yorc.datatypes.openstack.BootVolume:
+    derived_from: tosca.datatypes.Root
+    properties:
+      uuid:
+        type: string
+        required: false
+        description: UUID of the image, volume, or snapshot. Required unless source is set to 'blank'
+      source:
+        type: string
+        required: true
+        description: Source type of the device. Must be one of 'blank', 'image', 'volume', or 'snapshot'
+        constraints:
+          - valid_values: [ blank, image, volume, snapshot ]
+      destination:
+        type: string
+        required: false
+        description: Destination type, possible values are 'volume' or 'local'
+        constraints:
+          - valid_values: [ volume, local ]
+      size:
+        type: scalar-unit.size
+        required: false
+        description: >
+          Size of volume to create (default unit is MB). Required when source=image and destination=volume,
+          source=blank and destination=local, or source=blank and destination=volume
+        constraints:
+          - greater_or_equal: 1 GB
+      delete_on_termination:
+        type: boolean
+        required: false
+        default: true
+        description: Delete the volume upon termination of the instance
 artifact_types:
   yorc.artifacts.openstack.Deployment:
     derived_from: tosca.artifacts.Deployment
@@ -59,13 +92,18 @@ node_types:
     properties:
       image:
         type: string
-        description: Openstack VM Image ID, either this property or the 'imageName' property is required
+        description: >
+          Openstack VM Image ID, this property is required when 'imageName' is not set and not booting from a volume
         required: false
       imageName:
         type: string
         description: >
-          Openstack VM Image Name either this property or the 'image' property is required. This property can be used only if the image
-          name is unique.
+          Openstack VM Image Name, this property is required when 'image' is not set and not booting from a volume
+        required: false
+      boot_volume:
+        type: yorc.datatypes.openstack.BootVolume
+        description: >
+          Boot Volume to create
         required: false
       flavor:
         type: string

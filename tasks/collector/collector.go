@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -117,7 +116,24 @@ func (c *Collector) ResumeTask(taskID string) error {
 func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
 	// First check if other tasks are running for this target before creating a new one except for Action tasks
 	if tasks.TaskTypeAction != taskType {
-		hasLivingTask, livingTaskID, livingTaskStatus, err := tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID)
+
+		tasksTypesToIgnore := []tasks.TaskType{
+			tasks.TaskTypeQuery, tasks.TaskTypeAction,
+		}
+		// Concurrent executions of custom commands and custom workflows are
+		// allowed, so the registration of a custom command or custom workflow task
+		// is allowed if another custom command or custom workflow task is on-going.
+		// Adding the corresponding task types to the list of types to ignore
+		// when checking if a task is already registered for this target.
+		if taskType == tasks.TaskTypeCustomCommand ||
+			taskType == tasks.TaskTypeCustomWorkflow {
+
+			tasksTypesToIgnore = append(tasksTypesToIgnore, tasks.TaskTypeCustomCommand,
+				tasks.TaskTypeCustomWorkflow)
+		}
+
+		hasLivingTask, livingTaskID, livingTaskStatus, err :=
+			tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID, tasksTypesToIgnore)
 		if err != nil {
 			return "", err
 		} else if hasLivingTask {
@@ -219,16 +235,10 @@ func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tas
 		})
 	}
 
-	ok, response, _, err := c.consulClient.KV().Txn(operations, nil)
+	err := tasks.StoreOperations(c.consulClient.KV(), taskID, operations)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q", targetID, taskType.String())
-	}
-	if !ok {
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error:%s", targetID, taskType.String(), strings.Join(errs, ", "))
+		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error %s",
+			targetID, taskType.String(), err.Error())
 	}
 
 	log.Debugf("Registered task %s type %q for target %s\n", taskID, taskType.String(), targetID)

@@ -474,6 +474,23 @@ func GetNodeAttributesValues(kv *api.KV, deploymentID, nodeName, attributeName s
 	return attributes, nil
 }
 
+// GetStringNodePropertyValue returns the string value of a property.
+// If there is no such property defined, an empty string is returned
+func GetStringNodePropertyValue(kv *api.KV, deploymentID, nodeName, propertyName string,
+	nestedKeys ...string) (string, error) {
+
+	var result string
+	propVal, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys...)
+	if err != nil {
+		return "", err
+	}
+
+	if propVal != nil {
+		result = propVal.RawString()
+	}
+	return result, err
+}
+
 // GetNodes returns the names of the different nodes for a given deployment.
 func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
@@ -845,4 +862,10 @@ func NodeHasProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ex
 		return false, err
 	}
 	return TypeHasProperty(kv, deploymentID, typeName, propertyName, exploreParents)
+}
+
+// DeleteNode deletes the given node from the Consul store
+func DeleteNode(kv *api.KV, deploymentID, nodeName string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }

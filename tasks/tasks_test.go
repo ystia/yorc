@@ -23,14 +23,17 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.TasksPrefix + "/t1/targetId":         []byte("id1"),
-		consulutil.TasksPrefix + "/t1/status":           []byte("0"),
+		consulutil.TasksPrefix + "/t1/targetId": []byte("id1"),
+		consulutil.TasksPrefix + "/t1/status":   []byte("0"),
+		consulutil.TasksPrefix + "/t1/" +
+			stepRegistrationInProgressKey: []byte("true"),
 		consulutil.TasksPrefix + "/t1/type":             []byte("0"),
 		consulutil.TasksPrefix + "/t1/data/inputs/i0":   []byte("0"),
 		consulutil.TasksPrefix + "/t1/data/nodes/node1": []byte("0,1,2"),
@@ -303,8 +306,9 @@ func testCancelTask(t *testing.T, kv *api.KV) {
 
 func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 	type args struct {
-		kv       *api.KV
-		targetID string
+		kv            *api.KV
+		targetID      string
+		typesToIgnore []TaskType
 	}
 	tests := []struct {
 		name    string
@@ -314,14 +318,16 @@ func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 		want2   string
 		wantErr bool
 	}{
-		{"TargetHasRunningTasks", args{kv, "id1"}, true, "t1", "INITIAL", false},
-		{"TargetHasNoRunningTasks", args{kv, "id2"}, false, "", "", false},
-		{"TargetDoesntExist", args{kv, "TargetDoesntExist"}, false, "", "", false},
-		{"TargetNotInt", args{kv, "targetNotInt"}, false, "", "", true},
+		{"TargetHasRunningTasks", args{kv, "id1", []TaskType{}}, true, "t1", "INITIAL", false},
+		{"TargetHasNoRunningDeployTasks", args{kv, "id1",
+			[]TaskType{TaskTypeDeploy, TaskTypeUnDeploy, TaskTypeScaleIn}}, false, "", "", false},
+		{"TargetHasNoRunningTasks", args{kv, "id2", []TaskType{}}, false, "", "", false},
+		{"TargetDoesntExist", args{kv, "TargetDoesntExist", []TaskType{}}, false, "", "", false},
+		{"TargetNotInt", args{kv, "targetNotInt", []TaskType{}}, false, "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := TargetHasLivingTasks(tt.args.kv, tt.args.targetID)
+			got, got1, got2, err := TargetHasLivingTasks(tt.args.kv, tt.args.targetID, tt.args.typesToIgnore)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TargetHasLivingTasks() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -676,6 +682,41 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetQueryTaskIDs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
+	cc := api.DefaultConfig()
+	cc.Address = "my.dummy.test.server:8500"
+	badClient, err := api.NewClient(cc)
+	require.NoError(t, err, "Failed to create bad consul client")
+
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"RegistrationInProgress", args{kv, "t1"}, true, false},
+		{"NoRegistrationInProgress", args{kv, "t2"}, false, false},
+		{"ConsulFailure", args{badClient.KV(), "t2"}, false, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := IsStepRegistrationInProgress(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("%s error = %v, wantErr %v", tt.name, err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("%s = %v, want %v", tt.name, got, tt.want)
 			}
 		})
 	}

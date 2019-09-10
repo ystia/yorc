@@ -222,7 +222,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--yorc_ca_pem_file`` Path to PEM-encoded Certificate Authority, accessible locally
   * ``--yorc_data_dir`` Bootstrapped Yorc Home directory (default, /var/yorc)
   * ``--yorc_download_url`` Yorc download URL (default, current Yorc release under https://github.com/ystia/yorc/releases/)
-  * ``--yorc_plugin_download_url`` Yorc plugin download URL (default, current Yorc plugin release under https://github.com/ystia/yorc-a4c-plugin/releases)
+  * ``--yorc_plugin_download_url`` Yorc plugin download URL
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
