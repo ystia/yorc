@@ -30,6 +30,8 @@ const (
 	DEPLOYED
 	// UNDEPLOYMENT_IN_PROGRESS is a DeploymentStatus of type UNDEPLOYMENT_IN_PROGRESS
 	UNDEPLOYMENT_IN_PROGRESS
+	// PURGE_IN_PROGRESS is a DeploymentStatus of type PURGE_IN_PROGRESS
+	PURGE_IN_PROGRESS
 	// UNDEPLOYED is a DeploymentStatus of type UNDEPLOYED
 	UNDEPLOYED
 	// DEPLOYMENT_FAILED is a DeploymentStatus of type DEPLOYMENT_FAILED
@@ -48,21 +50,22 @@ const (
 	PURGED
 )
 
-const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILUREPURGED"
+const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSPURGE_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILUREPURGED"
 
 var _DeploymentStatusMap = map[DeploymentStatus]string{
 	0:  _DeploymentStatusName[0:7],
 	1:  _DeploymentStatusName[7:29],
 	2:  _DeploymentStatusName[29:37],
 	3:  _DeploymentStatusName[37:61],
-	4:  _DeploymentStatusName[61:71],
-	5:  _DeploymentStatusName[71:88],
-	6:  _DeploymentStatusName[88:107],
-	7:  _DeploymentStatusName[107:126],
-	8:  _DeploymentStatusName[126:144],
-	9:  _DeploymentStatusName[144:151],
-	10: _DeploymentStatusName[151:165],
-	11: _DeploymentStatusName[165:171],
+	4:  _DeploymentStatusName[61:78],
+	5:  _DeploymentStatusName[78:88],
+	6:  _DeploymentStatusName[88:105],
+	7:  _DeploymentStatusName[105:124],
+	8:  _DeploymentStatusName[124:143],
+	9:  _DeploymentStatusName[143:161],
+	10: _DeploymentStatusName[161:168],
+	11: _DeploymentStatusName[168:182],
+	12: _DeploymentStatusName[182:188],
 }
 
 func (i DeploymentStatus) String() string {
@@ -77,14 +80,15 @@ var _DeploymentStatusValue = map[string]DeploymentStatus{
 	_DeploymentStatusName[7:29]:    1,
 	_DeploymentStatusName[29:37]:   2,
 	_DeploymentStatusName[37:61]:   3,
-	_DeploymentStatusName[61:71]:   4,
-	_DeploymentStatusName[71:88]:   5,
-	_DeploymentStatusName[88:107]:  6,
-	_DeploymentStatusName[107:126]: 7,
-	_DeploymentStatusName[126:144]: 8,
-	_DeploymentStatusName[144:151]: 9,
-	_DeploymentStatusName[151:165]: 10,
-	_DeploymentStatusName[165:171]: 11,
+	_DeploymentStatusName[61:78]:   4,
+	_DeploymentStatusName[78:88]:   5,
+	_DeploymentStatusName[88:105]:  6,
+	_DeploymentStatusName[105:124]: 7,
+	_DeploymentStatusName[124:143]: 8,
+	_DeploymentStatusName[143:161]: 9,
+	_DeploymentStatusName[161:168]: 10,
+	_DeploymentStatusName[168:182]: 11,
+	_DeploymentStatusName[182:188]: 12,
 }
 
 // ParseDeploymentStatus attempts to convert a string to a DeploymentStatus
