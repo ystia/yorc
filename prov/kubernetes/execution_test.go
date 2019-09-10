@@ -16,7 +16,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
@@ -33,7 +32,7 @@ var JSONvalidDeployment = `
   "apiVersion": "extensions/v1beta1",
   "kind": "Deployment",
   "metadata": {
-     "name": "deploy-yorc"
+     "name": "test-deploy"
   },
   "spec": {
      "replicas": 3,
@@ -88,7 +87,7 @@ var JSONvalidDeployment = `
 var JSONvalidStatefulSet = `
 {
 	"metadata" : {
-	  "name" : "yorcdeployment-973d85c6b920"
+	  "name" : "test-sts"
 	},
 	"apiVersion" : "apps/v1",
 	"kind" : "StatefulSet",
@@ -137,7 +136,7 @@ var JSONvalidPVC = `
   "apiVersion" : "v1",
   "kind" : "PersistentVolumeClaim",
   "metadata" : {
-    "name" : "volume-1847657539"
+    "name" : "test-pvc"
     },
   "spec" : {
     "resources" : {
@@ -155,7 +154,7 @@ var JSONvalidService = `
   "apiVersion" : "v1",
   "kind" : "Service",
   "metadata" : {
-    "name" : "yorc-yorcdeployment-service-1116022612"
+    "name" : "test-service"
     },
   "spec" : {
     "selector" : {
@@ -270,6 +269,50 @@ func Test_execution_invalid_JSON(t *testing.T) {
 
 }
 
+func deployTestResources(e *execution, k8s *k8s, resources []testResource) error {
+	ctx := context.Background()
+	for _, testRes := range resources {
+		testRes.K8sObj.unmarshalResource(testRes.rSpec)
+		if err := testRes.K8sObj.createResource(ctx, e.deploymentID, k8s.clientset, "test-namespace"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func Test_execution_del_resources(t *testing.T) {
+	//t.SkipNow()
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+	e := &execution{
+		kv:           kv,
+		deploymentID: "Dep-ID",
+		operation:    prov.Operation{},
+	}
+	k8s := newTestK8s()
+	resources := getSupportedResourceAndJSON()
+	deployTestResources(e, k8s, resources)
+	wantErr := false
+	for _, testRes := range resources {
+		errorChan := make(chan struct{})
+		okChan := make(chan struct{})
+		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectDeletion(testRes.K8sObj, errorChan))
+		t.Run("Test delete resource "+testRes.K8sObj.String(), func(t *testing.T) {
+			if err := e.manageK8sResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, k8sDeleteOperation, testRes.rSpec); (err != nil) != wantErr {
+				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, wantErr)
+			}
+			close(okChan)
+		})
+		select {
+		case <-errorChan:
+			t.Fatal("fatal")
+		case <-okChan:
+			t.Logf("Deletion ok for %s\n", testRes.K8sObj)
+		}
+	}
+}
+
 func Test_execution_valid_JSON(t *testing.T) {
 	//t.SkipNow()
 	srv, client := testutil.NewTestConsulInstance(t)
@@ -289,7 +332,7 @@ func Test_execution_valid_JSON(t *testing.T) {
 		okChan := make(chan struct{})
 		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectCompletion(testRes.K8sObj, errorChan))
 		t.Run("Test resource "+testRes.K8sObj.String(), func(t *testing.T) {
-			fmt.Printf("Testing %s\n", testRes.K8sObj)
+			t.Logf("Testing %s\n", testRes.K8sObj)
 			if err := e.manageK8sResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec); (err != nil) != wantErr {
 				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, wantErr)
 			}

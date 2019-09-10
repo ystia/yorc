@@ -191,6 +191,24 @@ func fakeObjectCompletion(k8sObject yorcK8sObject, errorChan chan struct{}) k8st
 	}
 }
 
+func fakeObjectDeletion(k8sObject yorcK8sObject, errorChan chan struct{}) k8stesting.ReactionFunc {
+	getCount := 0
+	return func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if action.GetVerb() != "get" {
+			close(errorChan)
+		}
+		getCount++
+		if getCount > 5 {
+			close(errorChan)
+		} else if getCount > 1 {
+			//Mark obj removed
+			return true, nil, apierrors.NewNotFound(action.GetResource().GroupResource(), action.GetResource().Resource)
+			//return true, nil, nil
+		}
+		return true, nil, nil
+	}
+}
+
 func Test_getK8sResourceNamespace(t *testing.T) {
 	depID := "DepID"
 	nsName := "my-namespace"
