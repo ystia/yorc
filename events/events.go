@@ -231,7 +231,7 @@ func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout tim
 	var eventsPrefix string
 	if deploymentID != "" {
 		// the returned list of events must correspond to the provided deploymentID
-		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID)
+		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID) + "/"
 	} else {
 		// the returned list of events must correspond to all the deployments
 		eventsPrefix = path.Join(consulutil.EventsPrefix)
@@ -259,7 +259,7 @@ func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.
 	var logsPrefix string
 	if deploymentID != "" {
 		// the returned list of logs must correspond to the provided deploymentID
-		logsPrefix = path.Join(consulutil.LogsPrefix, deploymentID)
+		logsPrefix = path.Join(consulutil.LogsPrefix, deploymentID) + "/"
 	} else {
 		// the returned list of logs must correspond to all the deployments
 		logsPrefix = path.Join(consulutil.LogsPrefix)
@@ -306,13 +306,13 @@ func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 
 // PurgeDeploymentEvents deletes all events for a given deployment
 func PurgeDeploymentEvents(kv *api.KV, deploymentID string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.EventsPrefix, deploymentID), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.EventsPrefix, deploymentID)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
 // PurgeDeploymentLogs deletes all logs for a given deployment
 func PurgeDeploymentLogs(kv *api.KV, deploymentID string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.LogsPrefix, deploymentID), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.LogsPrefix, deploymentID)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
