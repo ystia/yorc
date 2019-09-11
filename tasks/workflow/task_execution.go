@@ -132,7 +132,7 @@ func (t *taskExecution) notifyEnd() error {
 }
 
 func (t *taskExecution) delete() error {
-	_, err := t.cc.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, t.id), nil)
+	_, err := t.cc.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, t.id)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 

@@ -125,10 +125,14 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 
 	dep := "monitoring5"
 	node := "Compute1"
-	instance := "0"
-	expectedCheck := NewCheck(dep, node, instance)
+	instance1 := "0"
+	instance11 := "02"
+	expectedCheck := NewCheck(dep, node, instance1)
+	NewCheck(dep, node, instance11)
 
-	err := defaultMonManager.registerTCPCheck(dep, node, instance, "1.2.3.4", 22, 1*time.Second)
+	err := defaultMonManager.registerTCPCheck(dep, node, instance1, "1.2.3.4", 22, 1*time.Second)
+	require.Nil(t, err, "Unexpected error while adding check")
+	err = defaultMonManager.registerTCPCheck(dep, node, instance11, "1.2.3.4", 22, 1*time.Second)
 	require.Nil(t, err, "Unexpected error while adding check")
 
 	time.Sleep(2 * time.Second)
@@ -139,7 +143,7 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 		return false
 	})
 	require.Nil(t, err, "Unexpected error while getting check reports list")
-	require.Len(t, checkReports, 1, "1 check is expected")
+	require.Len(t, checkReports, 2, "2 checks are expected")
 	require.Equal(t, expectedCheck.Report.DeploymentID, checkReports[0].DeploymentID, "unexpected deploymentID")
 	require.Equal(t, expectedCheck.Report.NodeName, checkReports[0].NodeName, "unexpected node name")
 	require.Equal(t, expectedCheck.Report.Instance, checkReports[0].Instance, "unexpected instance")
@@ -150,7 +154,7 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 	require.Nil(t, err, "Unexpected error while node state")
 	require.Equal(t, tosca.NodeStateError, state)
 
-	err = defaultMonManager.flagCheckForRemoval(dep, node, instance)
+	err = defaultMonManager.flagCheckForRemoval(dep, node, instance1)
 	time.Sleep(1 * time.Second)
 	require.Nil(t, err, "Unexpected error while removing check")
 
@@ -162,6 +166,6 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 		return false
 	})
 	require.Nil(t, err, "Unexpected error while getting check reports list")
-	require.Len(t, checkReports, 0, "0 check is expected")
-	require.Len(t, defaultMonManager.checks, 0, "0 check is expected in work map")
+	require.Len(t, checkReports, 1, "1 check is expected")
+	require.Len(t, defaultMonManager.checks, 1, "0 check is expected in work map")
 }

@@ -147,6 +147,7 @@ func (sca *scheduledAction) updateData() error {
 	}
 	if meta.LastIndex > sca.latestDataIndex {
 		// re-read data
+		// Appending a final "/" here is not necessary as there is no other keys starting with "data" prefix
 		kvps, _, err := sca.kv.List(dataPath, nil)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)

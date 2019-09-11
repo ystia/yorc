@@ -112,6 +112,18 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testPurgedDeployments", func(t *testing.T) {
 			testPurgedDeployments(t, client)
 		})
+		t.Run("testDeleteDeployment", func(t *testing.T) {
+			testDeleteDeployment(t, kv)
+		})
+		t.Run("testDeleteInstance", func(t *testing.T) {
+			testDeleteInstance(t, kv)
+		})
+		t.Run("testDeleteAllInstances", func(t *testing.T) {
+			testDeleteAllInstances(t, kv)
+		})
+		t.Run("testDeleteRelationshipInstance", func(t *testing.T) {
+			testDeleteRelationshipInstance(t, kv)
+		})
 	})
 
 	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {

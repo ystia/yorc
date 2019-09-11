@@ -1095,6 +1095,84 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }
 
+func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testing.T, cc *api.Client) {
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(1)
+
+	resources := map[string]string{"host.num_cpus": "1", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+
+	// Apply this definition
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+	// Check the pool now
+	hosts, warnings, newCkpt, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 1)
+	assert.NotEqual(t, uint64(0), newCkpt)
+	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
+
+	// Allocate host1: first allocation
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources}
+	filterLabel := "label2"
+	filter, err := labelsutil.CreateFilter(
+		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err := cm.Allocate(alloc1, filter)
+	assert.Equal(t, hostpool[0].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err := cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test1", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test1", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test1", allocatedHost.Allocations[0].NodeName)
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
+
+	// Allocate host1: 2nd allocation
+	alloc2 := &Allocation{NodeName: "node_test1", Instance: "instance_test11", DeploymentID: "test1", Shareable: true, Resources: resources}
+	filterLabel = "label2"
+	filter, err = labelsutil.CreateFilter(
+		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err = cm.Allocate(alloc2, filter)
+	assert.Equal(t, hostpool[0].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 2, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test11", allocatedHost.Allocations[1].Instance)
+	require.Equal(t, "test1", allocatedHost.Allocations[1].DeploymentID)
+	require.Equal(t, "node_test1", allocatedHost.Allocations[1].NodeName)
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+	require.Equal(t, resources, allocatedHost.Allocations[1].Resources)
+
+	// Release 1st allocation
+	err = cm.Release(hostpool[0].Name, alloc1)
+	require.NoError(t, err, "Unexpected error releasing host allocation1")
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+
+	// Release 2nd allocation
+	err = cm.Release(hostpool[0].Name, alloc2)
+	require.NoError(t, err, "Unexpected error releasing host allocation2")
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 0, len(allocatedHost.Allocations))
+	require.Equal(t, HostStatusFree, allocatedHost.Status)
+}
+
 func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
 
 	cleanupHostsPool(t, cc)
