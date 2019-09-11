@@ -40,7 +40,7 @@ type yorcK8sObject interface {
 	// Return if the specified resource is correctly deleted
 	isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
 	// unmarshal the resourceSpec into struct
-	unmarshalResource(rSpec string) error
+	unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error
 	streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface)
 	getObjectMeta() metav1.ObjectMeta
 	// Implem of the stringer interface
@@ -61,7 +61,7 @@ type yorcK8sStatefulSet appsv1.StatefulSet
 	----------------------------------------------
 */
 //Implem of yorcK8sObject interface for PersistentVolumeClaim
-func (yorcPVC *yorcK8sPersistentVolumeClaim) unmarshalResource(rSpec string) error {
+func (yorcPVC *yorcK8sPersistentVolumeClaim) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcPVC)
 }
 
@@ -127,7 +127,14 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) streamLogs(ctx context.Context, dep
 	| 				Deployment					 |
 	----------------------------------------------
 */
-func (yorcDep *yorcK8sDeployment) unmarshalResource(rSpec string) error {
+func (yorcDep *yorcK8sDeployment) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
+	json.Unmarshal([]byte(rSpec), &yorcDep)
+	ns, _ := getNamespace(e.deploymentID, yorcDep.ObjectMeta)
+	rSpec, err := e.replaceServiceIPInDeploymentSpec(ctx, clientset, ns, rSpec)
+	if err != nil {
+		return err
+	}
+
 	return json.Unmarshal([]byte(rSpec), &yorcDep)
 }
 
@@ -211,7 +218,7 @@ func (yorcDep *yorcK8sDeployment) streamLogs(ctx context.Context, deploymentID s
 	| 				StatefulSet					 |
 	----------------------------------------------
 */
-func (yorcSts *yorcK8sStatefulSet) unmarshalResource(rSpec string) error {
+func (yorcSts *yorcK8sStatefulSet) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcSts)
 }
 
@@ -278,7 +285,7 @@ func (yorcSts *yorcK8sStatefulSet) streamLogs(ctx context.Context, deploymentID 
 	| 					Service					 |
 	----------------------------------------------
 */
-func (yorcSvc *yorcK8sService) unmarshalResource(rSpec string) error {
+func (yorcSvc *yorcK8sService) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcSvc)
 }
 
