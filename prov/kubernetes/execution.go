@@ -170,7 +170,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 			  Creation steps :
 				create ns if missing 	OK
 				create Resource   		OK
-				(stream logs)			TODO
+				(stream logs)			OK
 				wait for completion		OK
 				set attributes			TODO
 		*/
@@ -185,7 +185,8 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 		if err != nil {
 			return err
 		}
-		// stream logs
+
+		k8sResource.streamLogs(ctx, e.deploymentID, clientset)
 		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
 		if err != nil {
 			return err
@@ -205,6 +206,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 				wait for deletion			OK
 				delete ns if not provided	OK
 		*/
+		k8sResource.streamLogs(ctx, e.deploymentID, clientset)
 		err := k8sResource.deleteResource(ctx, e.deploymentID, clientset, namespaceName)
 		if err != nil {
 			return err
@@ -237,7 +239,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 			Scale steps :
 				get nb instances		TODO
 				Updtade resource		OK
-				(stream logs)			TODO
+				(stream logs)			OK
 				wait for completion		OK
 				set attr				TODO
 		*/
@@ -245,6 +247,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 		if err != nil {
 			return err
 		}
+		k8sResource.streamLogs(ctx, e.deploymentID, clientset)
 		err := waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
 		if err != nil {
 			return err

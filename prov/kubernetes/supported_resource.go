@@ -41,7 +41,7 @@ type yorcK8sObject interface {
 	isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
 	// unmarshal the resourceSpec into struct
 	unmarshalResource(rSpec string) error
-
+	streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface)
 	getObjectMeta() metav1.ObjectMeta
 	// Implem of the stringer interface
 	fmt.Stringer
@@ -116,6 +116,10 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) String() string {
 func (yorcPVC *yorcK8sPersistentVolumeClaim) getObjectRuntime() runtime.Object {
 	pvc := corev1.PersistentVolumeClaim(*yorcPVC)
 	return &pvc
+}
+
+func (yorcPVC *yorcK8sPersistentVolumeClaim) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
+	return
 }
 
 /*
@@ -197,6 +201,11 @@ func (yorcDep *yorcK8sDeployment) getObjectRuntime() runtime.Object {
 	return &deploy
 }
 
+func (yorcDep *yorcK8sDeployment) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
+	deploy := v1beta1.Deployment(*yorcDep)
+	streamDeploymentLogs(ctx, deploymentID, clientset, &deploy)
+}
+
 /*
 	----------------------------------------------
 	| 				StatefulSet					 |
@@ -259,6 +268,11 @@ func (yorcSts *yorcK8sStatefulSet) getObjectRuntime() runtime.Object {
 	return &sts
 }
 
+func (yorcSts *yorcK8sStatefulSet) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
+	// TODO : stream logs for this controller
+	return
+}
+
 /*
 	----------------------------------------------
 	| 					Service					 |
@@ -313,4 +327,8 @@ func (yorcSvc *yorcK8sService) String() string {
 func (yorcSvc *yorcK8sService) getObjectRuntime() runtime.Object {
 	svc := corev1.Service(*yorcSvc)
 	return &svc
+}
+
+func (yorcSvc *yorcK8sService) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
+	return
 }
