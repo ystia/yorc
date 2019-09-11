@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
@@ -243,7 +244,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 				wait for completion		OK
 				set attr				TODO
 		*/
-		k8sResource.scaleResource(ctx, e.deploymentID, clientset, namespaceName, 0)
+		k8sResource.scaleResource(ctx, e, clientset, namespaceName)
 		if err != nil {
 			return err
 		}
@@ -256,6 +257,18 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
 	return nil
+}
+
+func (e *execution) getExpectedInstances() (int32, error) {
+	expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
+	if err != nil {
+		return -1, err
+	}
+	r, err := strconv.ParseInt(expectedInstances, 10, 32)
+	if err != nil {
+		return -1, errors.Wrapf(err, "failed to parse EXPECTED_INSTANCES: %q parameter as integer", expectedInstances)
+	}
+	return int32(r), nil
 }
 
 func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset kubernetes.Interface, namespace, rSpec string) (string, error) {

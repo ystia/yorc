@@ -34,7 +34,7 @@ type yorcK8sObject interface {
 	// Operations for yorc kubernetes objects
 	createResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error
 	deleteResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error
-	scaleResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string, expectedInstances int32) error
+	scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error
 	// Return a boolean telling if the resource is correctly deployed on K8s and error message if necessary
 	isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
 	// Return if the specified resource is correctly deleted
@@ -80,7 +80,7 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) deleteResource(ctx context.Context,
 	return clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, nil)
 }
 
-func (yorcPVC *yorcK8sPersistentVolumeClaim) scaleResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string, expectedInstances int32) error {
+func (yorcPVC *yorcK8sPersistentVolumeClaim) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
 	return errors.New("Scale operation is not supported by PersistentVolumeClaims")
 }
 
@@ -157,15 +157,19 @@ func (yorcDep *yorcK8sDeployment) deleteResource(ctx context.Context, deployment
 		GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy})
 }
 
-func (yorcDep *yorcK8sDeployment) scaleResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string, expectedInstances int32) error {
+func (yorcDep *yorcK8sDeployment) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
 	deploy := v1beta1.Deployment(*yorcDep)
+	expectedInstances, err := e.getExpectedInstances()
+	if err != nil {
+		return err
+	}
 	deploy.Spec.Replicas = &expectedInstances
 
-	_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Update(&deploy)
+	_, err = clientset.ExtensionsV1beta1().Deployments(namespace).Update(&deploy)
 	if err != nil {
-		return errors.Wrap(err, "failed to update kubernetes deployment for scaling")
+		return errors.Wrap(err, "failed to scale kubernetes deployment")
 	}
-	return errors.New("Scale operation not yet supported")
+	return nil
 }
 
 func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
@@ -237,8 +241,19 @@ func (yorcSts *yorcK8sStatefulSet) deleteResource(ctx context.Context, deploymen
 	return clientset.AppsV1beta1().StatefulSets(namespace).Delete(sts.Name, nil)
 }
 
-func (yorcSts *yorcK8sStatefulSet) scaleResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string, expectedInstances int32) error {
-	return errors.New("Scale operation not yet supported")
+func (yorcSts *yorcK8sStatefulSet) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
+	sts := appsv1.StatefulSet(*yorcSts)
+	expectedInstances, err := e.getExpectedInstances()
+	if err != nil {
+		return err
+	}
+	sts.Spec.Replicas = &expectedInstances
+
+	_, err = clientset.AppsV1beta1().StatefulSets(namespace).Update(&sts)
+	if err != nil {
+		return errors.Wrap(err, "failed to scale kubernetes statefulset")
+	}
+	return nil
 }
 
 func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
@@ -304,7 +319,7 @@ func (yorcSvc *yorcK8sService) deleteResource(ctx context.Context, deploymentID 
 	return clientset.CoreV1().Services(namespace).Delete(svc.Name, nil)
 }
 
-func (yorcSvc *yorcK8sService) scaleResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string, expectedInstances int32) error {
+func (yorcSvc *yorcK8sService) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
 	return errors.New("Scale operation not supported by Services")
 }
 
