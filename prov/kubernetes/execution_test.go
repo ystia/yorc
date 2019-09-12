@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
 	"k8s.io/client-go/kubernetes/fake"
@@ -363,6 +364,20 @@ func Test_execution_create_resource(t *testing.T) {
 		}
 	}
 
+}
+
+func Test_execution_executeInvalidOperation(t *testing.T) {
+	op := prov.Operation{
+		Name: "some operation",
+	}
+	e := &execution{
+		operation: op,
+	}
+	wantError := false
+	err := e.executeOperation(nil, nil, nil, nil, "")
+	if (err != nil) && wantError {
+		t.Errorf("Failed : %s", err)
+	}
 }
 
 func Test_getYorcK8sObject(t *testing.T) {

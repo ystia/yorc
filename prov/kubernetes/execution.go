@@ -122,6 +122,12 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	if err != nil {
 		return errors.Errorf("The resource_spec JSON unmarshaling failed for node %s: %s", e.nodeName, err)
 	}
+
+	return e.executeOperation(ctx, generator, clientset, K8sObj, rSpec)
+
+}
+
+func (e *execution) executeOperation(ctx context.Context, generator *k8sGenerator, clientset kubernetes.Interface, K8sObj yorcK8sObject, rSpec string) error {
 	// Supporting both fully qualified and short standard operation names, ie.
 	// - tosca.interfaces.node.lifecycle.standard.operation
 	// or
@@ -138,7 +144,6 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
-
 }
 
 // Create yorcK8sObject of appropriate type
