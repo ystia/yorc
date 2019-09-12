@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -eo pipefail
 
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -21,7 +22,7 @@ if [[ -z "${SONAR_TOKEN}" ]] ; then
     exit 0
 fi
 
-cd "${scriptDir}/.."
+cd "${scriptDir}/.." || { echo "failed to move to yorc directory ${scriptDir}/.."; exit 1; }
 sed -i -e "s@$(go list)@github.com/ystia/yorc@g" coverage-sonar.out
 git fetch --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" "+refs/heads/release/*:refs/remotes/origin/release/*"
 git fetch --unshallow --quiet
