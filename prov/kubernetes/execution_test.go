@@ -255,9 +255,16 @@ func Test_execution_invalid_JSON(t *testing.T) {
 			true,
 		},
 	}
+	ctx := context.Background()
+	deploymentID := "Dep-ID"
+
+	e := &execution{
+		deploymentID: deploymentID,
+	}
+	k8s := newTestSimpleK8s()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.k8sResource.unmarshalResource(tt.rSpec); (err != nil) != tt.wantErr {
+			if err := tt.k8sResource.unmarshalResource(ctx, e, deploymentID, k8s.clientset, tt.rSpec); (err != nil) != tt.wantErr {
 				t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -284,16 +291,10 @@ func Test_execution_del_resources(t *testing.T) {
 	resources := getSupportedResourceAndJSON()
 
 	for _, testResource := range resources {
-		err := testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
-		if err != nil {
-			return nil, err
-		}
+		testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
 	}
 
-	if err != nil {
-		t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, wantErr)
-	}
-	deployTestResources(e, k8s, resources)
+	deployTestResources(ctx, e, k8s, resources)
 	for _, testRes := range resources {
 		errorChan := make(chan struct{})
 		okChan := make(chan struct{})
@@ -313,24 +314,36 @@ func Test_execution_del_resources(t *testing.T) {
 	}
 }
 
+func deployTestResources(ctx context.Context, e *execution, k8s *k8s, resources []testResource) error {
+	for _, testRes := range resources {
+		testRes.K8sObj.unmarshalResource(ctx, e, e.deploymentID, k8s.clientset, testRes.rSpec)
+		if err := testRes.K8sObj.createResource(ctx, e.deploymentID, k8s.clientset, "test-namespace"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func Test_execution_create_resource(t *testing.T) {
 	//t.SkipNow()
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
+	deploymentID := "Dep-ID"
 	e := &execution{
 		kv:           kv,
-		deploymentID: "Dep-ID",
+		deploymentID: deploymentID,
 	}
 	wantErr := false
 	k8s := newTestK8s()
 	ctx := context.Background()
 	operationType := k8sCreateOperation
 
-	resources, err := getSupportedResourceAndJSON()
-	if err != nil {
-		t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, wantErr)
+	resources := getSupportedResourceAndJSON()
+	for _, testResource := range resources {
+		testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
 	}
+
 	for _, testRes := range resources {
 		errorChan := make(chan struct{})
 		okChan := make(chan struct{})
@@ -350,17 +363,6 @@ func Test_execution_create_resource(t *testing.T) {
 		}
 	}
 
-}
-
-func deployTestResources(e *execution, k8s *k8s, resources []testResource) error {
-	ctx := context.Background()
-	for _, testRes := range resources {
-		testRes.K8sObj.unmarshalResource(testRes.rSpec)
-		if err := testRes.K8sObj.createResource(ctx, e.deploymentID, k8s.clientset, "test-namespace"); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func Test_execution_getExpectedInstances(t *testing.T) {
