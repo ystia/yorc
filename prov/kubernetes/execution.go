@@ -238,7 +238,6 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 	case k8sScaleOperation:
 		/*
 			Scale steps :
-				get nb instances		TODO
 				Updtade resource		OK
 				(stream logs)			OK
 				wait for completion		OK

@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
@@ -272,7 +273,7 @@ func Test_execution_invalid_JSON(t *testing.T) {
 func deployTestResources(e *execution, k8s *k8s, resources []testResource) error {
 	ctx := context.Background()
 	for _, testRes := range resources {
-		testRes.K8sObj.unmarshalResource(testRes.rSpec)
+		testRes.K8sObj.unmarshalResource(ctx, e, e.deploymentID, k8s.clientset, testRes.rSpec)
 		if err := testRes.K8sObj.createResource(ctx, e.deploymentID, k8s.clientset, "test-namespace"); err != nil {
 			return err
 		}
@@ -394,6 +395,68 @@ func Test_execution_manageK8sResource(t *testing.T) {
 			}
 			if err := e.manageK8sResource(tt.args.ctx, tt.args.clientset, tt.args.generator, tt.args.k8sResource, tt.args.operationType, tt.args.rSpec); (err != nil) != tt.wantErr {
 				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_execution_getExpectedInstances(t *testing.T) {
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+
+	deploymentID := "Dep-ID"
+
+	type fields struct {
+		kv           *api.KV
+		deploymentID string
+		taskID       string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		data    string
+		want    int32
+		wantErr bool
+	}{
+		{
+			"task input filled",
+			fields{kv, deploymentID, "task-id-1"},
+			strconv.Itoa(int(3)),
+			3,
+			false,
+		},
+		{
+			"task input wrongly filled",
+			fields{kv, deploymentID, "task-id-2"},
+			"not a integer",
+			-1,
+			true,
+		},
+		{
+			"task input not filled",
+			fields{kv, deploymentID, "task-id-3"},
+			"",
+			-1,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &execution{
+				kv:           tt.fields.kv,
+				deploymentID: tt.fields.deploymentID,
+				taskID:       tt.fields.taskID,
+			}
+			tasks.SetTaskData(e.kv, e.taskID, "inputs/EXPECTED_INSTANCES", tt.data)
+			got, err := e.getExpectedInstances()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("execution.getExpectedInstances() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("execution.getExpectedInstances() = %v, want %v", got, tt.want)
 			}
 		})
 	}
