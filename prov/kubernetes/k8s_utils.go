@@ -315,26 +315,6 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 	return version.String(), nil
 }
 
-// Return the namespace of the resource if provided or generate one with deploymentID in lowercase ; and a boolean telling if it was provided
-func getK8sResourceNamespace(deploymentID string, k8sResource yorcK8sObject) (string, bool) {
-	isProvided := false
-	var namespace string
-	var providedNamespace string
-	objectMeta := k8sResource.getObjectMeta()
-	if &objectMeta != nil {
-		providedNamespace = objectMeta.Namespace
-	}
-
-	if providedNamespace != "" {
-		namespace = providedNamespace
-		isProvided = true
-	} else {
-		namespace = defaultNamespace(deploymentID)
-	}
-
-	return namespace, isProvided
-}
-
 // Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
 func waitForYorcK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject yorcK8sObject) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {

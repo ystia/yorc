@@ -237,7 +237,7 @@ func Test_getK8sResourceNamespace(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getK8sResourceNamespace(tt.args.deploymentID, tt.args.k8sResource)
+			got, got1 := getNamespace(tt.args.deploymentID, tt.args.k8sResource.getObjectMeta())
 			if got != tt.namespace {
 				t.Errorf("getK8sResourceNamespace() namespace = %v, want %v", got, tt.namespace)
 			}

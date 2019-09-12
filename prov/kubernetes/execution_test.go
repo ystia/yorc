@@ -18,12 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/prov"
-	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -205,7 +200,7 @@ type testResource struct {
 	resourceGroup string
 }
 
-func getSupportedResourceAndJSON() []testResource {
+func getSupportedResourceAndJSON() ([]testResource, error) {
 	supportedRes := []testResource{
 		{
 			&yorcK8sDeployment{},
@@ -228,12 +223,16 @@ func getSupportedResourceAndJSON() []testResource {
 			"statefulsets",
 		},
 	}
-
-	return supportedRes
+	for _, testResource := range supportedRes {
+		err := testResource.K8sObj.unmarshalResource(testResource.rSpec)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return supportedRes, nil
 }
+
 func Test_execution_invalid_JSON(t *testing.T) {
-	operationType := k8sCreateOperation
-	e := &execution{}
 	tests := []struct {
 		name        string
 		k8sResource yorcK8sObject
@@ -246,7 +245,7 @@ func Test_execution_invalid_JSON(t *testing.T) {
 			" ",
 			true,
 		},
-		// { UNDETECTED FOR NOW
+		// {
 		// 	"Test wrong rSpec",
 		// 	&yorcK8sDeployment{},
 		// 	JSONvalidPVC,
@@ -261,23 +260,12 @@ func Test_execution_invalid_JSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := e.manageK8sResource(nil, nil, nil, tt.k8sResource, operationType, tt.rSpec); (err != nil) != tt.wantErr {
-				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, tt.wantErr)
+			if err := tt.k8sResource.unmarshalResource(tt.rSpec); (err != nil) != tt.wantErr {
+				t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 
-}
-
-func deployTestResources(e *execution, k8s *k8s, resources []testResource) error {
-	ctx := context.Background()
-	for _, testRes := range resources {
-		testRes.K8sObj.unmarshalResource(testRes.rSpec)
-		if err := testRes.K8sObj.createResource(ctx, e.deploymentID, k8s.clientset, "test-namespace"); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func Test_execution_del_resources(t *testing.T) {
@@ -288,19 +276,23 @@ func Test_execution_del_resources(t *testing.T) {
 	e := &execution{
 		kv:           kv,
 		deploymentID: "Dep-ID",
-		operation:    prov.Operation{},
 	}
-	k8s := newTestK8s()
-	resources := getSupportedResourceAndJSON()
-	deployTestResources(e, k8s, resources)
 	wantErr := false
+	k8s := newTestK8s()
+	operationType := k8sDeleteOperation
+
+	resources, err := getSupportedResourceAndJSON()
+	if err != nil {
+		t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, wantErr)
+	}
+	deployTestResources(e, k8s, resources)
 	for _, testRes := range resources {
 		errorChan := make(chan struct{})
 		okChan := make(chan struct{})
 		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectDeletion(testRes.K8sObj, errorChan))
 		t.Run("Test delete resource "+testRes.K8sObj.String(), func(t *testing.T) {
-			if err := e.manageK8sResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, k8sDeleteOperation, testRes.rSpec); (err != nil) != wantErr {
-				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, wantErr)
+			if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec); (err != nil) != wantErr {
+				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
 			}
 			close(okChan)
 		})
@@ -313,7 +305,7 @@ func Test_execution_del_resources(t *testing.T) {
 	}
 }
 
-func Test_execution_valid_JSON(t *testing.T) {
+func Test_execution_create_resource(t *testing.T) {
 	//t.SkipNow()
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
@@ -321,20 +313,24 @@ func Test_execution_valid_JSON(t *testing.T) {
 	e := &execution{
 		kv:           kv,
 		deploymentID: "Dep-ID",
-		operation:    prov.Operation{},
 	}
+	wantErr := false
 	k8s := newTestK8s()
 	ctx := context.Background()
 	operationType := k8sCreateOperation
-	wantErr := false
-	for _, testRes := range getSupportedResourceAndJSON() {
+
+	resources, err := getSupportedResourceAndJSON()
+	if err != nil {
+		t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, wantErr)
+	}
+	for _, testRes := range resources {
 		errorChan := make(chan struct{})
 		okChan := make(chan struct{})
 		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectCompletion(testRes.K8sObj, errorChan))
 		t.Run("Test resource "+testRes.K8sObj.String(), func(t *testing.T) {
 			t.Logf("Testing %s\n", testRes.K8sObj)
-			if err := e.manageK8sResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec); (err != nil) != wantErr {
-				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, wantErr)
+			if err := e.manageKubernetesResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec); (err != nil) != wantErr {
+				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
 			}
 			close(okChan)
 		})
@@ -348,53 +344,13 @@ func Test_execution_valid_JSON(t *testing.T) {
 
 }
 
-func Test_execution_manageK8sResource(t *testing.T) {
-	type fields struct {
-		kv           *api.KV
-		cfg          config.Configuration
-		deploymentID string
-		taskID       string
-		taskType     tasks.TaskType
-		nodeName     string
-		operation    prov.Operation
-		nodeType     string
+func deployTestResources(e *execution, k8s *k8s, resources []testResource) error {
+	ctx := context.Background()
+	for _, testRes := range resources {
+		testRes.K8sObj.unmarshalResource(testRes.rSpec)
+		if err := testRes.K8sObj.createResource(ctx, e.deploymentID, k8s.clientset, "test-namespace"); err != nil {
+			return err
+		}
 	}
-	type args struct {
-		ctx           context.Context
-		clientset     kubernetes.Interface
-		generator     *k8sGenerator
-		k8sResource   yorcK8sObject
-		operationType k8sResourceOperation
-		rSpec         string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			"Test no rSpec",
-			fields{},
-			args{k8sResource: &yorcK8sDeployment{}},
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := &execution{
-				kv:           tt.fields.kv,
-				cfg:          tt.fields.cfg,
-				deploymentID: tt.fields.deploymentID,
-				taskID:       tt.fields.taskID,
-				taskType:     tt.fields.taskType,
-				nodeName:     tt.fields.nodeName,
-				operation:    tt.fields.operation,
-				nodeType:     tt.fields.nodeType,
-			}
-			if err := e.manageK8sResource(tt.args.ctx, tt.args.clientset, tt.args.generator, tt.args.k8sResource, tt.args.operationType, tt.args.rSpec); (err != nil) != tt.wantErr {
-				t.Errorf("execution.manageK8sResource() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+	return nil
 }
