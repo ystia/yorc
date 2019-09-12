@@ -225,17 +225,14 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	return id, nil
 }
 
-// StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
-func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+func getEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration, eventsPrefix string) ([]json.RawMessage, uint64, error) {
 	events := make([]json.RawMessage, 0)
-	var eventsPrefix string
+	eventsPrefix = path.Clean(eventsPrefix)
 	if deploymentID != "" {
 		// the returned list of events must correspond to the provided deploymentID
-		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID) + "/"
-	} else {
-		// the returned list of events must correspond to all the deployments
-		eventsPrefix = path.Join(consulutil.EventsPrefix)
+		eventsPrefix = path.Join(eventsPrefix, deploymentID)
 	}
+	eventsPrefix = eventsPrefix + "/"
 
 	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
@@ -252,37 +249,18 @@ func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout tim
 	return events, qm.LastIndex, nil
 }
 
-// LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
-func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	logs := make([]json.RawMessage, 0)
-
-	var logsPrefix string
-	if deploymentID != "" {
-		// the returned list of logs must correspond to the provided deploymentID
-		logsPrefix = path.Join(consulutil.LogsPrefix, deploymentID) + "/"
-	} else {
-		// the returned list of logs must correspond to all the deployments
-		logsPrefix = path.Join(consulutil.LogsPrefix)
-	}
-	kvps, qm, err := kv.List(logsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	if err != nil || qm == nil {
-		return logs, 0, err
-	}
-	log.Debugf("Found %d logs before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
-	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex {
-			continue
-		}
-
-		logs = append(logs, kvp.Value)
-	}
-	log.Debugf("Found %d logs after index", len(logs))
-	return logs, qm.LastIndex, nil
+// StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
+func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	return getEvents(kv, deploymentID, waitIndex, timeout, consulutil.EventsPrefix)
 }
 
-// GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment
-func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(consulutil.EventsPrefix, deploymentID), nil)
+// LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
+func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	return getEvents(kv, deploymentID, waitIndex, timeout, consulutil.LogsPrefix)
+}
+
+func getEventsIndex(kv *api.KV, deploymentID string, eventsPrefix string) (uint64, error) {
+	_, qm, err := kv.Get(path.Join(eventsPrefix, deploymentID), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -292,16 +270,14 @@ func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 	return qm.LastIndex, nil
 }
 
+// GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment
+func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
+	return getEventsIndex(kv, deploymentID, consulutil.EventsPrefix)
+}
+
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
 func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(consulutil.LogsPrefix, deploymentID), nil)
-	if err != nil {
-		return 0, err
-	}
-	if qm == nil {
-		return 0, errors.New("Failed to retrieve last index for logs")
-	}
-	return qm.LastIndex, nil
+	return getEventsIndex(kv, deploymentID, consulutil.LogsPrefix)
 }
 
 // PurgeDeploymentEvents deletes all events for a given deployment
