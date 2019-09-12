@@ -16,8 +16,11 @@ package kubernetes
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
+	"github.com/hashicorp/consul/api"
+	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -200,7 +203,7 @@ type testResource struct {
 	resourceGroup string
 }
 
-func getSupportedResourceAndJSON() ([]testResource, error) {
+func getSupportedResourceAndJSON() []testResource {
 	supportedRes := []testResource{
 		{
 			&yorcK8sDeployment{},
@@ -223,13 +226,7 @@ func getSupportedResourceAndJSON() ([]testResource, error) {
 			"statefulsets",
 		},
 	}
-	for _, testResource := range supportedRes {
-		err := testResource.K8sObj.unmarshalResource(testResource.rSpec)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return supportedRes, nil
+	return supportedRes
 }
 
 func Test_execution_invalid_JSON(t *testing.T) {
@@ -273,15 +270,26 @@ func Test_execution_del_resources(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
+	deploymentID := "Dep-ID"
+
 	e := &execution{
 		kv:           kv,
-		deploymentID: "Dep-ID",
+		deploymentID: deploymentID,
 	}
+	ctx := context.Background()
 	wantErr := false
 	k8s := newTestK8s()
 	operationType := k8sDeleteOperation
 
-	resources, err := getSupportedResourceAndJSON()
+	resources := getSupportedResourceAndJSON()
+
+	for _, testResource := range resources {
+		err := testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if err != nil {
 		t.Errorf("yorcK8sObject.unmarshalResource error = %v, wantErr %v", err, wantErr)
 	}
@@ -353,4 +361,66 @@ func deployTestResources(e *execution, k8s *k8s, resources []testResource) error
 		}
 	}
 	return nil
+}
+
+func Test_execution_getExpectedInstances(t *testing.T) {
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+
+	deploymentID := "Dep-ID"
+
+	type fields struct {
+		kv           *api.KV
+		deploymentID string
+		taskID       string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		data    string
+		want    int32
+		wantErr bool
+	}{
+		{
+			"task input filled",
+			fields{kv, deploymentID, "task-id-1"},
+			strconv.Itoa(int(3)),
+			3,
+			false,
+		},
+		{
+			"task input wrongly filled",
+			fields{kv, deploymentID, "task-id-2"},
+			"not a integer",
+			-1,
+			true,
+		},
+		{
+			"task input not filled",
+			fields{kv, deploymentID, "task-id-3"},
+			"",
+			-1,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &execution{
+				kv:           tt.fields.kv,
+				deploymentID: tt.fields.deploymentID,
+				taskID:       tt.fields.taskID,
+			}
+			tasks.SetTaskData(e.kv, e.taskID, "inputs/EXPECTED_INSTANCES", tt.data)
+			got, err := e.getExpectedInstances()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("execution.getExpectedInstances() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("execution.getExpectedInstances() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

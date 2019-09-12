@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
@@ -117,7 +118,7 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	// Create Yorc representation of the K8S object
 	K8sObj, err := e.getYorcK8sObject(rType.RawString())
 	// unmarshal resource spec
-	err = K8sObj.unmarshalResource(rSpec)
+	err = K8sObj.unmarshalResource(ctx, e, e.deploymentID, clientset, rSpec)
 	if err != nil {
 		return errors.Errorf("The resource_spec JSON unmarshaling failed for node %s: %s", e.nodeName, err)
 	}
@@ -175,7 +176,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 			  Creation steps :
 				create ns if missing 	OK
 				create Resource   		OK
-				(stream logs)			TODO
+				(stream logs)			OK
 				wait for completion		OK
 				set attributes			TODO
 		*/
@@ -190,7 +191,8 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		if err != nil {
 			return err
 		}
-		// stream logs
+
+		k8sObject.streamLogs(ctx, e.deploymentID, clientset)
 		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
 		if err != nil {
 			return err
@@ -210,6 +212,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 				wait for deletion			OK
 				delete ns if not provided	OK
 		*/
+		k8sObject.streamLogs(ctx, e.deploymentID, clientset)
 		err := k8sObject.deleteResource(ctx, e.deploymentID, clientset, namespaceName)
 		if err != nil {
 			return err
@@ -240,16 +243,16 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 	case k8sScaleOperation:
 		/*
 			Scale steps :
-				get nb instances		TODO
 				Updtade resource		OK
-				(stream logs)			TODO
+				(stream logs)			OK
 				wait for completion		OK
 				set attr				TODO
 		*/
-		k8sObject.scaleResource(ctx, e.deploymentID, clientset, namespaceName, 0)
+		k8sObject.scaleResource(ctx, e, clientset, namespaceName)
 		if err != nil {
 			return err
 		}
+		k8sObject.streamLogs(ctx, e.deploymentID, clientset)
 		err := waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
 		if err != nil {
 			return err
@@ -258,6 +261,18 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
 	return nil
+}
+
+func (e *execution) getExpectedInstances() (int32, error) {
+	expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
+	if err != nil {
+		return -1, err
+	}
+	r, err := strconv.ParseInt(expectedInstances, 10, 32)
+	if err != nil {
+		return -1, errors.Wrapf(err, "failed to parse EXPECTED_INSTANCES: %q parameter as integer", expectedInstances)
+	}
+	return int32(r), nil
 }
 
 func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset kubernetes.Interface, namespace, rSpec string) (string, error) {
