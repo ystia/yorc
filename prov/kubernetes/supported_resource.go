@@ -18,8 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
 	appsv1 "k8s.io/api/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -35,6 +38,7 @@ type yorcK8sObject interface {
 	createResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error
 	deleteResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error
 	scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error
+	setAttributes(ctx context.Context, e *execution) error
 	// Return a boolean telling if the resource is correctly deployed on K8s and error message if necessary
 	isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
 	// Return if the specified resource is correctly deleted
@@ -82,6 +86,10 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) deleteResource(ctx context.Context,
 
 func (yorcPVC *yorcK8sPersistentVolumeClaim) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
 	return errors.New("Scale operation is not supported by PersistentVolumeClaims")
+}
+
+func (yorcPVC *yorcK8sPersistentVolumeClaim) setAttributes(ctx context.Context, e *execution) error {
+	return nil
 }
 
 func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
@@ -175,6 +183,10 @@ func (yorcDep *yorcK8sDeployment) scaleResource(ctx context.Context, e *executio
 	return nil
 }
 
+func (yorcDep *yorcK8sDeployment) setAttributes(ctx context.Context, e *execution) (err error) {
+	return deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcDep.Spec.Replicas))
+}
+
 func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
 	dep, err := clientset.ExtensionsV1beta1().Deployments(yorcDep.Namespace).Get(yorcDep.Name, metav1.GetOptions{})
 	if err != nil {
@@ -259,6 +271,10 @@ func (yorcSts *yorcK8sStatefulSet) scaleResource(ctx context.Context, e *executi
 	return nil
 }
 
+func (yorcSts *yorcK8sStatefulSet) setAttributes(ctx context.Context, e *execution) error {
+	return deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcSts.Spec.Replicas))
+}
+
 func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
 	stfs, err := clientset.AppsV1beta1().StatefulSets(yorcSts.Namespace).Get(yorcSts.Name, metav1.GetOptions{})
 	if err != nil {
@@ -324,6 +340,25 @@ func (yorcSvc *yorcK8sService) deleteResource(ctx context.Context, deploymentID 
 
 func (yorcSvc *yorcK8sService) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
 	return errors.New("Scale operation not supported by Services")
+}
+
+func (yorcSvc *yorcK8sService) setAttributes(ctx context.Context, e *execution) (err error) {
+
+	for _, val := range yorcSvc.Spec.Ports {
+		if val.NodePort != 0 {
+			str := fmt.Sprintf("%d", val.NodePort)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%s : %s: %d:%d mapped to %s", yorcSvc.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
+			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_url", str)
+			if err != nil {
+				return errors.Wrap(err, "Failed to set attribute")
+			}
+			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "node_port", strconv.Itoa(int(val.NodePort)))
+			if err != nil {
+				return errors.Wrap(err, "Failed to set attribute")
+			}
+		}
+	}
+	return nil
 }
 
 func (yorcSvc *yorcK8sService) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
