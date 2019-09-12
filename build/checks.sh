@@ -75,9 +75,9 @@ fi
 
 if [[ ! -x "${binDir}/gotestsum" ]]; then
     rm -f "${binDir}/gotestsum"
-    wget --output-document=${binDir}/gotestsum.tgz  https://github.com/gotestyourself/gotestsum/releases/download/v0.3.5/gotestsum_0.3.5_linux_amd64.tar.gz
-    tar xzf ${binDir}/gotestsum.tgz -C ${binDir}
-    rm -f ${binDir}/gotestsum.tgz
+    wget --output-document="${binDir}/gotestsum.tgz" https://github.com/gotestyourself/gotestsum/releases/download/v0.3.5/gotestsum_0.3.5_linux_amd64.tar.gz
+    tar xzf "${binDir}/gotestsum.tgz" -C "${binDir}"
+    rm -f "${binDir}/gotestsum.tgz"
 fi
 
 
