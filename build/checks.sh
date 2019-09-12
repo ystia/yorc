@@ -73,6 +73,14 @@ else
     fi
 fi
 
+if [[ ! -x "${binDir}/gotestsum" ]]; then
+    rm -f "${binDir}/gotestsum"
+    wget --output-document=${binDir}/gotestsum.tgz  https://github.com/gotestyourself/gotestsum/releases/download/v0.3.5/gotestsum_0.3.5_linux_amd64.tar.gz
+    tar xzf ${binDir}/gotestsum.tgz -C ${binDir}
+    rm -f ${binDir}/gotestsum.tgz
+fi
+
+
 if [[ ! -r "${HOME}/.ssh/yorc.pem" ]]; then
     echo "Installing a testing ssh key under ${HOME}/.ssh/yorc.pem"
     mkdir -p "${HOME}/.ssh/" || error_exit "Can't create ${HOME}/.ssh/ directory"

@@ -24,8 +24,6 @@ env:
 install:
   - make tools
   - pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23
-  - wget --output-document=build/bin/gotestsum.tgz  https://github.com/gotestyourself/gotestsum/releases/download/v0.3.5/gotestsum_0.3.5_linux_amd64.tar.gz
-  - tar xzf build/bin/gotestsum.tgz -C build/bin
 
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64  > ./cc-test-reporter
@@ -35,7 +33,6 @@ before_script:
 script:
   # Start sonar specific stuff
   - TESTARGS="-coverprofile coverage-sonar.out -coverpkg=./..." make json-test
-  - build/bin/gotestsum -f standard-quiet --raw-command cat tests-reports.json
   - sed -i -e "s@$(go list)@github.com/ystia/yorc@g" coverage-sonar.out
   - git fetch --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" "+refs/heads/release/*:refs/remotes/origin/release/*"
   - git fetch --unshallow --quiet
