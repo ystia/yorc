@@ -128,9 +128,12 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) streamLogs(ctx context.Context, dep
 	----------------------------------------------
 */
 func (yorcDep *yorcK8sDeployment) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
-	json.Unmarshal([]byte(rSpec), &yorcDep)
+	err := json.Unmarshal([]byte(rSpec), &yorcDep)
+	if err != nil {
+		return err
+	}
 	ns, _ := getNamespace(e.deploymentID, yorcDep.ObjectMeta)
-	rSpec, err := e.replaceServiceIPInDeploymentSpec(ctx, clientset, ns, rSpec)
+	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, ns, rSpec)
 	if err != nil {
 		return err
 	}
