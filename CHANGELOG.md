@@ -4,9 +4,9 @@
 
 ### BUG FIXES
 
-
 * A deployment may disappear from the deployments list while its currently running a purge task ([GH-504](https://github.com/ystia/yorc/issues/504))
 * A4C Logs are displaying stack error when workflow step fails ([GH-460](https://github.com/ystia/yorc/issues/503))
+* Bootstrap on OpenStack doesn't allow floating IP provisioning ([GH-516](https://github.com/ystia/yorc/issues/516))
 
 ## 4.0.0-M3 (August 30, 2019)
 
