@@ -178,7 +178,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 				create Resource   		OK
 				(stream logs)			OK
 				wait for completion		OK
-				set attributes			TODO
+				set attributes			OK
 		*/
 		if !namespaceProvided {
 			err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
@@ -199,6 +199,10 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s created in namespace %s", k8sObject, k8sObject.getObjectMeta().Name, namespaceName)
 		// set attributes
+		err = k8sObject.setAttributes(ctx, e)
+		if err != nil {
+			return err
+		}
 		/*
 			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
 			if err != nil {
@@ -246,17 +250,22 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 				Updtade resource		OK
 				(stream logs)			OK
 				wait for completion		OK
-				set attr				TODO
+				set attr				OK
 		*/
-		k8sObject.scaleResource(ctx, e, clientset, namespaceName)
+		err := k8sObject.scaleResource(ctx, e, clientset, namespaceName)
 		if err != nil {
 			return err
 		}
 		k8sObject.streamLogs(ctx, e.deploymentID, clientset)
-		err := waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
+		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
 		if err != nil {
 			return err
 		}
+		err = k8sObject.setAttributes(ctx, e)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s scaled in namespace %s", k8sObject, k8sObject.getObjectMeta().Name, namespaceName)
 	default:
 		return errors.Errorf(unsupportedOperationOnK8sResource)
 	}
