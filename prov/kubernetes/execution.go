@@ -30,10 +30,10 @@ import (
 	"github.com/ystia/yorc/v4/tasks"
 )
 
-const deploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
-const statefulsetResourceType string = "yorc.nodes.kubernetes.api.types.StatefulSetResource"
-const serviceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
-const simpleRessourceType string = "yorc.nodes.kubernetes.api.types.SimpleResource"
+const k8sDeploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
+const k8sStatefulsetResourceType string = "yorc.nodes.kubernetes.api.types.StatefulSetResource"
+const k8sServiceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
+const k8sSimpleRessourceType string = "yorc.nodes.kubernetes.api.types.SimpleResource"
 
 type k8sResourceOperation int
 
@@ -98,6 +98,29 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	// TODO is there any reason for recreating a new generator for each execution?
 	generator := newGenerator(e.kv, e.cfg)
 
+	rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
+	if err != nil {
+		return err
+	}
+	if rType == nil {
+		return errors.Errorf("No resource_type defined for node %q", e.nodeName)
+	}
+	// Get K8s object specification
+	rSpecProp, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
+	if err != nil {
+		return err
+	}
+	if rSpecProp == nil {
+		return errors.Errorf("No resource_spec defined for node %q", e.nodeName)
+	}
+	rSpec := rSpecProp.RawString()
+	// Create Yorc representation of the K8S object
+	K8sObj, err := e.getYorcK8sObject(rType.RawString())
+	// unmarshal resource spec
+	err = K8sObj.unmarshalResource(rSpec)
+	if err != nil {
+		return errors.Errorf("The resource_spec JSON unmarshaling failed for node %s: %s", e.nodeName, err)
+	}
 	// Supporting both fully qualified and short standard operation names, ie.
 	// - tosca.interfaces.node.lifecycle.standard.operation
 	// or
@@ -106,64 +129,46 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 		"tosca.interfaces.node.lifecycle.")
 	switch operationName {
 	case "standard.create":
-		return e.manageKubernetesResource(ctx, clientset, generator, k8sCreateOperation)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sCreateOperation, rSpec)
 	case "standard.delete":
-		return e.manageKubernetesResource(ctx, clientset, generator, k8sDeleteOperation)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sDeleteOperation, rSpec)
 	case "org.alien4cloud.management.clustercontrol.scale":
-		return e.manageKubernetesResource(ctx, clientset, generator, k8sScaleOperation)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sScaleOperation, rSpec)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
 
 }
 
-func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, op k8sResourceOperation) error {
-	rSpec, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
-	if err != nil {
-		return err
-	}
-
-	if rSpec == nil {
-		return errors.Errorf("no resource_spec defined for node %q", e.nodeName)
-	}
-	rSpecString := rSpec.RawString()
+// Create yorcK8sObject of appropriate type
+func (e *execution) getYorcK8sObject(resourceType string) (yorcK8sObject, error) {
 	var K8sObj yorcK8sObject
 	switch e.nodeType {
-	case deploymentResourceType:
+	case k8sDeploymentResourceType:
 		K8sObj = &yorcK8sDeployment{}
-	case statefulsetResourceType:
+	case k8sStatefulsetResourceType:
 		K8sObj = &yorcK8sStatefulSet{}
-	case serviceResourceType:
+	case k8sServiceResourceType:
 		K8sObj = &yorcK8sService{}
-	case simpleRessourceType:
-		rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
-		if err != nil {
-			return err
-		}
-		switch rType.RawString() {
+	case k8sSimpleRessourceType:
+		switch resourceType {
 		case "pvc":
 			K8sObj = &yorcK8sPersistentVolumeClaim{}
 		default:
-			return errors.Errorf("Unsupported k8s SimpleResource type %q", e.nodeType)
+			return nil, errors.Errorf("Unsupported k8s SimpleResource type %q", resourceType)
 		}
 	default:
-		return errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
+		return nil, errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
-	return e.manageK8sResource(ctx, clientset, generator, K8sObj, op, rSpecString)
+	return K8sObj, nil
 }
 
-func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, k8sResource yorcK8sObject, operationType k8sResourceOperation, rSpec string) (err error) {
+func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, k8sObject yorcK8sObject, operationType k8sResourceOperation, rSpec string) (err error) {
 	/*  Steps :
-	unmarshall
 	get NS
 	switch OPtype
 	*/
-	err = k8sResource.unmarshalResource(rSpec)
-	if err != nil {
-		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
-	}
-	namespaceName, namespaceProvided := getK8sResourceNamespace(e.deploymentID, k8sResource)
-	k8sObjectMeta := k8sResource.getObjectMeta()
+	namespaceName, namespaceProvided := getNamespace(e.deploymentID, k8sObject.getObjectMeta())
 	switch operationType {
 	case k8sCreateOperation:
 		/*
@@ -181,16 +186,16 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 			}
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceCreatedMessage, namespaceName)
 		}
-		err := k8sResource.createResource(ctx, e.deploymentID, clientset, namespaceName)
+		err := k8sObject.createResource(ctx, e.deploymentID, clientset, namespaceName)
 		if err != nil {
 			return err
 		}
 		// stream logs
-		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
+		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
 		if err != nil {
 			return err
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s created in namespace %s", k8sResource, k8sObjectMeta.Name, namespaceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s created in namespace %s", k8sObject, k8sObject.getObjectMeta().Name, namespaceName)
 		// set attributes
 		/*
 			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
@@ -205,11 +210,11 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 				wait for deletion			OK
 				delete ns if not provided	OK
 		*/
-		err := k8sResource.deleteResource(ctx, e.deploymentID, clientset, namespaceName)
+		err := k8sObject.deleteResource(ctx, e.deploymentID, clientset, namespaceName)
 		if err != nil {
 			return err
 		}
-		err = waitForYorcK8sObjectDeletion(ctx, clientset, k8sResource)
+		err = waitForYorcK8sObjectDeletion(ctx, clientset, k8sObject)
 		if err != nil {
 			return err
 		}
@@ -231,7 +236,7 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 				}
 			}
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s deleted in namespace %s", k8sResource, k8sObjectMeta.Name, namespaceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s deleted in namespace %s", k8sObject, k8sObject.getObjectMeta().Name, namespaceName)
 	case k8sScaleOperation:
 		/*
 			Scale steps :
@@ -241,11 +246,11 @@ func (e *execution) manageK8sResource(ctx context.Context, clientset kubernetes.
 				wait for completion		OK
 				set attr				TODO
 		*/
-		k8sResource.scaleResource(ctx, e.deploymentID, clientset, namespaceName, 0)
+		k8sObject.scaleResource(ctx, e.deploymentID, clientset, namespaceName, 0)
 		if err != nil {
 			return err
 		}
-		err := waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sResource)
+		err := waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
 		if err != nil {
 			return err
 		}
