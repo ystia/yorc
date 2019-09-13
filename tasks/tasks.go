@@ -262,7 +262,7 @@ func CancelTask(kv *api.KV, taskID string) error {
 
 // DeleteTask allows to delete a stored task
 func DeleteTask(kv *api.KV, taskID string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.TasksPrefix, taskID), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.TasksPrefix, taskID)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
@@ -318,6 +318,7 @@ func GetTaskData(kv *api.KV, taskID, dataName string) (string, error) {
 // GetAllTaskData returns all registered data for a task
 func GetAllTaskData(kv *api.KV, taskID string) (map[string]string, error) {
 	dataPrefix := path.Join(consulutil.TasksPrefix, taskID, "data")
+	// Appending a final "/" here is not necessary as there is no other keys starting with "data" prefix
 	kvps, _, err := kv.List(dataPrefix, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -404,7 +405,7 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 	steps := make([]TaskStep, 0)
 
-	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID), nil)
+	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID)+"/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

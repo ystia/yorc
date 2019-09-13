@@ -211,6 +211,7 @@ func (cm *consulManager) GetHostLabels(hostname string) (map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
+	// Appending a final "/" here is not necessary as there is no other keys starting with "labels" prefix
 	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, hostname, "labels"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)

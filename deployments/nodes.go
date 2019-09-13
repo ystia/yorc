@@ -866,6 +866,6 @@ func NodeHasProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ex
 
 // DeleteNode deletes the given node from the Consul store
 func DeleteNode(kv *api.KV, deploymentID, nodeName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }

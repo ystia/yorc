@@ -17,10 +17,12 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"path"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -119,4 +121,31 @@ func getPurgedDeploymentsNb(t *testing.T, kv *api.KV) int {
 	k, _, err := kv.Keys(consulutil.PurgedDeploymentKVPrefix+"/", "/", nil)
 	require.NoError(t, err)
 	return len(k)
+}
+
+func testDeleteDeployment(t *testing.T, kv *api.KV) {
+	deploymentID1 := "testDeleteDeploymentA"
+	deploymentID2 := "testDeleteDeploymentAA"
+	err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID1, "status"), "INITIAL")
+	require.NoError(t, err)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID2, "status"), "INITIAL")
+	require.NoError(t, err)
+
+	exists, err := DoesDeploymentExists(kv, deploymentID1)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = DoesDeploymentExists(kv, deploymentID2)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	err = DeleteDeployment(kv, deploymentID1)
+	assert.NoError(t, err)
+
+	exists, err = DoesDeploymentExists(kv, deploymentID1)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+	exists, err = DoesDeploymentExists(kv, deploymentID2)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+
 }

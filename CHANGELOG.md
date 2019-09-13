@@ -5,6 +5,7 @@
 ### BUG FIXES
 
 * Fixed a bug preventing OpenStack Networks from being created ([GH-515](https://github.com/ystia/yorc/issues/515))
+* Having a deployment named as a prefix of another one causes several issues ([GH-504](https://github.com/ystia/yorc/issues/512))
 * A deployment may disappear from the deployments list while its currently running a purge task ([GH-504](https://github.com/ystia/yorc/issues/504))
 * A4C Logs are displaying stack error when workflow step fails ([GH-460](https://github.com/ystia/yorc/issues/503))
 

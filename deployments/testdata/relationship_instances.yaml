@@ -1,0 +1,34 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: TestWf
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+description: ""
+
+imports:
+  - normative-types: <yorc-types.yml>
+
+node_types:
+  yorc.test.NodeA:
+    derived_from: tosca.nodes.SoftwareComponent
+    requirements:
+      - connection:
+          capability: tosca.capabilities.Feature
+          relationship: tosca.relationships.ConnectsTo
+          occurrences: [1,1]
+
+topology_template:
+  node_templates:
+    NodeA:
+      type: yorc.test.NodeA
+      requirements:
+        - connectsToNodeBFeature:
+            type_requirement: connection
+            node: NodeB
+            capability: tosca.capabilities.Feature
+            relationship: tosca.relationships.ConnectsTo
+
+    NodeB:
+      type: tosca.nodes.SoftwareComponent
