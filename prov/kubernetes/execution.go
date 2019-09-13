@@ -123,6 +123,16 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	if err != nil {
 		return errors.Errorf("The resource_spec JSON unmarshaling failed for node %s: %s", e.nodeName, err)
 	}
+
+	return e.executeOperation(ctx, generator, clientset, K8sObj, rSpec)
+
+}
+
+func (e *execution) executeOperation(ctx context.Context, generator *k8sGenerator, clientset kubernetes.Interface, K8sObj yorcK8sObject, rSpec string) error {
+	envSet := true
+	if ctx == nil || generator == nil || clientset == nil || K8sObj == nil {
+		envSet = false
+	}
 	// Supporting both fully qualified and short standard operation names, ie.
 	// - tosca.interfaces.node.lifecycle.standard.operation
 	// or
@@ -131,15 +141,14 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 		"tosca.interfaces.node.lifecycle.")
 	switch operationName {
 	case "standard.create":
-		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sCreateOperation, rSpec)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sCreateOperation, rSpec, envSet)
 	case "standard.delete":
-		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sDeleteOperation, rSpec)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sDeleteOperation, rSpec, envSet)
 	case "org.alien4cloud.management.clustercontrol.scale":
-		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sScaleOperation, rSpec)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sScaleOperation, rSpec, envSet)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
-
 }
 
 // Create yorcK8sObject of appropriate type
@@ -165,7 +174,11 @@ func (e *execution) getYorcK8sObject(resourceType string) (yorcK8sObject, error)
 	return K8sObj, nil
 }
 
-func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, k8sObject yorcK8sObject, operationType k8sResourceOperation, rSpec string) (err error) {
+func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, k8sObject yorcK8sObject,
+	operationType k8sResourceOperation, rSpec string, envSet bool) (err error) {
+	if !envSet {
+		return errors.Errorf("Can't execute operation %q. Environment not set", e.operation.Name)
+	}
 	/*  Steps :
 	get NS
 	switch OPtype
