@@ -104,7 +104,8 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 		return err
 	}
 	if rType == nil {
-		return errors.Errorf("No resource_type defined for node %q", e.nodeName)
+		rType = &deployments.TOSCAValue{Value: "", IsSecret: false}
+		//return errors.Errorf("No resource_type defined for node %q", e.nodeName)
 	}
 	// Get K8s object specification
 	rSpecProp, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
@@ -193,7 +194,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		}
 
 		k8sObject.streamLogs(ctx, e.deploymentID, clientset)
-		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
+		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject, namespaceName)
 		if err != nil {
 			return err
 		}
@@ -221,7 +222,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		if err != nil {
 			return err
 		}
-		err = waitForYorcK8sObjectDeletion(ctx, clientset, k8sObject)
+		err = waitForYorcK8sObjectDeletion(ctx, clientset, k8sObject, namespaceName)
 		if err != nil {
 			return err
 		}
@@ -257,7 +258,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 			return err
 		}
 		k8sObject.streamLogs(ctx, e.deploymentID, clientset)
-		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject)
+		err = waitForYorcK8sObjectCompletion(ctx, e.deploymentID, clientset, k8sObject, namespaceName)
 		if err != nil {
 			return err
 		}

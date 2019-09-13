@@ -40,9 +40,9 @@ type yorcK8sObject interface {
 	scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error
 	setAttributes(ctx context.Context, e *execution) error
 	// Return a boolean telling if the resource is correctly deployed on K8s and error message if necessary
-	isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
+	isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error)
 	// Return if the specified resource is correctly deleted
-	isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error)
+	isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error)
 	// unmarshal the resourceSpec into struct
 	unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error
 	streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface)
@@ -92,8 +92,8 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) setAttributes(ctx context.Context, 
 	return nil
 }
 
-func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	pvc, err := clientset.CoreV1().PersistentVolumeClaims(yorcPVC.Namespace).Get(yorcPVC.Name, metav1.GetOptions{})
+func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(yorcPVC.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -106,8 +106,8 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeployed(ctx context.
 	return false, nil
 }
 
-func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	_, err := clientset.CoreV1().PersistentVolumeClaims(yorcPVC.Namespace).Get(yorcPVC.Name, metav1.GetOptions{})
+func (yorcPVC *yorcK8sPersistentVolumeClaim) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	_, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(yorcPVC.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return true, nil
@@ -187,8 +187,8 @@ func (yorcDep *yorcK8sDeployment) setAttributes(ctx context.Context, e *executio
 	return deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcDep.Spec.Replicas))
 }
 
-func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	dep, err := clientset.ExtensionsV1beta1().Deployments(yorcDep.Namespace).Get(yorcDep.Name, metav1.GetOptions{})
+func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	dep, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(yorcDep.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -207,8 +207,8 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, de
 	return false, nil
 }
 
-func (yorcDep *yorcK8sDeployment) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	_, err := clientset.ExtensionsV1beta1().Deployments(yorcDep.Namespace).Get(yorcDep.Name, metav1.GetOptions{})
+func (yorcDep *yorcK8sDeployment) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(yorcDep.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return true, nil
@@ -275,8 +275,8 @@ func (yorcSts *yorcK8sStatefulSet) setAttributes(ctx context.Context, e *executi
 	return deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcSts.Spec.Replicas))
 }
 
-func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	stfs, err := clientset.AppsV1beta1().StatefulSets(yorcSts.Namespace).Get(yorcSts.Name, metav1.GetOptions{})
+func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	stfs, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(yorcSts.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -289,8 +289,8 @@ func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, d
 	return false, nil
 }
 
-func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	_, err := clientset.AppsV1beta1().StatefulSets(yorcSts.Namespace).Get(yorcSts.Name, metav1.GetOptions{})
+func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	_, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(yorcSts.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return true, nil
@@ -361,16 +361,16 @@ func (yorcSvc *yorcK8sService) setAttributes(ctx context.Context, e *execution) 
 	return nil
 }
 
-func (yorcSvc *yorcK8sService) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	_, err := clientset.CoreV1().Services(yorcSvc.Namespace).Get(yorcSvc.Name, metav1.GetOptions{})
+func (yorcSvc *yorcK8sService) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	_, err := clientset.CoreV1().Services(namespace).Get(yorcSvc.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (yorcSvc *yorcK8sService) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface) (bool, error) {
-	_, err := clientset.CoreV1().Services(yorcSvc.Namespace).Get(yorcSvc.Name, metav1.GetOptions{})
+func (yorcSvc *yorcK8sService) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
+	_, err := clientset.CoreV1().Services(namespace).Get(yorcSvc.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return true, nil
