@@ -124,7 +124,7 @@ func getExecutionKeyValue(kv *api.KV, execID, execKey string) (string, error) {
 func (d *Dispatcher) deleteExecutionTree(execID string) {
 	// remove execution kv tree
 	log.Debugf("Remove task execution tree with ID:%q", execID)
-	_, err := d.client.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, execID), nil)
+	_, err := d.client.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, execID)+"/", nil)
 	if err != nil {
 		log.Printf("Failed to remove execution KV tree with ID:%q due to error:%+v", execID, err)
 		return

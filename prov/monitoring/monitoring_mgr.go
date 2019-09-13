@@ -265,6 +265,7 @@ func (mgr *monitoringMgr) buildHTTPExecution(key string, address string, port in
 		urlPath = string(kvp.Value)
 	}
 
+	// Appending a final "/" here is not necessary as there is no other keys starting with "headers" prefix
 	kvps, _, err := mgr.cc.KV().List(path.Join(key, "headers"), nil)
 	if err != nil {
 		return nil, err
@@ -275,6 +276,7 @@ func (mgr *monitoringMgr) buildHTTPExecution(key string, address string, port in
 			headersMap[path.Base(kvp.Key)] = string(kvp.Value)
 		}
 	}
+	// Appending a final "/" here is not necessary as there is no other keys starting with "tlsClient" prefix
 	kvps, _, err = mgr.cc.KV().List(path.Join(key, "tlsClient"), nil)
 	if err != nil {
 		return nil, err
@@ -346,8 +348,8 @@ func (mgr *monitoringMgr) registerHTTPCheck(deploymentID, nodeName, instance, ip
 	log.Debugf("Register HTTP check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 
 	// Check is registered in a transaction to ensure to be read in its wholeness
-	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
-	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id) + "/"
+	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id) + "/"
 
 	kvps, _, err := mgr.cc.KV().List(checkPath, nil)
 	if err != nil {
@@ -453,8 +455,8 @@ func (mgr *monitoringMgr) flagCheckForRemoval(deploymentID, nodeName, instance s
 // unregisterCheck allows to unregister a check and its related report
 func (mgr *monitoringMgr) unregisterCheck(id string) error {
 	log.Debugf("Removing check with id:%q", id)
-	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
-	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id) + "/"
+	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id) + "/"
 	rmOps := api.KVTxnOps{
 		&api.KVTxnOp{
 			Verb: api.KVDeleteTree,
