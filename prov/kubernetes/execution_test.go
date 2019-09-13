@@ -301,7 +301,7 @@ func Test_execution_del_resources(t *testing.T) {
 		okChan := make(chan struct{})
 		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectDeletion(testRes.K8sObj, errorChan))
 		t.Run("Test delete resource "+testRes.K8sObj.String(), func(t *testing.T) {
-			if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec); (err != nil) != wantErr {
+			if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec, true); (err != nil) != wantErr {
 				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
 			}
 			close(okChan)
@@ -351,7 +351,7 @@ func Test_execution_create_resource(t *testing.T) {
 		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectCompletion(testRes.K8sObj, errorChan))
 		t.Run("Test resource "+testRes.K8sObj.String(), func(t *testing.T) {
 			t.Logf("Testing %s\n", testRes.K8sObj)
-			if err := e.manageKubernetesResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec); (err != nil) != wantErr {
+			if err := e.manageKubernetesResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, testRes.rSpec, true); (err != nil) != wantErr {
 				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
 			}
 			close(okChan)
@@ -367,16 +367,47 @@ func Test_execution_create_resource(t *testing.T) {
 }
 
 func Test_execution_executeInvalidOperation(t *testing.T) {
-	op := prov.Operation{
-		Name: "some operation",
+	tests := []struct {
+		name    string
+		opName  string
+		wantErr bool
+	}{
+		{
+			"test standard.create",
+			"standard.create",
+			true,
+		},
+		{
+			"test standard.delete",
+			"standard.delete",
+			true,
+		},
+		{
+			"test scale",
+			"org.alien4cloud.management.clustercontrol.scale",
+			true,
+		},
+		{
+			"test some operation",
+			"something",
+			true,
+		},
 	}
-	e := &execution{
-		operation: op,
-	}
-	wantError := false
-	err := e.executeOperation(nil, nil, nil, nil, "")
-	if (err != nil) && wantError {
-		t.Errorf("Failed : %s", err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			op := prov.Operation{
+				Name: tt.opName,
+			}
+			e := &execution{
+				operation: op,
+			}
+
+			err := e.executeOperation(nil, nil, nil, nil, "")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Failed %s : %s", tt.name, err)
+			}
+		})
 	}
 }
 
@@ -432,7 +463,7 @@ func Test_getYorcK8sObject(t *testing.T) {
 
 			_, err := e.getYorcK8sObject(tt.k8sSimpleResourceType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Failed tt.name : %s", err)
+				t.Errorf("Failed %s : %s", tt.name, err)
 			}
 		})
 	}
