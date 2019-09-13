@@ -75,5 +75,11 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		t.Run("TestAttributeValueChange", func(t *testing.T) {
 			testconsulAttributeValueChange(t, kv)
 		})
+		t.Run("TestPurgeDeploymentEvents", func(t *testing.T) {
+			testPurgeDeploymentEvents(t, kv)
+		})
+		t.Run("TestPurgeDeploymentLogs", func(t *testing.T) {
+			testPurgeDeploymentLogs(t, kv)
+		})
 	})
 }

@@ -77,13 +77,13 @@ func GetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName str
 
 // DeleteInstance deletes the given instance of the given node from the Consul store
 func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
 // DeleteAllInstances deletes all instances of the given node from the Consul store
 func DeleteAllInstances(kv *api.KV, deploymentID, nodeName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName), nil)
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 

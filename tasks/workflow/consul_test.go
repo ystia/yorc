@@ -15,8 +15,12 @@
 package workflow
 
 import (
+	"path"
 	"testing"
 
+	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/testutil"
 )
@@ -33,6 +37,12 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
 			testRegisterInlineWorkflow(t, srv, client)
 		})
+		t.Run("testDeleteExecutionTreeSamePrefix", func(t *testing.T) {
+			testDeleteExecutionTreeSamePrefix(t, client)
+		})
+		t.Run("testDeleteTaskExecutionSamePrefix", func(t *testing.T) {
+			testDeleteTaskExecutionSamePrefix(t, client)
+		})
 	})
 }
 
@@ -47,4 +57,10 @@ func TestRunConsulWorkerTests(t *testing.T) {
 	t.Run("TestRunPurge", func(t *testing.T) {
 		testRunPurge(t, srv, kv, client)
 	})
+}
+
+func createTaskExecutionKVWithKey(t *testing.T, kv *api.KV, execID, keyName, keyValue string) {
+	t.Helper()
+	_, err := kv.Put(&api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, execID, keyName), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
 }

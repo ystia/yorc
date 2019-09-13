@@ -89,6 +89,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		step.TargetRelationShip = string(kvp.Value)
 	}
 	// Get the step's activities
+	// Appending a final "/" here is not necessary as there is no other keys starting with "activities" prefix
 	activitiesKeys, _, err := kv.List(stepKey+"/activities", nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -181,7 +182,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 // DeleteWorkflow deletes the given workflow from the Consul store
 func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
 	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-		workflowsPrefix, workflowName), nil)
+		workflowsPrefix, workflowName)+"/", nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 

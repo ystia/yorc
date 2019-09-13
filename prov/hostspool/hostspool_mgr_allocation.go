@@ -214,7 +214,11 @@ func (cm *consulManager) addAllocation(hostname string, allocation *Allocation) 
 }
 
 func (cm *consulManager) removeAllocation(hostname string, allocation *Allocation) error {
-	_, err := cm.cc.KV().DeleteTree(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID), nil)
+	_, err := cm.cc.KV().DeleteTree(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID)+"/", nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	_, err = cm.cc.KV().Delete(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID), nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
@@ -278,7 +282,7 @@ func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
 				return nil, errors.Wrapf(err, "failed to parse boolean from value:%q", string(kvp.Value))
 			}
 		}
-
+		// Appending a final "/" here is not necessary as there is no other keys starting with "resources" prefix
 		kvps, _, err := cm.cc.KV().List(path.Join(key, "resources"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
