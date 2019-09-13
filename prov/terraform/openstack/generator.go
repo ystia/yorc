@@ -335,7 +335,7 @@ func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
 	}
 	var subnet Subnet
 	subnet, err = g.generateSubnet(opts.kv, opts.cfg, opts.deploymentID, opts.nodeName,
-		opts.resourceTypes[networkingSubnet])
+		opts.resourceTypes[networkingNetwork])
 	if err != nil {
 		return err
 	}
