@@ -20,6 +20,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	ctu "github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -119,10 +120,9 @@ func testK8sObjectsTest(t *testing.T, kv *api.KV) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Failed %s : %s", tt.name, err)
 			}
-			if (k8sObject == nil) != tt.wantErr {
-				t.Errorf("Failed %s : %s", tt.name, err)
+			if !tt.wantErr {
+				require.NotNil(t, k8sObject)
 			}
-
 		})
 	}
 
