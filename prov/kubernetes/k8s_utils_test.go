@@ -191,6 +191,34 @@ func fakeObjectCompletion(k8sObject yorcK8sObject, errorChan chan struct{}) k8st
 	}
 }
 
+func fakeObjectScale(k8sObject yorcK8sObject, errorChan chan struct{}) k8stesting.ReactionFunc {
+	getCount := 0
+	return func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if action.GetVerb() != "get" {
+			close(errorChan)
+		}
+		getCount++
+		if getCount > 5 {
+			close(errorChan)
+		} else if getCount > 2 {
+			//Mark obj deployed
+
+			switch obj := k8sObject.(type) {
+			case *yorcK8sDeployment:
+				obj.Status.AvailableReplicas = *obj.Spec.Replicas
+				return true, obj.getObjectRuntime(), nil
+			case *yorcK8sStatefulSet:
+				obj.Status.ReadyReplicas = *obj.Spec.Replicas
+				return true, obj.getObjectRuntime(), nil
+			default:
+				close(errorChan)
+			}
+			return true, nil, nil
+		}
+		return true, nil, nil
+	}
+}
+
 func fakeObjectDeletion(k8sObject yorcK8sObject, errorChan chan struct{}) k8stesting.ReactionFunc {
 	getCount := 0
 	return func(action k8stesting.Action) (bool, runtime.Object, error) {

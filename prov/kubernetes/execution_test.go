@@ -230,6 +230,22 @@ func getSupportedResourceAndJSON() []testResource {
 	return supportedRes
 }
 
+func getScalableResourceAndJSON() []testResource {
+	supportedRes := []testResource{
+		{
+			&yorcK8sDeployment{},
+			JSONvalidDeployment,
+			"deployments",
+		},
+		{
+			&yorcK8sStatefulSet{},
+			JSONvalidStatefulSet,
+			"statefulsets",
+		},
+	}
+	return supportedRes
+}
+
 func Test_execution_invalid_JSON(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -271,6 +287,50 @@ func Test_execution_invalid_JSON(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_execution_scale_resources(t *testing.T) {
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+	deploymentID := "Dep-ID"
+	e := &execution{
+		kv:           kv,
+		deploymentID: deploymentID,
+		taskID:       "Task-ID",
+	}
+	wantErr := false
+	k8s := newTestK8s()
+	ctx := context.Background()
+	operationType := k8sScaleOperation
+	tasks.SetTaskData(e.kv, e.taskID, "inputs/EXPECTED_INSTANCES", strconv.Itoa(int(3)))
+
+	resources := getScalableResourceAndJSON()
+
+	for _, testResource := range resources {
+		testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
+	}
+
+	deployTestResources(ctx, e, k8s, resources)
+
+	for _, testRes := range resources {
+
+		errorChan := make(chan struct{})
+		okChan := make(chan struct{})
+		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectScale(testRes.K8sObj, errorChan))
+		t.Run("Test scale resources "+testRes.K8sObj.String(), func(t *testing.T) {
+			if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
+				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+			}
+			close(okChan)
+		})
+		select {
+		case <-errorChan:
+			t.Fatal("fatal")
+		case <-okChan:
+			t.Logf("Scale ok for %s\n", testRes.K8sObj)
+		}
+	}
 }
 
 func Test_execution_del_resources(t *testing.T) {
