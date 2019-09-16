@@ -33,6 +33,7 @@ func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/type":                                                    []byte("yorc.nodes.kubernetes.api.types.DeploymentResource"),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/properties/resource_type":                                []byte(""),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/properties/resource_spec":                                []byte("{}"),
+		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/properties/service_dependency_lookups":                   []byte(""),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource/name":        []byte("org.alien4cloud.kubernetes.api.types.DeploymentResource"),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource/.existFlag":  []byte(""),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-service/type":                                                   []byte("yorc.nodes.kubernetes.api.types.ServiceResource"),
@@ -122,6 +123,13 @@ func testK8sObjectsTest(t *testing.T, kv *api.KV) {
 			}
 			if !tt.wantErr {
 				require.NotNil(t, k8sObject)
+			}
+
+			if tt.nodeName == "node-deploy" {
+				replacedRSpec, err := e.replaceServiceIPInDeploymentSpec(ctx, k8s.clientset, "dep-id", "{}")
+				// TODO test replaceRSpec value
+				require.Nil(t, err)
+				require.NotNil(t, replacedRSpec)
 			}
 		})
 	}
