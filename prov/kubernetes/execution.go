@@ -149,6 +149,9 @@ func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.I
 		if err != nil {
 			return nil, err
 		}
+		if rType == "" {
+			return nil, errors.Errorf("Not provided resource type for node %s in deployment %s", e.nodeName, e.deploymentID)
+		}
 		switch rType {
 		case "pvc":
 			K8sObj = &yorcK8sPersistentVolumeClaim{}
@@ -163,6 +166,9 @@ func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.I
 	rSpec, err := e.getResourceSpec()
 	if err != nil {
 		return nil, err
+	}
+	if rSpec == "" {
+		return nil, errors.Errorf("Not provided resource specification for node %s in deployment %s", e.nodeName, e.deploymentID)
 	}
 	// unmarshal resource spec
 	err = K8sObj.unmarshalResource(ctx, e, e.deploymentID, clientset, rSpec)

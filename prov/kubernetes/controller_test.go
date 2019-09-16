@@ -115,10 +115,14 @@ func testK8sObjectsTest(t *testing.T, kv *api.KV) {
 				nodeType:     tt.nodeType,
 			}
 
-			_, err := e.getYorcK8sObject(ctx, k8s.clientset)
+			k8sObject, err := e.getYorcK8sObject(ctx, k8s.clientset)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Failed %s : %s", tt.name, err)
 			}
+			if (k8sObject == nil) != tt.wantErr {
+				t.Errorf("Failed %s : %s", tt.name, err)
+			}
+
 		})
 	}
 
