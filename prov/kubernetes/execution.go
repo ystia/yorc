@@ -263,7 +263,16 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		if err != nil {
 			return err
 		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s deleted in namespace %s", k8sObject, k8sObject.getObjectMeta().Name, namespaceName)
 		if !namespaceProvided {
+			volDeletable, err := deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.nodeName, "volumeDeletable")
+			if err != nil {
+				return err
+			}
+			if !volDeletable {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Volumes keeped and k8s Namespace %s not deleted", namespaceName)
+				return nil
+			}
 			// Check if other deployments exist in the namespace
 			// In that case nothing to do
 			nbControllers, err := podControllersInNamespace(clientset, namespaceName)
@@ -279,9 +288,9 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
 					return err
 				}
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Namespace %s deleted", namespaceName)
 			}
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%T %s deleted in namespace %s", k8sObject, k8sObject.getObjectMeta().Name, namespaceName)
 	case k8sScaleOperation:
 		/*
 			Scale steps :
