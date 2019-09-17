@@ -76,12 +76,11 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 			deploymentID, nodeName, instanceName)
 	}
 
-	instance.Networks, err = getComputeInstanceNetworks(opts)
-	if err != nil {
-		return err
-	}
+	instanceKey := path.Join(instancesPrefix, nodeName)
+	var accessIP string
+	instance.Networks, accessIP, err = generateInstanceNetworking(ctx, opts, instanceKey, &instance, outputs)
 
-	err = computeConnectionSettings(ctx, opts, instancesPrefix, &instance, outputs, env)
+	addResources(ctx, opts, accessIP, instanceKey, &instance, outputs, env)
 	return err
 }
 
@@ -299,118 +298,106 @@ func getVolumeID(ctx context.Context, kv *api.KV,
 	return volumeID, err
 }
 
-func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error) {
-	kv := opts.kv
-	cfg := opts.cfg
-	deploymentID := opts.deploymentID
-	nodeName := opts.nodeName
+// generateInstanceNetworking generates attachments to private networks, associations of
+// floating ips and determines the access ip.
+// It returns an array of ComputeNetworks that should get assigned to the ComputeInstance and the access ip.
+// FIP associations are added as resources to the infrastructure directly.
+//
+// The access ip is determined by this strategy: If provisioning using floating ips is allowed, the first fip will
+// be used. Otherwise the network configured in the admin endpoint will be used. If the network is set to "PRIVATE",
+// the default private network of the infrastructure configuration will be used. If the desired network is not
+// configured explicitly, it will be added to the configured networks for convenience.
+func generateInstanceNetworking(ctx context.Context, opts osInstanceOptions, instanceKey string,
+	instance *ComputeInstance, outputs map[string]string) (networks []ComputeNetwork, accessIP string, err error) {
 
-	var networkSlice []ComputeNetwork
-	networkName, err := deployments.GetCapabilityPropertyValue(
-		kv, deploymentID, nodeName, "endpoint", "network_name")
+	defAdminEndpointNwName, err := deployments.GetCapabilityPropertyValue(opts.kv, opts.deploymentID, opts.nodeName,
+		"endpoint", "network_name")
 	if err != nil {
-		return networkSlice, err
+		return nil, "", err
 	}
-	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
-	if networkName != nil && networkName.RawString() != "" {
-		// Should Deal here with networks aliases (PUBLIC)
-		if strings.EqualFold(networkName.RawString(), "private") {
-			if defaultPrivateNetName == "" {
-				return networkSlice, errors.Errorf(
-					"You should either specify a default private network name using "+
-						`the "private_network_name" configuration parameter for the "openstack" `+
-						`infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`,
-					nodeName)
-			}
-			networkSlice = append(networkSlice,
-				ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
-		} else if strings.EqualFold(networkName.RawString(), "public") {
-			return networkSlice, errors.Errorf("Public Network aliases currently not supported")
-		} else {
-			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName.RawString(), AccessNetwork: true})
+	_ = defAdminEndpointNwName
+	adminEndpointNwName := ""
+	if defAdminEndpointNwName != nil {
+		if strings.EqualFold(defAdminEndpointNwName.RawString(), "private") {
+			adminEndpointNwName = opts.cfg.Infrastructures[infrastructureName].GetString("private_network_name")
+		} else if defAdminEndpointNwName.RawString() != "" {
+			adminEndpointNwName = defAdminEndpointNwName.RawString()
 		}
-	} else {
-		// Use a default
-		if defaultPrivateNetName == "" {
-			return networkSlice, errors.Errorf(
-				"You should either specify a default private network name using the "+
-					`private_network_name" configuration parameter for the "openstack" `+
-					`infrastructure or specify a "network_name" property in the "endpoint" `+
-					"capability of node %q`",
-				nodeName)
-		}
-		networkSlice = append(networkSlice, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
+	}
+	if adminEndpointNwName == "" {
+		return nil, "", errors.Errorf(
+			"You should either specify a default private network name using the "+
+				`private_network_name" configuration parameter for the "openstack" `+
+				`infrastructure or specify a "network_name" property in the "endpoint" `+
+				"capability of node %q`", opts.nodeName)
 	}
 
-	return networkSlice, err
-}
-
-func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
-	instancesPrefix string, instance *ComputeInstance, outputs map[string]string, env *[]string) error {
-
-	kv := opts.kv
-	deploymentID := opts.deploymentID
-	nodeName := opts.nodeName
-
-	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
+	nwReqKeys, err := deployments.GetRequirementsKeysByTypeForNode(opts.kv, opts.deploymentID, opts.nodeName, "network")
 	if err != nil {
-		return err
+		return
 	}
-	var fipAssociateName string
-	instancesKey := path.Join(instancesPrefix, nodeName)
-	for _, networkReqPrefix := range networkKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
-
-		capability, err := deployments.GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	for _, nwReqKey := range nwReqKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(nwReqKey)
+		var capability string
+		capability, err = deployments.GetCapabilityForRequirement(opts.kv, opts.deploymentID, opts.nodeName, requirementIndex)
 		if err != nil {
-			return err
+			return
 		}
 
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		var networkNodeName string
+		networkNodeName, err = deployments.GetTargetNodeForRequirement(opts.kv, opts.deploymentID, opts.nodeName, requirementIndex)
 		if err != nil {
-			return err
+			return
 		}
 
-		var isFip bool
+		var isFIP bool
 		if capability != "" {
-			isFip, err = deployments.IsTypeDerivedFrom(kv, deploymentID, capability, "yorc.capabilities.openstack.FIPConnectivity")
+			isFIP, err = deployments.IsTypeDerivedFrom(opts.kv, opts.deploymentID, capability, "yorc.capabilities.openstack.FIPConnectivity")
 			if err != nil {
-				return err
+				return
 			}
 		}
 
-		if isFip {
-			fipAssociateName = "FIP" + instance.Name
-			err = computeFloatingIPAddress(ctx, opts, fipAssociateName, networkNodeName,
-				instancesKey, instance, outputs)
+		if isFIP {
+			fIPAssociateName := "FIP" + instance.Name
+			err = computeFloatingIPAddress(ctx, opts, fIPAssociateName, networkNodeName,
+				instanceKey, instance, outputs)
+			if err != nil {
+				return
+			}
+			if accessIP == "" && opts.cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
+				accessIP = fmt.Sprintf("${%s.%s.floating_ip}", opts.resourceTypes[computeFloatingIPAssociate], fIPAssociateName)
+			}
 		} else {
-			err = computeNetworkAttributes(ctx, opts, networkNodeName, instancesKey, instance, outputs)
-
-		}
-		if err != nil {
-			return err
+			var cn ComputeNetwork
+			networkIdx := len(networks)
+			cn, err = computeNetworkAttributes(ctx, opts, networkNodeName, instanceKey, instance, networkIdx, outputs)
+			if err != nil {
+				return
+			}
+			if accessIP == "" && (cn.UUID == adminEndpointNwName || cn.Name == adminEndpointNwName) {
+				cn.AccessNetwork = true
+				accessIP = fmt.Sprintf("${%s.%s.network.%d.fixed_ip_v4}", opts.resourceTypes[computeInstance], instance.Name, networkIdx)
+			}
+			networks = append(networks, cn)
 		}
 	}
 
-	return addResources(ctx, opts, fipAssociateName, instancesKey, instance, outputs, env)
+	// If the accessIP hasn't been set after all configured networks were added, we add the admin endpoint
+	// as a network for convenience.
+	if accessIP == "" {
+		cn := ComputeNetwork{Name: adminEndpointNwName, AccessNetwork: true}
+		accessIP = fmt.Sprintf("${%s.%s.network.%d.fixed_ip_v4}", opts.resourceTypes[computeInstance], instance.Name, len(instance.Networks))
+		networks = append(networks, cn)
+	}
+
+	return
 }
 
-func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName, instancesKey string, instance *ComputeInstance, outputs map[string]string,
+func addResources(ctx context.Context, opts osInstanceOptions, accessIP, instancesKey string, instance *ComputeInstance, outputs map[string]string,
 	env *[]string) error {
 
 	commons.AddResource(opts.infrastructure, opts.resourceTypes[computeInstance], instance.Name, instance)
-
-	var accessIP string
-	if fipAssociateName != "" && opts.cfg.Infrastructures[infrastructureName].GetBool(
-		"provisioning_over_fip_allowed") {
-
-		// Use Floating IP for provisioning
-		accessIP = fmt.Sprintf("${%s.%s.floating_ip}",
-			opts.resourceTypes[computeFloatingIPAssociate], fipAssociateName)
-	} else {
-		accessIP = fmt.Sprintf("${%s.%s.network.0.fixed_ip_v4}",
-			opts.resourceTypes[computeInstance], instance.Name)
-	}
 
 	// Provide output for access IP and private IP
 	accessIPKey := opts.nodeName + "-" + opts.instanceName + "-IPAddress"
@@ -492,8 +479,8 @@ func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
 }
 
 func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
-	networkNodeName, instancesKey string,
-	instance *ComputeInstance, outputs map[string]string) error {
+	networkNodeName, instancesKey string, instance *ComputeInstance, networkIndex int,
+	outputs map[string]string) (ComputeNetwork, error) {
 
 	log.Debugf("Looking for Network id for %q", networkNodeName)
 	var networkID string
@@ -522,14 +509,9 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	select {
 	case networkID = <-resultChan:
 	case <-ctx.Done():
-		return ctx.Err()
+		return ComputeNetwork{}, ctx.Err()
 	}
 	cn := ComputeNetwork{UUID: networkID, AccessNetwork: false}
-	i := len(instance.Networks)
-	if instance.Networks == nil {
-		instance.Networks = make([]ComputeNetwork, 0)
-	}
-	instance.Networks = append(instance.Networks, cn)
 
 	// Provide output for network_name, network_id, addresses attributes
 	networkIDKey := opts.nodeName + "-" + opts.instanceName + "-networkID"
@@ -537,17 +519,17 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	networkAddressesKey := opts.nodeName + "-" + opts.instanceName + "-addresses"
 	commons.AddOutput(opts.infrastructure, networkIDKey, &commons.Output{
 		Value: fmt.Sprintf("${%s.%s.network.%d.uuid}",
-			opts.resourceTypes[computeInstance], instance.Name, i)})
+			opts.resourceTypes[computeInstance], instance.Name, networkIndex)})
 	commons.AddOutput(opts.infrastructure, networkNameKey, &commons.Output{
 		Value: fmt.Sprintf("${%s.%s.network.%d.name}",
-			opts.resourceTypes[computeInstance], instance.Name, i)})
+			opts.resourceTypes[computeInstance], instance.Name, networkIndex)})
 	commons.AddOutput(opts.infrastructure, networkAddressesKey, &commons.Output{
 		Value: fmt.Sprintf("[ ${%s.%s.network.%d.fixed_ip_v4} ]",
-			opts.resourceTypes[computeInstance], instance.Name, i)})
+			opts.resourceTypes[computeInstance], instance.Name, networkIndex)})
 
-	prefix := path.Join(instancesKey, opts.instanceName, "attributes/networks", strconv.Itoa(i))
+	prefix := path.Join(instancesKey, opts.instanceName, "attributes/networks", strconv.Itoa(networkIndex))
 	outputs[path.Join(prefix, "network_name")] = networkNameKey
 	outputs[path.Join(prefix, "network_id")] = networkIDKey
 	outputs[path.Join(prefix, "addresses")] = networkAddressesKey
-	return nil
+	return cn, nil
 }

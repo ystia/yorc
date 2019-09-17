@@ -384,9 +384,8 @@ func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestSe
 	instance := ComputeInstance{
 		Name: "instanceName",
 	}
-	err := computeNetworkAttributes(context.Background(), opts, networkNodeName, instKey,
-		&instance, outputs)
+	networks, _, err := generateInstanceNetworking(context.Background(), opts, instKey, &instance, outputs)
 	require.NoError(t, err, "Failed to compute network attributes")
-	require.Equal(t, 1, len(instance.Networks), "Expected to have one compute instance network")
-	assert.Equal(t, networkID, instance.Networks[0].UUID, "Wrong network ID")
+	require.Equal(t, 1, len(networks), "Expected to have one compute instance network")
+	assert.Equal(t, networkID, networks[0].UUID, "Wrong network ID")
 }
