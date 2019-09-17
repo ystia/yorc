@@ -252,7 +252,10 @@ func (yorcSts *yorcK8sStatefulSet) createResource(ctx context.Context, deploymen
 
 func (yorcSts *yorcK8sStatefulSet) deleteResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error {
 	sts := appsv1.StatefulSet(*yorcSts)
-	return clientset.AppsV1beta1().StatefulSets(namespace).Delete(sts.Name, nil)
+	deletePolicy := metav1.DeletePropagationForeground
+	var gracePeriod int64 = 5
+	return clientset.AppsV1beta1().StatefulSets(namespace).Delete(sts.Name, &metav1.DeleteOptions{
+		GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy})
 }
 
 func (yorcSts *yorcK8sStatefulSet) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
