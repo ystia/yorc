@@ -87,7 +87,10 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	assert.Equal(t, "slurm", location.Type, "Wrong location type in %+v", location)
 	assert.Equal(t, "slurmuser1", location.Configuration["user_name"], "Wrong user name in %+v", location)
 
+	location, err = GetFirstLocationOfType("UnknownType")
+	require.Error(t, err, "Expected to have an error attempting to get location of unknown type, got %+v", location)
+
 	locations, err := GetLocations()
 	require.NoError(t, err, "Unexpected error attempting to get all locations")
-	assert.Equal(t, 3, len(locations), "Unexpected number of locations returned by GetLocations()")
+	assert.Equal(t, 3, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 }

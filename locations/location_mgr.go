@@ -89,17 +89,21 @@ func GetLocation(locationName string) (config.Location, error) {
 
 // GetFirstLocationOfType returns the first location of a given infrastructure type
 // Used for backward compability while specifying infrastructures instead of locations
-// is still supported
+// is still supported.
+// Returns an error if there is no location of such type
 func GetFirstLocationOfType(locationType string) (config.Location, error) {
 
 	var location config.Location
 	locations, err := GetLocations()
 	if err == nil {
+		// Set the error in case no location of such type is found
+		err = errors.Errorf("Found no location of type %q", locationType)
 		for _, loc := range locations {
 			if loc.Type == locationType {
 				location = loc
+				err = nil
+				break
 			}
-			break
 		}
 	}
 
