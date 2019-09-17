@@ -335,7 +335,6 @@ func Test_execution_scale_resources(t *testing.T) {
 }
 
 func Test_execution_del_resources(t *testing.T) {
-	//t.SkipNow()
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()

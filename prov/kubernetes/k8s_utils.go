@@ -316,16 +316,16 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 }
 
 // Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
-func waitForYorcK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject yorcK8sObject) error {
+func waitForYorcK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject yorcK8sObject, namespace string) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		return k8sObject.isSuccessfullyDeployed(ctx, deploymentID, clientset)
+		return k8sObject.isSuccessfullyDeployed(ctx, deploymentID, clientset, namespace)
 	}, ctx.Done())
 
 }
 
 // Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
-func waitForYorcK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject yorcK8sObject) error {
+func waitForYorcK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject yorcK8sObject, namespace string) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		return k8sObject.isSuccessfullyDeleted(ctx, "", clientset)
+		return k8sObject.isSuccessfullyDeleted(ctx, "", clientset, namespace)
 	}, ctx.Done())
 }
