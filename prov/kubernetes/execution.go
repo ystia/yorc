@@ -99,36 +99,18 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	// TODO is there any reason for recreating a new generator for each execution?
 	generator := newGenerator(e.kv, e.cfg)
 
-	rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
-	if err != nil {
-		return err
-	}
-	if rType == nil {
-		rType = &deployments.TOSCAValue{Value: "", IsSecret: false}
-		//return errors.Errorf("No resource_type defined for node %q", e.nodeName)
-	}
-	// Get K8s object specification
-	rSpecProp, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
-	if err != nil {
-		return err
-	}
-	if rSpecProp == nil {
-		return errors.Errorf("No resource_spec defined for node %q", e.nodeName)
-	}
-	rSpec := rSpecProp.RawString()
 	// Create Yorc representation of the K8S object
-	K8sObj, err := e.getYorcK8sObject(rType.RawString())
-	// unmarshal resource spec
-	err = K8sObj.unmarshalResource(ctx, e, e.deploymentID, clientset, rSpec)
+	K8sObj, err := e.getYorcK8sObject(ctx, clientset)
+
 	if err != nil {
 		return errors.Errorf("The resource_spec JSON unmarshaling failed for node %s: %s", e.nodeName, err)
 	}
 
-	return e.executeOperation(ctx, generator, clientset, K8sObj, rSpec)
+	return e.executeOperation(ctx, generator, clientset, K8sObj)
 
 }
 
-func (e *execution) executeOperation(ctx context.Context, generator *k8sGenerator, clientset kubernetes.Interface, K8sObj yorcK8sObject, rSpec string) error {
+func (e *execution) executeOperation(ctx context.Context, generator *k8sGenerator, clientset kubernetes.Interface, K8sObj yorcK8sObject) error {
 	envSet := true
 	if ctx == nil || generator == nil || clientset == nil || K8sObj == nil {
 		envSet = false
@@ -141,18 +123,19 @@ func (e *execution) executeOperation(ctx context.Context, generator *k8sGenerato
 		"tosca.interfaces.node.lifecycle.")
 	switch operationName {
 	case "standard.create":
-		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sCreateOperation, rSpec, envSet)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sCreateOperation, envSet)
 	case "standard.delete":
-		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sDeleteOperation, rSpec, envSet)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sDeleteOperation, envSet)
 	case "org.alien4cloud.management.clustercontrol.scale":
-		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sScaleOperation, rSpec, envSet)
+		return e.manageKubernetesResource(ctx, clientset, generator, K8sObj, k8sScaleOperation, envSet)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
 }
 
 // Create yorcK8sObject of appropriate type
-func (e *execution) getYorcK8sObject(resourceType string) (yorcK8sObject, error) {
+func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.Interface) (yorcK8sObject, error) {
+
 	var K8sObj yorcK8sObject
 	switch e.nodeType {
 	case k8sDeploymentResourceType:
@@ -162,20 +145,61 @@ func (e *execution) getYorcK8sObject(resourceType string) (yorcK8sObject, error)
 	case k8sServiceResourceType:
 		K8sObj = &yorcK8sService{}
 	case k8sSimpleRessourceType:
-		switch resourceType {
+		rType, err := e.getResourceType()
+		if err != nil {
+			return nil, err
+		}
+		if rType == "" {
+			return nil, errors.Errorf("Not provided resource type for node %s in deployment %s", e.nodeName, e.deploymentID)
+		}
+		switch rType {
 		case "pvc":
 			K8sObj = &yorcK8sPersistentVolumeClaim{}
 		default:
-			return nil, errors.Errorf("Unsupported k8s SimpleResource type %q", resourceType)
+			return nil, errors.Errorf("Unsupported k8s SimpleResource type %q", rType)
 		}
 	default:
 		return nil, errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
+
+	// Get K8s object specification
+	rSpec, err := e.getResourceSpec()
+	if err != nil {
+		return nil, err
+	}
+	if rSpec == "" {
+		return nil, errors.Errorf("Not provided resource specification for node %s in deployment %s", e.nodeName, e.deploymentID)
+	}
+	// unmarshal resource spec
+	err = K8sObj.unmarshalResource(ctx, e, e.deploymentID, clientset, rSpec)
+
 	return K8sObj, nil
 }
 
+func (e *execution) getResourceType() (string, error) {
+	rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
+	if err != nil {
+		return "", err
+	}
+	if rType == nil {
+		return "", errors.Errorf("No resource_type defined for node %q", e.nodeName)
+	}
+	return rType.RawString(), nil
+}
+
+func (e *execution) getResourceSpec() (string, error) {
+	rSpecProp, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
+	if err != nil {
+		return "", err
+	}
+	if rSpecProp == nil {
+		return "", errors.Errorf("No resource_spec defined for node %q", e.nodeName)
+	}
+	return rSpecProp.RawString(), nil
+}
+
 func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, k8sObject yorcK8sObject,
-	operationType k8sResourceOperation, rSpec string, envSet bool) (err error) {
+	operationType k8sResourceOperation, envSet bool) (err error) {
 	if !envSet {
 		return errors.Errorf("Can't execute operation %q. Environment not set", e.operation.Name)
 	}

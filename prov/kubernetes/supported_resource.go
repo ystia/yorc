@@ -155,7 +155,6 @@ func (yorcDep *yorcK8sDeployment) getObjectMeta() metav1.ObjectMeta {
 
 func (yorcDep *yorcK8sDeployment) createResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error {
 	deploy := v1beta1.Deployment(*yorcDep)
-	// TODO: replace service_lookup
 	_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Create(&deploy)
 	return err
 }
@@ -198,12 +197,12 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, de
 	if dep.Status.AvailableReplicas == *yorcDep.Spec.Replicas {
 		return true, nil
 	}
-	/*  TODO:manage this
-	if failed, msg := isDeploymentFailed(clientset, yorcDep); failed {
+
+	if failed, msg := isDeploymentFailed(clientset, dep); failed {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", yorcDep.Name, msg)
 		return false, errors.Errorf("Kubernetes deployment %q: %s", yorcDep.Name, msg)
 	}
-	*/
+
 	return false, nil
 }
 
