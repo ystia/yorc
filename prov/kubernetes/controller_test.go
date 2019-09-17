@@ -54,6 +54,7 @@ func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-statefulset/properties/resource_spec":                           []byte("{}"),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource/name":       []byte("org.alien4cloud.kubernetes.api.types.StatefulSetResource"),
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource/.existFlag": []byte(""),
+		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy-nores-props/type":                                        []byte("yorc.nodes.kubernetes.api.types.DeploymentResource"),
 	})
 
 	t.Run("testK8sObjectsTest", func(t *testing.T) {
@@ -105,6 +106,12 @@ func testK8sObjectsTest(t *testing.T, kv *api.KV) {
 			"test unsupported k8s resource type",
 			"node-badresource",
 			"yorc.nodes.kubernetes.api.types.BadResource",
+			true,
+		},
+		{
+			"test no resource properties in k8s type",
+			"node-deploy-nores-props",
+			"yorc.nodes.kubernetes.api.types.DeploymentResource",
 			true,
 		},
 	}
