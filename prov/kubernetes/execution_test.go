@@ -166,7 +166,8 @@ var JSONvalidService = `
     }, {
     "port" : 8500,
     "name" : "consul-ui",
-    "targetPort" : "consul-ui"
+	"targetPort" : "consul-ui",
+	"nodePort": 8505
     } ],
     "type" : "NodePort"
   }
