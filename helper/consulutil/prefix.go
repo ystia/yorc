@@ -34,6 +34,9 @@ const WorkflowsPrefix = yorcPrefix + "/workflows"
 // EventsPrefix is the prefix in Consul KV store for events concerning all the deployments
 const EventsPrefix = yorcPrefix + "/events"
 
+// LocationsPrefix is the prefix on KV store for deployment locations
+const LocationsPrefix = yorcPrefix + "/locations"
+
 // LogsPrefix is the prefix on KV store for logs concerning all the deployments
 const LogsPrefix = yorcPrefix + "/logs"
 

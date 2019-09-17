@@ -27,6 +27,7 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/monitoring"
 	"github.com/ystia/yorc/v4/prov/scheduling/scheduler"
@@ -76,6 +77,11 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	err = setupConsulDBSchema(client)
 	if err != nil {
 		return err
+	}
+
+	// Initialize locations where deployments will take place
+	if err = locations.Initialize(configuration, client); err != nil {
+		return errors.Wrap(err, "Failed to initialize locations")
 	}
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
