@@ -21,10 +21,15 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -606,6 +611,79 @@ func Test_execution_getExpectedInstances(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("execution.getExpectedInstances() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_execution_manageNamespaceDeletion(t *testing.T) {
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
+	deploymentID := "Dep-ID"
+	ctx := context.Background()
+
+	e := &execution{
+		kv:           kv,
+		deploymentID: deploymentID,
+		nodeName:     "testNode",
+	}
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/nodes/testNode/type":       []byte("fakeType"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/fakeType/.existFlag": []byte(""),
+	})
+	deployments.SetNodeProperty(kv, deploymentID, "testNode", "volumeDeletable", "true")
+	//Setup
+	// One ns "default", 0 controler
+	k8s := newTestSimpleK8s()
+	k8s.clientset.CoreV1().Namespaces().Create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
+	// One ns "test-ns", 1 controler
+	k8s1 := newTestSimpleK8s()
+	k8s1.clientset.CoreV1().Namespaces().Create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test-ns"}})
+	k8s1.clientset.ExtensionsV1beta1().Deployments("test-ns").Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}})
+
+	type args struct {
+		clientset         kubernetes.Interface
+		namespaceProvided bool
+		namespaceName     string
+	}
+	tests := []struct {
+		name          string
+		args          args
+		wantNsDeleted bool
+		wantErr       bool
+	}{
+		// Namespace provided -> no deletion
+		{
+			"NS provided",
+			args{clientset: k8s.clientset, namespaceProvided: true, namespaceName: "default"},
+			false,
+			false,
+		},
+		// Not provided but controller left -> no deletion
+		{
+			"NS not provided, controller left",
+			args{clientset: k8s1.clientset, namespaceProvided: false, namespaceName: "test-ns"},
+			false,
+			false,
+		},
+		// Not provided and 0 controller left -> deletion
+		{
+			"NS not provided, no controller",
+			args{clientset: k8s.clientset, namespaceProvided: false, namespaceName: "default"},
+			true,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			if err := e.manageNamespaceDeletion(ctx, tt.args.clientset, tt.args.namespaceProvided, tt.args.namespaceName); (err != nil) != tt.wantErr {
+				t.Errorf("execution.manageNamespaceDeletion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if ns, _ := tt.args.clientset.CoreV1().Namespaces().Get(tt.args.namespaceName, metav1.GetOptions{}); (ns == nil) != tt.wantNsDeleted {
+				t.Errorf("execution.manageNamespaceDeletion() namespace = %v, wantNsDeleted %v", ns, tt.wantNsDeleted)
+			}
+			//t.Logf("Ns found : %s, err : %s", ns, err)
 		})
 	}
 }
