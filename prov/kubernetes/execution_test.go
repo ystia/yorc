@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
@@ -343,7 +344,12 @@ func Test_execution_del_resources(t *testing.T) {
 	e := &execution{
 		kv:           kv,
 		deploymentID: deploymentID,
+		nodeName:     "testNode",
 	}
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/nodes/testNode/type":       []byte("fakeType"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/fakeType/.existFlag": []byte(""),
+	})
 	ctx := context.Background()
 	wantErr := false
 	k8s := newTestK8s()
