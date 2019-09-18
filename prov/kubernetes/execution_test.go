@@ -17,6 +17,7 @@ package kubernetes
 import (
 	"context"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
@@ -309,30 +310,31 @@ func Test_execution_scale_resources(t *testing.T) {
 
 	resources := getScalableResourceAndJSON()
 
-	for _, testResource := range resources {
-		testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
-	}
-
 	deployTestResources(ctx, e, k8s, resources)
+	var wg sync.WaitGroup
+	wg.Add(len(resources))
 
 	for _, testRes := range resources {
-
-		errorChan := make(chan struct{})
-		okChan := make(chan struct{})
-		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectScale(testRes.K8sObj, errorChan))
-		t.Run("Test scale resources "+testRes.K8sObj.String(), func(t *testing.T) {
-			if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
-				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+		go func(testRes testResource) {
+			defer wg.Done()
+			errorChan := make(chan struct{})
+			okChan := make(chan struct{})
+			k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectScale(testRes.K8sObj, errorChan))
+			t.Run("Test scale resources "+testRes.K8sObj.String(), func(t *testing.T) {
+				if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
+					t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+				}
+				close(okChan)
+			})
+			select {
+			case <-errorChan:
+				t.Fatal("fatal")
+			case <-okChan:
+				t.Logf("Scale ok for %s\n", testRes.K8sObj)
 			}
-			close(okChan)
-		})
-		select {
-		case <-errorChan:
-			t.Fatal("fatal")
-		case <-okChan:
-			t.Logf("Scale ok for %s\n", testRes.K8sObj)
-		}
+		}(testRes)
 	}
+	wg.Wait()
 }
 
 func Test_execution_del_resources(t *testing.T) {
@@ -357,28 +359,31 @@ func Test_execution_del_resources(t *testing.T) {
 
 	resources := getSupportedResourceAndJSON()
 
-	for _, testResource := range resources {
-		testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
-	}
+	var wg sync.WaitGroup
+	wg.Add(len(resources))
 
 	deployTestResources(ctx, e, k8s, resources)
 	for _, testRes := range resources {
-		errorChan := make(chan struct{})
-		okChan := make(chan struct{})
-		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectDeletion(testRes.K8sObj, errorChan))
-		t.Run("Test delete resource "+testRes.K8sObj.String(), func(t *testing.T) {
-			if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
-				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+		go func(testRes testResource) {
+			defer wg.Done()
+			errorChan := make(chan struct{})
+			okChan := make(chan struct{})
+			k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectDeletion(testRes.K8sObj, errorChan))
+			t.Run("Test delete resource "+testRes.K8sObj.String(), func(t *testing.T) {
+				if err := e.manageKubernetesResource(context.Background(), k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
+					t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+				}
+				close(okChan)
+			})
+			select {
+			case <-errorChan:
+				t.Fatal("fatal")
+			case <-okChan:
+				t.Logf("Deletion ok for %s\n", testRes.K8sObj)
 			}
-			close(okChan)
-		})
-		select {
-		case <-errorChan:
-			t.Fatal("fatal")
-		case <-okChan:
-			t.Logf("Deletion ok for %s\n", testRes.K8sObj)
-		}
+		}(testRes)
 	}
+	wg.Wait()
 }
 
 func deployTestResources(ctx context.Context, e *execution, k8s *k8s, resources []testResource) error {
@@ -410,25 +415,31 @@ func Test_execution_create_resource(t *testing.T) {
 	for _, testResource := range resources {
 		testResource.K8sObj.unmarshalResource(ctx, e, deploymentID, k8s.clientset, testResource.rSpec)
 	}
+	var wg sync.WaitGroup
+	wg.Add(len(resources))
 
 	for _, testRes := range resources {
-		errorChan := make(chan struct{})
-		okChan := make(chan struct{})
-		k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectCompletion(testRes.K8sObj, errorChan))
-		t.Run("Test resource "+testRes.K8sObj.String(), func(t *testing.T) {
-			t.Logf("Testing %s\n", testRes.K8sObj)
-			if err := e.manageKubernetesResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
-				t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+		go func(testRes testResource) {
+			defer wg.Done()
+			errorChan := make(chan struct{})
+			okChan := make(chan struct{})
+			k8s.clientset.(*fake.Clientset).Fake.AddReactor("get", testRes.resourceGroup, fakeObjectCompletion(testRes.K8sObj, errorChan))
+			t.Run("Test resource "+testRes.K8sObj.String(), func(t *testing.T) {
+				t.Logf("Testing %s\n", testRes.K8sObj)
+				if err := e.manageKubernetesResource(ctx, k8s.clientset, nil, testRes.K8sObj, operationType, true); (err != nil) != wantErr {
+					t.Errorf("execution.manageKubernetesResource() error = %v, wantErr %v", err, wantErr)
+				}
+				close(okChan)
+			})
+			select {
+			case <-errorChan:
+				t.Fatal("fatal")
+			case <-okChan:
+				t.Logf("Execution ok for %s\n", testRes.K8sObj)
 			}
-			close(okChan)
-		})
-		select {
-		case <-errorChan:
-			t.Fatal("fatal")
-		case <-okChan:
-			t.Logf("Execution ok for %s\n", testRes.K8sObj)
-		}
+		}(testRes)
 	}
+	wg.Wait()
 
 }
 
