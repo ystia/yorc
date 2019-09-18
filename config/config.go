@@ -90,20 +90,20 @@ type Configuration struct {
 	Consul                        Consul        `yaml:"consul,omitempty" mapstructure:"consul"`
 	Telemetry                     Telemetry     `yaml:"telemetry,omitempty" mapstructure:"telemetry"`
 	// Deprecated: Use Locations instead
-	Infrastructures                  map[string]DynamicMap `yaml:"infrastructures,omitempty" mapstructure:"infrastructures"`
-	Locations                        map[string]Location   `yaml:"locations,omitempty" mapstructure:"locations"`
-	Vault                            DynamicMap            `yaml:"vault,omitempty" mapstructure:"vault"`
-	WfStepGracefulTerminationTimeout time.Duration         `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
-	PurgedDeploymentsEvictionTimeout time.Duration         `yaml:"purged_deployments_eviction_timeout,omitempty" mapstructure:"purged_deployments_eviction_timeout"`
-	ServerID                         string                `yaml:"server_id,omitempty" mapstructure:"server_id"`
-	Terraform                        Terraform             `yaml:"terraform,omitempty" mapstructure:"terraform"`
-	DisableSSHAgent                  bool                  `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
+	Infrastructures                  map[string]DynamicMap            `yaml:"infrastructures,omitempty" mapstructure:"infrastructures"`
+	Locations                        map[string]LocationConfiguration `yaml:"locations,omitempty" mapstructure:"locations"`
+	Vault                            DynamicMap                       `yaml:"vault,omitempty" mapstructure:"vault"`
+	WfStepGracefulTerminationTimeout time.Duration                    `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
+	PurgedDeploymentsEvictionTimeout time.Duration                    `yaml:"purged_deployments_eviction_timeout,omitempty" mapstructure:"purged_deployments_eviction_timeout"`
+	ServerID                         string                           `yaml:"server_id,omitempty" mapstructure:"server_id"`
+	Terraform                        Terraform                        `yaml:"terraform,omitempty" mapstructure:"terraform"`
+	DisableSSHAgent                  bool                             `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 }
 
-// Location holds a location configuration
-type Location struct {
-	Type          string     // not an enum as it could be extended by plugins
-	Configuration DynamicMap `yaml:",inline"`
+// LocationConfiguration holds a location configuration
+type LocationConfiguration struct {
+	Type       string     // not an enum as it could be extended by plugins
+	Properties DynamicMap `yaml:",inline"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox

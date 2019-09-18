@@ -27,12 +27,13 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Client,
+	deploymentID string) {
 	log.SetDebug(true)
 
-	openStackLocation1 := config.Location{
+	openStackLocation1 := config.LocationConfiguration{
 		Type: "openstack",
-		Configuration: config.DynamicMap{
+		Properties: config.DynamicMap{
 			"auth_url":                "http://1.2.3.1:5000/v2.0",
 			"default_security_groups": []string{"sec11", "sec12"},
 			"password":                "test1",
@@ -43,9 +44,9 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
-	openStackLocation2 := config.Location{
+	openStackLocation2 := config.LocationConfiguration{
 		Type: "openstack",
-		Configuration: config.DynamicMap{
+		Properties: config.DynamicMap{
 			"auth_url":                "http://1.2.3.2:5000/v2.0",
 			"default_security_groups": []string{"sec21", "sec22"},
 			"password":                "test2",
@@ -56,9 +57,9 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
-	slurmLocation := config.Location{
+	slurmLocation := config.LocationConfiguration{
 		Type: "slurm",
-		Configuration: config.DynamicMap{
+		Properties: config.DynamicMap{
 			"user_name":   "slurmuser1",
 			"private_key": "/path/to/key",
 			"url":         "10.1.2.3",
@@ -67,30 +68,82 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	}
 
 	testConfig := config.Configuration{
-		Locations: map[string]config.Location{
+		Locations: map[string]config.LocationConfiguration{
 			"myLocation1": openStackLocation1,
 			"myLocation2": openStackLocation2,
-			"myLocation3": slurmLocation,
 		},
 	}
 
 	err := Initialize(testConfig, cc)
 	require.NoError(t, err, "Failed to initialize locations")
 
-	location, err := GetLocation("myLocation2")
+	// Attempt to create a location with an already existing name
+	err = CreateLocation("myLocation1", openStackLocation2)
+	require.Error(t, err, "Expected to have an error attempting to create an already existing location")
+
+	props, err := GetLocationProperties("myLocation1")
+	require.NoError(t, err, "Unexpected error attempting to get location myLocation1")
+	assert.Equal(t, "test1", props["user_name"])
+
+	props, err = GetLocationProperties("myLocation2")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation2")
-	assert.Equal(t, "openstack", location.Type)
-	assert.Equal(t, "test2", location.Configuration["user_name"])
+	assert.Equal(t, "test2", props["user_name"])
 
-	location, err = GetFirstLocationOfType("slurm")
+	props, err = GetLocationProperties("myLocation3")
+	require.Error(t, err, "Expected to have an error attempting to get a non existing location, got %+v", props)
+
+	err = CreateLocation("myLocation3", slurmLocation)
+	require.NoError(t, err, "Unexpected error attempting to create location myLocation3")
+
+	props, err = GetLocationProperties("myLocation3")
+	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
+	assert.Equal(t, "slurmuser1", props["user_name"])
+
+	slurmLocation.Properties["user_name"] = "slurmuser2"
+	err = SetLocationConfiguration("myLocation3", slurmLocation)
+	require.NoError(t, err, "Unexpected error attempting to update location myLocation3")
+
+	props, err = GetLocationProperties("myLocation3")
+	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
+	assert.Equal(t, "slurmuser2", props["user_name"])
+
+	// testdata/test_topology.yaml defines a location in Compute1 metadata
+	props, err = GetLocationPropertiesForNode(deploymentID, "Compute1", "openstack")
+	require.NoError(t, err, "Unexpected error attempting to get location for Compute1")
+	assert.Equal(t, "test2", props["user_name"])
+
+	// testdata/test_topology.yaml defines no location in Compute2 metadata
+	props, err = GetLocationPropertiesForNode(deploymentID, "Compute2", "openstack")
+	require.NoError(t, err, "Unexpected error attempting to get location for Compute2")
+	// Check an openstack-specific confiugration value is provided in result
+	assert.Equal(t, "RegionOne", props["region"])
+
+	props, err = GetPropertiesForFirstLocationOfType("slurm")
 	require.NoError(t, err, "Unexpected error attempting to get slurm location")
-	assert.Equal(t, "slurm", location.Type, "Wrong location type in %+v", location)
-	assert.Equal(t, "slurmuser1", location.Configuration["user_name"], "Wrong user name in %+v", location)
+	assert.Equal(t, "slurmuser2", props["user_name"], "Wrong user name in %+v", props)
 
-	location, err = GetFirstLocationOfType("UnknownType")
-	require.Error(t, err, "Expected to have an error attempting to get location of unknown type, got %+v", location)
+	props, err = GetPropertiesForFirstLocationOfType("UnknownType")
+	require.Error(t, err, "Expected to have an error attempting to get location of unknown type, got %+v", props)
 
 	locations, err := GetLocations()
 	require.NoError(t, err, "Unexpected error attempting to get all locations")
 	assert.Equal(t, 3, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
+
+	err = RemoveLocation("myLocation2")
+	require.NoError(t, err, "Unexpected error attempting to remove location myLocation2")
+
+	props, err = GetLocationProperties("myLocation2")
+	require.Error(t, err, "Expected to have an error attempting to get a non existing location, got %+v", props)
+
+	locations, err = GetLocations()
+	require.NoError(t, err, "Unexpected error attempting to get all locations")
+	assert.Equal(t, 2, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
+
+	err = Cleanup()
+	require.NoError(t, err, "Unexpected error attempting to cleanup locations")
+
+	locations, err = GetLocations()
+	require.NoError(t, err, "Unexpected error attempting to get all locations after cleanup")
+	assert.Equal(t, 0, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
+
 }

@@ -1,0 +1,102 @@
+tosca_definitions_version: alien_dsl_2_0_0
+metadata:
+  template_name: topotest-Environment
+  template_version: 0.1.0-SNAPSHOT
+  template_author: yorcTester
+description: ''
+imports:
+  - <yorc-openstack-types.yml>
+  - <yorc-types.yml>
+  - <normative-types.yml>
+
+topology_template:
+  node_templates:
+    Compute1:
+      metadata:
+        location: myLocation2
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/mykey.pem"
+              user: myuser
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Compute2:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "/home/myuser/.ssh/mykey.pem"
+              user: myuser
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          target: Compute1
+          activities:
+            - delegate: install
+        Compute_2_install:
+          target: Compute2
+          activities:
+            - delegate: install
+    uninstall:
+      steps:
+        Compute_uninstall:
+          target: Compute1
+          activities:
+            - delegate: uninstall
+        Compute_2_uninstall:
+          target: Compute2
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        Compute_start:
+          target: Compute1
+          activities:
+            - delegate: start
+        Compute_2_start:
+          target: Compute2
+          activities:
+            - delegate: start
+    stop:
+      steps:
+        Compute_stop:
+          target: Compute1
+          activities:
+            - delegate: stop
+        Compute_2_stop:
+          target: Compute2
+          activities:
+            - delegate: stop
+    run:
+    cancel:

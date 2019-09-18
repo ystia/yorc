@@ -25,8 +25,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 var locationMgr *locationManager
@@ -38,16 +40,38 @@ type locationManager struct {
 // Initialize stores configured locations in consul, if not already done
 func Initialize(cfg config.Configuration, cc *api.Client) error {
 	locationMgr = &locationManager{cc: cc}
+	return locationMgr.storeLocations(cfg)
+}
 
-	err := locationMgr.storeLocations(cfg)
+// CreateLocation creates a location. Its name must be unique.
+// If a location already exists with this name, an error will be returned.
+func CreateLocation(locationName string, lConfig config.LocationConfiguration) error {
 
-	return err
+	return locationMgr.createLocation(locationName, lConfig)
+}
+
+// RemoveLocation removes a given location
+func RemoveLocation(locationName string) error {
+
+	return locationMgr.removeLocation(locationName)
+}
+
+// SetLocationConfiguration sets the configuration of a location.
+// If this location doesn't exist, it will be created.
+func SetLocationConfiguration(locationName string, lConfig config.LocationConfiguration) error {
+
+	return locationMgr.setLocationConfiguration(locationName, lConfig)
+}
+
+// Cleanup deletes all locations configured
+func Cleanup() error {
+	return locationMgr.cleanupLocations()
 }
 
 // GetLocations returns all locations configured
-func GetLocations() (map[string]config.Location, error) {
+func GetLocations() (map[string]config.LocationConfiguration, error) {
 
-	locations := make(map[string]config.Location)
+	locations := make(map[string]config.LocationConfiguration)
 	kvps, _, err := locationMgr.cc.KV().List(consulutil.LocationsPrefix, nil)
 	if err != nil {
 		return locations, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -55,70 +79,92 @@ func GetLocations() (map[string]config.Location, error) {
 
 	for _, kvp := range kvps {
 		locationName := path.Base(kvp.Key)
-		var location config.Location
-		err = json.Unmarshal(kvp.Value, &location)
+		var lConfig config.LocationConfiguration
+		err = json.Unmarshal(kvp.Value, &lConfig)
 		if err != nil {
 			return locations, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
 		}
 
-		locations[locationName] = location
+		locations[locationName] = lConfig
 	}
 
 	return locations, err
 }
 
-// GetLocation returns configuration details for a given location
-func GetLocation(locationName string) (config.Location, error) {
+// GetLocationProperties returns properties configured for a given location
+func GetLocationProperties(locationName string) (config.DynamicMap, error) {
 
-	var location config.Location
+	var props config.DynamicMap
 	kvp, _, err := locationMgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
-		return location, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return props, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return location, errors.Errorf("No such location %q", locationName)
+		return props, errors.Errorf("No such location %q", locationName)
 	}
 
-	err = json.Unmarshal(kvp.Value, &location)
+	var lConfig config.LocationConfiguration
+	err = json.Unmarshal(kvp.Value, &lConfig)
+	props = lConfig.Properties
 	if err != nil {
-		return location, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
+		return props, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
 	}
 
-	return location, err
+	return props, err
 }
 
-// GetFirstLocationOfType returns the first location of a given infrastructure type
+// GetLocationPropertiesForNode returns the properties of the location
+// on which the node template in argument is or will be created.
+// The corresponding location name should be provided in the node template metadata.
+// If no location name is provided in the node template metadata, the configuration
+// of the first location of the expected type in returned
+func GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
+
+	// Get the location name in node template metadata
+	found, locationName, err := deployments.GetNodeMetadata(
+		locationMgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if found {
+		return GetLocationProperties(locationName)
+	}
+
+	// No location specified, get the first location matching the expected type
+	return GetPropertiesForFirstLocationOfType(locationType)
+
+}
+
+// GetPropertiesForFirstLocationOfType returns properties for the first location
+// of a given infrastructure type.
 // Used for backward compability while specifying infrastructures instead of locations
 // is still supported.
 // Returns an error if there is no location of such type
-func GetFirstLocationOfType(locationType string) (config.Location, error) {
+func GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error) {
 
-	var location config.Location
+	var props config.DynamicMap
 	locations, err := GetLocations()
 	if err == nil {
 		// Set the error in case no location of such type is found
 		err = errors.Errorf("Found no location of type %q", locationType)
 		for _, loc := range locations {
 			if loc.Type == locationType {
-				location = loc
+				props = loc.Properties
 				err = nil
 				break
 			}
 		}
 	}
 
-	return location, err
+	return props, err
 }
 
 // Store locations in Consul if not already done
 func (mgr *locationManager) storeLocations(cfg config.Configuration) error {
 
-	lock, lockCh, err := mgr.lockLocations()
+	lock, _, err := mgr.lockLocations()
 	if err != nil {
-		return err
-	}
-	if lockCh == nil {
-		log.Debugf("Another instance got the lock for locations")
 		return err
 	}
 
@@ -144,26 +190,20 @@ func (mgr *locationManager) storeLocations(cfg config.Configuration) error {
 		log.Println("Yorc configuration field 'Infrastructures' has been deprecated, use 'Locations' instead")
 		// Converting each infrastructure as a location, using the infrastructure
 		// type as a location name
-		locations = make(map[string]config.Location)
+		locations = make(map[string]config.LocationConfiguration)
 		for k, v := range cfg.Infrastructures {
-			locations[k] = config.Location{
-				Type:          k,
-				Configuration: v,
+			locations[k] = config.LocationConfiguration{
+				Type:       k,
+				Properties: v,
 			}
 		}
 	}
 
-	for locationName, infraConfig := range locations {
+	for locationName, lConfig := range locations {
 
-		b, err := json.Marshal(infraConfig)
+		err := mgr.setLocationConfiguration(locationName, lConfig)
 		if err != nil {
-			log.Printf("Failed to marshal infrastructure config [%+v]: due to error:%+v", infraConfig, err)
 			return err
-		}
-
-		err = consulutil.StoreConsulKey(path.Join(consulutil.LocationsPrefix, locationName), b)
-		if err != nil {
-			return errors.Wrapf(err, "failed to store location %s in consul", locationName)
 		}
 	}
 
@@ -192,4 +232,69 @@ func (mgr *locationManager) lockLocations() (*api.Lock, <-chan struct{}, error) 
 	}
 	log.Debug("Lock for locations acquired")
 	return lock, lockCh, nil
+}
+
+// Deletes locations stored in Consul
+func (mgr *locationManager) cleanupLocations() error {
+
+	lock, _, err := mgr.lockLocations()
+	if err != nil {
+		return err
+	}
+
+	defer lock.Unlock()
+
+	kv := mgr.cc.KV()
+	// Appending a final "/" here is not necessary as there is no other keys starting
+	// with consulutil.LocationsPrefix prefix
+	_, err = kv.DeleteTree(consulutil.LocationsPrefix, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	return err
+}
+
+func (mgr *locationManager) createLocation(locationName string, configuration config.LocationConfiguration) error {
+
+	lock, _, err := mgr.lockLocations()
+	if err != nil {
+		return err
+	}
+
+	defer lock.Unlock()
+
+	// Check if a location with this name already exists
+	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil && len(kvp.Value) != 0 {
+		return errors.Errorf("location %q already exists", locationName)
+	}
+
+	return mgr.setLocationConfiguration(locationName, configuration)
+}
+
+func (mgr *locationManager) setLocationConfiguration(locationName string, configuration config.LocationConfiguration) error {
+
+	b, err := json.Marshal(configuration)
+	if err != nil {
+		log.Printf("Failed to marshal infrastructure config [%+v]: due to error:%+v", configuration, err)
+		return err
+	}
+
+	err = consulutil.StoreConsulKey(path.Join(consulutil.LocationsPrefix, locationName), b)
+	if err != nil {
+		return errors.Wrapf(err, "failed to store location %s in consul", locationName)
+	}
+	return err
+}
+
+func (mgr *locationManager) removeLocation(locationName string) error {
+	_, err := mgr.cc.KV().Delete(path.Join(consulutil.LocationsPrefix, locationName), nil)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove location %s", locationName)
+	}
+	return err
 }

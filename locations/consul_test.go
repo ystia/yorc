@@ -15,8 +15,12 @@
 package locations
 
 import (
+	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -26,8 +30,12 @@ func TestRunConsulLocationsPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupLocations", func(t *testing.T) {
+		deploymentID := testutil.BuildDeploymentID(t)
+		err := deployments.StoreDeploymentDefinition(context.Background(), client.KV(),
+			deploymentID, "testdata/test_topology.yml")
+		require.NoError(t, err)
 		t.Run("testLocationsFromConfig", func(t *testing.T) {
-			testLocationsFromConfig(t, srv, client)
+			testLocationsFromConfig(t, srv, client, deploymentID)
 		})
 	})
 }
