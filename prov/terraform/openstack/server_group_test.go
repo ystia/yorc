@@ -16,14 +16,15 @@ package openstack
 
 import (
 	"context"
+	"path"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
-	"path"
-	"testing"
 )
 
 func testSimpleServerGroup(t *testing.T, kv *api.KV) {
@@ -31,9 +32,9 @@ func testSimpleServerGroup(t *testing.T, kv *api.KV) {
 	deploymentID := loadTestYaml(t, kv)
 	infrastructure := commons.Infrastructure{}
 	g := osGenerator{}
-	cfg := config.Configuration{}
 	outputs := make(map[string]string, 0)
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	var locationProps config.DynamicMap
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 	err := g.generateServerGroup(
 		context.Background(),
 		serverGroupOptions{

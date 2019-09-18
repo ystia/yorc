@@ -27,7 +27,9 @@ import (
 
 const openstackNetworkType = "yorc.nodes.openstack.Network"
 
-func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (Network, error) {
+func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, locationProps config.DynamicMap,
+	deploymentID, nodeName string) (Network, error) {
+
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return Network{}, err
@@ -44,14 +46,14 @@ func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, depl
 		network.Name = cfg.ResourcesPrefix + netName.RawString()
 	}
 
-	network.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
+	network.Region = locationProps.GetStringOrDefault("region", defaultOSRegion)
 
 	return network, nil
 
 }
 
-func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deploymentID,
-	nodeName, resourceType string) (Subnet, error) {
+func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, locationProps config.DynamicMap,
+	deploymentID, nodeName, resourceType string) (Subnet, error) {
 
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
@@ -112,7 +114,7 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, deplo
 		return Subnet{}, err
 	}
 
-	subnet.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
+	subnet.Region = locationProps.GetStringOrDefault("region", defaultOSRegion)
 
 	return subnet, nil
 }

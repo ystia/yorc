@@ -40,11 +40,8 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region": "Region_" + depID,
-			}}}
+	locationProps := config.DynamicMap{"region": "Region_" + depID}
+	var cfg config.Configuration
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -71,7 +68,7 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		bsv, err := g.generateOSBSVolume(kv, cfg, depID, tt.nodeName, strconv.Itoa(i))
+		bsv, err := g.generateOSBSVolume(kv, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
@@ -88,11 +85,8 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region": "Region_" + depID,
-			}}}
+	locationProps := config.DynamicMap{"region": "Region_" + depID}
+	var cfg config.Configuration
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -113,7 +107,7 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		_, err := g.generateOSBSVolume(kv, cfg, depID, tt.nodeName, strconv.Itoa(i))
+		_, err := g.generateOSBSVolume(kv, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
 }
@@ -127,11 +121,8 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region": "Region_" + depID,
-			}}}
+	locationProps := config.DynamicMap{"region": "Region_" + depID}
+	var cfg config.Configuration
 	g := osGenerator{}
 
 	t.Log("Registering Key")
@@ -142,7 +133,7 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume(kv, cfg, depID, nodeName, "0")
+	_, err = g.generateOSBSVolume(kv, cfg, locationProps, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
@@ -156,11 +147,8 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region": "Region_" + depID,
-			}}}
+	locationProps := config.DynamicMap{"region": "Region_" + depID}
+	var cfg config.Configuration
 	g := osGenerator{}
 
 	t.Log("Registering Key")
@@ -171,7 +159,7 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv
 	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume(kv, cfg, depID, nodeName, "0")
+	_, err = g.generateOSBSVolume(kv, cfg, locationProps, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
@@ -185,11 +173,8 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region": "Region_" + depID,
-			}}}
+	locationProps := config.DynamicMap{"region": "Region_" + depID}
+	var cfg config.Configuration
 	g := osGenerator{}
 
 	t.Log("Registering Key")
@@ -205,7 +190,7 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	data[path.Join(nodePrefix, "properties/region")] = []byte("Region2")
 
 	srv1.PopulateKV(t, data)
-	bsv, err := g.generateOSBSVolume(kv, cfg, depID, nodeName, "0")
+	bsv, err := g.generateOSBSVolume(kv, cfg, locationProps, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)

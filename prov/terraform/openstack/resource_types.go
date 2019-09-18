@@ -42,7 +42,7 @@ const (
 // getOpenstackResourceTypes returns resource types supported by a given
 // OpenStack infrastructure, for each resource that can be created on demand
 // by the orchestrator
-func getOpenstackResourceTypes(cfg config.Configuration, infrastructureName string) map[string]string {
+func getOpenstackResourceTypes(locationProps config.DynamicMap) map[string]string {
 
 	resourceTypes := make(map[string]string)
 
@@ -59,14 +59,14 @@ func getOpenstackResourceTypes(cfg config.Configuration, infrastructureName stri
 	// Resources for which the version supported depends on the
 	// openstack version installed on the selected infrastructure
 	resourceTypes[blockStorageVolume] = fmt.Sprintf(resourceTypeFormat, blockStorageVolume,
-		getBlockStorageAPIVersion(cfg, infrastructureName))
+		getBlockStorageAPIVersion(locationProps))
 
 	return resourceTypes
 }
 
 // getBlockStorageAPIVersion returns the latest version supported on a given
 // OpenStack infrastructure
-func getBlockStorageAPIVersion(cfg config.Configuration, infrastructureName string) string {
+func getBlockStorageAPIVersion(locationProps config.DynamicMap) string {
 
 	version := latestBlockStorageVersion
 
@@ -80,12 +80,11 @@ func getBlockStorageAPIVersion(cfg config.Configuration, infrastructureName stri
 	// only block storage v1 API.
 	// While on a supported OpenStack version, the user domain should be specified,
 	// in which case, we can rely on the supported block storage v3 API
-	infra := cfg.Infrastructures[infrastructureName]
-	if infra.GetString(userDomainProperty) == "" && os.Getenv(userDomainProperty) == "" {
+	if locationProps.GetString(userDomainProperty) == "" && os.Getenv(userDomainProperty) == "" {
 
 		version = "v1"
-		log.Printf("No OpenStack user domain specified in infrastructure %s => using obsolete Block Storage API %s",
-			infrastructureName, version)
+		log.Printf("No OpenStack user domain specified in infrastructure => using obsolete Block Storage API %s",
+			version)
 	}
 
 	return version

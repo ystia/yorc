@@ -40,6 +40,7 @@ type osInstanceOptions struct {
 	kv             *api.KV
 	cfg            config.Configuration
 	infrastructure *commons.Infrastructure
+	locationProps  config.DynamicMap
 	deploymentID   string
 	nodeName       string
 	instanceName   string
@@ -155,7 +156,7 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		return instance, err
 	}
 	if instance.Region == "" {
-		instance.Region = opts.cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
+		instance.Region = opts.locationProps.GetStringOrDefault("region", defaultOSRegion)
 	}
 
 	instance.KeyPair, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "key_pair", false)
@@ -163,7 +164,7 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		return instance, err
 	}
 
-	instance.SecurityGroups = opts.cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
+	instance.SecurityGroups = opts.locationProps.GetStringSlice("default_security_groups")
 	secGroups, err := deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "security_groups", false)
 	if err != nil {
 		return instance, err
@@ -301,7 +302,6 @@ func getVolumeID(ctx context.Context, kv *api.KV,
 
 func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error) {
 	kv := opts.kv
-	cfg := opts.cfg
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
@@ -311,7 +311,7 @@ func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error
 	if err != nil {
 		return networkSlice, err
 	}
-	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
+	defaultPrivateNetName := opts.locationProps.GetString("private_network_name")
 	if networkName != nil && networkName.RawString() != "" {
 		// Should Deal here with networks aliases (PUBLIC)
 		if strings.EqualFold(networkName.RawString(), "private") {
@@ -401,7 +401,7 @@ func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName,
 	commons.AddResource(opts.infrastructure, opts.resourceTypes[computeInstance], instance.Name, instance)
 
 	var accessIP string
-	if fipAssociateName != "" && opts.cfg.Infrastructures[infrastructureName].GetBool(
+	if fipAssociateName != "" && opts.locationProps.GetBool(
 		"provisioning_over_fip_allowed") {
 
 		// Use Floating IP for provisioning

@@ -30,6 +30,7 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
@@ -76,17 +77,27 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		path.Join(instancesPrefix, "/Network_2/0/attributes/network_id"): []byte("netID"),
 	})
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"auth_url":                "http://1.2.3.4:5000/v2.0",
-				"default_security_groups": []string{"default", "sec2"},
-				"password":                "test",
-				"private_network_name":    "private-net",
-				"region":                  "RegionOne",
-				"tenant_name":             "test",
-				"user_name":               "test",
-			}}}
+	locationProps := config.DynamicMap{
+		"auth_url":                "http://1.2.3.4:5000/v2.0",
+		"default_security_groups": []string{"default", "sec2"},
+		"password":                "test",
+		"private_network_name":    "private-net",
+		"region":                  "RegionOne",
+		"tenant_name":             "test",
+		"user_name":               "test",
+	}
+	err = locations.CreateLocation(
+		t.Name(),
+		config.LocationConfiguration{
+			Type:       infrastructureType,
+			Properties: locationProps,
+		})
+	require.NoError(t, err, "Failed to create a location")
+	defer func() {
+		locations.RemoveLocation(t.Name())
+	}()
+
+	var cfg config.Configuration
 	g := osGenerator{}
 
 	expectedComputeOutputs := map[string]string{
@@ -132,13 +143,14 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		kv:             kv,
 		cfg:            cfg,
 		infrastructure: &infra,
+		locationProps:  locationProps,
 		instancesKey:   "instancesKey",
 		deploymentID:   depID,
 		nodeName:       "Compute",
 		nodeType:       "yorc.nodes.openstack.ServerGroup",
 		instanceName:   "0",
 		instanceIndex:  0,
-		resourceTypes:  getOpenstackResourceTypes(cfg, infrastructureName),
+		resourceTypes:  getOpenstackResourceTypes(locationProps),
 	}
 	outputs := make(map[string]string)
 	cmdEnv := make([]string, 0)

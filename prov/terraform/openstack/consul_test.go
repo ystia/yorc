@@ -17,6 +17,10 @@ package openstack
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -25,6 +29,10 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
+
+	var cfg config.Configuration
+	err := locations.Initialize(cfg, client)
+	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupOpenstack", func(t *testing.T) {
 		t.Run("simpleOSInstance", func(t *testing.T) {

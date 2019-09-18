@@ -24,32 +24,38 @@ import (
 func Test_resourceTypes(t *testing.T) {
 
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			"oldOpenStack": config.DynamicMap{
-				"auth_url":                "http://1.2.3.4:5000/v2.0",
-				"default_security_groups": []string{"sec1", "sec2"},
-				"user_name":               "user1",
-				"password":                "password1",
-				"tenant_name":             "tenant1",
-				"private_network_name":    "private-net",
-				"region":                  "RegionOne",
+		Locations: map[string]config.LocationConfiguration{
+			"oldOpenStack": config.LocationConfiguration{
+				Type: infrastructureType,
+				Properties: config.DynamicMap{
+					"auth_url":                "http://1.2.3.4:5000/v2.0",
+					"default_security_groups": []string{"sec1", "sec2"},
+					"user_name":               "user1",
+					"password":                "password1",
+					"tenant_name":             "tenant1",
+					"private_network_name":    "private-net",
+					"region":                  "RegionOne",
+				},
 			},
-			"newOpenStack": config.DynamicMap{
-				"auth_url":                "http://1.2.3.4:5000/v3",
-				"default_security_groups": []string{"sec1", "sec2"},
-				"user_name":               "user1",
-				"password":                "password1",
-				"user_domain_name":        "domain1",
-				"project_name":            "project1",
-				"private_network_name":    "private-net",
-				"region":                  "RegionOne",
+			"newOpenStack": config.LocationConfiguration{
+				Type: infrastructureType,
+				Properties: config.DynamicMap{
+					"auth_url":                "http://1.2.3.4:5000/v3",
+					"default_security_groups": []string{"sec1", "sec2"},
+					"user_name":               "user1",
+					"password":                "password1",
+					"user_domain_name":        "domain1",
+					"project_name":            "project1",
+					"private_network_name":    "private-net",
+					"region":                  "RegionOne",
+				},
 			},
 		},
 	}
 
 	tests := []struct {
 		name             string
-		infra            string
+		location         string
 		volumeTypeResult string
 	}{
 		{"testOldOpenStack", "oldOpenStack", "openstack_blockstorage_volume_v1"},
@@ -58,9 +64,9 @@ func Test_resourceTypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			resourceTypes := getOpenstackResourceTypes(cfg, tt.infra)
+			resourceTypes := getOpenstackResourceTypes(cfg.Locations[tt.location].Properties)
 			assert.Equal(t, tt.volumeTypeResult, resourceTypes[blockStorageVolume],
-				"Unexpected resource type on infra %s", tt.infra)
+				"Unexpected resource type on location %s", tt.location)
 		})
 	}
 }
