@@ -27,14 +27,7 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	// AWS infrastructure config
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
+	var cfg config.Configuration
 
 	t.Run("groupAWS", func(t *testing.T) {
 		t.Run("simpleAWSInstance", func(t *testing.T) {
