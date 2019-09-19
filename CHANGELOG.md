@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 4.0.0-M4 (September 19, 2019)
 
 ### BUG FIXES
