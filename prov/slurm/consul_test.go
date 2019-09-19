@@ -17,7 +17,10 @@ package slurm
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -31,6 +34,8 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 
 	// Create a slurm location
 	var cfg config.Configuration
+	err := locations.Initialize(cfg, client)
+	require.NoError(t, err, "Error initializing locations")
 
 	slumTestLocationProps = config.DynamicMap{
 		"user_name": "root",
@@ -39,6 +44,16 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		"url":       "1.2.3.4",
 		"port":      "1234",
 	}
+	err = locations.CreateLocation(
+		"testSlurmLocation",
+		config.LocationConfiguration{
+			Type:       infrastructureType,
+			Properties: slumTestLocationProps,
+		})
+	require.NoError(t, err, "Failed to create a location")
+	defer func() {
+		locations.RemoveLocation(t.Name())
+	}()
 
 	t.Run("groupSlurm", func(t *testing.T) {
 		t.Run("simpleSlurmNodeAllocation", func(t *testing.T) {

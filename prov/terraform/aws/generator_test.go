@@ -15,11 +15,18 @@
 package aws
 
 import (
+	"context"
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"testing"
 
+	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
@@ -44,4 +51,38 @@ func Test_addOutput(t *testing.T) {
 			require.Equal(t, tt.jsonResult, string(res))
 		})
 	}
+}
+
+func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.Configuration) {
+
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	locationProps := config.DynamicMap{
+		"access_key": "ak1",
+		"secret_key": "secret1",
+		"region":     "europe",
+	}
+	err := locations.CreateLocation(
+		"testAWSLocation",
+		config.LocationConfiguration{
+			Type:       infrastructureType,
+			Properties: locationProps,
+		})
+	require.NoError(t, err, "Failed to create a location")
+	defer func() {
+		locations.RemoveLocation(t.Name())
+	}()
+
+	g := awsGenerator{}
+	infrastructurePath, err := ioutil.TempDir("", deploymentID)
+	require.NoError(t, err, "Failed to to create temporary directory")
+	defer os.RemoveAll(infrastructurePath)
+
+	_, _, env, _, err := g.GenerateTerraformInfraForNode(
+		context.Background(), cfg, deploymentID, "ComputeAWS", infrastructurePath)
+	require.NoError(t, err, "Unexpected error generating terraform infra")
+
+	assert.Equal(t, "AWS_ACCESS_KEY_ID=ak1", env[0], "Did not find expected access key in %+v", env)
+
 }

@@ -17,7 +17,10 @@ package aws
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -27,7 +30,14 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	var cfg config.Configuration
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+	err := locations.Initialize(cfg, client)
+	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupAWS", func(t *testing.T) {
 		t.Run("simpleAWSInstance", func(t *testing.T) {
@@ -56,6 +66,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		})
 		t.Run("simpleAWSInstanceWithMalformedEIP", func(t *testing.T) {
 			testSimpleAWSInstanceWithMalformedEIP(t, kv, cfg)
+		})
+		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
+			testGenerateTerraformInfraForAWSNode(t, kv, cfg)
 		})
 
 	})
