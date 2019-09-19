@@ -150,4 +150,29 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Unexpected error attempting to get all locations after cleanup")
 	assert.Equal(t, 0, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 
+	// Check backward compatibility with infrastructures
+	testConfig = config.Configuration{
+		Infrastructures: map[string]config.DynamicMap{
+			"openstack": config.DynamicMap{
+				"auth_url":                "http://1.2.3.2:5000/v2.0",
+				"default_security_groups": []string{"sec21", "sec22"},
+				"password":                "test2",
+				"private_network_name":    "private-net2",
+				"region":                  "RegionOne",
+				"tenant_name":             "test2",
+				"user_name":               "testInfra1",
+			},
+		},
+	}
+
+	err = Initialize(testConfig, cc)
+	require.NoError(t, err, "Failed to initialize using a config with Infrastructures")
+
+	props, err = GetLocationProperties("openstack")
+	require.NoError(t, err, "Unexpected error attempting to get location openstack")
+	assert.Equal(t, "testInfra1", props["user_name"])
+
+	err = Cleanup()
+	require.NoError(t, err, "Unexpected error attempting to cleanup locations")
+
 }
