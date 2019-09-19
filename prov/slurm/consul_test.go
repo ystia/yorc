@@ -21,22 +21,24 @@ import (
 	"github.com/ystia/yorc/v4/testutil"
 )
 
+var slumTestLocationProps config.DynamicMap
+
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulSlurmPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
 
-	// Slurm infrastructure config
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"user_name": "root",
-				"password":  "pwd",
-				"name":      "slurm",
-				"url":       "1.2.3.4",
-				"port":      "1234",
-			}}}
+	// Create a slurm location
+	var cfg config.Configuration
+
+	slumTestLocationProps = config.DynamicMap{
+		"user_name": "root",
+		"password":  "pwd",
+		"name":      "slurm",
+		"url":       "1.2.3.4",
+		"port":      "1234",
+	}
 
 	t.Run("groupSlurm", func(t *testing.T) {
 		t.Run("simpleSlurmNodeAllocation", func(t *testing.T) {

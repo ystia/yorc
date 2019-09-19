@@ -40,7 +40,7 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 	deploymentID := loadTestYaml(t, kv)
 	infrastructure := infrastructure{}
 
-	err := generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure)
+	err := generateNodeAllocation(context.Background(), kv, slumTestLocationProps, deploymentID, "Compute", "0", &infrastructure)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.nodes, 1)
@@ -62,7 +62,7 @@ func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg con
 	deploymentID := loadTestYaml(t, kv)
 	infrastructure := infrastructure{}
 
-	err := generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure)
+	err := generateNodeAllocation(context.Background(), kv, slumTestLocationProps, deploymentID, "Compute", "0", &infrastructure)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.nodes, 1)
@@ -88,7 +88,7 @@ func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Config
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err := generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", istr, &infrastructure)
+		err := generateNodeAllocation(context.Background(), kv, slumTestLocationProps, deploymentID, "Compute", istr, &infrastructure)
 		require.Nil(t, err)
 
 		require.Len(t, infrastructure.nodes, i+1)

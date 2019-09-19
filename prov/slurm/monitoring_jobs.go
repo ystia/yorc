@@ -28,6 +28,7 @@ import (
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/prov/scheduling"
@@ -101,12 +102,18 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	}
 
 	nodeName := action.Data["nodeName"]
-	credentials, err := getUserCredentials(consulutil.GetKV(), cfg, deploymentID, nodeName, "")
+
+	locationProps, err := locations.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	if err != nil {
+		return true, err
+	}
+
+	credentials, err := getUserCredentials(consulutil.GetKV(), locationProps, deploymentID, nodeName, "")
 	if err != nil {
 		return true, err
 	}
 	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
-	sshClient, err := getSSHClient(credentials, cfg)
+	sshClient, err := getSSHClient(credentials, locationProps)
 	if err != nil {
 		return true, err
 	}
@@ -174,7 +181,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	// cleanup except if error occurred or explicitly specified in config
 	if deregister && err == nil {
-		if !cfg.Infrastructures[infrastructureName].GetBool("keep_job_remote_artifacts") {
+		if !locationProps.GetBool("keep_job_remote_artifacts") {
 			o.removeArtifacts(actionData, sshClient)
 		}
 	}

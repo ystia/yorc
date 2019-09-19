@@ -26,9 +26,9 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-const infrastructureName = "slurm"
+const infrastructureType = "slurm"
 
-func generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, operation string) (*infrastructure, error) {
+func generateInfrastructure(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName, operation string) (*infrastructure, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	infra := &infrastructure{}
 	log.Debugf("inspecting node %s", nodeName)
@@ -58,7 +58,7 @@ func generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configur
 				continue
 			}
 
-			if err := generateNodeAllocation(ctx, kv, cfg, deploymentID, nodeName, instanceName, infra); err != nil {
+			if err := generateNodeAllocation(ctx, kv, locationProps, deploymentID, nodeName, instanceName, infra); err != nil {
 				return nil, err
 			}
 		}
