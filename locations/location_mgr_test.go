@@ -125,6 +125,10 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	props, err = GetPropertiesForFirstLocationOfType("UnknownType")
 	require.Error(t, err, "Expected to have an error attempting to get location of unknown type, got %+v", props)
 
+	// Calling again initialize should not remove known locations
+	err = Initialize(testConfig, cc)
+	require.NoError(t, err, "Failed to reinitialize locations")
+
 	locations, err := GetLocations()
 	require.NoError(t, err, "Unexpected error attempting to get all locations")
 	assert.Equal(t, 3, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
