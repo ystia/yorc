@@ -31,7 +31,7 @@ func testSimpleComputeAddress(t *testing.T, kv *api.KV, cfg config.Configuration
 	deploymentID := loadTestYaml(t, kv)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateComputeAddress(context.Background(), kv, cfg, deploymentID, "ComputeAddress", "0", 0, &infrastructure, make(map[string]string))
+	err := g.generateComputeAddress(context.Background(), kv, cfg, testLocationProperties, deploymentID, "ComputeAddress", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute address for %s", deploymentID)
 
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)

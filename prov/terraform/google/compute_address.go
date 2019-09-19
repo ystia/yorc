@@ -30,7 +30,7 @@ import (
 )
 
 func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
+	cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName, instanceName string, instanceID int,
 	infrastructure *commons.Infrastructure,
 	outputs map[string]string) error {
 
@@ -79,10 +79,10 @@ func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV
 	computeAddress.Name = strings.Replace(name, "_", "-", -1)
 
 	if computeAddress.Region == "" {
-		if cfg.Infrastructures[infrastructureName].GetString("region") == "" {
+		computeAddress.Region = locationProps.GetString("region")
+		if computeAddress.Region == "" {
 			return errors.New("Region must be set for ComputeAddress node type or in google infrastructure config")
 		}
-		computeAddress.Region = cfg.Infrastructures[infrastructureName].GetString("region")
 	}
 
 	var ipAddress string

@@ -28,12 +28,13 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-const infrastructureName = "google"
+const infrastructureType = "google"
 
 type googleGenerator struct {
 }
@@ -54,10 +55,14 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
 	// Define Terraform provider environment variables
+	locationProps, err := locations.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	if err != nil {
+		return false, nil, nil, nil, err
+	}
 	var cmdEnv []string
 	configParams := []string{"application_credentials", "credentials", "project", "region"}
 	for _, configParam := range configParams {
-		value := cfg.Infrastructures[infrastructureName].GetString(configParam)
+		value := locationProps.GetString(configParam)
 		if value != "" {
 			cmdEnv = append(cmdEnv,
 				fmt.Sprintf("%s=%s",
@@ -110,7 +115,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 				return false, nil, nil, nil, err
 			}
 		case "yorc.nodes.google.Address":
-			err = g.generateComputeAddress(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			err = g.generateComputeAddress(ctx, kv, cfg, locationProps, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

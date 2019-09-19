@@ -21,20 +21,20 @@ import (
 	"github.com/ystia/yorc/v4/testutil"
 )
 
+var testLocationProperties config.DynamicMap
+
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulGooglePackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
 
-	// AWS infrastructure config
-	cfg := config.Configuration{
-		DisableSSHAgent: false,
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"credentials": "/tmp/creds.json",
-				"region":      "europe-west-1",
-			}}}
+	testLocationProperties = config.DynamicMap{
+		"credentials": "/tmp/creds.json",
+		"region":      "europe-west-1",
+	}
+	cfg := config.Configuration{DisableSSHAgent: false}
+
 	t.Run("googleProvider", func(t *testing.T) {
 		t.Run("simpleComputeInstance", func(t *testing.T) {
 			testSimpleComputeInstance(t, kv, cfg)
