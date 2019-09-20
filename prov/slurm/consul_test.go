@@ -33,7 +33,12 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	// Create a slurm location
-	var cfg config.Configuration
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
 	err := locations.Initialize(cfg, client)
 	require.NoError(t, err, "Error initializing locations")
 
@@ -64,6 +69,9 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		})
 		t.Run("multipleSlurmNodeAllocation", func(t *testing.T) {
 			testMultipleSlurmNodeAllocation(t, kv, cfg)
+		})
+		t.Run("executorTest", func(t *testing.T) {
+			testExecutor(t, srv, kv, cfg)
 		})
 	})
 }
