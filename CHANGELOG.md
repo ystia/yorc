@@ -8,7 +8,6 @@
 
 ## 4.0.0-M4 (September 19, 2019)
 
-
 ### BUG FIXES
 
 * Fixed a bug preventing OpenStack Networks from being created ([GH-515](https://github.com/ystia/yorc/issues/515))
