@@ -206,6 +206,7 @@ func CleanupPurgedDeployments(ctx context.Context, cc *api.Client, evictionTimeo
 		return err
 	}
 	defer lock.Unlock()
+	// Appending a final "/" here is not necessary as there is no other keys starting with consulutil.PurgedDeploymentKVPrefix prefix
 	kvpList, _, err := cc.KV().List(consulutil.PurgedDeploymentKVPrefix, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -273,4 +274,12 @@ func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Loc
 		}
 	}
 	return lock, leaderCh, nil
+}
+
+// DeleteDeployment deletes a given deploymentID from the deployments path
+func DeleteDeployment(kv *api.KV, deploymentID string) error {
+	// Remove from KV this purge tasks
+	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+
 }

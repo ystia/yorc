@@ -85,7 +85,7 @@ endif
 json-test: generate header format
 	@echo "--> Running go test with json output"
 # -count is for disabling test cache
-	@go test -tags "testing $(BUILD_TAGS)" $(TESTARGS) -json -count=1 -p 1 ./... > tests-reports.json
+	@gotestsum --jsonfile tests-reports.json  -- -tags "testing $(BUILD_TAGS)" $(TESTARGS) -count=1 -p 1 ./...
 
 cover:
 	@go test -tags "testing $(BUILD_TAGS)"  -p 1 -cover $(COVERARGS) ./...

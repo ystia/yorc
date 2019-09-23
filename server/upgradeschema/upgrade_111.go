@@ -51,7 +51,7 @@ func up111RemoveCommonsImports(kv *api.KV, deploymentPrefix string) error {
 	for _, importPrefix := range iKeys {
 		importName := path.Base(importPrefix)
 		if strings.HasPrefix(importName, "<") && strings.HasSuffix(importName, ">") {
-			_, err = kv.DeleteTree(importPrefix, nil)
+			_, err = kv.DeleteTree(importPrefix+"/", nil)
 			if err != nil {
 				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
@@ -68,7 +68,7 @@ func up111RemoveCommonsTypes(kv *api.KV, commons []string, deploymentPrefix stri
 	for _, tPrefix := range tKeys {
 		if collections.ContainsString(commons, path.Base(tPrefix)) {
 			log.Debugf("\tRemoving type %q from deployment %q", path.Base(tPrefix), path.Base(deploymentPrefix))
-			_, err := kv.DeleteTree(tPrefix, nil)
+			_, err := kv.DeleteTree(tPrefix+"/", nil)
 			if err != nil {
 				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}

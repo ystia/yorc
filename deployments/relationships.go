@@ -191,7 +191,7 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 		internal.StoreComplexType(store, attrPath, attributeValue)
-		err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+		err := publishRelationshipAttributeValueChange(kv, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
@@ -203,10 +203,10 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
 	reqKeys, err := GetRequirementsIndexes(kv, deploymentID, nodeName)
-	nodeInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
+	nodeInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -241,6 +241,7 @@ func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV,
 
 func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeName, instanceName string, add bool) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
+	// Appending a final "/" here is not necessary has there is no other keys starting with "relationship_instances" prefix
 	relInstKVPairs, _, err := kv.List(relInstancePath, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -288,7 +289,7 @@ func DeleteRelationshipInstance(kv *api.KV, deploymentID, nodeName, instanceName
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, reqindex := range reqIndices {
-		_, err := kv.DeleteTree(path.Join(reqindex, instanceName), nil)
+		_, err := kv.DeleteTree(path.Join(reqindex, instanceName)+"/", nil)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}

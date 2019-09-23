@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 
 	"github.com/hashicorp/consul/api"
@@ -36,8 +37,13 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 }
 
 func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *api.Client) {
-	var myWorker worker
-	myWorker.consulClient = client
+	myWorker := &worker{
+		consulClient: client,
+		cfg: config.Configuration{
+			// Ensure we are not deleting filesystem files elsewhere
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
 	var myTaskExecution taskExecution
 	myTaskExecution.cc = client
 	// This execution corresponds to the purge task

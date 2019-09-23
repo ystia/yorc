@@ -417,6 +417,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 			}
 
 			// Get all requirement properties
+			// Appending a final "/" here is not necessary as there is no other keys starting with "properties" prefix
 			kvps, _, err := kv.List(path.Join(attachReq, "properties"), nil)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)

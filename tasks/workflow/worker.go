@@ -606,7 +606,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 				return err
 			}
 		}
-		_, err = kv.DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid), nil)
+		_, err = kv.DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid)+"/", nil)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -628,9 +628,9 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		return errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
 	}
 	// Remove from KV this purge tasks
-	_, err = kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.targetID), nil)
+	err = deployments.DeleteDeployment(t.cc.KV(), t.targetID)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return err
 	}
 	// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
 	checkAndSetTaskStatus(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE)

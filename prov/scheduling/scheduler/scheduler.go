@@ -47,7 +47,7 @@ type scheduler struct {
 // unregisterAction allows to unregister a scheduled action
 func (sc *scheduler) unregisterAction(id string) error {
 	log.Debugf("Removing scheduled action with id:%q", id)
-	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
+	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id) + "/"
 	_, err := sc.cc.KV().DeleteTree(scaPath, nil)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to delete scheduled action with id:%q", id)
@@ -225,7 +225,7 @@ func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	if kvp != nil && len(kvp.Value) > 0 {
 		sca.latestTaskID = string(kvp.Value)
 	}
-
+	// Appending a final "/" here is not necessary as there is no other keys starting with "data" prefix
 	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id, "data"), nil)
 	if err != nil {
 		return nil, err

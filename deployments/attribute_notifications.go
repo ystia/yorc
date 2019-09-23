@@ -137,7 +137,7 @@ func (an *AttributeNotifier) NotifyValueChange(kv *api.KV, deploymentID string) 
 }
 
 func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID string) error {
-	kvps, _, err := kv.List(notificationsPath, nil)
+	kvps, _, err := kv.List(notificationsPath+"/", nil)
 	if err != nil {
 		return err
 	}

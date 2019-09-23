@@ -655,6 +655,54 @@ func testconsulGetLogs(t *testing.T, kv *api.KV) {
 
 }
 
+func testPurgeDeploymentEvents(t *testing.T, kv *api.KV) {
+	ctx := context.Background()
+	deployment1ID := "testPurgeDeploymentEventsA"
+	deployment2ID := "testPurgeDeploymentEventsAA"
+	PublishAndLogInstanceStatusChange(ctx, kv, deployment1ID, "somenode", "someinstance", "somestatus")
+	PublishAndLogInstanceStatusChange(ctx, kv, deployment2ID, "someothernode", "someotherinstance", "someotherstatus")
+	rawEvents, _, err := StatusEvents(kv, deployment1ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 1)
+	rawEvents, _, err = StatusEvents(kv, deployment2ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 1)
+
+	err = PurgeDeploymentEvents(kv, deployment1ID)
+	require.NoError(t, err)
+
+	rawEvents, _, err = StatusEvents(kv, deployment1ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 0)
+	rawEvents, _, err = StatusEvents(kv, deployment2ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 1)
+}
+
+func testPurgeDeploymentLogs(t *testing.T, kv *api.KV) {
+	deployment1ID := "testPurgeDeploymentLogsA"
+	deployment2ID := "testPurgeDeploymentLogsAA"
+
+	SimpleLogEntry(LogLevelINFO, deployment1ID).RegisterAsString("SomeLog")
+	SimpleLogEntry(LogLevelINFO, deployment2ID).RegisterAsString("SomeOtherLog")
+	rawEvents, _, err := LogsEvents(kv, deployment1ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 1)
+	rawEvents, _, err = LogsEvents(kv, deployment2ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 1)
+
+	err = PurgeDeploymentLogs(kv, deployment1ID)
+	require.NoError(t, err)
+
+	rawEvents, _, err = LogsEvents(kv, deployment1ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 0)
+	rawEvents, _, err = LogsEvents(kv, deployment2ID, 0, 5*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, rawEvents, 1)
+}
+
 func getLogContent(t *testing.T, log []byte) string {
 	var data map[string]interface{}
 	err := json.Unmarshal(log, &data)
