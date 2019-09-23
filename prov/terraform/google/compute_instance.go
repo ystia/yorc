@@ -261,7 +261,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg confi
 	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
 
 	// Add Connection check
-	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env); err != nil {
+	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, nil, env); err != nil {
 		return err
 	}
 

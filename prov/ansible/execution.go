@@ -125,6 +125,7 @@ type hostConnection struct {
 	instanceID  string
 	privateKeys map[string]*sshutil.PrivateKey
 	password    string
+	bastion     sshutil.BastionHostConfig
 }
 
 type sshCredentials struct {
@@ -822,6 +823,17 @@ func (e *executionCommon) getSSHCredentials(ctx context.Context, host *hostConne
 
 func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host *hostConnection) error {
 	buffer.WriteString(host.host)
+
+	if host.bastion.Host != "" {
+		if host.bastion.Port == "" {
+			host.bastion.Port = "22"
+		}
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_common_args='-o ProxyCommand=\"ssh -W %%h:%%p "+
+			// disable host key checking on bastion host completeley
+			"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "+
+			"-p %s %s@%s\"'", host.bastion.Port, host.bastion.User, host.bastion.Host))
+	}
+
 	if e.isOrchestratorOperation {
 		err := e.generateHostConnectionForOrchestratorOperation(ctx, buffer)
 		if err != nil {

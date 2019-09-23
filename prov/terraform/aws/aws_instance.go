@@ -201,7 +201,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = accessIPKey
 
 	// Add Connection check
-	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Tags.Name, env); err != nil {
+	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Tags.Name, nil, env); err != nil {
 		return err
 	}
 

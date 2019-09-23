@@ -421,9 +421,8 @@ func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName,
 	if err != nil {
 		return err
 	}
-
 	return commons.AddConnectionCheckResource(opts.infrastructure, user,
-		privateKey, accessIP, instance.Name, env)
+		privateKey, accessIP, instance.Name, nil, env)
 
 }
 

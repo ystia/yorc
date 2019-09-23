@@ -106,6 +106,15 @@ type Connection struct {
 	Port       string `json:"port,omitempty"`
 	Timeout    string `json:"timeout,omitempty"` // defaults to "5m"
 	PrivateKey string `json:"private_key,omitempty"`
+
+	Agent bool `json:"agent,omitempty"`
+
+	// The following values are only supported by ssh
+	BastionHost       string `json:"bastion_host,omitempty"`
+	BastionPort       string `json:"bastion_port,omitempty"`
+	BastionUser       string `json:"bastion_user,omitempty"`
+	BastionPassword   string `json:"bastion_password,omitempty"`
+	BastionPrivateKey string `json:"bastion_private_key,omitempty"`
 }
 
 // An Output allows to define a terraform output value
@@ -181,7 +190,8 @@ func GetConnInfoFromEndpointCredentials(ctx context.Context, deploymentID, nodeN
 }
 
 // AddConnectionCheckResource builds a null specific resource to check SSH connection with SSH key passed via env variable
-func AddConnectionCheckResource(infrastructure *Infrastructure, user string, privateKey *sshutil.PrivateKey, accessIP, resourceName string, env *[]string) error {
+func AddConnectionCheckResource(infrastructure *Infrastructure, user string, privateKey *sshutil.PrivateKey, accessIP,
+	resourceName string, bastionCfg *sshutil.BastionHostConfig, env *[]string) error {
 	// Define private_key variable
 	infrastructure.Variable = make(map[string]interface{})
 	infrastructure.Variable["private_key"] = struct{}{}
@@ -189,14 +199,24 @@ func AddConnectionCheckResource(infrastructure *Infrastructure, user string, pri
 	// Add env TF variable for private key
 	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(privateKey.Content)))
 
+	conn := &Connection{
+		User:       user,
+		Host:       accessIP,
+		PrivateKey: "${var.private_key}",
+	}
+	if bastionCfg != nil {
+		conn.BastionHost = bastionCfg.Host
+		conn.BastionPort = bastionCfg.Port
+		conn.BastionUser = bastionCfg.User
+		conn.BastionPassword = bastionCfg.Password
+		if bastionCfg.PrivateKey != nil {
+			conn.BastionPrivateKey = string(bastionCfg.PrivateKey.Content)
+		}
+	}
+
 	// Build null Resource
 	nullResource := Resource{}
-	re := RemoteExec{Inline: []string{`echo "connected"`},
-		Connection: &Connection{
-			User:       user,
-			Host:       accessIP,
-			PrivateKey: "${var.private_key}",
-		}}
+	re := RemoteExec{Inline: []string{`echo "connected"`}, Connection: conn}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re
