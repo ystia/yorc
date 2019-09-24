@@ -8,8 +8,9 @@
   "http_address": "0.0.0.0",
   "resources_prefix": "yorc-",
   "disable_ssh_agent": false,
-  "infrastructures":{
-    "openstack": {
+  "locations":{
+    "location1":{
+      "type": "openstack",
       "auth_url": "http://openstack:5000/v2.0",
       "tenant_name": "Tname",
       "tenant_id": "use_tid_or_tname",
@@ -20,16 +21,19 @@
       "public_network_name": "not_supported",
       "os_default_security_groups": ["default", "lax"]
     },
-    "kubernetes": {
+    "location2":{
+      "type": "kubernetes",
       "master_url": "https://kube:6443",
       "cert_file": "/etc/pki/yorc/k8s-client.crt",
       "key_file": "/etc/pki/yorc/k8s-client.key",
       "ca_file": "/etc/pki/yorc/k8s-ca.crt"
     },
-    "aws":{
+    "location3":{
+      "type": "aws",
       "region": "us-east-2"
     },
-    "slurm":{
+    "location4":{
+      "type": "slurm",
       "user_name": "benoists",
       "password": "changeme",
       "name": "slurm",

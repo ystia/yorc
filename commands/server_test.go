@@ -51,76 +51,15 @@ var expectedDefaultConsulConfig = config.Consul{
 }
 
 // Test the following args:
-// ./yorc server --infrastructure_infra1_auth_url http://localhost:5000/v2.0 --infrastructure_infra1_tenant_name validation
-func TestServerInitInfraExtraFlagsWithSpaceDelimiter(t *testing.T) {
-	args := []string{"./yorc server", "--infrastructure_infra1_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra1_tenant_name", "validation"}
-	serverInitExtraFlags(args)
-
-	require.Len(t, args, 5)
-	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "infrastructures.infra1.auth_url")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "infrastructures.infra1.tenant_name")
-}
-
-// Test the following args:
-// ./yorc server --infrastructure_infra2_private_network_name=mag3-yorc-network --infrastructure_infra2_region=regionOne
-func TestServerInitInfraExtraFlagsWithEqualDelimiter(t *testing.T) {
-	args := []string{"./yorc server", "--infrastructure_infra2_private_network_name=mag3-yorc-network", "--infrastructure_infra2_region=regionOne"}
-	serverInitExtraFlags(args)
-	require.Len(t, args, 3)
-	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "infrastructures.infra2.private_network_name")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "infrastructures.infra2.region")
-}
-
-// Test the following args:
-// ./yorc server --infrastructure_infra3_private_network_name=mag3-yorc-network --infrastructure_infra3_region regionOne
-func TestServerInitInfraExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
-	args := []string{"./yorc server", "--infrastructure_infra3_private_network_name=mag3-yorc-network", "--infrastructure_infra3_region", "regionOne"}
-	serverInitExtraFlags(args)
-
-	require.Len(t, args, 4)
-	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "infrastructures.infra3.private_network_name")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "infrastructures.infra3.region")
-}
-
-// Test the following args:
-// ./yorc server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_secured --infrastructure_infra4_tenant_name validation
-func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
-	args := []string{"./yorc server", "--infrastructure_infra4_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra4_secured", "--infrastructure_infra4_tenant_name", "validation"}
-	serverInitExtraFlags(args)
-
-	require.Len(t, args, 6)
-	require.Len(t, resolvedServerExtraParams[0].viperNames, 3)
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "infrastructures.infra4.auth_url")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "infrastructures.infra4.secured")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[2], "infrastructures.infra4.tenant_name")
-}
-
-// Test the following args:
-// ./yorc server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_tenant_name validation --infrastructure_infra4_secured
-func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
-	args := []string{"./yorc server", "--infrastructure_infra5_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra5_tenant_name", "validation", "--infrastructure_infra5_secured"}
-	serverInitExtraFlags(args)
-
-	require.Len(t, args, 6)
-	require.Len(t, resolvedServerExtraParams[0].viperNames, 3)
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "infrastructures.infra5.auth_url")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "infrastructures.infra5.tenant_name")
-	require.Equal(t, resolvedServerExtraParams[0].viperNames[2], "infrastructures.infra5.secured")
-}
-
-// Test the following args:
 // ./yorc server --vault_auth_url http://localhost:5000/v2.0 --vault_tenant_name validation
 func TestServerInitVaultExtraFlagsWithSpaceDelimiter(t *testing.T) {
 	args := []string{"./yorc server", "--vault_auth_url", "http://localhost:5000/v2.0", "--vault_tenant_name", "validation"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 5)
-	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[0], "vault.auth_url")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[1], "vault.tenant_name")
+	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "vault.auth_url")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "vault.tenant_name")
 }
 
 // Test the following args:
@@ -129,9 +68,9 @@ func TestServerInitVaultExtraFlagsWithEqualDelimiter(t *testing.T) {
 	args := []string{"./yorc server", "--vault_private_network_name=mag3-yorc-network", "--vault_region=regionOne"}
 	serverInitExtraFlags(args)
 	require.Len(t, args, 3)
-	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[0], "vault.private_network_name")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[1], "vault.region")
+	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "vault.private_network_name")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "vault.region")
 }
 
 // Test the following args:
@@ -141,9 +80,9 @@ func TestServerInitVaultExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 4)
-	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[0], "vault.public_network_name")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[1], "vault.region2")
+	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "vault.public_network_name")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "vault.region2")
 }
 
 // Test the following args:
@@ -153,10 +92,10 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 6)
-	require.Len(t, resolvedServerExtraParams[1].viperNames, 3)
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[0], "vault.auth_url2")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[1], "vault.secured2")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[2], "vault.tenant_name2")
+	require.Len(t, resolvedServerExtraParams[0].viperNames, 3)
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "vault.auth_url2")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "vault.secured2")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[2], "vault.tenant_name2")
 }
 
 // Test the following args:
@@ -166,10 +105,10 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 6)
-	require.Len(t, resolvedServerExtraParams[1].viperNames, 3)
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[0], "vault.auth_url3")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[1], "vault.tenant_name3")
-	require.Equal(t, resolvedServerExtraParams[1].viperNames[2], "vault.secured3")
+	require.Len(t, resolvedServerExtraParams[0].viperNames, 3)
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "vault.auth_url3")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[1], "vault.tenant_name3")
+	require.Equal(t, resolvedServerExtraParams[0].viperNames[2], "vault.secured3")
 }
 
 // Tests configuration values:

@@ -141,19 +141,10 @@ func serverInitExtraFlags(args []string) {
 	InitExtraFlags(args, serverCmd)
 }
 
-// InitExtraFlags inits infrastructure and vault flags
+// InitExtraFlags inits vault flags
 func InitExtraFlags(args []string, cmd *cobra.Command) {
 
 	resolvedServerExtraParams = []*serverExtraParams{
-		&serverExtraParams{
-			argPrefix:   "infrastructure_",
-			envPrefix:   "YORC_INFRA_",
-			viperPrefix: "infrastructures.",
-			viperNames:  make([]string, 0),
-			subSplit:    1,
-			storeFn:     addServerExtraInfraParams,
-			readConfFn:  readInfraViperConfig,
-		},
 		&serverExtraParams{
 			argPrefix:   "vault_",
 			envPrefix:   "YORC_VAULT_",
@@ -169,7 +160,7 @@ func InitExtraFlags(args []string, cmd *cobra.Command) {
 			if strings.HasPrefix(args[i], "--"+sep.argPrefix) {
 				var viperName, flagName string
 				if strings.ContainsRune(args[i], '=') {
-					// Handle the syntax --infrastructure_xxx_yyy = value
+					// Handle the syntax --vault_xxx_yyy = value
 					flagParts := strings.Split(args[i], "=")
 					flagName = strings.TrimLeft(flagParts[0], "-")
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
@@ -182,7 +173,7 @@ func InitExtraFlags(args []string, cmd *cobra.Command) {
 						viper.SetDefault(viperName, "")
 					}
 				} else {
-					// Handle the syntax --infrastructure_xxx_yyy value
+					// Handle the syntax --vault_xxx_yyy value
 					flagName = strings.TrimLeft(args[i], "-")
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
@@ -420,8 +411,8 @@ func GetConfig() config.Configuration {
 		log.Fatalf("Misconfiguration error: %v", err)
 	}
 
-	if configuration.Infrastructures == nil {
-		configuration.Infrastructures = make(map[string]config.DynamicMap)
+	if configuration.Locations == nil {
+		configuration.Locations = make(map[string]config.LocationConfiguration)
 	}
 	if configuration.Vault == nil {
 		configuration.Vault = make(config.DynamicMap)
@@ -436,65 +427,10 @@ func GetConfig() config.Configuration {
 	return configuration
 }
 
-func readInfraViperConfig(cfg *config.Configuration) {
-	infras := viper.GetStringMap("infrastructures")
-	for infraName, infraConf := range infras {
-		infraConfMap, ok := infraConf.(map[string]interface{})
-		if !ok {
-			tmpInfraMap, ok := infraConf.(map[interface{}]interface{})
-			if !ok {
-				log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
-			}
-			infraConfMap = make(map[string]interface{})
-			for k, v := range tmpInfraMap {
-				infraConfMap[fmt.Sprint(k)] = v
-			}
-		}
-		if cfg.Infrastructures[infraName] == nil {
-			cfg.Infrastructures[infraName] = make(config.DynamicMap)
-		}
-		for k, v := range infraConfMap {
-			cfg.Infrastructures[infraName].Set(k, v)
-		}
-	}
-}
-
 func readVaultViperConfig(cfg *config.Configuration) {
 	vaultCfg := viper.GetStringMap("vault")
 	for k, v := range vaultCfg {
 		cfg.Vault.Set(k, v)
-	}
-}
-
-func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
-	if cfg.Infrastructures == nil {
-		cfg.Infrastructures = make(map[string]config.DynamicMap)
-	}
-	paramParts := strings.Split(infraParam, ".")
-	value := viper.Get(infraParam)
-	params, ok := cfg.Infrastructures[paramParts[1]]
-	if !ok {
-		params = make(config.DynamicMap)
-		cfg.Infrastructures[paramParts[1]] = params
-	}
-
-	// When the key/value pair is read from an environment variable, the value is
-	// read as a string. This needs to be changed if the variable is expected to
-	// be an array
-	if strings.HasSuffix(paramParts[2], "s") && !strings.HasSuffix(paramParts[2], "credentials") {
-		// value should be a slice
-		switch value.(type) {
-		case string:
-			vSlice := strings.Split(fmt.Sprint(value), ",")
-			for i, val := range vSlice {
-				vSlice[i] = strings.TrimSpace(val)
-			}
-			params.Set(paramParts[2], vSlice)
-		default:
-			params.Set(paramParts[2], value)
-		}
-	} else {
-		params.Set(paramParts[2], value)
 	}
 }
 
