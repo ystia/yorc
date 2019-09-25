@@ -127,7 +127,6 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) getObjectRuntime() runtime.Object {
 }
 
 func (yorcPVC *yorcK8sPersistentVolumeClaim) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
-	return
 }
 
 /*
@@ -198,7 +197,7 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, de
 		return true, nil
 	}
 
-	if failed, msg := isDeploymentFailed(clientset, dep); failed {
+	if failed, msg := isDeploymentFailed(dep); failed {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", yorcDep.Name, msg)
 		return false, errors.Errorf("Kubernetes deployment %q: %s", yorcDep.Name, msg)
 	}
@@ -313,7 +312,6 @@ func (yorcSts *yorcK8sStatefulSet) getObjectRuntime() runtime.Object {
 
 func (yorcSts *yorcK8sStatefulSet) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
 	// TODO : stream logs for this controller
-	return
 }
 
 /*
@@ -392,5 +390,4 @@ func (yorcSvc *yorcK8sService) getObjectRuntime() runtime.Object {
 }
 
 func (yorcSvc *yorcK8sService) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
-	return
 }

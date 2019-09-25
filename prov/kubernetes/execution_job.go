@@ -47,6 +47,9 @@ func (e *execution) executeAsync(ctx context.Context, cfg config.Configuration, 
 	}
 
 	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// Fill all used data for job monitoring
 	data := make(map[string]string)
@@ -75,7 +78,7 @@ func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interfac
 	}
 
 	if !job.namespaceProvided {
-		err = createNamespaceIfMissing(e.deploymentID, job.namespace, clientset)
+		err = createNamespaceIfMissing(job.namespace, clientset)
 		if err != nil {
 			return err
 		}

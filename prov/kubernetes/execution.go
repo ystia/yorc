@@ -44,13 +44,6 @@ const (
 	k8sScaleOperation
 )
 
-type dockerConfigEntry struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email,omitempty"`
-	Auth     string `json:"auth"`
-}
-
 type execution struct {
 	kv           *api.KV
 	cfg          config.Configuration
@@ -63,7 +56,6 @@ type execution struct {
 }
 
 const namespaceCreatedMessage string = "K8's Namespace %s created"
-const namespaceDeletedMessage string = "K8's Namespace %s deleted"
 const namespaceDeletionFailedMessage string = "Cannot delete K8's Namespace %s"
 const unsupportedOperationOnK8sResource string = "Unsupported operation on k8s resource"
 
@@ -172,7 +164,9 @@ func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.I
 	}
 	// unmarshal resource spec
 	err = K8sObj.unmarshalResource(ctx, e, e.deploymentID, clientset, rSpec)
-
+	if err != nil {
+		return nil, err
+	}
 	return K8sObj, nil
 }
 
@@ -219,7 +213,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 				set attributes			OK
 		*/
 		if !namespaceProvided {
-			err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
+			err = createNamespaceIfMissing(namespaceName, clientset)
 			if err != nil {
 				return err
 			}

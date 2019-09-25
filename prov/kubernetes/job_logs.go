@@ -136,6 +136,9 @@ func getJobLogs(clientset kubernetes.Interface, since *time.Time, namespace, pod
 	}
 	defer readCloser.Close()
 	b, err := ioutil.ReadAll(readCloser)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read logs for pod %q", podID)
+	}
 
 	return parseJobLogs(string(b), podID, containerID), errors.Wrapf(err, "failed to read logs for pod %q", podID)
 }

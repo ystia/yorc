@@ -36,7 +36,7 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Deployment) (bool, string) {
+func isDeploymentFailed(deployment *v1beta1.Deployment) (bool, string) {
 	for _, c := range deployment.Status.Conditions {
 		if c.Type == v1beta1.DeploymentReplicaFailure && c.Status == corev1.ConditionTrue {
 			return true, c.Message
@@ -129,24 +129,6 @@ func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) 
 	return false, nil
 }
 
-/* DEPRECATED Use podControllersInNamespace instead */
-func deploymentsInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
-	var nbDeployments int
-	deploymentsList, err := clientset.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		return nbDeployments, err
-	}
-	for _, dep := range deploymentsList.Items {
-		//depName := dep.GetName()
-		depNamespace := dep.GetNamespace()
-		//events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Found %s deployment in k8s Namespace %s", depName, depNamespace)
-		if depNamespace == namespace {
-			nbDeployments++
-		}
-	}
-	return nbDeployments, nil
-}
-
 /* Return the number of pod controllers (Deployment and StatefulSet, more in the future) in a specific namespace or -1, err != nil in case of error */
 func podControllersInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
 	var nbcontrollers int
@@ -178,7 +160,7 @@ func referenceFromOwnerReference(namespace string, ref metav1.OwnerReference) re
 }
 
 // CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
-func createNamespaceIfMissing(deploymentID, namespaceName string, clientset kubernetes.Interface) error {
+func createNamespaceIfMissing(namespaceName string, clientset kubernetes.Interface) error {
 	_, err := clientset.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -275,22 +257,6 @@ func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
 	job.namespace, job.namespaceProvided = getNamespace(deploymentID, objectMeta)
 
 	return job, nil
-}
-
-// Return the first healthy node found in the cluster
-func getHealthyNode(clientset kubernetes.Interface) (string, error) {
-	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get nodes")
-	}
-	for _, node := range nodes.Items {
-		for _, cond := range node.Status.Conditions {
-			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
-				return node.ObjectMeta.Name, nil
-			}
-		}
-	}
-	return "", errors.Wrap(err, "No healthy node found")
 }
 
 //Return the external IP of a given node
