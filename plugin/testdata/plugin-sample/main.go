@@ -21,11 +21,12 @@ func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Config
 		return err
 	}
 
-	if cfg.Infrastructures["plugin"] != nil {
-		for _, k := range cfg.Infrastructures["plugin"].Keys() {
+	if cfg.Locations["plugin"] != nil {
+		props := cfg.Locations["plugin"].Properties
+		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
-		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+		log.Printf("Secret key: %q", props.GetStringOrDefault("test", "not found!"))
 	}
 
 	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myDelegateExecutor")
@@ -45,11 +46,12 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 		return err
 	}
 
-	if cfg.Infrastructures["plugin"] != nil {
-		for _, k := range cfg.Infrastructures["plugin"].Keys() {
+	if cfg.Locations["plugin"] != nil {
+		props := cfg.Locations["plugin"].Properties
+		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
-		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+		log.Printf("Secret key: %q", props.GetStringOrDefault("test", "not found!"))
 	}
 
 	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")

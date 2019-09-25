@@ -87,7 +87,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 		WorkingDirectory: workingDirectoryPath,
 		ResourcesPrefix:  "bootstrap-",
 		WorkersNumber:    inputValues.Yorc.WorkersNumber,
-		Infrastructures:  inputValues.Infrastructures,
+		Locations:        inputValues.Locations,
 		Terraform: config.Terraform{
 			PluginsDir:         workDirAbsolutePath,
 			KeepGeneratedFiles: true,

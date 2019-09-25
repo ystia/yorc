@@ -22,17 +22,19 @@ yorc:
   ca_passphrase: tmp123
 yorc_plugin:
   download_url: https://ystia.jfrog.io/ystia/binaries/ystia/yorc-a4c-plugin/dist/develop/alien4cloud-yorc-plugin-4.0.0-SNAPSHOT.zip
-infrastructures:
-  openstack:
-    auth_url: http://1.2.3.5:5000/v2.0
-    default_security_groups:
-    - open
-    - default
-    password: mypasswd
-    private_network_name: private-test
-    region: RegionOne
-    tenant_name: mytenant
-    user_name: myuser
+locations:
+  myLocation:
+    type: openstack
+    properties:
+      auth_url: http://1.2.3.5:5000/v2.0
+      default_security_groups:
+      - open
+      - default
+      password: mypasswd
+      private_network_name: private-test
+      region: RegionOne
+      tenant_name: mytenant
+      user_name: myuser
 address:
   floating_network_name: public-net
 compute:

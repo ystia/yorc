@@ -19,8 +19,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/commands"
@@ -48,6 +50,10 @@ func TestCreateTopology(t *testing.T) {
 	configuration := commands.GetConfig()
 	err = initializeInputs("testdata/inputs_test.yaml", resourcesDir, configuration)
 	require.NoError(t, err, "Failed to initialize inputs")
+
+	// For the moment, viper when reading the configuration is lowercasing Map keys.
+	// So a location name will be lowercased by viper
+	assert.Equal(t, strings.ToLower("myLocation"), inputValues.Location.Name, "Unexpected location name in input values %+v", inputValues)
 
 	err = createTopology(topologyDir)
 	require.NoError(t, err, "Failed to create topology")

@@ -138,8 +138,6 @@ func GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (
 
 // GetPropertiesForFirstLocationOfType returns properties for the first location
 // of a given infrastructure type.
-// Used for backward compability while specifying infrastructures instead of locations
-// is still supported.
 // Returns an error if there is no location of such type
 func GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error) {
 
@@ -185,21 +183,7 @@ func (mgr *locationManager) storeLocations(cfg config.Configuration) error {
 
 	log.Debugf("Configuring locations in consul")
 
-	locations := cfg.Locations
-	if len(cfg.Locations) == 0 && len(cfg.Infrastructures) > 0 {
-		log.Println("Yorc configuration field 'Infrastructures' has been deprecated, use 'Locations' instead")
-		// Converting each infrastructure as a location, using the infrastructure
-		// type as a location name
-		locations = make(map[string]config.LocationConfiguration)
-		for k, v := range cfg.Infrastructures {
-			locations[k] = config.LocationConfiguration{
-				Type:       k,
-				Properties: v,
-			}
-		}
-	}
-
-	for locationName, lConfig := range locations {
+	for locationName, lConfig := range cfg.Locations {
 
 		err := mgr.setLocationConfiguration(locationName, lConfig)
 		if err != nil {

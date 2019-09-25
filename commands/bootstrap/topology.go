@@ -100,11 +100,13 @@ type JdkConfiguration struct {
 	Version     string
 }
 
-// LocationConfiguration provides an Alien4Cloud plugin location configuration
+// LocationConfiguration provides the configuration of the location selected to
+// install the orchestratror
 type LocationConfiguration struct {
 	Type          string
 	Name          string
-	ResourcesFile string
+	ResourcesFile string            // Path to file describing on-demand resources for this location
+	Properties    config.DynamicMap // Referenced in go template files used to build the topology
 }
 
 // CredentialsConfiguration provides a user and private key
@@ -121,21 +123,21 @@ type VaultConfiguration struct {
 
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
-	Ansible         AnsibleConfiguration
-	Alien4cloud     Alien4CloudConfiguration
-	YorcPlugin      YorcPluginConfiguration `mapstructure:"yorc_plugin"`
-	Consul          ConsulConfiguration
-	Terraform       TerraformConfiguration
-	Yorc            YorcConfiguration
-	Infrastructures map[string]config.DynamicMap
-	Compute         config.DynamicMap
-	Credentials     *CredentialsConfiguration
-	Address         config.DynamicMap
-	Jdk             JdkConfiguration
-	Location        LocationConfiguration
-	Hosts           []rest.HostConfig
-	Vault           VaultConfiguration
-	Insecure        bool
+	Ansible     AnsibleConfiguration
+	Alien4cloud Alien4CloudConfiguration
+	YorcPlugin  YorcPluginConfiguration `mapstructure:"yorc_plugin"`
+	Consul      ConsulConfiguration
+	Terraform   TerraformConfiguration
+	Yorc        YorcConfiguration
+	Locations   map[string]config.LocationConfiguration
+	Compute     config.DynamicMap
+	Credentials *CredentialsConfiguration
+	Address     config.DynamicMap
+	Jdk         JdkConfiguration
+	Location    LocationConfiguration
+	Hosts       []rest.HostConfig
+	Vault       VaultConfiguration
+	Insecure    bool
 }
 
 // formatAsYAML is a function used in templates to output the yaml representation
