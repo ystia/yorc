@@ -46,8 +46,8 @@
     "tls_skip_verify": false,
     "token": "blabla"
   },
-  "locations":{
-    "location1":{
+  "locations":[
+    { "name": "location1",
       "type": "openstack",
       "properties": {
         "auth_url": "http://openstack:5000/v2.0",
@@ -61,7 +61,7 @@
         "os_default_security_groups": ["default", "lax"]
       }
     },
-    "location2":{
+    { "name": "location2",
       "type": "kubernetes",
       "properties": {
         "master_url": "https://kube:6443",
@@ -70,17 +70,17 @@
         "ca_file": "/etc/pki/yorc/k8s-ca.crt"
       }
     },
-    "location3":{
+    { "name": "location3",
       "type": "aws",
       "properties": {
         "region": "us-east-2"
       }
     },
-    "location4":{
+    { "name": "location4",
       "type": "slurm",
       "properties": {
         "default_job_name": "xBD"
       }
     }
-  }
+  ]
 }

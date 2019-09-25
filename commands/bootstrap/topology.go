@@ -129,7 +129,7 @@ type TopologyValues struct {
 	Consul      ConsulConfiguration
 	Terraform   TerraformConfiguration
 	Yorc        YorcConfiguration
-	Locations   map[string]config.LocationConfiguration
+	Locations   []config.LocationConfiguration
 	Compute     config.DynamicMap
 	Credentials *CredentialsConfiguration
 	Address     config.DynamicMap

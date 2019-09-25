@@ -21,8 +21,9 @@ func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Config
 		return err
 	}
 
-	if cfg.Locations["plugin"] != nil {
-		props := cfg.Locations["plugin"].Properties
+	locationConfig := getLocationConfig(cfg, "plugin")
+	if locationConfig != nil {
+		props := locationConfig.Properties
 		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
@@ -46,8 +47,9 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 		return err
 	}
 
-	if cfg.Locations["plugin"] != nil {
-		props := cfg.Locations["plugin"].Properties
+	locationConfig := getLocationConfig(cfg, "plugin")
+	if locationConfig != nil {
+		props := locationConfig.Properties
 		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
@@ -56,6 +58,17 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 
 	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")
 	return nil
+}
+
+func getLocationConfig(cfg config.Configuration, locationName string) config.LocationConfiguration {
+	var locationConfig config.LocationConfiguration
+	for _, v := range cfg.Locations {
+		if v.Name == locationName {
+			locationConfig = v
+			break
+		}
+	}
+	return locationConfig
 }
 
 func main() {

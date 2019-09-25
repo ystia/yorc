@@ -3,9 +3,9 @@
     "workers_number": 30,
     "server_id": "${server_id}",
     "resources_prefix": "${prefix}",
-    "locations":{
-          "openstack": {
-            type: "openstack"
+    "locations":[
+          {"name": openstack",
+            type: "openstack",
             "properties": {
               "auth_url": "${ks_url}",
               "tenant_name": "${ks_tenant}",
@@ -16,7 +16,7 @@
               "default_security_groups": ["default", "${secgrp}"]
             }
           }
-    },
+    ],
     "telemetry": {
         "statsd_address": "${statsd_ip}:8125",
         "expose_prometheus_endpoint": true

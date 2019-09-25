@@ -45,9 +45,9 @@ func Initialize(cfg config.Configuration, cc *api.Client) error {
 
 // CreateLocation creates a location. Its name must be unique.
 // If a location already exists with this name, an error will be returned.
-func CreateLocation(locationName string, lConfig config.LocationConfiguration) error {
+func CreateLocation(lConfig config.LocationConfiguration) error {
 
-	return locationMgr.createLocation(locationName, lConfig)
+	return locationMgr.createLocation(lConfig)
 }
 
 // RemoveLocation removes a given location
@@ -58,9 +58,9 @@ func RemoveLocation(locationName string) error {
 
 // SetLocationConfiguration sets the configuration of a location.
 // If this location doesn't exist, it will be created.
-func SetLocationConfiguration(locationName string, lConfig config.LocationConfiguration) error {
+func SetLocationConfiguration(lConfig config.LocationConfiguration) error {
 
-	return locationMgr.setLocationConfiguration(locationName, lConfig)
+	return locationMgr.setLocationConfiguration(lConfig)
 }
 
 // Cleanup deletes all locations configured
@@ -69,9 +69,9 @@ func Cleanup() error {
 }
 
 // GetLocations returns all locations configured
-func GetLocations() (map[string]config.LocationConfiguration, error) {
+func GetLocations() ([]config.LocationConfiguration, error) {
 
-	locations := make(map[string]config.LocationConfiguration)
+	var locations []config.LocationConfiguration
 	kvps, _, err := locationMgr.cc.KV().List(consulutil.LocationsPrefix, nil)
 	if err != nil {
 		return locations, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -84,8 +84,7 @@ func GetLocations() (map[string]config.LocationConfiguration, error) {
 		if err != nil {
 			return locations, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
 		}
-
-		locations[locationName] = lConfig
+		locations = append(locations, lConfig)
 	}
 
 	return locations, err
@@ -183,9 +182,9 @@ func (mgr *locationManager) storeLocations(cfg config.Configuration) error {
 
 	log.Debugf("Configuring locations in consul")
 
-	for locationName, lConfig := range cfg.Locations {
+	for _, lConfig := range cfg.Locations {
 
-		err := mgr.setLocationConfiguration(locationName, lConfig)
+		err := mgr.setLocationConfiguration(lConfig)
 		if err != nil {
 			return err
 		}
@@ -239,7 +238,7 @@ func (mgr *locationManager) cleanupLocations() error {
 	return err
 }
 
-func (mgr *locationManager) createLocation(locationName string, configuration config.LocationConfiguration) error {
+func (mgr *locationManager) createLocation(configuration config.LocationConfiguration) error {
 
 	lock, _, err := mgr.lockLocations()
 	if err != nil {
@@ -249,18 +248,18 @@ func (mgr *locationManager) createLocation(locationName string, configuration co
 	defer lock.Unlock()
 
 	// Check if a location with this name already exists
-	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
+	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, configuration.Name), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil && len(kvp.Value) != 0 {
-		return errors.Errorf("location %q already exists", locationName)
+		return errors.Errorf("location %q already exists", configuration.Name)
 	}
 
-	return mgr.setLocationConfiguration(locationName, configuration)
+	return mgr.setLocationConfiguration(configuration)
 }
 
-func (mgr *locationManager) setLocationConfiguration(locationName string, configuration config.LocationConfiguration) error {
+func (mgr *locationManager) setLocationConfiguration(configuration config.LocationConfiguration) error {
 
 	b, err := json.Marshal(configuration)
 	if err != nil {
@@ -268,9 +267,9 @@ func (mgr *locationManager) setLocationConfiguration(locationName string, config
 		return err
 	}
 
-	err = consulutil.StoreConsulKey(path.Join(consulutil.LocationsPrefix, locationName), b)
+	err = consulutil.StoreConsulKey(path.Join(consulutil.LocationsPrefix, configuration.Name), b)
 	if err != nil {
-		return errors.Wrapf(err, "failed to store location %s in consul", locationName)
+		return errors.Wrapf(err, "failed to store location %s in consul", configuration.Name)
 	}
 	return err
 }

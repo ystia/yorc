@@ -32,6 +32,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	log.SetDebug(true)
 
 	openStackLocation1 := config.LocationConfiguration{
+		Name: "myLocation1",
 		Type: "openstack",
 		Properties: config.DynamicMap{
 			"auth_url":                "http://1.2.3.1:5000/v2.0",
@@ -45,6 +46,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	}
 
 	openStackLocation2 := config.LocationConfiguration{
+		Name: "myLocation2",
 		Type: "openstack",
 		Properties: config.DynamicMap{
 			"auth_url":                "http://1.2.3.2:5000/v2.0",
@@ -58,6 +60,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	}
 
 	slurmLocation := config.LocationConfiguration{
+		Name: "myLocation3",
 		Type: "slurm",
 		Properties: config.DynamicMap{
 			"user_name":   "slurmuser1",
@@ -68,9 +71,9 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	}
 
 	testConfig := config.Configuration{
-		Locations: map[string]config.LocationConfiguration{
-			"myLocation1": openStackLocation1,
-			"myLocation2": openStackLocation2,
+		Locations: []config.LocationConfiguration{
+			openStackLocation1,
+			openStackLocation2,
 		},
 	}
 
@@ -78,7 +81,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Failed to initialize locations")
 
 	// Attempt to create a location with an already existing name
-	err = CreateLocation("myLocation1", openStackLocation2)
+	err = CreateLocation(openStackLocation2)
 	require.Error(t, err, "Expected to have an error attempting to create an already existing location")
 
 	props, err := GetLocationProperties("myLocation1")
@@ -92,7 +95,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	props, err = GetLocationProperties("myLocation3")
 	require.Error(t, err, "Expected to have an error attempting to get a non existing location, got %+v", props)
 
-	err = CreateLocation("myLocation3", slurmLocation)
+	err = CreateLocation(slurmLocation)
 	require.NoError(t, err, "Unexpected error attempting to create location myLocation3")
 
 	props, err = GetLocationProperties("myLocation3")
@@ -100,7 +103,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	assert.Equal(t, "slurmuser1", props["user_name"])
 
 	slurmLocation.Properties["user_name"] = "slurmuser2"
-	err = SetLocationConfiguration("myLocation3", slurmLocation)
+	err = SetLocationConfiguration(slurmLocation)
 	require.NoError(t, err, "Unexpected error attempting to update location myLocation3")
 
 	props, err = GetLocationProperties("myLocation3")

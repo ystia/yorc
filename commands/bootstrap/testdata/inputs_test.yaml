@@ -23,7 +23,7 @@ yorc:
 yorc_plugin:
   download_url: https://ystia.jfrog.io/ystia/binaries/ystia/yorc-a4c-plugin/dist/develop/alien4cloud-yorc-plugin-4.0.0-SNAPSHOT.zip
 locations:
-  myLocation:
+  - name: myLocation
     type: openstack
     properties:
       auth_url: http://1.2.3.5:5000/v2.0

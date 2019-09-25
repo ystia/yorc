@@ -412,7 +412,7 @@ func GetConfig() config.Configuration {
 	}
 
 	if configuration.Locations == nil {
-		configuration.Locations = make(map[string]config.LocationConfiguration)
+		configuration.Locations = make([]config.LocationConfiguration, 1)
 	}
 	if configuration.Vault == nil {
 		configuration.Vault = make(config.DynamicMap)

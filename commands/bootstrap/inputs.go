@@ -416,9 +416,9 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		// if one and only one Yorc location is already defined in inputs,
 		// selecting this infrastructure
 		if len(inputValues.Locations) == 1 && len(inputValues.Hosts) == 0 {
-			for k, v := range inputValues.Locations {
-				infrastructureType = v.Type
-				locationName = k
+			for _, locationConfig := range inputValues.Locations {
+				infrastructureType = locationConfig.Type
+				locationName = locationConfig.Name
 			}
 		} else if len(inputValues.Locations) == 0 && len(inputValues.Hosts) > 0 {
 			infrastructureType = "hostspool"
@@ -611,21 +611,23 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	askIfNotRequired := false
 	convertBooleanToString := false
+	var locationConfig config.LocationConfiguration
 	// Get infrastructure inputs, except in the Hosts Pool case as Hosts Pool
 	// doesn't have any infrastructure property
 	if infrastructureType != "hostspool" {
-		if inputValues.Locations == nil {
-			askIfNotRequired = true
-			inputValues.Locations = make(map[string]config.LocationConfiguration)
+
+		for _, v := range inputValues.Locations {
+			if v.Name == locationName {
+				locationConfig = v
+				break
+			}
 		}
 
-		locationConfig, ok := inputValues.Locations[locationName]
-		if !ok {
+		if locationConfig.Name == "" {
 			askIfNotRequired = true
-			locationConfig = config.LocationConfiguration{
-				Type: infrastructureType,
-			}
-			inputValues.Locations[locationName] = locationConfig
+			locationConfig.Name = locationName
+			locationConfig.Type = infrastructureType
+			inputValues.Locations = append(inputValues.Locations, locationConfig)
 		}
 
 		props := locationConfig.Properties
@@ -773,7 +775,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	inputValues.Location.Name = locationName
 
 	// Properties refedenced in go template files used to build the topology
-	inputValues.Location.Properties = inputValues.Locations[locationName].Properties
+	inputValues.Location.Properties = locationConfig.Properties
 
 	if reviewInputs {
 		if err := reviewAndUpdateInputs(); err != nil {
@@ -783,7 +785,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	// Post treatment needed on Google Cloud
 	if infrastructureType == "google" {
-		if err := prepareGoogleInfraInputs(locationName); err != nil {
+		if err := prepareGoogleInfraInputs(locationConfig); err != nil {
 			return err
 		}
 	}
@@ -791,7 +793,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	// In insecure mode, the infrastructure secrets will not be stored in vault
 	// (Hosts Pool infrastructure config doesn't have this use_vault property)
 	if insecure && infrastructureType != "hostspool" {
-		inputValues.Locations[locationName].Properties.Set("use_vault", false)
+		locationConfig.Properties.Set("use_vault", false)
 	}
 
 	exportInputs()
@@ -1465,9 +1467,9 @@ func isDatatype(topology tosca.Topology, nodeType string) bool {
 
 // prepareGoogleInfraInputs updates inputs for a Google Infrastructure if needed
 // to use the content of service account key file instead of the path to this file
-func prepareGoogleInfraInputs(locationName string) error {
+func prepareGoogleInfraInputs(locationConfig config.LocationConfiguration) error {
 
-	props := inputValues.Locations[locationName].Properties
+	props := locationConfig.Properties
 	if !props.IsSet("application_credentials") {
 		return nil
 	}
