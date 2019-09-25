@@ -87,8 +87,8 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		"user_name":               "test",
 	}
 	err = locations.CreateLocation(
-		t.Name(),
 		config.LocationConfiguration{
+			Name:       t.Name(),
 			Type:       infrastructureType,
 			Properties: locationProps,
 		})

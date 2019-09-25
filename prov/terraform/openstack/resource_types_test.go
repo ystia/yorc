@@ -24,8 +24,9 @@ import (
 func Test_resourceTypes(t *testing.T) {
 
 	cfg := config.Configuration{
-		Locations: map[string]config.LocationConfiguration{
-			"oldOpenStack": config.LocationConfiguration{
+		Locations: []config.LocationConfiguration{
+			config.LocationConfiguration{
+				Name: "oldOpenStack",
 				Type: infrastructureType,
 				Properties: config.DynamicMap{
 					"auth_url":                "http://1.2.3.4:5000/v2.0",
@@ -37,7 +38,8 @@ func Test_resourceTypes(t *testing.T) {
 					"region":                  "RegionOne",
 				},
 			},
-			"newOpenStack": config.LocationConfiguration{
+			config.LocationConfiguration{
+				Name: "newOpenStack",
 				Type: infrastructureType,
 				Properties: config.DynamicMap{
 					"auth_url":                "http://1.2.3.4:5000/v3",
@@ -55,18 +57,18 @@ func Test_resourceTypes(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		location         string
+		locationIndex    int
 		volumeTypeResult string
 	}{
-		{"testOldOpenStack", "oldOpenStack", "openstack_blockstorage_volume_v1"},
-		{"testNewOpenStack", "newOpenStack", "openstack_blockstorage_volume_v3"},
+		{"testOldOpenStack", 0, "openstack_blockstorage_volume_v1"},
+		{"testNewOpenStack", 1, "openstack_blockstorage_volume_v3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			resourceTypes := getOpenstackResourceTypes(cfg.Locations[tt.location].Properties)
+			resourceTypes := getOpenstackResourceTypes(cfg.Locations[tt.locationIndex].Properties)
 			assert.Equal(t, tt.volumeTypeResult, resourceTypes[blockStorageVolume],
-				"Unexpected resource type on location %s", tt.location)
+				"Unexpected resource type on location %s", cfg.Locations[tt.locationIndex].Name)
 		})
 	}
 }

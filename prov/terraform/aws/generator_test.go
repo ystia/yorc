@@ -64,8 +64,8 @@ func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.C
 		"region":     "europe",
 	}
 	err := locations.CreateLocation(
-		"testAWSLocation",
 		config.LocationConfiguration{
+			Name:       "testAWSLocation",
 			Type:       infrastructureType,
 			Properties: locationProps,
 		})

@@ -50,8 +50,8 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		"port":      "1234",
 	}
 	err = locations.CreateLocation(
-		"testSlurmLocation",
 		config.LocationConfiguration{
+			Name:       "testSlurmLocation",
 			Type:       infrastructureType,
 			Properties: slumTestLocationProps,
 		})
