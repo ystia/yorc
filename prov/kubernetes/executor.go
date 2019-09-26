@@ -87,16 +87,17 @@ func isNilValue(i interface{}) bool {
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	kubConf := cfg.Infrastructures["kubernetes"]
+	if kubConf == nil {
+		return nil, errors.Errorf("No Kubernetes configuration found")
+	}
 
 	var conf *rest.Config
 	var err error
 	var kubeMasterIP string
 	var kubeConfigPathOrContent string
 
-	if kubConf != nil {
-		kubeMasterIP = kubConf.GetString("master_url")
-		kubeConfigPathOrContent = kubConf.GetString("kubeconfig")
-	}
+	kubeMasterIP = kubConf.GetString("master_url")
+	kubeConfigPathOrContent = kubConf.GetString("kubeconfig")
 
 	if kubeConfigPathOrContent == "" && kubeMasterIP == "" {
 		// No details on the kubernetes cluster in orchestrator configuration.
