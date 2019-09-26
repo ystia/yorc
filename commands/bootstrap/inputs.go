@@ -462,13 +462,13 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	var infraNodeType, networkNodeType string
 	switch infrastructureType {
 	case "openstack":
-		infraNodeType = "org.ystia.yorc.pub.infrastructure.OpenStackConfig"
+		infraNodeType = "org.ystia.yorc.pub.location.OpenStackConfig"
 		networkNodeType = "yorc.nodes.openstack.FloatingIP"
 	case "google":
-		infraNodeType = "org.ystia.yorc.pub.infrastructure.GoogleConfig"
+		infraNodeType = "org.ystia.yorc.pub.location.GoogleConfig"
 		networkNodeType = "yorc.nodes.google.Address"
 	case "aws":
-		infraNodeType = "org.ystia.yorc.pub.infrastructure.AWSConfig"
+		infraNodeType = "org.ystia.yorc.pub.location.AWSConfig"
 		networkNodeType = "yorc.nodes.aws.PublicNetwork"
 	case "hostspool":
 		// No infrastructure defined in case of hosts pool
