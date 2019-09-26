@@ -94,7 +94,11 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	locationProps, err := locations.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.NewManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
 	if err != nil {
 		return err
 	}

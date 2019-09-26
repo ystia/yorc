@@ -35,6 +35,7 @@ import (
 	"github.com/ystia/yorc/v4/commands/httputil"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/ziputil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/rest"
 )
@@ -82,12 +83,27 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	// First creating a Yorc config file defining the infrastructure
+	// First creating a config file defining the locations
+	locationsFilePath := ""
+	if len(inputValues.Locations) > 0 {
+		locs := locations.LocationsDefinition{Locations: inputValues.Locations}
+		bSlice, err := yaml.Marshal(locs)
+		if err != nil {
+			return err
+		}
+		locationsFilePath = filepath.Join(workingDirectoryPath, "locations.yorc.yaml")
+		err = ioutil.WriteFile(locationsFilePath, bSlice, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Creating a Yorc config file defining the infrastructure
 	serverConfig := config.Configuration{
-		WorkingDirectory: workingDirectoryPath,
-		ResourcesPrefix:  "bootstrap-",
-		WorkersNumber:    inputValues.Yorc.WorkersNumber,
-		Locations:        inputValues.Locations,
+		WorkingDirectory:  workingDirectoryPath,
+		ResourcesPrefix:   "bootstrap-",
+		WorkersNumber:     inputValues.Yorc.WorkersNumber,
+		LocationsFilePath: locationsFilePath,
 		Terraform: config.Terraform{
 			PluginsDir:         workDirAbsolutePath,
 			KeepGeneratedFiles: true,

@@ -53,7 +53,8 @@ func Test_addOutput(t *testing.T) {
 	}
 }
 
-func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.Configuration,
+	locationMgr locations.Manager) {
 
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
@@ -63,15 +64,15 @@ func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.C
 		"secret_key": "secret1",
 		"region":     "europe",
 	}
-	err := locations.CreateLocation(
-		config.LocationConfiguration{
+	err := locationMgr.CreateLocation(
+		locations.LocationConfiguration{
 			Name:       "testAWSLocation",
 			Type:       infrastructureType,
 			Properties: locationProps,
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locations.RemoveLocation(t.Name())
+		locationMgr.RemoveLocation(t.Name())
 	}()
 
 	g := awsGenerator{}

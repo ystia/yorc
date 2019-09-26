@@ -8,6 +8,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/plugin"
 	"github.com/ystia/yorc/v4/prov"
 )
@@ -16,14 +17,14 @@ type myDelegateExecutor struct{}
 
 func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	log.Printf("Hello from myDelegateExecutor")
-	_, err := cfg.GetConsulClient()
+
+	locationMgr, err := locations.NewManager(cfg)
 	if err != nil {
 		return err
 	}
 
-	locationConfig := getLocationConfig(cfg, "plugin")
-	if locationConfig != nil {
-		props := locationConfig.Properties
+	props, err := locationMgr.GetLocationProperties("plugin")
+	if err != nil {
 		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
@@ -42,14 +43,14 @@ func (d *myOperationExecutor) ExecAsyncOperation(ctx context.Context, conf confi
 
 func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Printf("Hello from myOperationExecutor")
-	_, err := cfg.GetConsulClient()
+	
+	locationMgr, err := locations.NewManager(cfg)
 	if err != nil {
 		return err
 	}
 
-	locationConfig := getLocationConfig(cfg, "plugin")
-	if locationConfig != nil {
-		props := locationConfig.Properties
+	props, err := locationMgr.GetLocationProperties("plugin")
+	if err != nil {
 		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
@@ -58,17 +59,6 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 
 	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")
 	return nil
-}
-
-func getLocationConfig(cfg config.Configuration, locationName string) config.LocationConfiguration {
-	var locationConfig config.LocationConfiguration
-	for _, v := range cfg.Locations {
-		if v.Name == locationName {
-			locationConfig = v
-			break
-		}
-	}
-	return locationConfig
 }
 
 func main() {

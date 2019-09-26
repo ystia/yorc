@@ -36,6 +36,7 @@ import (
 	"github.com/ystia/yorc/v4/commands"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/rest"
 	"github.com/ystia/yorc/v4/tosca"
 )
@@ -381,11 +382,6 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 	}
 
-	// Get locations from viper configuration if not provided in inputs
-	if inputValues.Locations == nil {
-		inputValues.Locations = configuration.Locations
-	}
-
 	inputValues.Insecure = insecure
 
 	// Checking if an Alien4Cloud location is defined to set
@@ -611,7 +607,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	askIfNotRequired := false
 	convertBooleanToString := false
-	var locationConfig config.LocationConfiguration
+	var locationConfig locations.LocationConfiguration
 	// Get infrastructure inputs, except in the Hosts Pool case as Hosts Pool
 	// doesn't have any infrastructure property
 	if infrastructureType != "hostspool" {
@@ -1467,7 +1463,7 @@ func isDatatype(topology tosca.Topology, nodeType string) bool {
 
 // prepareGoogleInfraInputs updates inputs for a Google Infrastructure if needed
 // to use the content of service account key file instead of the path to this file
-func prepareGoogleInfraInputs(locationConfig config.LocationConfiguration) error {
+func prepareGoogleInfraInputs(locationConfig locations.LocationConfiguration) error {
 
 	props := locationConfig.Properties
 	if !props.IsSet("application_credentials") {

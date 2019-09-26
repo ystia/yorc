@@ -39,7 +39,8 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 		},
 	}
-	err := locations.Initialize(cfg, client)
+
+	locationMgr, err := locations.NewManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 
 	slumTestLocationProps = config.DynamicMap{
@@ -49,15 +50,15 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		"url":       "1.2.3.4",
 		"port":      "1234",
 	}
-	err = locations.CreateLocation(
-		config.LocationConfiguration{
+	err = locationMgr.CreateLocation(
+		locations.LocationConfiguration{
 			Name:       "testSlurmLocation",
 			Type:       infrastructureType,
 			Properties: slumTestLocationProps,
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locations.RemoveLocation(t.Name())
+		locationMgr.RemoveLocation(t.Name())
 	}()
 
 	t.Run("groupSlurm", func(t *testing.T) {

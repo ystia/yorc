@@ -67,7 +67,11 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
 
-	locationProps, err := locations.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.NewManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
 	if err != nil {
 		return true, err
 	}

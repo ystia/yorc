@@ -36,7 +36,8 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 		},
 	}
-	err := locations.Initialize(cfg, client)
+
+	locationMgr, err := locations.NewManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupAWS", func(t *testing.T) {
@@ -68,7 +69,7 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 			testSimpleAWSInstanceWithMalformedEIP(t, kv, cfg)
 		})
 		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
-			testGenerateTerraformInfraForAWSNode(t, kv, cfg)
+			testGenerateTerraformInfraForAWSNode(t, kv, cfg, locationMgr)
 		})
 
 	})

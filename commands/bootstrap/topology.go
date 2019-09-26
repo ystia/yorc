@@ -30,6 +30,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/ziputil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/rest"
 )
 
@@ -129,7 +130,7 @@ type TopologyValues struct {
 	Consul      ConsulConfiguration
 	Terraform   TerraformConfiguration
 	Yorc        YorcConfiguration
-	Locations   []config.LocationConfiguration
+	Locations   []locations.LocationConfiguration
 	Compute     config.DynamicMap
 	Credentials *CredentialsConfiguration
 	Address     config.DynamicMap

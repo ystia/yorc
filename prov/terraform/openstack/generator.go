@@ -95,7 +95,11 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
-	locationProps, err := locations.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.NewManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
 	if err != nil {
 		return false, nil, nil, nil, err
 	}

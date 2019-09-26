@@ -79,9 +79,24 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		return err
 	}
 
-	// Initialize locations where deployments will take place
-	if err = locations.Initialize(configuration, client); err != nil {
-		return errors.Wrap(err, "Failed to initialize locations")
+	if configuration.LocationsFilePath != "" {
+		locationMgr, err := locations.NewManager(configuration)
+		if err != nil {
+			return errors.Wrap(err, "Failed to initialize locations")
+		}
+
+		// Initialize locations where deployments will take place
+		done, err := locationMgr.InitializeLocations(configuration.LocationsFilePath)
+		if err != nil {
+			return errors.Wrap(err, "Failed to initialize locations")
+
+		}
+
+		if done {
+			log.Printf("Initialzed location from %s", configuration.LocationsFilePath)
+		} else {
+			log.Debugf("Locations already initialized")
+		}
 	}
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)

@@ -103,7 +103,11 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	nodeName := action.Data["nodeName"]
 
-	locationProps, err := locations.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.NewManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
 	if err != nil {
 		return true, err
 	}

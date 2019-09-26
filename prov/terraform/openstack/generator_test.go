@@ -58,7 +58,8 @@ func Test_addOutput(t *testing.T) {
 	}
 }
 
-func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.KV,
+	locationMgr locations.Manager) {
 	t.Parallel()
 	log.SetDebug(true)
 
@@ -86,15 +87,15 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		"tenant_name":             "test",
 		"user_name":               "test",
 	}
-	err = locations.CreateLocation(
-		config.LocationConfiguration{
+	err = locationMgr.CreateLocation(
+		locations.LocationConfiguration{
 			Name:       t.Name(),
 			Type:       infrastructureType,
 			Properties: locationProps,
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locations.RemoveLocation(t.Name())
+		locationMgr.RemoveLocation(t.Name())
 	}()
 
 	var cfg config.Configuration

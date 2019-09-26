@@ -30,8 +30,13 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	var cfg config.Configuration
-	err := locations.Initialize(cfg, client)
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+	locationMgr, err := locations.NewManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupOpenstack", func(t *testing.T) {
@@ -78,7 +83,7 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 			testOSInstanceWithServerGroup(t, kv, srv)
 		})
 		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
-			testGenerateTerraformInfo(t, srv, kv)
+			testGenerateTerraformInfo(t, srv, kv, locationMgr)
 		})
 		t.Run("TestComputeBootVolumeWrongSize", func(t *testing.T) {
 			testComputeBootVolumeWrongSize(t, srv, kv)

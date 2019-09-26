@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -31,55 +32,87 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-var locationMgr *locationManager
+// LocationConfiguration holds a location configuration
+type LocationConfiguration struct {
+	Name       string            `yaml:"name" mapstructure:"name"`
+	Type       string            `yaml:"type,omitempty" mapstructure:"type"` // not an enum as it could be extended by plugins
+	Properties config.DynamicMap `yaml:"properties,omitempty" mapstructure:"properties"`
+}
+
+// A Manager is in charge of creating/updating/deleting locations from the pool
+type Manager interface {
+	InitializeLocations(locationFilePath string) (bool, error)
+	CreateLocation(lConfig LocationConfiguration) error
+	RemoveLocation(locationName string) error
+	SetLocationConfiguration(lConfig LocationConfiguration) error
+	GetLocations() ([]LocationConfiguration, error)
+	GetLocationProperties(locationName string) (config.DynamicMap, error)
+	GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error)
+	GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error)
+	Cleanup() error
+}
 
 type locationManager struct {
 	cc *api.Client
 }
 
-// Initialize stores configured locations in consul, if not already done
-func Initialize(cfg config.Configuration, cc *api.Client) error {
-	locationMgr = &locationManager{cc: cc}
-	return locationMgr.storeLocations(cfg)
+// LocationsDefinition represents the structure of an initialization file defining locations
+type LocationsDefinition struct {
+	Locations []LocationConfiguration `yaml:"locations" mapstructure:"locations" json:"locations"`
+}
+
+// NewManager creates a Location Manager
+func NewManager(cfg config.Configuration) (Manager, error) {
+
+	var locationMgr *locationManager
+	if locationMgr == nil {
+		client, err := cfg.GetConsulClient()
+		if err != nil {
+			return locationMgr, err
+		}
+		locationMgr = &locationManager{cc: client}
+	}
+
+	return locationMgr, nil
 }
 
 // CreateLocation creates a location. Its name must be unique.
 // If a location already exists with this name, an error will be returned.
-func CreateLocation(lConfig config.LocationConfiguration) error {
+func (mgr *locationManager) CreateLocation(lConfig LocationConfiguration) error {
 
-	return locationMgr.createLocation(lConfig)
+	return mgr.createLocation(lConfig)
 }
 
 // RemoveLocation removes a given location
-func RemoveLocation(locationName string) error {
+func (mgr *locationManager) RemoveLocation(locationName string) error {
 
-	return locationMgr.removeLocation(locationName)
+	return mgr.removeLocation(locationName)
 }
 
 // SetLocationConfiguration sets the configuration of a location.
 // If this location doesn't exist, it will be created.
-func SetLocationConfiguration(lConfig config.LocationConfiguration) error {
+func (mgr *locationManager) SetLocationConfiguration(lConfig LocationConfiguration) error {
 
-	return locationMgr.setLocationConfiguration(lConfig)
+	return mgr.setLocationConfiguration(lConfig)
 }
 
 // Cleanup deletes all locations configured
-func Cleanup() error {
-	return locationMgr.cleanupLocations()
+func (mgr *locationManager) Cleanup() error {
+	return mgr.cleanupLocations()
 }
 
 // GetLocations returns all locations configured
-func GetLocations() ([]config.LocationConfiguration, error) {
+func (mgr *locationManager) GetLocations() ([]LocationConfiguration, error) {
 
-	var locations []config.LocationConfiguration
-	kvps, _, err := locationMgr.cc.KV().List(consulutil.LocationsPrefix, nil)
+	var locations []LocationConfiguration
+	kvps, _, err := mgr.cc.KV().List(consulutil.LocationsPrefix, nil)
 	if err != nil {
 		return locations, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	for _, kvp := range kvps {
 		locationName := path.Base(kvp.Key)
-		var lConfig config.LocationConfiguration
+		var lConfig LocationConfiguration
 		err = json.Unmarshal(kvp.Value, &lConfig)
 		if err != nil {
 			return locations, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
@@ -91,10 +124,10 @@ func GetLocations() ([]config.LocationConfiguration, error) {
 }
 
 // GetLocationProperties returns properties configured for a given location
-func GetLocationProperties(locationName string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetLocationProperties(locationName string) (config.DynamicMap, error) {
 
 	var props config.DynamicMap
-	kvp, _, err := locationMgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
+	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
 		return props, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -102,7 +135,7 @@ func GetLocationProperties(locationName string) (config.DynamicMap, error) {
 		return props, errors.Errorf("No such location %q", locationName)
 	}
 
-	var lConfig config.LocationConfiguration
+	var lConfig LocationConfiguration
 	err = json.Unmarshal(kvp.Value, &lConfig)
 	props = lConfig.Properties
 	if err != nil {
@@ -117,31 +150,31 @@ func GetLocationProperties(locationName string) (config.DynamicMap, error) {
 // The corresponding location name should be provided in the node template metadata.
 // If no location name is provided in the node template metadata, the configuration
 // of the first location of the expected type in returned
-func GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
 
 	// Get the location name in node template metadata
 	found, locationName, err := deployments.GetNodeMetadata(
-		locationMgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
+		mgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
 	if err != nil {
 		return nil, err
 	}
 
 	if found {
-		return GetLocationProperties(locationName)
+		return mgr.GetLocationProperties(locationName)
 	}
 
 	// No location specified, get the first location matching the expected type
-	return GetPropertiesForFirstLocationOfType(locationType)
+	return mgr.GetPropertiesForFirstLocationOfType(locationType)
 
 }
 
 // GetPropertiesForFirstLocationOfType returns properties for the first location
 // of a given infrastructure type.
 // Returns an error if there is no location of such type
-func GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error) {
 
 	var props config.DynamicMap
-	locations, err := GetLocations()
+	locations, err := mgr.GetLocations()
 	if err == nil {
 		// Set the error in case no location of such type is found
 		err = errors.Errorf("Found no location of type %q", locationType)
@@ -157,12 +190,17 @@ func GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap
 	return props, err
 }
 
-// Store locations in Consul if not already done
-func (mgr *locationManager) storeLocations(cfg config.Configuration) error {
+// InitializeLocations initialize locations from a file. This initialization
+// wil be performed only once. If called a second time, no operation will be perforned
+// and this call will return false to notify the caller that locations have already been
+// done
+func (mgr *locationManager) InitializeLocations(locationFilePath string) (bool, error) {
+
+	initDone := false
 
 	lock, _, err := mgr.lockLocations()
 	if err != nil {
-		return err
+		return initDone, err
 	}
 
 	defer lock.Unlock()
@@ -172,25 +210,38 @@ func (mgr *locationManager) storeLocations(cfg config.Configuration) error {
 	// with consulutil.LocationsPrefix prefix
 	kvpList, _, err := kv.List(consulutil.LocationsPrefix, nil)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return initDone, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	if len(kvpList) > 0 {
 		// locations are already stored in consul, nothing more to do here
-		return nil
+		return initDone, err
+	}
+
+	v := viper.New()
+	v.SetConfigFile(locationFilePath)
+	err = v.ReadInConfig()
+	if err != nil {
+		return initDone, err
+	}
+
+	var locationsDefined LocationsDefinition
+	err = v.Unmarshal(&locationsDefined)
+	if err != nil {
+		return initDone, err
 	}
 
 	log.Debugf("Configuring locations in consul")
-
-	for _, lConfig := range cfg.Locations {
+	initDone = true
+	for _, lConfig := range locationsDefined.Locations {
 
 		err := mgr.setLocationConfiguration(lConfig)
 		if err != nil {
-			return err
+			return initDone, err
 		}
 	}
 
-	return err
+	return initDone, err
 }
 
 func (mgr *locationManager) lockLocations() (*api.Lock, <-chan struct{}, error) {
@@ -238,7 +289,7 @@ func (mgr *locationManager) cleanupLocations() error {
 	return err
 }
 
-func (mgr *locationManager) createLocation(configuration config.LocationConfiguration) error {
+func (mgr *locationManager) createLocation(configuration LocationConfiguration) error {
 
 	lock, _, err := mgr.lockLocations()
 	if err != nil {
@@ -259,7 +310,7 @@ func (mgr *locationManager) createLocation(configuration config.LocationConfigur
 	return mgr.setLocationConfiguration(configuration)
 }
 
-func (mgr *locationManager) setLocationConfiguration(configuration config.LocationConfiguration) error {
+func (mgr *locationManager) setLocationConfiguration(configuration LocationConfiguration) error {
 
 	b, err := json.Marshal(configuration)
 	if err != nil {

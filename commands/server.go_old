@@ -103,13 +103,15 @@ var cfgFile string
 var resolvedServerExtraParams []*serverExtraParams
 
 type serverExtraParams struct {
-	argPrefix   string
-	envPrefix   string
-	viperPrefix string
-	viperNames  []string
-	subSplit    int
-	storeFn     serverExtraParamStoreFn
-	readConfFn  serverExtraParamReadConf
+	argPrefix      string
+	envPrefix      string
+	viperPrefix    string
+	viperNames     []string
+	subSplit       int
+	storeFn        serverExtraParamStoreFn
+	readConfFn     serverExtraParamReadConf
+	deprecated     bool
+	deprecationMsg string
 }
 
 type serverExtraParamStoreFn func(cfg *config.Configuration, param string)
@@ -141,10 +143,30 @@ func serverInitExtraFlags(args []string) {
 	InitExtraFlags(args, serverCmd)
 }
 
-// InitExtraFlags inits vault flags
+// InitExtraFlags inits infrastructure and vault flags
 func InitExtraFlags(args []string, cmd *cobra.Command) {
 
 	resolvedServerExtraParams = []*serverExtraParams{
+		&serverExtraParams{
+			argPrefix:   "location_",
+			envPrefix:   "YORC_LOCATION_",
+			viperPrefix: "locations.",
+			viperNames:  make([]string, 0),
+			subSplit:    1,
+			storeFn:     addServerExtraLocationParams,
+			readConfFn:  readLocationViperConfig,
+		},
+		&serverExtraParams{
+			argPrefix:      "infrastructure_",
+			envPrefix:      "YORC_INFRA_",
+			viperPrefix:    "infrastructures.",
+			viperNames:     make([]string, 0),
+			subSplit:       1,
+			storeFn:        addServerExtraInfraParams,
+			readConfFn:     readInfraViperConfig,
+			deprecated:     true,
+			deprecationMsg: "use location flag instead",
+		},
 		&serverExtraParams{
 			argPrefix:   "vault_",
 			envPrefix:   "YORC_VAULT_",
@@ -160,9 +182,12 @@ func InitExtraFlags(args []string, cmd *cobra.Command) {
 			if strings.HasPrefix(args[i], "--"+sep.argPrefix) {
 				var viperName, flagName string
 				if strings.ContainsRune(args[i], '=') {
-					// Handle the syntax --vault_xxx_yyy = value
+					// Handle the syntax --infrastructure_xxx_yyy = value
 					flagParts := strings.Split(args[i], "=")
 					flagName = strings.TrimLeft(flagParts[0], "-")
+					if sep.deprecated {
+						log.Printf("Flag %s is deprecated, %s", flagName, sep.deprecationMsg)
+					}
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(flagParts) == 1 {
 						// Boolean flag
@@ -173,7 +198,7 @@ func InitExtraFlags(args []string, cmd *cobra.Command) {
 						viper.SetDefault(viperName, "")
 					}
 				} else {
-					// Handle the syntax --vault_xxx_yyy value
+					// Handle the syntax --infrastructure_xxx_yyy value
 					flagName = strings.TrimLeft(args[i], "-")
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
@@ -411,6 +436,12 @@ func GetConfig() config.Configuration {
 		log.Fatalf("Misconfiguration error: %v", err)
 	}
 
+	if configuration.Locations == nil {
+		configuration.Locations = make(map[string]config.LocationConfiguration)
+	}
+	if configuration.Infrastructures == nil {
+		configuration.Infrastructures = make(map[string]config.DynamicMap)
+	}
 	if configuration.Vault == nil {
 		configuration.Vault = make(config.DynamicMap)
 	}
@@ -424,10 +455,134 @@ func GetConfig() config.Configuration {
 	return configuration
 }
 
+func readLocationViperConfig(cfg *config.Configuration) {
+	locations := viper.GetStringMap("locations")
+	for locationName, locationConf := range locations {
+		locationConfMap, ok := locationConf.(map[string]interface{})
+		if !ok {
+			tmpLocMap, ok := locationConf.(map[interface{}]interface{})
+			if !ok {
+				log.Fatalf("Invalid configuration format for location %q", locationName)
+			}
+			locationConfMap = make(map[string]interface{})
+			for k, v := range tmpLocMap {
+				locationConfMap[fmt.Sprint(k)] = v
+			}
+		}
+		props := cfg.Locations[locationName].Properties
+		if props == nil {
+			props = make(config.DynamicMap)
+			cfg.Locations[locationName].Properties = props
+		}
+		for k, v := range locationConf {
+			if strings.ToLower(k) == "type" {
+				cfg.Locations[locationName].Type = v
+			} else {
+				props.Set(k, v)
+			}
+		}
+	}
+}
+
+// Deprecated
+func readInfraViperConfig(cfg *config.Configuration) {
+	infras := viper.GetStringMap("infrastructures")
+	for infraName, infraConf := range infras {
+		infraConfMap, ok := infraConf.(map[string]interface{})
+		if !ok {
+			tmpInfraMap, ok := infraConf.(map[interface{}]interface{})
+			if !ok {
+				log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
+			}
+			infraConfMap = make(map[string]interface{})
+			for k, v := range tmpInfraMap {
+				infraConfMap[fmt.Sprint(k)] = v
+			}
+		}
+		if cfg.Infrastructures[infraName] == nil {
+			cfg.Infrastructures[infraName] = make(config.DynamicMap)
+		}
+		for k, v := range infraConfMap {
+			cfg.Infrastructures[infraName].Set(k, v)
+		}
+	}
+}
+
 func readVaultViperConfig(cfg *config.Configuration) {
 	vaultCfg := viper.GetStringMap("vault")
 	for k, v := range vaultCfg {
 		cfg.Vault.Set(k, v)
+	}
+}
+
+func addServerExtraLocationParams(cfg *config.Configuration, locationParam string) {
+	if cfg.Locations == nil {
+		cfg.Locations = make(map[string]config.LocationConfiguration)
+	}
+	paramParts := strings.Split(locationParam, ".")
+	value := viper.Get(locationParam)
+	locationConfig, ok := cfg.Locations[paramParts[1]]
+	if !ok {
+		cfg.Locations[paramParts[1]] = LocationConfig{Properties: make(config.DynamicMap)}
+	}
+
+	props := cfg.Locations[paramParts[1]].Properties
+
+	if strings.ToLower(paramParts[2]) == "type" {
+		cfg.Locations[paramParts[1]].Type = viper.Get(locationParam)
+	} else {
+
+		// When the key/value pair is read from an environment variable, the value is
+		// read as a string. This needs to be changed if the variable is expected to
+		// be an array
+		if strings.HasSuffix(paramParts[2], "s") && !strings.HasSuffix(paramParts[2], "credentials") {
+			// value should be a slice
+			switch value.(type) {
+			case string:
+				vSlice := strings.Split(fmt.Sprint(value), ",")
+				for i, val := range vSlice {
+					vSlice[i] = strings.TrimSpace(val)
+				}
+				props.Set(paramParts[2], vSlice)
+			default:
+				props.Set(paramParts[2], value)
+			}
+		} else {
+			props.Set(paramParts[2], value)
+		}
+	}
+}
+
+// Deprecated
+func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
+	if cfg.Infrastructures == nil {
+		cfg.Infrastructures = make(map[string]config.DynamicMap)
+	}
+	paramParts := strings.Split(infraParam, ".")
+	value := viper.Get(infraParam)
+	params, ok := cfg.Infrastructures[paramParts[1]]
+	if !ok {
+		params = make(config.DynamicMap)
+		cfg.Infrastructures[paramParts[1]] = params
+	}
+
+	// When the key/value pair is read from an environment variable, the value is
+	// read as a string. This needs to be changed if the variable is expected to
+	// be an array
+	if strings.HasSuffix(paramParts[2], "s") && !strings.HasSuffix(paramParts[2], "credentials") {
+		// value should be a slice
+		switch value.(type) {
+		case string:
+			vSlice := strings.Split(fmt.Sprint(value), ",")
+			for i, val := range vSlice {
+				vSlice[i] = strings.TrimSpace(val)
+			}
+			params.Set(paramParts[2], vSlice)
+		default:
+			params.Set(paramParts[2], value)
+		}
+	} else {
+		params.Set(paramParts[2], value)
 	}
 }
 
