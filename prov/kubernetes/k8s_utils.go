@@ -25,7 +25,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -37,7 +36,7 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Deployment) (bool, string) {
+func isDeploymentFailed(deployment *v1beta1.Deployment) (bool, string) {
 	for _, c := range deployment.Status.Conditions {
 		if c.Type == v1beta1.DeploymentReplicaFailure && c.Status == corev1.ConditionTrue {
 			return true, c.Message
@@ -46,38 +45,6 @@ func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Depl
 		}
 	}
 	return false, ""
-}
-
-func waitForDeploymentDeletion(ctx context.Context, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		_, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		return false, nil
-	}, ctx.Done())
-
-}
-
-func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
-	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas {
-			return true, nil
-		}
-
-		if failed, msg := isDeploymentFailed(clientset, deployment); failed {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", deployment.Name, msg)
-			return false, errors.Errorf("Kubernetes deployment %q: %s", deployment.Name, msg)
-		}
-		return false, nil
-	}, ctx.Done())
 }
 
 func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) {
@@ -162,21 +129,19 @@ func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) 
 	return false, nil
 }
 
-func deploymentsInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
-	var nbDeployments int
+/* Return the number of pod controllers (Deployment and StatefulSet, more in the future) in a specific namespace or -1, err != nil in case of error */
+func podControllersInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
+	var nbcontrollers int
 	deploymentsList, err := clientset.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		return nbDeployments, err
+		return -1, err
 	}
-	for _, dep := range deploymentsList.Items {
-		//depName := dep.GetName()
-		depNamespace := dep.GetNamespace()
-		//events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Found %s deployment in k8s Namespace %s", depName, depNamespace)
-		if depNamespace == namespace {
-			nbDeployments++
-		}
+	stsList, err := clientset.AppsV1beta1().StatefulSets(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return -1, err
 	}
-	return nbDeployments, nil
+	nbcontrollers = len(deploymentsList.Items) + len(stsList.Items)
+	return nbcontrollers, nil
 }
 
 type reference struct {
@@ -195,7 +160,7 @@ func referenceFromOwnerReference(namespace string, ref metav1.OwnerReference) re
 }
 
 // CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
-func createNamespaceIfMissing(deploymentID, namespaceName string, clientset kubernetes.Interface) error {
+func createNamespaceIfMissing(namespaceName string, clientset kubernetes.Interface) error {
 	_, err := clientset.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -294,22 +259,6 @@ func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
 	return job, nil
 }
 
-// Return the first healthy node found in the cluster
-func getHealthyNode(clientset kubernetes.Interface) (string, error) {
-	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get nodes")
-	}
-	for _, node := range nodes.Items {
-		for _, cond := range node.Status.Conditions {
-			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
-				return node.ObjectMeta.Name, nil
-			}
-		}
-	}
-	return "", errors.Wrap(err, "No healthy node found")
-}
-
 //Return the external IP of a given node
 func getExternalIPAdress(clientset kubernetes.Interface, nodeName string) (string, error) {
 	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
@@ -332,30 +281,17 @@ func getVersion(clientset kubernetes.Interface) (string, error) {
 	return version.String(), nil
 }
 
-func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
+// Wait for a kubernetes object to be completed. k8sObject is a pointer of a k8s object
+func waitForYorcK8sObjectCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, k8sObject yorcK8sObject, namespace string) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		_, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		return false, nil
+		return k8sObject.isSuccessfullyDeployed(ctx, deploymentID, clientset, namespace)
 	}, ctx.Done())
 
 }
 
-func waitForPVCCompletion(ctx context.Context, clientset kubernetes.Interface, pvc *corev1.PersistentVolumeClaim) error {
+// Wait for a kubernetes object to be deleted. k8sObject is a pointer of a k8s object
+func waitForYorcK8sObjectDeletion(ctx context.Context, clientset kubernetes.Interface, k8sObject yorcK8sObject, namespace string) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
-		pvc, err := clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		if pvc.Status.Phase == corev1.ClaimBound {
-			return true, nil
-		}
-		return false, nil
+		return k8sObject.isSuccessfullyDeleted(ctx, "", clientset, namespace)
 	}, ctx.Done())
-
 }

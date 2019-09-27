@@ -270,6 +270,8 @@ Yorc is currently supporting the following K8s resources:
   * Deployments.
   * Jobs.
   * Services.
+  * StatefulSets.
+  * PersistentVolumeClaims.
 
 The `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`_ is also supported as a Kubernetes cluster.
 
@@ -278,8 +280,8 @@ Future work
 
 It is planned to support soon the following features:
 
-  * Persistent Volume Claims.
-  * StatefulSets.
+  * ConfigMaps.
+  * Secrets.
 
 .. |prod| image:: https://img.shields.io/badge/stability-production%20ready-green.svg
 .. |dev| image:: https://img.shields.io/badge/stability-stable%20but%20some%20features%20missing-yellow.svg

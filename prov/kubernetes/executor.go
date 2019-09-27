@@ -114,10 +114,8 @@ func getClientSet(kubConf config.DynamicMap) (*kubernetes.Clientset, error) {
 	var kubeMasterIP string
 	var kubeConfigPathOrContent string
 
-	if kubConf != nil {
-		kubeMasterIP = kubConf.GetString("master_url")
-		kubeConfigPathOrContent = kubConf.GetString("kubeconfig")
-	}
+	kubeMasterIP = kubConf.GetString("master_url")
+	kubeConfigPathOrContent = kubConf.GetString("kubeconfig")
 
 	if kubeConfigPathOrContent == "" && kubeMasterIP == "" {
 		// No details on the kubernetes cluster in orchestrator configuration.
