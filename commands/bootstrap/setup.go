@@ -338,6 +338,7 @@ func cleanBootstrapSetup(workingDirectoryPath string) error {
 	os.RemoveAll(filepath.Join(workingDirectoryPath, "deployments"))
 	os.RemoveAll(filepath.Join(workingDirectoryPath, "consul-data"))
 	os.Remove(filepath.Join(workingDirectoryPath, "config.yorc.yaml"))
+	os.Remove(filepath.Join(workingDirectoryPath, "locations.yorc.yaml"))
 	os.Remove(filepath.Join(workingDirectoryPath, "yorc.log"))
 
 	fmt.Println("Local setup cleaned up")
