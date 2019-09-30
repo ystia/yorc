@@ -395,28 +395,28 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 
 func (e *executionCommon) buildJobOpts() string {
 	var opts string
-	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.Name)
+	opts += fmt.Sprintf(" --job-name='%s'", e.jobInfo.Name)
 	if e.jobInfo.Tasks > 1 {
 		opts += fmt.Sprintf(" --ntasks=%d", e.jobInfo.Tasks)
 	}
 	opts += fmt.Sprintf(" --nodes=%d", e.jobInfo.Nodes)
 	if e.jobInfo.Mem != "" {
-		opts += fmt.Sprintf(" --mem=%s", e.jobInfo.Mem)
+		opts += fmt.Sprintf(" --mem='%s'", e.jobInfo.Mem)
 	}
 	if e.jobInfo.Cpus != 0 {
 		opts += fmt.Sprintf(" --cpus-per-task=%d", e.jobInfo.Cpus)
 	}
 	if e.jobInfo.MaxTime != "" {
-		opts += fmt.Sprintf(" --time=%s", e.jobInfo.MaxTime)
+		opts += fmt.Sprintf(" --time='%s'", e.jobInfo.MaxTime)
 	}
 	if e.jobInfo.Opts != nil && len(e.jobInfo.Opts) > 0 {
 		opts += fmt.Sprintf(" %s", strings.Join(e.jobInfo.Opts, " "))
 	}
 	if e.jobInfo.Reservation != "" {
-		opts += fmt.Sprintf(" --reservation=%s", e.jobInfo.Reservation)
+		opts += fmt.Sprintf(" --reservation='%s'", e.jobInfo.Reservation)
 	}
 	if e.jobInfo.Account != "" {
-		opts += fmt.Sprintf(" --account=%s", e.jobInfo.Account)
+		opts += fmt.Sprintf(" --account='%s'", e.jobInfo.Account)
 	}
 	log.Debugf("opts=%q", opts)
 	return opts
@@ -460,14 +460,14 @@ func (e *executionCommon) buildEnvVars() string {
 	for _, v := range e.jobInfo.EnvVars {
 		if is, key, val := parseKeyValue(v); is {
 			log.Debugf("Add env var with key:%q and value:%q", key, val)
-			export := fmt.Sprintf("export %s=%s;", key, val)
+			export := fmt.Sprintf("export %s='%s';", key, val)
 			exports += export
 		}
 	}
 	for k, v := range e.jobInfo.Inputs {
 		log.Debugf("Add env var with key:%q and value:%q", k, v)
 		if strings.TrimSpace(k) != "" && strings.TrimSpace(v) != "" {
-			export := fmt.Sprintf("export %s=%s;", k, v)
+			export := fmt.Sprintf("export %s='%s';", k, v)
 			exports += export
 		}
 	}
