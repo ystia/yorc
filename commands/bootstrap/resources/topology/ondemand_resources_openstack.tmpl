@@ -2,14 +2,12 @@ resources:
   - resourceType: "yorc.nodes.openstack.PublicNetwork"
     resourceName: "public-starlings"
     archiveName: yorc-openstack-types
-    archiveVersion: 1.2.0
-    id: "yorc.nodes.openstack.PublicNetwork:1.2.0"
+    id: "yorc.nodes.openstack.PublicNetwork"
     properties: {{formatAsYAML .Address 8}}
   - resourceType: "yorc.nodes.openstack.Compute"
     resourceName: "Compute"
     archiveName: yorc-openstack-types
-    archiveVersion: 1.2.0
-    id: "yorc.nodes.openstack.Compute:1.2.0"
+    id: "yorc.bootstrap.openstack.Compute"
     properties: {{formatAsYAML .Compute 8}}
     capabilities:
       endpoint:
