@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -43,7 +45,7 @@ import (
 )
 
 const home = "~"
-const batchScript = "b.batch"
+const batchScript = "b-%s.batch"
 
 type execution interface {
 	resolveExecution() error
@@ -426,17 +428,26 @@ func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
 	if e.jobInfo.Command != "" {
 		inner := fmt.Sprintf("%s %s", e.jobInfo.Command, quoteArgs(e.jobInfo.Args))
-		cmd = e.wrapCommand(inner)
+		var err error
+		cmd, err = e.wrapCommand(inner)
+		if err != nil {
+			return err
+		}
 	} else {
 		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
 	}
 	return e.submitJob(ctx, cmd)
 }
 
-func (e *executionCommon) wrapCommand(innerCmd string) string {
-	pathScript := path.Join(e.jobInfo.WorkingDir, batchScript)
+func (e *executionCommon) wrapCommand(innerCmd string) (string, error) {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate UUID for generated slurm batch script name")
+	}
+	scriptName := fmt.Sprintf(batchScript, id.String())
+	pathScript := path.Join(e.jobInfo.WorkingDir, scriptName)
 	// Add the script to the artifact's list
-	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, batchScript)
+	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, scriptName)
 	// Write script
 	cat := fmt.Sprintf(`cat <<'EOF' > %s
 #!/bin/bash
@@ -444,7 +455,7 @@ func (e *executionCommon) wrapCommand(innerCmd string) string {
 %s
 EOF
 `, pathScript, innerCmd)
-	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript)
+	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s; rm %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
 }
 
 func (e *executionCommon) addWorkingDirCmd() string {
