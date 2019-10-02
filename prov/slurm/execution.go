@@ -440,6 +440,9 @@ func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 }
 
 func (e *executionCommon) wrapCommand(innerCmd string) (string, error) {
+	// Generate a random UUID to add it to the sbatch wrapper script name
+	// this will prevent collisions when running several jobs in parallel
+	// see https://github.com/ystia/yorc/issues/522
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate UUID for generated slurm batch script name")
@@ -455,6 +458,7 @@ func (e *executionCommon) wrapCommand(innerCmd string) (string, error) {
 %s
 EOF
 `, pathScript, innerCmd)
+	// Ensure generated script removal after its submission
 	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s; rm -f %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
 }
 
