@@ -55,7 +55,7 @@ var hostsPoolCmd = &cobra.Command{
 	Use:           "hostspool",
 	Aliases:       []string{"hostpool", "hostsp", "hpool", "hp"},
 	Short:         "Perform commands on hosts pool",
-	Long:          `Allow to add, update and delete hosts pool`,
+	Long:          `Allow to add, update and delete hosts pool for a specified location`,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		clientConfig = commands.GetYorcClientConfig(hpViper, cfgFile)

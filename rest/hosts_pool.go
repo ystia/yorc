@@ -193,6 +193,24 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponse(w, r, restHost)
 }
 
+func (s *Server) listHostsPoolLocations(w http.ResponseWriter, r *http.Request) {
+	locations, err := s.hostsPoolMgr.ListLocations()
+	if err != nil {
+		log.Panic(err)
+	}
+	if len(locations) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	hostsPoolLocations := HostsPoolLocations{}
+	hostsPoolLocations.HostsPoolLocations = make([]string, len(locations))
+	for i, location := range locations {
+		hostsPoolLocations.HostsPoolLocations[i] = location
+	}
+	encodeJSONResponse(w, r, hostsPoolLocations)
+}
+
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()

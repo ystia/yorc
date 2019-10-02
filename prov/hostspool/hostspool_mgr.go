@@ -57,6 +57,7 @@ type Manager interface {
 	GetHost(location, hostname string) (Host, error)
 	Allocate(location string, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
 	Release(location, hostname string, allocation *Allocation) error
+	ListLocations() ([]string, error)
 }
 
 // SSHClientFactory is a that could be called to customize the client used to check the connection.
@@ -369,6 +370,18 @@ func (cm *consulManager) lockKey(location, hostname, opType string, lockWaitTime
 		lock.Destroy()
 	}
 	return
+}
+
+func (cm *consulManager) ListLocations() ([]string, error) {
+	locations, _, err := cm.cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix)+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	results := locations[:0]
+	for _, location := range locations {
+		results = append(results, path.Base(location))
+	}
+	return results, nil
 }
 
 func (cm *consulManager) List(location string, filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error) {

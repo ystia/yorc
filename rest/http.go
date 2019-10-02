@@ -192,6 +192,7 @@ func (s *Server) registerHandlers() {
 	s.router.Put("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
 	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
 	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
+	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
