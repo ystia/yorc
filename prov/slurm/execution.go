@@ -455,7 +455,7 @@ func (e *executionCommon) wrapCommand(innerCmd string) (string, error) {
 %s
 EOF
 `, pathScript, innerCmd)
-	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s; rm %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
+	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s; rm -f %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
 }
 
 func (e *executionCommon) addWorkingDirCmd() string {
