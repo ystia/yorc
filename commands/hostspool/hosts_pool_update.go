@@ -30,6 +30,7 @@ import (
 )
 
 func init() {
+	var location string
 	var jsonParam string
 	var privateKey string
 	var password string
@@ -41,11 +42,14 @@ func init() {
 
 	var updCmd = &cobra.Command{
 		Use:   "update <hostname>",
-		Short: "Update host pool",
-		Long:  `Update labels list or connection of a host of the hosts pool managed by this Yorc cluster.`,
+		Short: "Update host pool of a specified location",
+		Long:  `Update labels list or connection of a host of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
+			}
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
 			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
@@ -79,7 +83,7 @@ func init() {
 				jsonParam = string(tmp)
 			}
 
-			request, err := client.NewRequest("PATCH", "/hosts_pool/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
+			request, err := client.NewRequest("PATCH", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -95,6 +99,7 @@ func init() {
 			return nil
 		},
 	}
+	updCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	updCmd.Flags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the updated host pool")
 	updCmd.Flags().StringVarP(&user, "user", "", "", "User used to connect to the host")
 	updCmd.Flags().StringVarP(&host, "host", "", "", "Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)")

@@ -17,6 +17,7 @@ package hostspool
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 
@@ -29,18 +30,22 @@ import (
 )
 
 func init() {
+	var location string
 	var filters []string
 	hpListCmd := &cobra.Command{
 		Use:   "list",
-		Short: "List hosts pools",
-		Long:  `Lists hosts of the hosts pool managed by this Yorc cluster.`,
+		Short: "List hosts pool for a specified location",
+		Long:  `Lists hosts of a hosts pool for a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
+			}
 			colorize := !noColor
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			request, err := client.NewRequest("GET", "/hosts_pool", nil)
+			request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -55,7 +60,7 @@ func init() {
 				httputil.ErrExit(err)
 			}
 			defer response.Body.Close()
-			httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, "", "hosts pool", http.StatusOK)
 			var hostsColl rest.HostsCollection
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {
@@ -86,11 +91,12 @@ func init() {
 			if colorize {
 				defer color.Unset()
 			}
-			fmt.Println("Host pools:")
+			fmt.Printf("Host pools for location %q:\n", location)
 			fmt.Println(hostsTable.Render())
 			return nil
 		},
 	}
+	hpListCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hpListCmd.Flags().StringSliceVarP(&filters, "filter", "f", nil, "Filter hosts based on their labels. May be specified several time, filters are joined by a logical 'and'. See the documentation for the filters grammar.")
 	hostsPoolCmd.AddCommand(hpListCmd)
 }

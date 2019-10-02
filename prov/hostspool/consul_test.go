@@ -16,6 +16,8 @@ package hostspool
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"strings"
 	"testing"
 
@@ -33,8 +35,29 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	kv := client.KV()
 	log.SetDebug(true)
 
+	location := "testHostsPoolLocation"
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+	locationMgr, err := locations.NewManager(cfg)
+	require.NoError(t, err, "Error initializing locations")
+
+	// Create location for tests
+	err = locationMgr.CreateLocation(
+		locations.LocationConfiguration{
+			Name: location,
+			Type: infrastructureType,
+		})
+	require.NoError(t, err, "Failed to create a location")
+	defer func() {
+		locationMgr.RemoveLocation(t.Name())
+	}()
+
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
+	err = deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
 	require.NoError(t, err)
 
 	t.Run("TestConsulManagerAdd", func(t *testing.T) {
@@ -101,12 +124,12 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testCreateFiltersFromComputeCapabilities(t, kv, deploymentID)
 	})
 	t.Run("testConcurrentExecDelegateShareableHost", func(t *testing.T) {
-		testConcurrentExecDelegateShareableHost(t, srv, client, kv, deploymentID)
+		testConcurrentExecDelegateShareableHost(t, srv, client, kv, deploymentID, location)
 	})
 	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
-		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID)
+		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID, location)
 	})
 	t.Run("testExecDelegateFailure", func(t *testing.T) {
-		testExecDelegateFailure(t, srv, client, kv, deploymentID)
+		testExecDelegateFailure(t, srv, client, kv, deploymentID, location)
 	})
 }

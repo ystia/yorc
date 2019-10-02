@@ -40,13 +40,17 @@ import (
 )
 
 func init() {
+	var location string
 	var autoApprove bool
 	var applyCmd = &cobra.Command{
-		Use:   "apply <path to Hosts Pool configuration>",
-		Short: "Apply a Hosts Pool configuration",
-		Long: `Apply a Hosts Pool configuration provided in the file passed in argument
+		Use:   "apply <locationName> <path to Hosts Pool configuration>",
+		Short: "Apply a Hosts Pool configuration for a specified location",
+		Long: `Apply a Hosts Pool configuration provided in the file passed in argument for a specified location
 	This file should contain a YAML or a JSON description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
+			}
 			colorize := !noColor
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a path to a file (got %d parameters)", len(args))
@@ -92,7 +96,7 @@ func init() {
 				httputil.ErrExit(err)
 			}
 
-			request, err := client.NewRequest("GET", "/hosts_pool", nil)
+			request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -178,7 +182,7 @@ func init() {
 				return nil
 			}
 
-			fmt.Println("\nThe following changes will be applied.")
+			fmt.Printf("\nThe following changes will be applied on location %q.\n", location)
 			if creation {
 				fmt.Println("\n- Hosts to be created :")
 				fmt.Println("")
@@ -227,7 +231,7 @@ func init() {
 			// Proceed to the change
 
 			bArray, err := json.Marshal(&hostsPoolRequest)
-			request, err = client.NewRequest("POST", "/hosts_pool",
+			request, err = client.NewRequest("POST", "/hosts_pool/"+location,
 				bytes.NewBuffer(bArray))
 			if err != nil {
 				httputil.ErrExit(err)
@@ -268,7 +272,7 @@ func init() {
 				"Name", "Connection", "Status", "Message")
 			for _, name := range hostsImpacted {
 
-				request, err := client.NewRequest("GET", "/hosts_pool/"+name, nil)
+				request, err := client.NewRequest("GET", "/hosts_pool/"+location+"/"+name, nil)
 				request.Header.Add("Accept", "application/json")
 				if err != nil {
 					httputil.ErrExit(err)
@@ -306,6 +310,7 @@ func init() {
 			return nil
 		},
 	}
+	applyCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	applyCmd.PersistentFlags().BoolVarP(&autoApprove, "auto-approve", "", false,
 		"Skip interactive approval before applying this new Hosts Pool configuration.")
 	hostsPoolCmd.AddCommand(applyCmd)

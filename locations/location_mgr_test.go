@@ -135,6 +135,14 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	err = mgr.SetLocationConfiguration(slurmLocation)
 	require.NoError(t, err, "Unexpected error attempting to update location myLocation3")
 
+	location, err := mgr.GetLocationForNode(deploymentID, "Compute1", "openstack")
+	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
+	assert.Equal(t, "myLocation2", location)
+
+	location, err = mgr.GetFirstLocationOfType("slurm")
+	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
+	assert.Equal(t, "myLocation3", location)
+
 	props, err = mgr.GetLocationProperties("myLocation3")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
 	assert.Equal(t, "slurmuser2", props["user_name"])

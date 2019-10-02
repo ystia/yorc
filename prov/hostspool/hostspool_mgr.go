@@ -46,17 +46,17 @@ const (
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
-	Add(hostname string, connection Connection, labels map[string]string) error
-	Apply(pool []Host, checkpoint *uint64) error
-	Remove(hostname string) error
-	UpdateResourcesLabels(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
-	AddLabels(hostname string, labels map[string]string) error
-	RemoveLabels(hostname string, labels []string) error
-	UpdateConnection(hostname string, connection Connection) error
-	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
-	GetHost(hostname string) (Host, error)
-	Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
-	Release(hostname string, allocation *Allocation) error
+	Add(location, hostname string, connection Connection, labels map[string]string) error
+	Apply(location string, pool []Host, checkpoint *uint64) error
+	Remove(location, hostname string) error
+	UpdateResourcesLabels(location, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
+	AddLabels(location, hostname string, labels map[string]string) error
+	RemoveLabels(location, hostname string, labels []string) error
+	UpdateConnection(location, hostname string, connection Connection) error
+	List(location string, filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
+	GetHost(location, hostname string) (Host, error)
+	Allocate(location string, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
+	Release(location, hostname string, allocation *Allocation) error
 }
 
 // SSHClientFactory is a that could be called to customize the client used to check the connection.
@@ -92,15 +92,15 @@ type consulManager struct {
 	getSSHClient SSHClientFactory
 }
 
-func (cm *consulManager) Add(hostname string, conn Connection, labels map[string]string) error {
-	return cm.addWait(hostname, conn, labels, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) Add(location, hostname string, conn Connection, labels map[string]string) error {
+	return cm.addWait(location, hostname, conn, labels, maxWaitTimeSeconds*time.Second)
 }
-func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
-	ops, err := cm.getAddOperations(hostname, conn, labels, HostStatusFree, "", nil)
+func (cm *consulManager) addWait(location, hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
+	ops, err := cm.getAddOperations(location, hostname, conn, labels, HostStatusFree, "", nil)
 	if err != nil {
 		return err
 	}
-	_, cleanupFn, err := cm.lockKey(hostname, "creation", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(location, hostname, "creation", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -119,23 +119,28 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 			}
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to register host %q for location:%q: %s", hostname, location, strings.Join(errs, ", "))
 	}
 
-	err = cm.checkConnection(hostname)
+	err = cm.checkConnection(location, hostname)
 	if err != nil {
-		cm.setHostStatusWithMessage(hostname, HostStatusError, "can't connect to host")
+		cm.setHostStatusWithMessage(location, hostname, HostStatusError, "can't connect to host")
 	}
 	return err
 }
 
 func (cm *consulManager) getAddOperations(
+	location,
 	hostname string,
 	conn Connection,
 	labels map[string]string,
 	status HostStatus,
 	message string,
 	allocations []Allocation) (api.KVTxnOps, error) {
+
+	if location == "" {
+		return nil, errors.WithStack(badRequestError{`"location" missing`})
+	}
 
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
@@ -158,7 +163,7 @@ func (cm *consulManager) getAddOperations(
 		host = hostname
 	}
 
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, location, hostname)
 	addOps := api.KVTxnOps{
 		&api.KVTxnOp{
 			Verb: api.KVCheckNotExists,
@@ -207,13 +212,13 @@ func (cm *consulManager) getAddOperations(
 
 	var allocsOps api.KVTxnOps
 	var err error
-	if allocsOps, err = getAddAllocationsOperation(hostname, allocations); err != nil {
+	if allocsOps, err = getAddAllocationsOperation(location, hostname, allocations); err != nil {
 		return nil, err
 	} else if len(allocsOps) > 0 {
 		addOps = append(addOps, allocsOps...)
 	}
 
-	labelOps, err := cm.getAddUpdatedLabelsOperations(hostname, labels)
+	labelOps, err := cm.getAddUpdatedLabelsOperations(location, hostname, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -221,17 +226,17 @@ func (cm *consulManager) getAddOperations(
 	return addOps, nil
 }
 
-func (cm *consulManager) Remove(hostname string) error {
-	return cm.removeWait(hostname, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) Remove(location, hostname string) error {
+	return cm.removeWait(location, hostname, maxWaitTimeSeconds*time.Second)
 }
-func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) error {
+func (cm *consulManager) removeWait(location, hostname string, maxWaitTime time.Duration) error {
 
-	ops, err := cm.getRemoveOperations(hostname, true)
+	ops, err := cm.getRemoveOperations(location, hostname, true)
 	if err != nil {
 		return err
 	}
 
-	lockCh, cleanupFn, err := cm.lockKey(hostname, "deletion", maxWaitTime)
+	lockCh, cleanupFn, err := cm.lockKey(location, hostname, "deletion", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -239,13 +244,13 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 
 	select {
 	case <-lockCh:
-		return errors.Errorf("admin lock lost on hosts pool for host %q deletion", hostname)
+		return errors.Errorf("admin lock lost on hosts pool for location:%q, host: %q deletion", location, hostname)
 	default:
 	}
 
 	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete host %q", hostname)
+		return errors.Wrapf(err, "failed to delete host %q for location:%q", hostname, location)
 	}
 	if !ok {
 		// Check the response
@@ -253,24 +258,27 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to delete host %q: %s", hostname, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to delete host %q for location:%q: %s", hostname, location, strings.Join(errs, ", "))
 	}
 
 	return nil
 }
 
-func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) (api.KVTxnOps, error) {
+func (cm *consulManager) getRemoveOperations(location, hostname string, checkStatus bool) (api.KVTxnOps, error) {
+	if location == "" {
+		return nil, errors.WithStack(badRequestError{`"location" missing`})
+	}
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
-	hostKey := path.Join(consulutil.HostsPoolPrefix, hostname)
+	hostKey := path.Join(consulutil.HostsPoolPrefix, location, hostname)
 	// Need to remove the host key subtree, but not the tree of hosts having a
 	// hostname containing as a prefix the name of the host to delete
 	hostKeyTreePrexix := hostKey + "/"
 
 	if checkStatus {
-		status, err := cm.GetHostStatus(hostname)
+		status, err := cm.GetHostStatus(location, hostname)
 		if err != nil {
 			return nil, err
 		}
@@ -278,7 +286,7 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 		case HostStatusFree, HostStatusError:
 			// Ok go ahead
 		default:
-			return nil, errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q with status %q", hostname, status.String())})
+			return nil, errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q for location %q with status %q", hostname, location, status.String())})
 		}
 	}
 
@@ -296,12 +304,12 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 	return rmOps, nil
 }
 
-func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Duration) (lockCh <-chan struct{}, cleanupFn func(), err error) {
+func (cm *consulManager) lockKey(location, hostname, opType string, lockWaitTime time.Duration) (lockCh <-chan struct{}, cleanupFn func(), err error) {
 	var sessionName string
 	if hostname != "" {
-		sessionName = fmt.Sprintf("%q %s", hostname, opType)
+		sessionName = fmt.Sprintf("%s %q %s", location, hostname, opType)
 	} else {
-		sessionName = opType
+		sessionName = fmt.Sprintf("%s %s", location, opType)
 	}
 	lock, err := cm.cc.LockOpts(&api.LockOptions{
 		Key:            kvLockKey,
@@ -363,8 +371,8 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	return
 }
 
-func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error) {
-	hosts, metadata, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
+func (cm *consulManager) List(location string, filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error) {
+	hosts, metadata, err := cm.cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, location)+"/", "/", nil)
 	if err != nil {
 		return nil, nil, 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -372,7 +380,7 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsu
 	results := hosts[:0]
 	for _, host := range hosts {
 		host = path.Base(host)
-		labels, err := cm.GetHostLabels(host)
+		labels, err := cm.GetHostLabels(location, host)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -386,35 +394,35 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsu
 	return results, warnings, metadata.LastIndex, nil
 }
 
-func (cm *consulManager) backupHostStatus(hostname string) error {
-	status, err := cm.GetHostStatus(hostname)
+func (cm *consulManager) backupHostStatus(location, hostname string) error {
+	status, err := cm.GetHostStatus(location, hostname)
 	if err != nil {
 		return err
 	}
-	message, err := cm.GetHostMessage(hostname)
+	message, err := cm.GetHostMessage(location, hostname)
 	if err != nil {
 		return err
 	}
-	hostPath := path.Join(consulutil.HostsPoolPrefix, hostname)
+	hostPath := path.Join(consulutil.HostsPoolPrefix, location, hostname)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	store.StoreConsulKeyAsString(path.Join(hostPath, ".statusBackup"), status.String())
 	store.StoreConsulKeyAsString(path.Join(hostPath, ".messageBackup"), message)
 	return errGrp.Wait()
 }
-func (cm *consulManager) restoreHostStatus(hostname string) error {
-	hostPath := path.Join(consulutil.HostsPoolPrefix, hostname)
+func (cm *consulManager) restoreHostStatus(location, hostname string) error {
+	hostPath := path.Join(consulutil.HostsPoolPrefix, location, hostname)
 	kvp, _, err := cm.cc.KV().Get(path.Join(hostPath, ".statusBackup"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Errorf("missing backup status for host %q", hostname)
+		return errors.Errorf("missing backup status for host: %q, location: %q", hostname, location)
 	}
 	status, err := ParseHostStatus(string(kvp.Value))
 	if err != nil {
-		return errors.Wrapf(err, "invalid backup status for host %q", hostname)
+		return errors.Wrapf(err, "invalid backup status for host: %q, location: %q", hostname, location)
 	}
-	err = cm.setHostStatus(hostname, status)
+	err = cm.setHostStatus(location, hostname, status)
 	if err != nil {
 		return err
 	}
@@ -430,7 +438,7 @@ func (cm *consulManager) restoreHostStatus(hostname string) error {
 	if kvp != nil {
 		msg = string(kvp.Value)
 	}
-	err = cm.setHostMessage(hostname, msg)
+	err = cm.setHostMessage(location, hostname, msg)
 	if err != nil {
 		return err
 	}
@@ -438,27 +446,30 @@ func (cm *consulManager) restoreHostStatus(hostname string) error {
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
-func (cm *consulManager) setHostStatus(hostname string, status HostStatus) error {
-	return cm.setHostStatusWithMessage(hostname, status, "")
+func (cm *consulManager) setHostStatus(location, hostname string, status HostStatus) error {
+	return cm.setHostStatusWithMessage(location, hostname, status, "")
 }
 
-func (cm *consulManager) setHostStatusWithMessage(hostname string, status HostStatus, message string) error {
-	_, err := cm.GetHostStatus(hostname)
+func (cm *consulManager) setHostStatusWithMessage(location, hostname string, status HostStatus, message string) error {
+	_, err := cm.GetHostStatus(location, hostname)
 	if err != nil {
 		return err
 	}
-	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, hostname, "status"), status.String())
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, location, hostname, "status"), status.String())
 	if err != nil {
 		return err
 	}
-	return cm.setHostMessage(hostname, message)
+	return cm.setHostMessage(location, hostname, message)
 }
 
-func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
-	return cm.getStatus(hostname, false)
+func (cm *consulManager) GetHostStatus(location, hostname string) (HostStatus, error) {
+	return cm.getStatus(location, hostname, false)
 }
 
-func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, error) {
+func (cm *consulManager) getStatus(location, hostname string, backup bool) (HostStatus, error) {
+	if location == "" {
+		return HostStatus(0), errors.WithStack(badRequestError{`"location" missing`})
+	}
 	if hostname == "" {
 		return HostStatus(0), errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -467,7 +478,7 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 		keyname = ".statusBackup"
 	}
 
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, keyname), nil)
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, location, hostname, keyname), nil)
 	if err != nil {
 		return HostStatus(0), errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -476,23 +487,26 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 	}
 	status, err := ParseHostStatus(string(kvp.Value))
 	if err != nil {
-		return HostStatus(0), errors.Wrapf(err, "failed to retrieve %s for host %q", keyname, hostname)
+		return HostStatus(0), errors.Wrapf(err, "failed to retrieve %s for host: %q and location: %q", keyname, hostname, location)
 	}
 
 	return status, nil
 }
 
-func (cm *consulManager) GetHostMessage(hostname string) (string, error) {
-	return cm.getMessage(hostname, false)
+func (cm *consulManager) GetHostMessage(location, hostname string) (string, error) {
+	return cm.getMessage(location, hostname, false)
 }
 
-func (cm *consulManager) getMessage(hostname string, backup bool) (string, error) {
+func (cm *consulManager) getMessage(location, hostname string, backup bool) (string, error) {
+	if location == "" {
+		return "", errors.WithStack(badRequestError{`"location" missing`})
+	}
 	if hostname == "" {
 		return "", errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
 	// check if host exists
-	_, err := cm.GetHostStatus(hostname)
+	_, err := cm.GetHostStatus(location, hostname)
 	if err != nil {
 		return "", err
 	}
@@ -502,7 +516,7 @@ func (cm *consulManager) getMessage(hostname string, backup bool) (string, error
 		keyname = ".messageBackup"
 	}
 
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, keyname), nil)
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, location, hostname, keyname), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -512,43 +526,49 @@ func (cm *consulManager) getMessage(hostname string, backup bool) (string, error
 	return string(kvp.Value), nil
 }
 
-func (cm *consulManager) setHostMessage(hostname, message string) error {
+func (cm *consulManager) setHostMessage(location, hostname, message string) error {
+	if location == "" {
+		return errors.WithStack(badRequestError{`"location" missing`})
+	}
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 	// check if host exists
-	_, err := cm.GetHostStatus(hostname)
+	_, err := cm.GetHostStatus(location, hostname)
 	if err != nil {
 		return err
 	}
-	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, hostname, "message"), message)
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, location, hostname, "message"), message)
 }
 
-func (cm *consulManager) GetHost(hostname string) (Host, error) {
+func (cm *consulManager) GetHost(location, hostname string) (Host, error) {
 	host := Host{Name: hostname}
+	if location == "" {
+		return host, errors.WithStack(badRequestError{`"location" missing`})
+	}
 	if hostname == "" {
 		return host, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 	var err error
-	host.Status, err = cm.GetHostStatus(hostname)
+	host.Status, err = cm.GetHostStatus(location, hostname)
 	if err != nil {
 		return host, err
 	}
-	host.Message, err = cm.GetHostMessage(hostname)
-	if err != nil {
-		return host, err
-	}
-
-	host.Connection, err = cm.GetHostConnection(hostname)
-	if err != nil {
-		return host, err
-	}
-	host.Allocations, err = cm.GetAllocations(hostname)
+	host.Message, err = cm.GetHostMessage(location, hostname)
 	if err != nil {
 		return host, err
 	}
 
-	host.Labels, err = cm.GetHostLabels(hostname)
+	host.Connection, err = cm.GetHostConnection(location, hostname)
+	if err != nil {
+		return host, err
+	}
+	host.Allocations, err = cm.GetAllocations(location, hostname)
+	if err != nil {
+		return host, err
+	}
+
+	host.Labels, err = cm.GetHostLabels(location, hostname)
 	return host, err
 }
 
@@ -581,11 +601,12 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 // value.
 // If checkpoint is nil, the Hosts Pool configuration will be applied without
 // checkpoint verification.
-func (cm *consulManager) Apply(pool []Host, checkpoint *uint64) error {
-	return cm.applyWait(pool, checkpoint, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) Apply(location string, pool []Host, checkpoint *uint64) error {
+	return cm.applyWait(location, pool, checkpoint, maxWaitTimeSeconds*time.Second)
 }
 
 func (cm *consulManager) applyWait(
+	location string,
 	pool []Host,
 	checkpoint *uint64,
 	maxWaitTime time.Duration) error {
@@ -613,7 +634,7 @@ func (cm *consulManager) applyWait(
 
 	// Take the lock to have a consistent view while computing needed
 	// configuration changes
-	lockCh, cleanupFn, err := cm.lockKey("", "apply", maxWaitTime)
+	lockCh, cleanupFn, err := cm.lockKey(location, "", "apply", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -622,7 +643,7 @@ func (cm *consulManager) applyWait(
 	// Get all hosts currently registered to find which ones will have to be
 	// unregistered or updated.
 	// Attempting to unregister a host that is still allocated is illegal
-	registeredHosts, _, runtimeCheckpoint, err := cm.List()
+	registeredHosts, _, runtimeCheckpoint, err := cm.List(location)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get list of registered hosts")
 	}
@@ -652,7 +673,7 @@ func (cm *consulManager) applyWait(
 		if found {
 
 			// Host already in pool, check if an update is needed
-			oldHost, _ := cm.GetHost(host.Name)
+			oldHost, _ := cm.GetHost(location, host.Name)
 			if oldHost.Connection == host.Connection &&
 				reflect.DeepEqual(oldHost.Labels, host.Labels) {
 
@@ -669,16 +690,16 @@ func (cm *consulManager) applyWait(
 			// it will be recreated with the same status
 			hostsToUnregisterCheckAllocatedStatus[host.Name] = false
 
-			status, err := cm.GetHostStatus(host.Name)
+			status, err := cm.GetHostStatus(location, host.Name)
 			if err != nil {
 				return err
 			}
-			message, err := cm.GetHostMessage(host.Name)
+			message, err := cm.GetHostMessage(location, host.Name)
 			if err != nil {
 				return err
 			}
 
-			allocations, err := cm.GetAllocations(host.Name)
+			allocations, err := cm.GetAllocations(location, host.Name)
 			if err != nil {
 				return err
 			}
@@ -686,13 +707,13 @@ func (cm *consulManager) applyWait(
 			// Backup status and message if defined are restored at re-creation,
 			// the connection check will be performed afterwards
 			if status == HostStatusError {
-				backupStatus, err := cm.getStatus(host.Name, true)
+				backupStatus, err := cm.getStatus(location, host.Name, true)
 				if err == nil {
 					status = backupStatus
-					message, _ = cm.getMessage(host.Name, true)
+					message, _ = cm.getMessage(location, host.Name, true)
 				}
 			}
-			ops, err := cm.getAddOperations(host.Name, host.Connection, host.Labels,
+			ops, err := cm.getAddOperations(location, host.Name, host.Connection, host.Labels,
 				status, message, allocations)
 			if err != nil {
 				return err
@@ -701,7 +722,7 @@ func (cm *consulManager) applyWait(
 		} else {
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
-			ops, err := cm.getAddOperations(host.Name, host.Connection, host.Labels,
+			ops, err := cm.getAddOperations(location, host.Name, host.Connection, host.Labels,
 				HostStatusFree, "", nil)
 			if err != nil {
 				return err
@@ -713,7 +734,7 @@ func (cm *consulManager) applyWait(
 	// Now manage hosts to delete
 	var ops api.KVTxnOps
 	for host, checkStatus := range hostsToUnregisterCheckAllocatedStatus {
-		removeOps, err := cm.getRemoveOperations(host, checkStatus)
+		removeOps, err := cm.getRemoveOperations(location, host, checkStatus)
 		if err != nil {
 			return err
 		}
@@ -758,7 +779,7 @@ func (cm *consulManager) applyWait(
 	var waitGroup sync.WaitGroup
 	for _, name := range hostChanged {
 		waitGroup.Add(1)
-		go cm.updateConnectionStatus(name, &waitGroup)
+		go cm.updateConnectionStatus(location, name, &waitGroup)
 	}
 	waitGroup.Wait()
 
@@ -766,7 +787,7 @@ func (cm *consulManager) applyWait(
 	// Not using querymeta.LastIndex from KV().Txn() as it doesn't work the same
 	// way as in KV().Keys used in cm.List().
 	if checkpoint != nil {
-		_, _, newCheckpoint, errCkpt := cm.List()
+		_, _, newCheckpoint, errCkpt := cm.List(location)
 		if errCkpt != nil {
 			// If the apply didn't fail, return this error, else the apply error
 			// takes precedence

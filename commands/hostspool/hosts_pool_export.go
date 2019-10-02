@@ -17,6 +17,7 @@ package hostspool
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -29,28 +30,32 @@ import (
 )
 
 func init() {
+	var location string
 	var outputFormat string
 	var filePath string
 	hpExportCmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export hosts pool configuration",
-		Long:  `Export hosts pool configuration as a YAML or JSON representation`,
+		Short: "Export hosts pool configuration for a specified location",
+		Long:  `Export hosts pool configuration for a specified location as a YAML or JSON representation`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
+			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			request, err := client.NewRequest("GET", "/hosts_pool", nil)
+			request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
 
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 			httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
 			var hostsColl rest.HostsCollection
 			body, err := ioutil.ReadAll(response.Body)
@@ -105,6 +110,7 @@ func init() {
 			return nil
 		},
 	}
+	hpExportCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hpExportCmd.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format: yaml, json")
 	hpExportCmd.Flags().StringVarP(&filePath, "file", "f", "", "Path to a file where to store the output")
 	hostsPoolCmd.AddCommand(hpExportCmd)

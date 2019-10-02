@@ -31,6 +31,7 @@ import (
 )
 
 func init() {
+	var location string
 	var jsonParam string
 	var privateKey string
 	var password string
@@ -41,18 +42,21 @@ func init() {
 
 	var addCmd = &cobra.Command{
 		Use:   "add <hostname>",
-		Short: "Add host pool",
-		Long:  `Adds a host to the hosts pool managed by this Yorc cluster.`,
+		Short: "Add host pool in a specified location",
+		Long:  `Adds a host to the hosts pool  of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient(clientConfig)
-			if err != nil {
-				httputil.ErrExit(err)
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
 			}
 			if len(jsonParam) == 0 && len(privateKey) == 0 && len(password) == 0 {
 				return errors.Errorf("You need to provide either JSON with connection information or private key or password for the host pool")
+			}
+			client, err := httputil.GetClient(clientConfig)
+			if err != nil {
+				httputil.ErrExit(err)
 			}
 			if len(jsonParam) == 0 {
 				var hostRequest rest.HostRequest
@@ -79,7 +83,7 @@ func init() {
 				jsonParam = string(tmp)
 			}
 
-			request, err := client.NewRequest("PUT", "/hosts_pool/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
+			request, err := client.NewRequest("PUT", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -96,6 +100,7 @@ func init() {
 			return nil
 		},
 	}
+	addCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	addCmd.Flags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the host pool")
 	addCmd.Flags().StringVarP(&user, "user", "", "root", "User used to connect to the host")
 	addCmd.Flags().StringVarP(&host, "host", "", "", "Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)")

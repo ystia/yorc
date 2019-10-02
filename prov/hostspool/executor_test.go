@@ -126,9 +126,9 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, kv *api.KV, deployme
 // shareable hosts in parallel, and verifies it won't lead to over-allocate a
 // shareable host
 func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer,
-	cc *api.Client, kv *api.KV, deploymentID string) {
+	cc *api.Client, kv *api.KV, deploymentID, location string) {
 
-	ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor := prepareTestEnv(t, srv, cc, kv, deploymentID, 2)
+	ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor := prepareTestEnv(t, srv, cc, kv, location, deploymentID, 2)
 
 	// Testing the delegate operation install which will allocate resources
 	// Expected Hosts Pool allocations after this operation:
@@ -144,7 +144,7 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 			"host.disk_size": "50 GB",
 		},
 	}
-	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
+	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, location, "taskTest", deploymentID,
 		"install", nodeNames, expectedResources)
 
 	// Testing the delegate operation uninstall which will free resources
@@ -153,7 +153,7 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 		"host0": initialLabels,
 		"host1": initialLabels,
 	}
-	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
+	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, location, "taskTest", deploymentID,
 		"uninstall", nodeNames, expectedResources)
 }
 
@@ -161,6 +161,7 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 	cc *api.Client,
 	hpManager Manager,
 	cfg config.Configuration,
+	location,
 	taskID, deploymentID, delegateOperation string,
 	nodeNames []string,
 	expectedResources map[string]map[string]string) {
@@ -170,7 +171,7 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 	var waitGroup sync.WaitGroup
 	for _, nodeName := range nodeNames {
 		waitGroup.Add(1)
-		go routineExecDelegate(ctx, testExecutor, cc, hpManager, cfg, "taskTest", deploymentID,
+		go routineExecDelegate(ctx, testExecutor, cc, hpManager, cfg, location, "taskTest", deploymentID,
 			nodeName, delegateOperation, &waitGroup, errors)
 	}
 	waitGroup.Wait()
@@ -185,7 +186,7 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 	close(errors)
 
 	for k, v := range expectedResources {
-		host, err := hpManager.GetHost(k)
+		host, err := hpManager.GetHost(location, k)
 		require.NoError(t, err, "Could not get host %s", k)
 
 		for label, val := range v {
@@ -200,13 +201,14 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client,
 	hpManager Manager,
 	cfg config.Configuration,
-	taskID, deploymentID, nodeName, delegateOperation string,
+	location, taskID, deploymentID, nodeName, delegateOperation string,
 	waitGroup *sync.WaitGroup,
 	errors chan<- error) {
 
 	defer waitGroup.Done()
 	fmt.Printf("Executing operation %s on node %s\n", delegateOperation, nodeName)
 	operationParams := operationParameters{
+		location:          location,
 		taskID:            taskID,
 		deploymentID:      deploymentID,
 		nodeName:          nodeName,
@@ -225,12 +227,13 @@ func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client
 // testFailureExecDelegateShareableHost tests the failure to allocate a host
 // due to missing resources
 func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer,
-	cc *api.Client, kv *api.KV, deploymentID string) {
+	cc *api.Client, kv *api.KV, deploymentID, location string) {
 
-	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, kv, deploymentID, 1)
+	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, kv, location, deploymentID, 1)
 
 	lastIndex := len(nodeNames) - 1
 	operationParams := operationParameters{
+		location:          location,
 		taskID:            "taskTest",
 		deploymentID:      deploymentID,
 		delegateOperation: "install",
@@ -249,7 +252,7 @@ func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer
 
 }
 
-func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *api.KV, deploymentID string,
+func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *api.KV, location, deploymentID string,
 	hostsNumber int) (context.Context, config.Configuration, Manager, []string, map[string]string, *defaultExecutor) {
 
 	// The topology in testdata/topology_hp_compute.yaml defines 4 compute node
@@ -275,7 +278,7 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *
 
 	// Apply this definition
 	var checkpoint uint64
-	err := hpManager.Apply(hostpool, &checkpoint)
+	err := hpManager.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 
 	// Getting now nodes for which to call the install delegate operation install
@@ -310,9 +313,9 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, kv *
 // testExecFDelegateFailure tests a failure to execute an install operation
 // due to a host connection issue (as not using the mockSSHClientFactory)
 func testExecDelegateFailure(t *testing.T, srv *testutil.TestServer,
-	cc *api.Client, kv *api.KV, deploymentID string) {
+	cc *api.Client, kv *api.KV, deploymentID, location string) {
 
-	ctx, cfg, _, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, kv, deploymentID, 1)
+	ctx, cfg, _, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, kv, location, deploymentID, 1)
 
 	err := testExecutor.ExecDelegate(ctx, cfg, "taskTest", deploymentID, nodeNames[0], "install")
 	require.Error(t, err, "Should have failed to allocate a host, on connection error")

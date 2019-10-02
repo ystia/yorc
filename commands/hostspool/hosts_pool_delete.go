@@ -24,20 +24,24 @@ import (
 )
 
 func init() {
+	var location string
 	var delCmd = &cobra.Command{
 		Use:   "delete <hostname> [hostname...]",
-		Short: "Delete hosts from hosts pool",
-		Long:  `Delete hosts of the hosts pool managed by this Yorc cluster.`,
+		Short: "Delete hosts of a specified location",
+		Long:  `Delete hosts of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
+				return errors.Errorf("Expecting at least one hostname (got %d parameters)", len(args))
+			}
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
 			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
 			for i := range args {
-				request, err := client.NewRequest("DELETE", "/hosts_pool/"+args[i], nil)
+				request, err := client.NewRequest("DELETE", "/hosts_pool/"+location+"/"+args[i], nil)
 				if err != nil {
 					httputil.ErrExit(err)
 				}
@@ -48,10 +52,11 @@ func init() {
 				}
 				defer response.Body.Close()
 
-				httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+				httputil.HandleHTTPStatusCode(response, args[i], "host pool", http.StatusOK)
 			}
 			return nil
 		},
 	}
+	delCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hostsPoolCmd.AddCommand(delCmd)
 }

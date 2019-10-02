@@ -33,8 +33,9 @@ func (s *Server) deleteHostInPool(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	location := params.ByName("location")
 	hostname := params.ByName("host")
-	err := s.hostsPoolMgr.Remove(hostname)
+	err := s.hostsPoolMgr.Remove(location, hostname)
 	if err != nil {
 		if hostspool.IsHostNotFoundError(err) {
 			writeError(w, r, errNotFound)
@@ -53,6 +54,7 @@ func (s *Server) newHostInPool(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	location := params.ByName("location")
 	hostname := params.ByName("host")
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -80,7 +82,7 @@ func (s *Server) newHostInPool(w http.ResponseWriter, r *http.Request) {
 		labels[entry.Name] = entry.Value
 	}
 
-	err = s.hostsPoolMgr.Add(hostname, *host.Connection, labels)
+	err = s.hostsPoolMgr.Add(location, hostname, *host.Connection, labels)
 	if err != nil {
 		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))
@@ -88,7 +90,7 @@ func (s *Server) newHostInPool(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Panic(err)
 	}
-	w.Header().Set("Location", fmt.Sprintf("/hosts_pool/%s", hostname))
+	w.Header().Set("Location", fmt.Sprintf("/hosts_pool/%s/%s", location, hostname))
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -96,6 +98,7 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	location := params.ByName("location")
 	hostname := params.ByName("host")
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -111,7 +114,7 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if host.Connection != nil {
-		err = s.hostsPoolMgr.UpdateConnection(hostname, *host.Connection)
+		err = s.hostsPoolMgr.UpdateConnection(location, hostname, *host.Connection)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
@@ -135,7 +138,7 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(labelsDelete) > 0 {
-		err = s.hostsPoolMgr.RemoveLabels(hostname, labelsDelete)
+		err = s.hostsPoolMgr.RemoveLabels(location, hostname, labelsDelete)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
@@ -149,7 +152,7 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(labelsAdd) > 0 {
-		err = s.hostsPoolMgr.AddLabels(hostname, labelsAdd)
+		err = s.hostsPoolMgr.AddLabels(location, hostname, labelsAdd)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
@@ -169,9 +172,10 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	location := params.ByName("location")
 	hostname := params.ByName("host")
 
-	host, err := s.hostsPoolMgr.GetHost(hostname)
+	host, err := s.hostsPoolMgr.GetHost(location, hostname)
 	if err != nil {
 		if hostspool.IsHostNotFoundError(err) {
 			writeError(w, r, errNotFound)
@@ -185,11 +189,15 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	restHost := Host{Host: host, Links: make([]AtomLink, 1)}
-	restHost.Links[0] = newAtomLink(LinkRelSelf, fmt.Sprintf("/hosts_pool/%s", hostname))
+	restHost.Links[0] = newAtomLink(LinkRelSelf, fmt.Sprintf("/hosts_pool/%s/%s", location, hostname))
 	encodeJSONResponse(w, r, restHost)
 }
 
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	location := params.ByName("location")
 	filtersString := r.URL.Query()["filter"]
 
 	filters := make([]labelsutil.Filter, len(filtersString))
@@ -203,7 +211,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	hostsNames, warnings, checkpoint, err := s.hostsPoolMgr.List(filters...)
+	hostsNames, warnings, checkpoint, err := s.hostsPoolMgr.List(location, filters...)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -219,7 +227,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 		hostsCol.Hosts = make([]AtomLink, len(hostsNames))
 	}
 	for i, h := range hostsNames {
-		hostsCol.Hosts[i] = newAtomLink(LinkRelHost, fmt.Sprintf("/hosts_pool/%s", h))
+		hostsCol.Hosts[i] = newAtomLink(LinkRelHost, fmt.Sprintf("/hosts_pool/%s/%s", location, h))
 	}
 	if len(warnings) > 0 {
 		hostsCol.Warnings = make([]string, len(warnings))
@@ -232,6 +240,10 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	location := params.ByName("location")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Panic(err)
@@ -268,7 +280,7 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = s.hostsPoolMgr.Apply(pool, hostsPoolCheckpoint)
+	err = s.hostsPoolMgr.Apply(location, pool, hostsPoolCheckpoint)
 	if err != nil {
 		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))

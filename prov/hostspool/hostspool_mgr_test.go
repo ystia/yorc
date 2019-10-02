@@ -86,14 +86,15 @@ func cleanupHostsPool(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
-	err := cm.Add("host_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
+	err := cm.Add(location, "host_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1":         "val1",
 		"label/&special": "val/&special",
 	})
 	require.NoError(t, err)
-	err = cm.Add("host_no_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
+	err = cm.Add(location, "host_no_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1": "val1",
 	})
 	require.NoError(t, err)
@@ -137,14 +138,14 @@ func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err = cm.AddLabels(tt.args.hostname, tt.args.labels); (err != nil) != tt.wantErr {
+			if err = cm.AddLabels(location, tt.args.hostname, tt.args.labels); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.AddLabels() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
 				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
-				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
+				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, location, tt.args.hostname, k), nil)
 				if err != nil {
 					t.Fatalf("consulManager.AddLabels() consul comm error during result check (you should retry) %v", err)
 				}
@@ -160,20 +161,21 @@ func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
 			}
 		})
 	}
-	labels, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, "host_no_labels_update", "labels")+"/", "/", nil)
+	labels, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, location, "host_no_labels_update", "labels")+"/", "/", nil)
 	require.NoError(t, err)
 	assert.Len(t, labels, 1, `Expecting only one label for host "host_no_labels_update", something updated those labels`)
 }
 func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
-	err := cm.Add("host_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
+	err := cm.Add(location, "host_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1":         "val1",
 		"label/&special": "val/&special",
 		"labelSurvivor":  "still here!",
 	})
 	require.NoError(t, err)
-	err = cm.Add("host_no_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
+	err = cm.Add(location, "host_no_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1": "val1",
 	})
 	require.NoError(t, err)
@@ -206,14 +208,14 @@ func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err = cm.RemoveLabels(tt.args.hostname, tt.args.labels); (err != nil) != tt.wantErr {
+			if err = cm.RemoveLabels(location, tt.args.hostname, tt.args.labels); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.RemoveLabels() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
 				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
-				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
+				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, location, tt.args.hostname, k), nil)
 				if err != nil {
 					t.Fatalf("consulManager.RemoveLabels() consul comm error during result check (you should retry) %v", err)
 				}
@@ -229,11 +231,12 @@ func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
 			}
 		})
 	}
-	labels, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, "host_no_labels_remove", "labels")+"/", "/", nil)
+	labels, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, location, "host_no_labels_remove", "labels")+"/", "/", nil)
 	require.NoError(t, err)
 	assert.Len(t, labels, 1, `Expecting only one label for host "host_no_labels_remove", something updated those labels`)
 }
 func testConsulManagerAdd(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	type args struct {
 		hostname string
@@ -279,14 +282,14 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 			var err error
-			if err = cm.Add(tt.args.hostname, tt.args.conn, tt.args.labels); (err != nil) != tt.wantErr {
+			if err = cm.Add(location, tt.args.hostname, tt.args.conn, tt.args.labels); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
 				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
-				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
+				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, location, tt.args.hostname, k), nil)
 				if err != nil {
 					t.Fatalf("consulManager.Add() consul comm error during result check (you should retry) %v", err)
 				}
@@ -305,10 +308,11 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 	originalConn := Connection{User: "u1", Password: "test", Host: "h1", Port: 24, PrivateKey: dummySSHkey}
-	cm.Add("hostUpdateConn1", originalConn, nil)
+	cm.Add(location, "hostUpdateConn1", originalConn, nil)
 	type args struct {
 		hostname string
 		conn     Connection
@@ -369,14 +373,14 @@ func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err = cm.UpdateConnection(tt.args.hostname, tt.args.conn); (err != nil) != tt.wantErr {
+			if err = cm.UpdateConnection(location, tt.args.hostname, tt.args.conn); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
 				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
-				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
+				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, location, tt.args.hostname, k), nil)
 				if err != nil {
 					t.Fatalf("consulManager.Add() consul comm error during result check (you should retry) %v", err)
 				}
@@ -395,11 +399,12 @@ func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerRemove(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
-	cm.Add("host1", Connection{PrivateKey: dummySSHkey}, nil)
-	cm.Add("host2", Connection{PrivateKey: dummySSHkey}, nil)
-	_, err := cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, "host2", "status"), Value: []byte(HostStatusAllocated.String())}, nil)
+	cm.Add(location, "host1", Connection{PrivateKey: dummySSHkey}, nil)
+	cm.Add(location, "host2", Connection{PrivateKey: dummySSHkey}, nil)
+	_, err := cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, location, "host2", "status"), Value: []byte(HostStatusAllocated.String())}, nil)
 	require.NoError(t, err)
 	type args struct {
 		hostname string
@@ -417,7 +422,7 @@ func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err := cm.Remove(tt.args.hostname); (err != nil) != tt.wantErr {
+			if err := cm.Remove(location, tt.args.hostname); (err != nil) != tt.wantErr {
 				t.Errorf("consulManager.Remove() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
@@ -431,41 +436,43 @@ func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 // the Pool won't remove other hosts having as hostname a name which has as prefix
 // the hostname of the delete host
 func testConsulManagerRemoveHostWithSamePrefix(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
-	cm.Add("myHost", Connection{PrivateKey: dummySSHkey}, nil)
-	cm.Add("myHost2", Connection{PrivateKey: dummySSHkey}, nil)
+	cm.Add(location, "myHost", Connection{PrivateKey: dummySSHkey}, nil)
+	cm.Add(location, "myHost2", Connection{PrivateKey: dummySSHkey}, nil)
 
-	err := cm.Remove("myHost")
+	err := cm.Remove(location, "myHost")
 	require.NoError(t, err, "Unexpected error removing host from Hosts Pool")
 
 	// Check the second host is still there
-	host, err := cm.GetHost("myHost2")
+	host, err := cm.GetHost(location, "myHost2")
 	require.NoError(t, err, "Found no host myHost2 in Pool")
 	assert.Equal(t, "myHost2", host.Name)
 }
 
 func testConsulManagerList(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
-	err := cm.Add("list_host1", Connection{PrivateKey: dummySSHkey}, nil)
+	err := cm.Add(location, "list_host1", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cm.Add("list_host2", Connection{PrivateKey: dummySSHkey}, nil)
+	err = cm.Add(location, "list_host2", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cm.Add("list_host3", Connection{PrivateKey: dummySSHkey}, nil)
+	err = cm.Add(location, "list_host3", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cm.Add("list_host4", Connection{PrivateKey: dummySSHkey}, nil)
+	err = cm.Add(location, "list_host4", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hosts, warnings, checkpoint, err := cm.List()
+	hosts, warnings, checkpoint, err := cm.List(location)
 	require.NoError(t, err)
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
@@ -475,11 +482,11 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 	assert.Contains(t, hosts, "list_host4")
 
 	// Check checkpoint increase
-	err = cm.Add("list_host5", Connection{PrivateKey: dummySSHkey}, nil)
+	err = cm.Add(location, "list_host5", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hosts, warnings, checkpoint2, err := cm.List()
+	hosts, warnings, checkpoint2, err := cm.List(location)
 	require.NoError(t, err)
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 5)
@@ -488,6 +495,7 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 	labelList := map[string]string{
@@ -502,10 +510,10 @@ func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 		Port:       26,
 		PrivateKey: dummySSHkey,
 	}
-	err := cm.Add("get_host1", connection, labelList)
+	err := cm.Add(location, "get_host1", connection, labelList)
 	require.NoError(t, err)
 
-	host, err := cm.GetHost("get_host1")
+	host, err := cm.GetHost(location, "get_host1")
 	require.NoError(t, err)
 	assert.Equal(t, connection, host.Connection)
 	assert.Equal(t, labelList, host.Labels)
@@ -515,9 +523,10 @@ func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
-	err := cm.Add("concurrent_host1", Connection{PrivateKey: dummySSHkey}, nil)
+	err := cm.Add(location, "concurrent_host1", Connection{PrivateKey: dummySSHkey}, nil)
 	require.NoError(t, err)
 	l, err := cc.LockKey(kvLockKey)
 	require.NoError(t, err)
@@ -525,19 +534,19 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	require.NoError(t, err)
 	defer l.Unlock()
 
-	err = cm.addWait("concurrent_host2", Connection{PrivateKey: dummySSHkey}, nil, 500*time.Millisecond)
+	err = cm.addWait(location, "concurrent_host2", Connection{PrivateKey: dummySSHkey}, nil, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for addWait()")
-	err = cm.removeWait("concurrent_host1", 500*time.Millisecond)
+	err = cm.removeWait(location, "concurrent_host1", 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeWait()")
-	err = cm.addLabelsWait("concurrent_host1", map[string]string{"t1": "v1"}, 500*time.Millisecond)
+	err = cm.addLabelsWait(location, "concurrent_host1", map[string]string{"t1": "v1"}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for addLabelsWait()")
-	err = cm.removeLabelsWait("concurrent_host1", []string{"t1"}, 500*time.Millisecond)
+	err = cm.removeLabelsWait(location, "concurrent_host1", []string{"t1"}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	err = cm.updateConnectionWait("concurrent_host1", Connection{}, 500*time.Millisecond)
+	err = cm.updateConnectionWait(location, "concurrent_host1", Connection{}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	_, _, err = cm.allocateWait(500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false})
+	_, _, err = cm.allocateWait(location, 500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false})
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
-	err = cm.releaseWait("concurrent_host1", &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, 500*time.Millisecond)
+	err = cm.releaseWait(location, "concurrent_host1", &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
 
@@ -586,6 +595,7 @@ func createHostsWithLabels(hostsNumber int, labels map[string]string) []Host {
 }
 
 func testConsulManagerApply(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
@@ -593,11 +603,11 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
-	hosts, warnings, newCkpt, err := cm.List()
+	hosts, warnings, newCkpt, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 3)
@@ -608,7 +618,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 		suffix := strconv.Itoa(i)
 		hostname := "host" + suffix
 		assert.Contains(t, hosts, hostname)
-		host, err := cm.GetHost(hostname)
+		host, err := cm.GetHost(location, hostname)
 		require.NoError(t, err, "Could not get host %s", hostname)
 		assert.Equal(t, hostpool[i].Connection, host.Connection,
 			"Unexpected connection value for host %s", hostname)
@@ -621,10 +631,10 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[1].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
-	allocatedHost, err := cm.GetHost(allocatedName)
+	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
@@ -674,19 +684,19 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 		})
 	}
 
-	_, _, checkpoint, err = cm.List()
+	_, _, checkpoint, err = cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 
 	// Apply this new definition
 	oldcheckpoint := checkpoint
-	err = cm.Apply(hostpool, &checkpoint)
+	err = cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err,
 		"Unexpected failure applying new host pool configuration")
 
 	assert.NotEqual(t, oldcheckpoint, checkpoint, "Expected a checkpoint change")
 
 	// Check the pool now
-	hosts, warnings, ckpt2, err := cm.List()
+	hosts, warnings, ckpt2, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
@@ -702,7 +712,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 
 		hostname := "host" + suffix
 		assert.Contains(t, hosts, hostname)
-		host, err := cm.GetHost(hostname)
+		host, err := cm.GetHost(location, hostname)
 		require.NoError(t, err, "Could not get host %s", hostname)
 		assert.Equal(t, hostpool[i].Connection, host.Connection,
 			"Unexpected connection value for host %s", hostname)
@@ -711,13 +721,14 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	}
 
 	// Check the allocated status of host1 didn't change
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	assert.Equal(t, HostStatusAllocated, allocatedHost.Status,
 		"Unexpected status for an allocated host after Pool redefinition")
 }
 
 func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB"}
@@ -726,11 +737,11 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
-	hosts, warnings, newCkpt, err := cm.List()
+	hosts, warnings, newCkpt, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 1)
@@ -739,7 +750,7 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 
 	hostname := "host0"
 	assert.Contains(t, hosts, hostname)
-	host, err := cm.GetHost(hostname)
+	host, err := cm.GetHost(location, hostname)
 	require.NoError(t, err, "Could not get host %s", hostname)
 	assert.Equal(t, hostpool[0].Connection, host.Connection,
 		"Unexpected connection value for host %s", hostname)
@@ -755,13 +766,13 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	}
 
 	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: true, Resources: AllocResources})
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: true, Resources: AllocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
-	allocatedHost, err := cm.GetHost(allocatedName)
+	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
@@ -779,13 +790,13 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	}
 
 	AllocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err = cm.Allocate(&Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: AllocResources})
+	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: AllocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 2, len(allocatedHost.Allocations))
@@ -801,12 +812,12 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "60 GB",
 	}
 
-	_, _, checkpoint, err = cm.List()
+	_, _, checkpoint, err = cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 
 	// Apply this new definition
 	oldcheckpoint := checkpoint
-	err = cm.Apply(hostpool, &checkpoint)
+	err = cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err,
 		"Unexpected failure applying new host pool configuration")
 
@@ -819,14 +830,14 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "40 GB",
 	}
 
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after apply")
 }
 
 func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
-
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
@@ -834,7 +845,7 @@ func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
@@ -843,14 +854,14 @@ func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
 	hostpool[0].Name = "newName"
 	hostpool = append(hostpool, hostpool[0])
 	hostpool[len(hostpool)-1].Name = ""
-	_, _, ckpt1, err := cm.List()
+	_, _, ckpt1, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool before test")
 	ckpt := ckpt1
-	err = cm.Apply(hostpool, &ckpt)
+	err = cm.Apply(location, hostpool, &ckpt)
 	assert.Error(t, err, "Expected an error adding a host with no name")
 
 	// Check the new definition wasn't applied after this error
-	hosts, warnings, ckpt2, err := cm.List()
+	hosts, warnings, ckpt2, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 3)
@@ -862,7 +873,7 @@ func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
-
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
@@ -870,22 +881,22 @@ func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
 	// Error case: duplicate names
 	oldName := hostpool[len(hostpool)-1].Name
 	hostpool[len(hostpool)-1].Name = hostpool[0].Name
-	_, _, ckpt1, err := cm.List()
+	_, _, ckpt1, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool before test")
 	ckpt := ckpt1
-	err = cm.Apply(hostpool, &ckpt)
+	err = cm.Apply(location, hostpool, &ckpt)
 	assert.Error(t, err,
 		"Expected an error applying a hosts pool with duplicate names")
 
 	// Check the new definition wasn't applied after this error
-	hosts, warnings, ckpt2, err := cm.List()
+	hosts, warnings, ckpt2, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 3)
@@ -896,14 +907,14 @@ func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client) {
-
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
@@ -912,10 +923,10 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[1].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
-	allocatedHost, err := cm.GetHost(allocatedName)
+	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
@@ -923,15 +934,15 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 
-	hosts1, _, checkpoint, err := cm.List()
+	hosts1, _, checkpoint, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting the hosts pool")
 
 	// Error case : attempt to delete an allocated host
 	hostpool1 := hostpool[:1]
 	var ckpt uint64
-	err = cm.Apply(hostpool1, &ckpt)
+	err = cm.Apply(location, hostpool1, &ckpt)
 	assert.Error(t, err, "Expected an error deleting an allocated host")
-	hosts2, warnings, ckpt2, err := cm.List()
+	hosts2, warnings, ckpt2, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts2, 3)
@@ -940,38 +951,38 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 }
 
 func testConsulManagerApplyErrorOutdatedCheckpoint(t *testing.T, cc *api.Client) {
-
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
 	// Error case : outdated checkpoint
 	hostpool[0].Labels["label1"] = "newValues"
 	oldcheckpoint := checkpoint - 1
-	err = cm.Apply(hostpool, &oldcheckpoint)
+	err = cm.Apply(location, hostpool, &oldcheckpoint)
 	assert.Error(t, err, "Expected an error doing an apply with outdated checkpoint")
 }
 
 func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
-
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
 	// Check an apply with one host having bad connection settings
-	_, _, checkpoint, err = cm.List()
+	_, _, checkpoint, err = cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	newHost := Host{
 		Name: "testhost",
@@ -983,33 +994,33 @@ func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
 	}
 
 	hostpool = append(hostpool, newHost)
-	err = cm.Apply(hostpool, &checkpoint)
+	err = cm.Apply(location, hostpool, &checkpoint)
 	assert.NoError(t, err, "Expected no error apply a configuration containing a host with bad credentials")
 
 	// Check host status
-	hostInPool, err := cm.GetHost(newHost.Name)
+	hostInPool, err := cm.GetHost(location, newHost.Name)
 	require.NoError(t, err, "Unexpected error attempting to get host %s", newHost.Name)
 	assert.Equal(t, HostStatusError.String(), hostInPool.Status.String(),
 		"Expected a status error for host with bad credentials")
 
 	// Check a backup status exists
-	backupStatus, err := cm.getStatus(newHost.Name, true)
+	backupStatus, err := cm.getStatus(location, newHost.Name, true)
 	assert.NoError(t, err, "Expected to have a backup status")
 	assert.Equal(t, backupStatus.String(), HostStatusFree.String(), "Unexpected backup status")
 
 	// Fixing bad credentials
 	hostpool[len(hostpool)-1].Connection.User = "test"
-	err = cm.Apply(hostpool, &checkpoint)
+	err = cm.Apply(location, hostpool, &checkpoint)
 	assert.NoError(t, err,
 		"Expected no error apply a configuration with host credentials fixed ")
 
 	// Verify there is no connection failure anymore
-	err = cm.checkConnection(newHost.Name)
+	err = cm.checkConnection(location, newHost.Name)
 	require.NoError(t, err,
 		"Unexpected connection error after credentials fix")
 
 	// Check host status change
-	hostInPool, err = cm.GetHost(newHost.Name)
+	hostInPool, err = cm.GetHost(location, newHost.Name)
 	require.NoError(t, err,
 		"Unexpected error attempting to get host %s after apply", newHost.Name)
 	assert.Equal(t, HostStatusFree.String(), hostInPool.Status.String(),
@@ -1018,6 +1029,7 @@ func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
@@ -1027,11 +1039,11 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
-	hosts, warnings, newCkpt, err := cm.List()
+	hosts, warnings, newCkpt, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 1)
@@ -1044,10 +1056,10 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(alloc1, filter)
+	allocatedName, warnings, err := cm.Allocate(location, alloc1, filter)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
-	allocatedHost, err := cm.GetHost(allocatedName)
+	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
@@ -1063,10 +1075,10 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	filter, err = labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err = cm.Allocate(alloc2, filter)
+	allocatedName, warnings, err = cm.Allocate(location, alloc2, filter)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 2, len(allocatedHost.Allocations))
@@ -1077,18 +1089,18 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.Equal(t, resources, allocatedHost.Allocations[1].Resources)
 
 	// Release 2nd allocation
-	err = cm.Release(hostpool[0].Name, alloc2)
+	err = cm.Release(location, hostpool[0].Name, alloc2)
 	require.NoError(t, err, "Unexpected error releasing host allocation1")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 
 	// Release 1st allocation
-	err = cm.Release(hostpool[0].Name, alloc1)
+	err = cm.Release(location, hostpool[0].Name, alloc1)
 	require.NoError(t, err, "Unexpected error releasing host allocation2")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 0, len(allocatedHost.Allocations))
@@ -1096,6 +1108,7 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 }
 
 func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
@@ -1105,11 +1118,11 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
-	hosts, warnings, newCkpt, err := cm.List()
+	hosts, warnings, newCkpt, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 1)
@@ -1122,10 +1135,10 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(alloc1, filter)
+	allocatedName, warnings, err := cm.Allocate(location, alloc1, filter)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
-	allocatedHost, err := cm.GetHost(allocatedName)
+	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
@@ -1141,10 +1154,10 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	filter, err = labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err = cm.Allocate(alloc2, filter)
+	allocatedName, warnings, err = cm.Allocate(location, alloc2, filter)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 2, len(allocatedHost.Allocations))
@@ -1155,18 +1168,18 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	require.Equal(t, resources, allocatedHost.Allocations[1].Resources)
 
 	// Release 1st allocation
-	err = cm.Release(hostpool[0].Name, alloc1)
+	err = cm.Release(location, hostpool[0].Name, alloc1)
 	require.NoError(t, err, "Unexpected error releasing host allocation1")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 
 	// Release 2nd allocation
-	err = cm.Release(hostpool[0].Name, alloc2)
+	err = cm.Release(location, hostpool[0].Name, alloc2)
 	require.NoError(t, err, "Unexpected error releasing host allocation2")
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 0, len(allocatedHost.Allocations))
@@ -1174,7 +1187,7 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 }
 
 func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
-
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
@@ -1183,10 +1196,10 @@ func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
 	// Configure a Hosts Pool
 	var hostpool = createHosts(numberOfHosts)
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	// Check the pool now
-	hosts, warnings, _, err := cm.List()
+	hosts, warnings, _, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, numberOfHosts)
@@ -1197,7 +1210,7 @@ func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
 	var waitGroup sync.WaitGroup
 	for i := 0; i < numberOfHosts; i++ {
 		waitGroup.Add(1)
-		go routineAllocate(i, cm, &waitGroup, results, errors)
+		go routineAllocate(location, i, cm, &waitGroup, results, errors)
 	}
 	waitGroup.Wait()
 
@@ -1212,11 +1225,11 @@ func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
 	close(errors)
 
 	// Check all hosts are allocated
-	hosts, _, _, err = cm.List()
+	hosts, _, _, err = cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool after allocation")
 
 	for _, hostname := range hosts {
-		host, err := cm.GetHost(hostname)
+		host, err := cm.GetHost(location, hostname)
 		require.NoError(t, err, "Failed to get host %s", hostname)
 		assert.Equal(t, HostStatusAllocated.String(), host.Status.String(),
 			"Unexpected status for host %s", hostname)
@@ -1225,6 +1238,7 @@ func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
 }
 
 func routineAllocate(
+	location string,
 	id int,
 	cm *consulManager,
 	waitGroup *sync.WaitGroup,
@@ -1233,7 +1247,7 @@ func routineAllocate(
 
 	defer waitGroup.Done()
 	fmt.Println("Attempting to allocate a host in routine", id)
-	hostname, _, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "dep_test", Shareable: false})
+	hostname, _, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "dep_test", Shareable: false})
 	if err != nil {
 		fmt.Println("Failed to allocate a host in routine", id)
 		errors <- err
@@ -1245,6 +1259,7 @@ func routineAllocate(
 }
 
 func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB"}
@@ -1253,11 +1268,11 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 
 	// Apply this definition
 	var checkpoint uint64
-	err := cm.Apply(hostpool, &checkpoint)
+	err := cm.Apply(location, hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
-	hosts, warnings, newCkpt, err := cm.List()
+	hosts, warnings, newCkpt, err := cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 1)
@@ -1266,7 +1281,7 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 
 	hostname := "host0"
 	assert.Contains(t, hosts, hostname)
-	host, err := cm.GetHost(hostname)
+	host, err := cm.GetHost(location, hostname)
 	require.NoError(t, err, "Could not get host %s", hostname)
 	assert.Equal(t, hostpool[0].Connection, host.Connection,
 		"Unexpected connection value for host %s", hostname)
@@ -1282,13 +1297,13 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 	}
 
 	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false, Resources: AllocResources})
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false, Resources: AllocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
-	allocatedHost, err := cm.GetHost(allocatedName)
+	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
@@ -1304,11 +1319,11 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "60 GB",
 	}
 
-	_, _, checkpoint, err = cm.List()
+	_, _, checkpoint, err = cm.List(location)
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 
 	// Add new labels
-	err = cm.AddLabels(hostname, newLabels)
+	err = cm.AddLabels(location, hostname, newLabels)
 	require.NoError(t, err,
 		"Unexpected failure adding new labels")
 
@@ -1319,7 +1334,7 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "50 GB",
 	}
 
-	allocatedHost, err = cm.GetHost(allocatedName)
+	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))

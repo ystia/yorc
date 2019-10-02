@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
+	"github.com/ystia/yorc/v4/locations"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,10 +37,13 @@ import (
 	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
+const infrastructureType = "hostspool"
+
 type defaultExecutor struct {
 }
 
 type operationParameters struct {
+	location          string
 	taskID            string
 	deploymentID      string
 	nodeName          string
@@ -56,7 +60,17 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
+	locationMgr, err := locations.NewManager(cfg)
+	if err != nil {
+		return err
+	}
+	location, err := locationMgr.GetLocationForNode(deploymentID, nodeName, infrastructureType)
+	if err != nil {
+		return err
+	}
+
 	operationParams := operationParameters{
+		location:          location,
 		taskID:            taskID,
 		deploymentID:      deploymentID,
 		nodeName:          nodeName,
@@ -183,9 +197,9 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		// ensure no other worker will attempt to over-allocate resources of a
 		// host if another worker has allocated but not yet updated resources labels
 		hostsPoolAllocMutex.Lock()
-		hostname, warnings, err := op.hpManager.Allocate(allocation, filters...)
+		hostname, warnings, err := op.hpManager.Allocate(op.location, allocation, filters...)
 		if err == nil {
-			err = op.hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
+			err = op.hpManager.UpdateResourcesLabels(op.location, hostname, allocatedResources, subtract, updateResourcesLabels)
 		}
 		hostsPoolAllocMutex.Unlock()
 
@@ -200,7 +214,7 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		if err != nil {
 			return err
 		}
-		host, err := op.hpManager.GetHost(hostname)
+		host, err := op.hpManager.GetHost(op.location, hostname)
 		if err != nil {
 			return err
 		}
@@ -446,11 +460,11 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 			continue
 		}
 		allocation := &Allocation{NodeName: op.nodeName, Instance: instance, DeploymentID: op.deploymentID}
-		err = op.hpManager.Release(hostname.RawString(), allocation)
+		err = op.hpManager.Release(op.location, hostname.RawString(), allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return op.hpManager.UpdateResourcesLabels(hostname.RawString(), allocatedResources, add, updateResourcesLabels)
+		return op.hpManager.UpdateResourcesLabels(op.location, hostname.RawString(), allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")

@@ -30,25 +30,29 @@ import (
 )
 
 func init() {
+	var location string
 	var getCmd = &cobra.Command{
 		Use:   "info <hostname>",
-		Short: "Get host pool info",
-		Long:  `Gets the description of a host of the hosts pool managed by this Yorc cluster.`,
+		Short: "Get location host pool info",
+		Long:  `Gets the description of a host of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
+			}
+			if location == "" {
+				return errors.Errorf("Expecting a hosts pool location name")
 			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
 
-			request, err := client.NewRequest("GET", "/hosts_pool/"+args[0], nil)
-			request.Header.Add("Accept", "application/json")
+			request, err := client.NewRequest("GET", "/hosts_pool/"+location+"/"+args[0], nil)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			request.Header.Add("Accept", "application/json")
 
 			response, err := client.Do(request)
 			if err != nil {
@@ -78,5 +82,6 @@ func init() {
 			return nil
 		},
 	}
+	getCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hostsPoolCmd.AddCommand(getCmd)
 }
