@@ -16,8 +16,7 @@ package hostspool
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/locations"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"strings"
 	"testing"
 
@@ -35,29 +34,16 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	kv := client.KV()
 	log.SetDebug(true)
 
+	// Populate hosts for this test location
 	location := "testHostsPoolLocation"
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
-	locationMgr, err := locations.NewManager(cfg)
-	require.NoError(t, err, "Error initializing locations")
-
-	// Create location for tests
-	err = locationMgr.CreateLocation(
-		locations.LocationConfiguration{
-			Name: location,
-			Type: infrastructureType,
-		})
-	require.NoError(t, err, "Failed to create a location")
-	defer func() {
-		locationMgr.RemoveLocation(t.Name())
-	}()
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.HostsPoolPrefix + "/testHostsPoolLocation/host21/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/testHostsPoolLocation/host22/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/testHostsPoolLocation/host23/status": []byte("free"),
+	})
 
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err = deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
 	require.NoError(t, err)
 
 	t.Run("TestConsulManagerAdd", func(t *testing.T) {

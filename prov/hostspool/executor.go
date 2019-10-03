@@ -17,7 +17,7 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v4/locations"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,17 +60,13 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	locationMgr, err := locations.NewManager(cfg)
-	if err != nil {
-		return err
-	}
-	location, err := locationMgr.GetLocationForNode(deploymentID, nodeName, infrastructureType)
+	locationName, err := e.getLocationForNode(cc, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
 	operationParams := operationParameters{
-		location:          location,
+		location:          locationName,
 		taskID:            taskID,
 		deploymentID:      deploymentID,
 		nodeName:          nodeName,
@@ -78,6 +74,33 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		hpManager:         NewManager(cc),
 	}
 	return e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
+}
+
+func (e *defaultExecutor) getLocationForNode(cc *api.Client, deploymentID, nodeName string) (string, error) {
+
+	// Get current locations
+	hpManager := NewManager(cc)
+	locations, err := hpManager.ListLocations()
+	if err != nil {
+		return "", err
+	}
+	if locations == nil || len(locations) < 1 {
+		return "", errors.Errorf("No location of type %q found", infrastructureType)
+	}
+
+	// Get the location name in node template metadata
+	found, locationName, err := deployments.GetNodeMetadata(cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return locations[0], nil
+	}
+
+	if !collections.ContainsString(locations, locationName) {
+		return "", errors.Errorf("No such location %q", locationName)
+	}
+	return locationName, nil
 }
 
 func (e *defaultExecutor) execDelegateHostsPool(

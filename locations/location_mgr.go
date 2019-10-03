@@ -18,6 +18,7 @@ package locations
 
 import (
 	"encoding/json"
+	"github.com/ystia/yorc/v4/locations/adapter"
 	"path"
 	"time"
 
@@ -46,16 +47,15 @@ type Manager interface {
 	RemoveLocation(locationName string) error
 	SetLocationConfiguration(lConfig LocationConfiguration) error
 	GetLocations() ([]LocationConfiguration, error)
-	GetLocationProperties(locationName string) (config.DynamicMap, error)
+	GetLocationProperties(locationName, locationType string) (config.DynamicMap, error)
 	GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error)
 	GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error)
-	GetLocationForNode(deploymentID, nodeName, locationType string) (string, error)
-	GetFirstLocationOfType(locationType string) (string, error)
 	Cleanup() error
 }
 
 type locationManager struct {
-	cc *api.Client
+	cc        *api.Client
+	hpAdapter *adapter.HostsPoolLocationAdapter
 }
 
 // LocationsDefinition represents the structure of an initialization file defining locations
@@ -73,6 +73,7 @@ func NewManager(cfg config.Configuration) (Manager, error) {
 			return locationMgr, err
 		}
 		locationMgr = &locationManager{cc: client}
+		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client)
 	}
 
 	return locationMgr, nil
@@ -126,8 +127,11 @@ func (mgr *locationManager) GetLocations() ([]LocationConfiguration, error) {
 }
 
 // GetLocationProperties returns properties configured for a given location
-func (mgr *locationManager) GetLocationProperties(locationName string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetLocationProperties(locationName, locationType string) (config.DynamicMap, error) {
 
+	if locationType == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.GetLocationConfiguration(locationName)
+	}
 	var props config.DynamicMap
 	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
@@ -147,28 +151,6 @@ func (mgr *locationManager) GetLocationProperties(locationName string) (config.D
 	return props, err
 }
 
-// GetLocationForNode returns the location
-// on which the node template in argument is or will be created.
-// The corresponding location name should be provided in the node template metadata.
-// If no location name is provided in the node template metadata, the first location of the expected type in returned
-func (mgr *locationManager) GetLocationForNode(deploymentID, nodeName, locationType string) (string, error) {
-
-	// Get the location name in node template metadata
-	found, locationName, err := deployments.GetNodeMetadata(
-		mgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
-	if err != nil {
-		return "", err
-	}
-
-	if found {
-		return locationName, nil
-	}
-
-	// No location specified, get the first location matching the expected type
-	return mgr.GetFirstLocationOfType(locationType)
-
-}
-
 // GetLocationPropertiesForNode returns the properties of the location
 // on which the node template in argument is or will be created.
 // The corresponding location name should be provided in the node template metadata.
@@ -176,34 +158,20 @@ func (mgr *locationManager) GetLocationForNode(deploymentID, nodeName, locationT
 // of the first location of the expected type in returned
 func (mgr *locationManager) GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
 
-	locationName, err := mgr.GetLocationForNode(deploymentID, nodeName, locationType)
+	// Get the location name in node template metadata
+	found, locationName, err := deployments.GetNodeMetadata(
+		mgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
 	if err != nil {
 		return nil, err
 	}
-	return mgr.GetLocationProperties(locationName)
 
-}
-
-// GetFirstLocationOfType returns the first location name
-// of a given infrastructure type.
-// Returns an error if there is no location of such type
-func (mgr *locationManager) GetFirstLocationOfType(locationType string) (string, error) {
-
-	var location string
-	locations, err := mgr.GetLocations()
-	if err == nil {
-		// Set the error in case no location of such type is found
-		err = errors.Errorf("Found no location of type %q", locationType)
-		for _, loc := range locations {
-			if loc.Type == locationType {
-				location = loc.Name
-				err = nil
-				break
-			}
-		}
+	if found {
+		return mgr.GetLocationProperties(locationName, locationType)
 	}
 
-	return location, err
+	// No location specified, get the first location matching the expected type
+	return mgr.GetPropertiesForFirstLocationOfType(locationType)
+
 }
 
 // GetPropertiesForFirstLocationOfType returns properties for the first location
@@ -349,7 +317,9 @@ func (mgr *locationManager) createLocation(configuration LocationConfiguration) 
 }
 
 func (mgr *locationManager) setLocationConfiguration(configuration LocationConfiguration) error {
-
+	if configuration.Type == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.SetLocationConfiguration(configuration.Name, configuration.Properties)
+	}
 	b, err := json.Marshal(configuration)
 	if err != nil {
 		log.Printf("Failed to marshal infrastructure config [%+v]: due to error:%+v", configuration, err)

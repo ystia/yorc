@@ -23,7 +23,7 @@ func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Config
 		return err
 	}
 
-	props, err := locationMgr.GetLocationProperties("plugin")
+	props, err := locationMgr.GetLocationProperties("plugin", "locationType")
 	if err != nil {
 		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
@@ -49,7 +49,7 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 		return err
 	}
 
-	props, err := locationMgr.GetLocationProperties("plugin")
+	props, err := locationMgr.GetLocationProperties("plugin", "locationType")
 	if err != nil {
 		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)

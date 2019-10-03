@@ -75,6 +75,45 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
+	hostsPoolLocation := LocationConfiguration{
+		Name: "myHostsPoolLocation",
+		Type: "hostspool",
+		Properties: config.DynamicMap{
+			"hosts": []interface{}{
+				map[string]interface{}{
+					"name": "host1",
+					"connection": map[string]interface{}{
+						"user":     "test",
+						"port":     22,
+						"password": "pass",
+						"host":     "host1.example.com",
+					},
+					"labels": map[string]interface{}{
+						"environment":        "dev",
+						"testlabel":          "hello",
+						"host.cpu_frequency": "3 GHz",
+						"host.disk_size":     "50 GB",
+						"host.mem_size":      "4GB",
+						"host.num_cpus":      "4",
+						"os.architecture":    "x86_64",
+						"os.distribution":    "ubuntu",
+						"os.type":            "linux",
+						"os.version":         "17.1",
+					},
+				},
+				map[string]interface{}{
+					"name": "host2",
+					"connection": map[string]interface{}{
+						"user":     "test",
+						"port":     22,
+						"password": "pass",
+						"host":     "another.example.com",
+					},
+				},
+			},
+		},
+	}
+
 	testLocations := LocationsDefinition{
 		Locations: []LocationConfiguration{
 			openStackLocation1,
@@ -113,21 +152,21 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	err = mgr.CreateLocation(openStackLocation2)
 	require.Error(t, err, "Expected to have an error attempting to create an already existing location")
 
-	props, err := mgr.GetLocationProperties("myLocation1")
+	props, err := mgr.GetLocationProperties("myLocation1", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation1")
 	assert.Equal(t, "test1", props["user_name"])
 
-	props, err = mgr.GetLocationProperties("myLocation2")
+	props, err = mgr.GetLocationProperties("myLocation2", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation2")
 	assert.Equal(t, "test2", props["user_name"])
 
-	props, err = mgr.GetLocationProperties("myLocation3")
+	props, err = mgr.GetLocationProperties("myLocation3", "openstack")
 	require.Error(t, err, "Expected to have an error attempting to get a non existing location, got %+v", props)
 
 	err = mgr.CreateLocation(slurmLocation)
 	require.NoError(t, err, "Unexpected error attempting to create location myLocation3")
 
-	props, err = mgr.GetLocationProperties("myLocation3")
+	props, err = mgr.GetLocationProperties("myLocation3", "slurm")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
 	assert.Equal(t, "slurmuser1", props["user_name"])
 
@@ -135,15 +174,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	err = mgr.SetLocationConfiguration(slurmLocation)
 	require.NoError(t, err, "Unexpected error attempting to update location myLocation3")
 
-	location, err := mgr.GetLocationForNode(deploymentID, "Compute1", "openstack")
-	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
-	assert.Equal(t, "myLocation2", location)
-
-	location, err = mgr.GetFirstLocationOfType("slurm")
-	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
-	assert.Equal(t, "myLocation3", location)
-
-	props, err = mgr.GetLocationProperties("myLocation3")
+	props, err = mgr.GetLocationProperties("myLocation3", "slurm")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
 	assert.Equal(t, "slurmuser2", props["user_name"])
 
@@ -177,7 +208,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	err = mgr.RemoveLocation("myLocation2")
 	require.NoError(t, err, "Unexpected error attempting to remove location myLocation2")
 
-	props, err = mgr.GetLocationProperties("myLocation2")
+	props, err = mgr.GetLocationProperties("myLocation2", "slurm")
 	require.Error(t, err, "Expected to have an error attempting to get a non existing location, got %+v", props)
 
 	locations, err = mgr.GetLocations()
@@ -191,4 +222,9 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Unexpected error attempting to get all locations after cleanup")
 	assert.Equal(t, 0, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 
+	err = mgr.CreateLocation(hostsPoolLocation)
+	require.NoError(t, err, "Unexpected error attempting to create hosts pool location")
+	props, err = mgr.GetLocationProperties("myHostsPoolLocation", "hostspool")
+	require.NoError(t, err, "Unexpected error attempting to get hostspool location")
+	//assert.Equal(t, hostsPoolLocation.Properties, props, "Wrong props in %+v", props)
 }
