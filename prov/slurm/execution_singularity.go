@@ -106,7 +106,11 @@ func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Contex
 	} else {
 		inner = fmt.Sprintf("srun singularity %s run %s %s", debug, cmdOpts, e.imageURI)
 	}
-	return e.submitJob(ctx, e.wrapCommand(inner))
+	cmd, err := e.wrapCommand(inner)
+	if err != nil {
+		return err
+	}
+	return e.submitJob(ctx, cmd)
 }
 
 func (e *executionSingularity) resolveImageURI(ctx context.Context) error {

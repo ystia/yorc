@@ -10,6 +10,10 @@
 
 * Yorc support of Kubernetes StatefulSet ([GH-206](https://github.com/ystia/yorc/issues/206))
 
+### BUG FIXES
+
+* Fix possible overlap on generated batch wrappers scripts when submitting several singularity jobs in parallel ([GH-522](https://github.com/ystia/yorc/issues/522))
+
 ## 4.0.0-M4 (September 19, 2019)
 
 ### BUG FIXES
@@ -17,7 +21,7 @@
 * Fixed a bug preventing OpenStack Networks from being created ([GH-515](https://github.com/ystia/yorc/issues/515))
 * Having a deployment named as a prefix of another one causes several issues ([GH-512](https://github.com/ystia/yorc/issues/512))
 * A deployment may disappear from the deployments list while its currently running a purge task ([GH-504](https://github.com/ystia/yorc/issues/504))
-* A4C Logs are displaying stack error when workflow step fails ([GH-460](https://github.com/ystia/yorc/issues/503))
+* A4C Logs are displaying stack error when workflow step fails ([GH-503](https://github.com/ystia/yorc/issues/503))
 * Bootstrap on OpenStack doesn't allow floating IP provisioning ([GH-516](https://github.com/ystia/yorc/issues/516))
 
 ## 4.0.0-M3 (August 30, 2019)

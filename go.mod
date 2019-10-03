@@ -27,7 +27,7 @@ require (
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/addlicense v0.0.0-20190107131845-2e5cf00261bf
 	github.com/google/gofuzz v1.0.0 // indirect
-	github.com/google/uuid v1.1.1 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/goware/urlx v0.3.1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
