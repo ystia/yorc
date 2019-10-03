@@ -59,6 +59,9 @@ func testHostsPoolHandlers(t *testing.T, client *api.Client, srv *testutil.TestS
 	t.Run("testGetHostInPool", func(t *testing.T) {
 		testGetHostInPool(t, client, srv)
 	})
+	t.Run("testListHostsPoolLocations", func(t *testing.T) {
+		testListHostsPoolLocations(t, client, srv)
+	})
 }
 
 func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -261,4 +264,35 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	require.Equal(t, hostspool.HostStatusFree, host.Status, "unexpected not free host status")
 
 	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host17", nil)
+}
+
+func testListHostsPoolLocations(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	log.SetDebug(true)
+
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.HostsPoolPrefix + "/myHostsPoolLocationTest/host21/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/myHostsPoolLocationTest/host22/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/myHostsPoolLocationTest/host23/status": []byte("free"),
+	})
+
+	req := httptest.NewRequest("GET", "/hosts_pool", nil)
+	req.Header.Add("Accept", "application/json")
+	resp := newTestHTTPRouter(client, req)
+	body, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+	require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+	var hostsPoolLocations HostsPoolLocations
+	err = json.Unmarshal(body, &hostsPoolLocations)
+	require.Nil(t, err, "unexpected error unmarshalling json body")
+	require.NotNil(t, hostsPoolLocations, "unexpected nil hosts collection")
+	require.Equal(t, 1, len(hostsPoolLocations.Locations))
+	require.Equal(t, "myHostsPoolLocationTest", hostsPoolLocations.Locations[0])
+
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host21", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host22", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host23", nil)
 }

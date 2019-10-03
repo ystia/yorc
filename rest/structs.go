@@ -45,8 +45,6 @@ const (
 	LinkRelWorkflow string = "workflow"
 	// LinkRelHost defines the AtomLink Rel attribute for relationships of the "host" (for hostspool)
 	LinkRelHost string = "host"
-	// LinkRelHostsPoolLocation defines the AtomLink Rel attribute for relationships of the "hosts pool location" (for hostspool)
-	LinkRelHostsPoolLocation string = "hostsPoolLocation"
 )
 
 const (
@@ -254,8 +252,9 @@ type HostRequest struct {
 	Labels     []MapEntry            `json:"labels,omitempty"`
 }
 
+// HostsPoolLocations represents the host pools locations handled by Yorc
 type HostsPoolLocations struct {
-	HostsPoolLocations []string `json:"hosts_pool_locations"`
+	Locations []string `json:"hosts_pool_locations"`
 }
 
 // HostsCollection is a collection of hosts registered in the host pool links

@@ -492,6 +492,10 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 	assert.Len(t, hosts, 5)
 	assert.NotEqual(t, checkpoint, checkpoint2, "Expected a checkpoint change after update")
 
+	locations, err := cm.ListLocations()
+	require.NoError(t, err)
+	assert.Len(t, locations, 1)
+	assert.Equal(t, location, locations[0], "Expected a location named %s", location)
 }
 
 func testConsulManagerGetHost(t *testing.T, cc *api.Client) {

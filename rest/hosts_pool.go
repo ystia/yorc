@@ -204,9 +204,9 @@ func (s *Server) listHostsPoolLocations(w http.ResponseWriter, r *http.Request) 
 	}
 
 	hostsPoolLocations := HostsPoolLocations{}
-	hostsPoolLocations.HostsPoolLocations = make([]string, len(locations))
+	hostsPoolLocations.Locations = make([]string, len(locations))
 	for i, location := range locations {
-		hostsPoolLocations.HostsPoolLocations[i] = location
+		hostsPoolLocations.Locations[i] = location
 	}
 	encodeJSONResponse(w, r, hostsPoolLocations)
 }

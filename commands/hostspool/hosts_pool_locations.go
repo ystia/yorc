@@ -63,7 +63,7 @@ func init() {
 
 			locationsTable := tabutil.NewTable()
 			locationsTable.AddHeaders("Name")
-			for _, location := range coll.HostsPoolLocations {
+			for _, location := range coll.Locations {
 				locationsTable.AddRow(location)
 			}
 			if colorize {
