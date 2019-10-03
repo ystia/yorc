@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Bootstrap wrongly configures on-demand resources on OpenStack ([GH-520](https://github.com/ystia/yorc/issues/520))
+
 ### FEATURES
 
 * Yorc support of Kubernetes StatefulSet ([GH-206](https://github.com/ystia/yorc/issues/206))
