@@ -889,15 +889,15 @@ Content-Type: application/json
 
 ## Hosts Pool
 
-### Add a Host to the pool <a name="hostspool-add"></a>
+### Add a Host to a hosts pool location <a name="hostspool-add"></a>
 
-Adds a host to the hosts pool managed by this yorc cluster.
+Adds a host to a hosts pool location managed by this yorc cluster.
 The connection object of the JSON request is mandatory while the labels list is optional.
 This labels list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
 
 'Content-Type' header should be set to 'application/json'.
 
-`PUT /hosts_pool/<hostname>`
+`PUT /hosts_pool/<location>/<hostname>`
 
 **Request body**:
 
@@ -927,14 +927,14 @@ Other possible response response codes are `400` if a host with the same `<hostn
 
 ### Update a Host of the pool <a name="hostspool-update"></a>
 
-Updates labels list or connection of a host of the hosts pool managed by this yorc cluster.
+Updates labels list or connection of a host of a hosts pool location managed by this yorc cluster.
 
 Both connection and labels list object of the JSON request are optional.
 This labels list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
 
 'Content-Type' header should be set to 'application/json'.
 
-`PATCH /hosts_pool/<hostname>`
+`PATCH /hosts_pool/<location>/<hostname>`
 
 **Request body**:
 
@@ -962,7 +962,7 @@ Other possible response response codes are `404` if the host doesn't exist in th
 
 Deletes a host from the hosts pool managed by this yorc cluster.
 
-`DELETE /hosts_pool/<hostname>`
+`DELETE /hosts_pool/<location>/<hostname>`
 
 **Response**:
 
@@ -974,11 +974,11 @@ Other possible response response codes are `404` if the host doesn't exist in th
 
 ### List Hosts in the pool <a name="hostspool-list"></a>
 
-Lists hosts of the hosts pool managed by this yorc cluster.
+Lists hosts of an hosts pool location managed by this yorc cluster.
 
 'Accept' header should be set to 'application/json'.
 
-`GET /hosts_pool`
+`GET /hosts_pool/<location>`
 
 **Response**:
 
@@ -991,20 +991,20 @@ Content-Type: application/json
 {
   "checkpoint": 123,
   "hosts": [
-    {"rel":"host","href":"/hosts_pool/host1","type":"application/json"},
-    {"rel":"host","href":"/hosts_pool/host2","type":"application/json"}
+    {"rel":"host","href":"/hosts_pool/location1/host1","type":"application/json"},
+    {"rel":"host","href":"/hosts_pool/location1/host2","type":"application/json"}
   ],
   "warnings": ["filter error for host3", "filter error for host4"]
 }
 ```
 
-### Get Host in the pool <a name="hostspool-get"></a>
+### Get Host in a hosts pool location <a name="hostspool-get"></a>
 
-Gets the description of a host of the hosts pool managed by this yorc cluster.
+Gets the description of a host of an hosts pool location managed by this yorc cluster.
 
 'Accept' header should be set to 'application/json'.
 
-`GET /hosts_pool/<hostname>`
+`GET /hosts_pool/<location>/<hostname>`
 
 **Response**:
 
@@ -1039,11 +1039,11 @@ Content-Type: application/json
 ```
 ### Apply Hosts Pool configuration <a name="hostspool-apply"></a>
 
-Applies a Hosts Pool configuration. The checkpoint query parameter value is provided in the result of a previous call to the [Hosts Pool List API](#hostspool-list).
+Applies a Hosts Pool configuration on a specified location. The checkpoint query parameter value is provided in the result of a previous call to the [Hosts Pool List API](#hostspool-list).
 
 'Content-Type' header should be set to 'application/json'.
 
-`POST /hosts_pool?checkpoint=<uint64>`
+`POST /hosts_pool/<location>?checkpoint=<uint64>`
 
 **Request body**:
 
@@ -1094,7 +1094,7 @@ To bypass checkpoint verification, the following request can be executed:
 
 'Content-Type' header should be set to 'application/json'.
 
-`PUT /hosts_pool`
+`PUT /hosts_pool/<location>`
 
 **Request body**:
 
@@ -1141,6 +1141,31 @@ Content-Length: 0
 ```
 
 Another possible response response code is `400` if the requets body is not correct.
+
+### List Hosts pool locations managed by yorc <a name="hostspool-location"></a>
+
+Lists hosts pool locations managed by this yorc cluster.
+
+'Accept' header should be set to 'application/json'.
+
+`GET /hosts_pool`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "locations": [
+    "locationOne",
+    "locationTwo",
+    "locationThree"
+  ]
+}
+```
 
 ## Infrastructure Usage
 

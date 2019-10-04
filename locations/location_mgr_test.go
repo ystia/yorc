@@ -205,7 +205,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Unexpected error attempting to get all locations")
 	assert.Equal(t, 3, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 
-	err = mgr.RemoveLocation("myLocation2")
+	err = mgr.RemoveLocation("myLocation2", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to remove location myLocation2")
 
 	props, err = mgr.GetLocationProperties("myLocation2", "slurm")
@@ -227,4 +227,10 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	props, err = mgr.GetLocationProperties("myHostsPoolLocation", "hostspool")
 	require.NoError(t, err, "Unexpected error attempting to get hostspool location")
 	//assert.Equal(t, hostsPoolLocation.Properties, props, "Wrong props in %+v", props)
+
+	mgr.RemoveLocation(hostsPoolLocation.Name, "hostspool")
+	require.NoError(t, err, "Unexpected error attempting to remove hosts pool location")
+	locations, err = mgr.GetLocations()
+	require.NoError(t, err, "Unexpected error attempting to get all locations after cleanup")
+	assert.Equal(t, 0, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 }

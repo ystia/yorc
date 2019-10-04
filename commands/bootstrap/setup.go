@@ -192,7 +192,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 			return err
 		}
 
-		request, err := client.NewRequest("PUT", "/hosts_pool",
+		request, err := client.NewRequest("PUT", "/hosts_pool/bootstrapHostsPool",
 			bytes.NewBuffer(bArray))
 		if err != nil {
 			return err

@@ -254,7 +254,7 @@ type HostRequest struct {
 
 // HostsPoolLocations represents the host pools locations handled by Yorc
 type HostsPoolLocations struct {
-	Locations []string `json:"hosts_pool_locations"`
+	Locations []string `json:"locations"`
 }
 
 // HostsCollection is a collection of hosts registered in the host pool links

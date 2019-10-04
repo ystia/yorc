@@ -44,7 +44,7 @@ type LocationConfiguration struct {
 type Manager interface {
 	InitializeLocations(locationFilePath string) (bool, error)
 	CreateLocation(lConfig LocationConfiguration) error
-	RemoveLocation(locationName string) error
+	RemoveLocation(locationName, locationType string) error
 	SetLocationConfiguration(lConfig LocationConfiguration) error
 	GetLocations() ([]LocationConfiguration, error)
 	GetLocationProperties(locationName, locationType string) (config.DynamicMap, error)
@@ -55,7 +55,7 @@ type Manager interface {
 
 type locationManager struct {
 	cc        *api.Client
-	hpAdapter *adapter.HostsPoolLocationAdapter
+	hpAdapter adapter.LocationAdapter
 }
 
 // LocationsDefinition represents the structure of an initialization file defining locations
@@ -87,9 +87,9 @@ func (mgr *locationManager) CreateLocation(lConfig LocationConfiguration) error 
 }
 
 // RemoveLocation removes a given location
-func (mgr *locationManager) RemoveLocation(locationName string) error {
+func (mgr *locationManager) RemoveLocation(locationName, locationType string) error {
 
-	return mgr.removeLocation(locationName)
+	return mgr.removeLocation(locationName, locationType)
 }
 
 // SetLocationConfiguration sets the configuration of a location.
@@ -333,7 +333,11 @@ func (mgr *locationManager) setLocationConfiguration(configuration LocationConfi
 	return err
 }
 
-func (mgr *locationManager) removeLocation(locationName string) error {
+func (mgr *locationManager) removeLocation(locationName, locationType string) error {
+	if locationType == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.RemoveLocation(locationName)
+	}
+
 	_, err := mgr.cc.KV().Delete(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove location %s", locationName)

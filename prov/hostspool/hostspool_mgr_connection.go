@@ -28,25 +28,25 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
-func (cm *consulManager) UpdateConnection(location, hostname string, conn Connection) error {
-	return cm.updateConnectionWait(location, hostname, conn, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) UpdateConnection(locationName, hostname string, conn Connection) error {
+	return cm.updateConnectionWait(locationName, hostname, conn, maxWaitTimeSeconds*time.Second)
 }
-func (cm *consulManager) updateConnectionWait(location, hostname string, conn Connection, maxWaitTime time.Duration) error {
-	if location == "" {
-		return errors.WithStack(badRequestError{`"location" missing`})
+func (cm *consulManager) updateConnectionWait(locationName, hostname string, conn Connection, maxWaitTime time.Duration) error {
+	if locationName == "" {
+		return errors.WithStack(badRequestError{`"locationName" missing`})
 	}
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
 	// check if host exists
-	status, err := cm.GetHostStatus(location, hostname)
+	status, err := cm.GetHostStatus(locationName, hostname)
 	if err != nil {
 		return err
 	}
 
 	ops := make(api.KVTxnOps, 0)
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, location, hostname)
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, locationName, hostname)
 	if conn.User != "" {
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -70,7 +70,7 @@ func (cm *consulManager) updateConnectionWait(location, hostname string, conn Co
 	}
 	if conn.PrivateKey != "" {
 		if conn.PrivateKey == "-" {
-			ok, err := cm.DoesHostHasConnectionPassword(location, hostname)
+			ok, err := cm.DoesHostHasConnectionPassword(locationName, hostname)
 			if err != nil {
 				return err
 			}
@@ -87,7 +87,7 @@ func (cm *consulManager) updateConnectionWait(location, hostname string, conn Co
 	}
 	if conn.Password != "" {
 		if conn.Password == "-" {
-			ok, err := cm.DoesHostHasConnectionPrivateKey(location, hostname)
+			ok, err := cm.DoesHostHasConnectionPrivateKey(locationName, hostname)
 			if err != nil {
 				return err
 			}
@@ -103,7 +103,7 @@ func (cm *consulManager) updateConnectionWait(location, hostname string, conn Co
 		})
 	}
 
-	_, cleanupFn, err := cm.lockKey(location, hostname, "update", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(locationName, hostname, "update", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -119,49 +119,49 @@ func (cm *consulManager) updateConnectionWait(location, hostname string, conn Co
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to update host %q connection on location %q: %s", hostname, location, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to update host %q connection on location %q: %s", hostname, locationName, strings.Join(errs, ", "))
 	}
 
-	err = cm.checkConnection(location, hostname)
+	err = cm.checkConnection(locationName, hostname)
 	if err != nil {
 		if status != HostStatusError {
-			cm.backupHostStatus(location, hostname)
-			cm.setHostStatusWithMessage(location, hostname, HostStatusError, "failed to connect to host")
+			cm.backupHostStatus(locationName, hostname)
+			cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "failed to connect to host")
 		}
 		return err
 	}
 	if status == HostStatusError {
-		cm.restoreHostStatus(location, hostname)
+		cm.restoreHostStatus(locationName, hostname)
 	}
 	return nil
 }
 
-func (cm *consulManager) DoesHostHasConnectionPrivateKey(location, hostname string) (bool, error) {
-	c, err := cm.GetHostConnection(location, hostname)
+func (cm *consulManager) DoesHostHasConnectionPrivateKey(locationName, hostname string) (bool, error) {
+	c, err := cm.GetHostConnection(locationName, hostname)
 	if err != nil {
 		return false, err
 	}
 	return c.PrivateKey != "", nil
 }
 
-func (cm *consulManager) DoesHostHasConnectionPassword(location, hostname string) (bool, error) {
-	c, err := cm.GetHostConnection(location, hostname)
+func (cm *consulManager) DoesHostHasConnectionPassword(locationName, hostname string) (bool, error) {
+	c, err := cm.GetHostConnection(locationName, hostname)
 	if err != nil {
 		return false, err
 	}
 	return c.Password != "", nil
 }
 
-func (cm *consulManager) GetHostConnection(location, hostname string) (Connection, error) {
+func (cm *consulManager) GetHostConnection(locationName, hostname string) (Connection, error) {
 	conn := Connection{}
-	if location == "" {
-		return conn, errors.WithStack(badRequestError{`"location" missing`})
+	if locationName == "" {
+		return conn, errors.WithStack(badRequestError{`"locationName" missing`})
 	}
 	if hostname == "" {
 		return conn, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 	kv := cm.cc.KV()
-	connKVPrefix := path.Join(consulutil.HostsPoolPrefix, location, hostname, "connection")
+	connKVPrefix := path.Join(consulutil.HostsPoolPrefix, locationName, hostname, "connection")
 
 	kvp, _, err := kv.Get(path.Join(connKVPrefix, "host"), nil)
 	if err != nil {
@@ -210,9 +210,9 @@ func (cm *consulManager) GetHostConnection(location, hostname string) (Connectio
 }
 
 // Check if we can log into an host given a connection
-func (cm *consulManager) checkConnection(location, hostname string) error {
+func (cm *consulManager) checkConnection(locationName, hostname string) error {
 
-	conn, err := cm.GetHostConnection(location, hostname)
+	conn, err := cm.GetHostConnection(locationName, hostname)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
@@ -227,25 +227,25 @@ func (cm *consulManager) checkConnection(location, hostname string) error {
 }
 
 // Go routine checking a Host connection and updating the Host status
-func (cm *consulManager) updateConnectionStatus(location, name string, waitGroup *sync.WaitGroup) {
+func (cm *consulManager) updateConnectionStatus(locationName, name string, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
-	status, err := cm.GetHostStatus(location, name)
+	status, err := cm.GetHostStatus(locationName, name)
 	if err != nil {
 		// No such host anymore
 		return
 	}
 
-	err = cm.checkConnection(location, name)
+	err = cm.checkConnection(locationName, name)
 	if err != nil {
 		if status != HostStatusError {
-			cm.backupHostStatus(location, name)
-			cm.setHostStatusWithMessage(location, name, HostStatusError, "failed to connect to host")
+			cm.backupHostStatus(locationName, name)
+			cm.setHostStatusWithMessage(locationName, name, HostStatusError, "failed to connect to host")
 		}
 		return
 	}
 	// Connection is up now. If it was previously down, restoring the status as
 	// it was before the failure (free, allocated)
 	if status == HostStatusError {
-		cm.restoreHostStatus(location, name)
+		cm.restoreHostStatus(locationName, name)
 	}
 }

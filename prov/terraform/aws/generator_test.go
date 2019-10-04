@@ -72,7 +72,7 @@ func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.C
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locationMgr.RemoveLocation(t.Name())
+		locationMgr.RemoveLocation(t.Name(), infrastructureType)
 	}()
 
 	g := awsGenerator{}

@@ -27,15 +27,15 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func (cm *consulManager) AddLabels(location, hostname string, labels map[string]string) error {
-	return cm.addLabelsWait(location, hostname, labels, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) AddLabels(locationName, hostname string, labels map[string]string) error {
+	return cm.addLabelsWait(locationName, hostname, labels, maxWaitTimeSeconds*time.Second)
 }
 
-func (cm *consulManager) RemoveLabels(location, hostname string, labels []string) error {
-	return cm.removeLabelsWait(location, hostname, labels, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) RemoveLabels(locationName, hostname string, labels []string) error {
+	return cm.removeLabelsWait(locationName, hostname, labels, maxWaitTimeSeconds*time.Second)
 }
 
-func (cm *consulManager) addLabelsWait(location, hostname string, labels map[string]string, maxWaitTime time.Duration) error {
+func (cm *consulManager) addLabelsWait(locationName, hostname string, labels map[string]string, maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -43,7 +43,7 @@ func (cm *consulManager) addLabelsWait(location, hostname string, labels map[str
 		return nil
 	}
 
-	_, cleanupFn, err := cm.lockKey(location, hostname, "labels addition", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(locationName, hostname, "labels addition", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -51,16 +51,16 @@ func (cm *consulManager) addLabelsWait(location, hostname string, labels map[str
 
 	// Checks host existence
 	// We don't care about host status for updating labels
-	_, err = cm.GetHostStatus(location, hostname)
+	_, err = cm.GetHostStatus(locationName, hostname)
 	if err != nil {
 		return err
 	}
 
-	return cm.addLabels(location, hostname, labels)
+	return cm.addLabels(locationName, hostname, labels)
 }
 
-func (cm *consulManager) addLabels(location, hostname string, labels map[string]string) error {
-	ops, err := cm.getAddUpdatedLabelsOperations(location, hostname, labels)
+func (cm *consulManager) addLabels(locationName, hostname string, labels map[string]string) error {
+	ops, err := cm.getAddUpdatedLabelsOperations(locationName, hostname, labels)
 	if err != nil {
 		return err
 	}
@@ -79,15 +79,15 @@ func (cm *consulManager) addLabels(location, hostname string, labels map[string]
 	return nil
 }
 
-func (cm *consulManager) getAddUpdatedLabelsOperations(location, hostname string, labels map[string]string) (api.KVTxnOps, error) {
+func (cm *consulManager) getAddUpdatedLabelsOperations(locationName, hostname string, labels map[string]string) (api.KVTxnOps, error) {
 	// Get labels operations
-	ops, err := cm.getAddLabelsOperations(location, hostname, labels)
+	ops, err := cm.getAddLabelsOperations(locationName, hostname, labels)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get updated labels operations
-	upLabelsOps, err := cm.getUpdateResourcesLabelsOperationsOnLabelsChange(location, hostname, labels)
+	upLabelsOps, err := cm.getUpdateResourcesLabelsOperationsOnLabelsChange(locationName, hostname, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +96,9 @@ func (cm *consulManager) getAddUpdatedLabelsOperations(location, hostname string
 	return ops, nil
 }
 
-func (cm *consulManager) removeLabelsWait(location, hostname string, labels []string, maxWaitTime time.Duration) error {
-	if location == "" {
-		return errors.WithStack(badRequestError{`"location" missing`})
+func (cm *consulManager) removeLabelsWait(locationName, hostname string, labels []string, maxWaitTime time.Duration) error {
+	if locationName == "" {
+		return errors.WithStack(badRequestError{`"locationName" missing`})
 	}
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
@@ -107,7 +107,7 @@ func (cm *consulManager) removeLabelsWait(location, hostname string, labels []st
 		return nil
 	}
 
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, location, hostname)
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, locationName, hostname)
 	ops := make(api.KVTxnOps, 0)
 
 	for _, v := range labels {
@@ -121,14 +121,14 @@ func (cm *consulManager) removeLabelsWait(location, hostname string, labels []st
 		})
 	}
 
-	_, cleanupFn, err := cm.lockKey(location, hostname, "labels remove", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(locationName, hostname, "labels remove", maxWaitTime)
 	if err != nil {
 		return err
 	}
 	defer cleanupFn()
 
 	// Checks host existence
-	_, err = cm.GetHostStatus(location, hostname)
+	_, err = cm.GetHostStatus(locationName, hostname)
 	if err != nil {
 		return err
 	}
@@ -145,26 +145,26 @@ func (cm *consulManager) removeLabelsWait(location, hostname string, labels []st
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to delete labels on host %q and location:%q: %s", hostname, location, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to delete labels on host %q and location:%q: %s", hostname, locationName, strings.Join(errs, ", "))
 	}
 
 	return nil
 }
 
-func (cm *consulManager) UpdateResourcesLabels(location, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error {
-	return cm.updateResourcesLabelsWait(location, hostname, diff, operation, update, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error {
+	return cm.updateResourcesLabelsWait(locationName, hostname, diff, operation, update, maxWaitTimeSeconds*time.Second)
 }
 
 // Labels must be read and write in the same transaction to avoid concurrency issues
-func (cm *consulManager) updateResourcesLabelsWait(location, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), maxWaitTime time.Duration) error {
-	if location == "" {
-		return errors.WithStack(badRequestError{`"location" missing`})
+func (cm *consulManager) updateResourcesLabelsWait(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), maxWaitTime time.Duration) error {
+	if locationName == "" {
+		return errors.WithStack(badRequestError{`"locationName" missing`})
 	}
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
-	lockCh, cleanupFn, err := cm.lockKey(location, hostname, "updateLabels", maxWaitTime)
+	lockCh, cleanupFn, err := cm.lockKey(locationName, hostname, "updateLabels", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (cm *consulManager) updateResourcesLabelsWait(location, hostname string, di
 	default:
 	}
 
-	labels, err := cm.GetHostLabels(location, hostname)
+	labels, err := cm.GetHostLabels(locationName, hostname)
 
 	upLabels, err := update(labels, diff, operation)
 	if err != nil {
@@ -188,7 +188,7 @@ func (cm *consulManager) updateResourcesLabelsWait(location, hostname string, di
 	}
 
 	log.Debugf("Updating labels:%+v", upLabels)
-	ops, err := cm.getAddLabelsOperations(location, hostname, upLabels)
+	ops, err := cm.getAddLabelsOperations(locationName, hostname, upLabels)
 	if err != nil {
 		return err
 	}
@@ -208,20 +208,20 @@ func (cm *consulManager) updateResourcesLabelsWait(location, hostname string, di
 	return nil
 }
 
-func (cm *consulManager) GetHostLabels(location, hostname string) (map[string]string, error) {
-	if location == "" {
-		return nil, errors.WithStack(badRequestError{`"location" missing`})
+func (cm *consulManager) GetHostLabels(locationName, hostname string) (map[string]string, error) {
+	if locationName == "" {
+		return nil, errors.WithStack(badRequestError{`"locationName" missing`})
 	}
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 	// check if host exists
-	_, err := cm.GetHostStatus(location, hostname)
+	_, err := cm.GetHostStatus(locationName, hostname)
 	if err != nil {
 		return nil, err
 	}
 	// Appending a final "/" here is not necessary as there is no other keys starting with "labels" prefix
-	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, location, hostname, "labels"), nil)
+	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, locationName, hostname, "labels"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -232,8 +232,8 @@ func (cm *consulManager) GetHostLabels(location, hostname string) (map[string]st
 	return labels, nil
 }
 
-func (cm *consulManager) getUpdateResourcesLabelsOperationsOnLabelsChange(location, hostname string, newLabels map[string]string) (api.KVTxnOps, error) {
-	allocs, err := cm.GetAllocations(location, hostname)
+func (cm *consulManager) getUpdateResourcesLabelsOperationsOnLabelsChange(locationName, hostname string, newLabels map[string]string) (api.KVTxnOps, error) {
+	allocs, err := cm.GetAllocations(locationName, hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -246,10 +246,10 @@ func (cm *consulManager) getUpdateResourcesLabelsOperationsOnLabelsChange(locati
 			return nil, err
 		}
 	}
-	return cm.getAddLabelsOperations(location, hostname, upLabels)
+	return cm.getAddLabelsOperations(locationName, hostname, upLabels)
 }
 
-func (cm *consulManager) getUpdateResourcesLabelsOperations(location, hostname string, diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (api.KVTxnOps, error) {
+func (cm *consulManager) getUpdateResourcesLabelsOperations(locationName, hostname string, diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (api.KVTxnOps, error) {
 	upLabels, err := cm.calculateLabels(diff, new, operation, update)
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (cm *consulManager) getUpdateResourcesLabelsOperations(location, hostname s
 	if upLabels == nil || len(upLabels) == 0 {
 		return nil, nil
 	}
-	return cm.getAddLabelsOperations(location, hostname, upLabels)
+	return cm.getAddLabelsOperations(locationName, hostname, upLabels)
 }
 
 func (cm *consulManager) calculateLabels(diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (map[string]string, error) {
@@ -273,8 +273,8 @@ func (cm *consulManager) calculateLabels(diff map[string]string, new map[string]
 	return upLabels, nil
 }
 
-func (cm *consulManager) getAddLabelsOperations(location, hostname string, labels map[string]string) (api.KVTxnOps, error) {
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, location, hostname)
+func (cm *consulManager) getAddLabelsOperations(locationName, hostname string, labels map[string]string) (api.KVTxnOps, error) {
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, locationName, hostname)
 	ops := make(api.KVTxnOps, 0)
 	for k, v := range labels {
 		k = url.PathEscape(k)

@@ -496,6 +496,13 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 	require.NoError(t, err)
 	assert.Len(t, locations, 1)
 	assert.Equal(t, location, locations[0], "Expected a location named %s", location)
+
+	err = cm.RemoveLocation(location)
+	require.NoError(t, err)
+
+	locations, err = cm.ListLocations()
+	require.NoError(t, err)
+	assert.Len(t, locations, 0)
 }
 
 func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
