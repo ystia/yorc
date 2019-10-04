@@ -42,8 +42,8 @@ func init() {
 
 	var addCmd = &cobra.Command{
 		Use:   "add <hostname>",
-		Short: "Add host pool in a specified location",
-		Long:  `Adds a host to the hosts pool  of a specified location managed by this Yorc cluster.`,
+		Short: "Add host to the pool of a specified location",
+		Long:  `Adds a host to the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))

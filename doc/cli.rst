@@ -308,19 +308,29 @@ In practice that means that the commands starts with
 
 For brevity ``hostspool`` supports the following aliases: ``hostpool``, ``hostsp``, ``hpool`` and ``hp``.
 
-Add a host pool
-~~~~~~~~~~~~~~~
+List hosts pools locations
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Adds a host to the hosts pool managed by this Yorc cluster.
+List hosts pools locations managed by this Yorc cluster.
+
+.. code-block:: bash
+
+     yorc hostspool locations
+
+Add a host in a hosts pool location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Add host to a hosts pool location managed by this Yorc cluster.
 The <hostname> should not already exist.
 The connection object of the JSON request is mandatory while the labels list is optional.
 This labels list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
 
 .. code-block:: bash
 
-     yorc hostspool add <hostname> [flags]
+     yorc hostspool add <hostname> -l <locationName> [flags]
 
 Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
   * ``--data`` or ``-d`` :  Specify a JSON format for the host pool to add. The JSON format for the host pool is described below.
   * ``--key`` or ``-k`` : Specify a private key to access host if no host connection is defined in JSON format. (**mandatory if no password is defined**)
   * ``--password`` or ``-p`` : Specify a password to access host if no host connection is defined in JSON format. (**mandatory if no private key is defined**)
@@ -349,19 +359,20 @@ Host pool (JSON):
       ]
     }
 
-Update a host pool
-~~~~~~~~~~~~~~~~~~
+Update a host in a hosts pool location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Update labels list or connection of a host of the hosts pool managed by this Yorc cluster.
+Update labels list or connection of a host of a hosts pool location managed by this Yorc cluster.
 The <hostname> should  exists.
 Both connection and labels list object of the JSON request are optional.
 This labels list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
 
 .. code-block:: bash
 
-     yorc hostspool update <hostname> [flags]
+     yorc hostspool update <hostname> -l <locationName> [flags]
 
 Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
   * ``--data`` or ``-d`` :  Specify a JSON format for the host pool to update. The JSON format for the host pool is described below.
   * ``--add-label``: Add a label in form 'key=value' to the host. May be specified several time.
   * ``--host``: Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)
@@ -390,58 +401,65 @@ Host pool (JSON):
       ]
     }
 
-Delete a host pool
-~~~~~~~~~~~~~~~~~~
+Delete a host in a hosts pool location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Deletes a host from the hosts pool managed by this Yorc cluster.
+Deletes a host from a hosts pool location managed by this Yorc cluster.
 The <hostname> should  exists.
 
 .. code-block:: bash
 
-     yorc hostspool delete <hostname> [<hostname>...]
+     yorc hostspool delete <hostname> [<hostname>...] -l <locationName>
 
+Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
 
-List hosts in the pool
-~~~~~~~~~~~~~~~~~~~~~~
+List hosts in a hosts pool location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Lists hosts of the hosts pool managed by this Yorc cluster.
+Lists hosts of a hosts pool location managed by this Yorc cluster.
 
 .. code-block:: bash
 
-     yorc hostspool list [flags]
+     yorc hostspool list -l <locationName> [flags]
 
 
 Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
   * ``--filter`` or ``-f``: Filter hosts based on their labels. May be specified several time, filters are joined by a logical 'and'. Please refer to :ref:`yorc_infras_hostspool_filters_section` for more details.
     Note: If the filter expression contains a comma as in "mylabel in (v1,v2)", wrap it with single quotes as in the example below:
 
 .. code-block:: bash
 
-     yorc hp list -f '"mylabel in (v1, v2)"'
+     yorc hp list -f '"mylabel in (v1, v2)"' -l <locationName>
 
 
-Get information on a specific host in the pool
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Get information on a specific host in a hosts pool location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Gets the description of a host of the hosts pool managed by this Yorc cluster.
+Gets the description of a host of a hosts pool location managed by this Yorc cluster.
 
 .. code-block:: bash
 
-     yorc hostspool info <hostname>
+     yorc hostspool info <hostname> -l <locationName>
 
-Apply a Hosts Pool configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
 
-Applies a Hosts Pool configuration provided in a YAML or JSON file.
+Apply a Hosts Pool location configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Applies a Hosts Pool configuration for a specified location provided in a YAML or JSON file.
 This command will compare and display the differences between the current Hosts Pool configuration and the configuration specified in the file.
 A user confirmation will be asked before proceeding.
 The command will fail if the new configuration would result in the removal of a host currently allocated for a deployment.
 
 .. code-block:: bash
 
-     yorc hostspool apply <filename>
+     yorc hostspool apply <filename> -l <locationName>
 
 Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
   * ``--auto-approve``: Skip interactive approval before applying the new Hosts Pool configuration.
 
 
@@ -486,17 +504,16 @@ Example of a YAML Hosts Pool configuration file :
         user: test
         password: test
 
-Export a Hosts Pool configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Export a Hosts Pool location configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Exports a Hosts Pool configuration as a YAML or JSON representation, to the standard output or a file.
+Exports a Hosts Pool configuration for a specified location as a YAML or JSON representation, to the standard output or a file.
 
 .. code-block:: bash
 
-     yorc hostspool export
+     yorc hostspool export -l <locationName>
 
 Flags:
+  * ``--location`` or ``-l`` :  Need to provide the specified hosts pool location name. (**mandatory**)
   * ``--output`` or ``-o``: Output format, ``yaml`` or ``json`` (default ``yaml``)
   * ``--file`` or ``-f``: Path to a file where to store the output (default standard output)
-
-

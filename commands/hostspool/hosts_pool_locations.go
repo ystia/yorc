@@ -30,8 +30,8 @@ func init() {
 	var location string
 	hpLocationsCmd := &cobra.Command{
 		Use:   "locations",
-		Short: "List hosts pool locations",
-		Long:  `Lists hosts pool locations managed by this Yorc cluster.`,
+		Short: "List hosts pools locations",
+		Long:  `Lists hosts pools locations managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
 			client, err := httputil.GetClient(clientConfig)
