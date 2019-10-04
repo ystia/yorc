@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ystia/yorc/v4/helper/provutil"
+
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -421,8 +423,18 @@ func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName,
 	if err != nil {
 		return err
 	}
+
+	bast, err := provutil.GetInstanceBastionHost(ctx, opts.deploymentID, opts.nodeName)
+	if err != nil {
+		return err
+	}
+	if bast != nil {
+		// TODO(schrej): Do this properly
+		bast.PrivateKeys["0"] = privateKey
+	}
+
 	return commons.AddConnectionCheckResource(opts.infrastructure, user,
-		privateKey, accessIP, instance.Name, nil, env)
+		privateKey, accessIP, instance.Name, bast, env)
 
 }
 

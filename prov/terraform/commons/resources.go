@@ -209,8 +209,8 @@ func AddConnectionCheckResource(infrastructure *Infrastructure, user string, pri
 		conn.BastionPort = bastionCfg.Port
 		conn.BastionUser = bastionCfg.User
 		conn.BastionPassword = bastionCfg.Password
-		if bastionCfg.PrivateKey != nil {
-			conn.BastionPrivateKey = string(bastionCfg.PrivateKey.Content)
+		if bastionCfg.PrivateKeys != nil {
+			conn.BastionPrivateKey = string(sshutil.SelectPrivateKeyOnName(bastionCfg.PrivateKeys, false).Content)
 		}
 	}
 

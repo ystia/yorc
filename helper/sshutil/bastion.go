@@ -17,9 +17,9 @@ package sshutil
 // BastionHostConfig is the configuration of a bastion host that can be
 // used for ssh connections.
 type BastionHostConfig struct {
-	Host       string
-	Port       string
-	User       string
-	Password   string
-	PrivateKey *PrivateKey
+	Host        string
+	Port        string
+	User        string
+	Password    string
+	PrivateKeys map[string]*PrivateKey
 }

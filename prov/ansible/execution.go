@@ -125,7 +125,7 @@ type hostConnection struct {
 	instanceID  string
 	privateKeys map[string]*sshutil.PrivateKey
 	password    string
-	bastion     sshutil.BastionHostConfig
+	bastion     *sshutil.BastionHostConfig
 }
 
 type sshCredentials struct {
@@ -445,6 +445,7 @@ func (e *executionCommon) resolveHostsOnCompute(ctx context.Context, nodeName st
 					ipAddressStr := config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress.RawString()).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := &hostConnection{host: ipAddressStr, instanceID: instance}
+					hostConn.bastion, err = provutil.GetInstanceBastionHost(ctx, e.deploymentID, host)
 					err = e.setHostConnection(ctx, host, instance, capType, hostConn)
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
@@ -824,7 +825,7 @@ func (e *executionCommon) getSSHCredentials(ctx context.Context, host *hostConne
 func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host *hostConnection) error {
 	buffer.WriteString(host.host)
 
-	if host.bastion.Host != "" {
+	if host.bastion != nil {
 		if host.bastion.Port == "" {
 			host.bastion.Port = "22"
 		}
