@@ -28,9 +28,11 @@ const AdaptedLocationType = "hostspool"
 
 // LocationAdapter interface represents the behaviour of a specific adapter for locations management
 type LocationAdapter interface {
+	CreateLocationConfiguration(locationName string, props config.DynamicMap) error
 	GetLocationConfiguration(locationName string) (config.DynamicMap, error)
 	SetLocationConfiguration(locationName string, props config.DynamicMap) error
 	RemoveLocation(locationName string) error
+	GetLocations() (map[string]config.DynamicMap, error)
 }
 
 type hostsPoolLocationAdapter struct {
@@ -42,8 +44,25 @@ func NewHostsPoolLocationAdapter(client *api.Client) LocationAdapter {
 	return &hostsPoolLocationAdapter{hostspool.NewManager(client)}
 }
 
+// CreateLocationConfiguration allows to create a location configuration of hosts pool type
+func (a *hostsPoolLocationAdapter) CreateLocationConfiguration(locationName string, props config.DynamicMap) error {
+	// Check if location exists
+	locations, err := a.mgr.ListLocations()
+	if err != nil {
+		return err
+	}
+	if collections.ContainsString(locations, locationName) {
+		return errors.Errorf("location %q already exists", locationName)
+	}
+	return a.setLocationConfiguration(locationName, props, true)
+}
+
 // SetLocationConfiguration allows to set (create or update) a location configuration of hosts pool type
 func (a *hostsPoolLocationAdapter) SetLocationConfiguration(locationName string, props config.DynamicMap) error {
+	return a.setLocationConfiguration(locationName, props, false)
+}
+
+func (a *hostsPoolLocationAdapter) setLocationConfiguration(locationName string, props config.DynamicMap, create bool) error {
 	hosts := make([]hostspool.Host, 0)
 	var err error
 	if props["hosts"] != nil {
@@ -53,14 +72,16 @@ func (a *hostsPoolLocationAdapter) SetLocationConfiguration(locationName string,
 		}
 	}
 
-	// Check if location exists
-	locations, err := a.mgr.ListLocations()
 	var checkpoint uint64
-	if collections.ContainsString(locations, locationName) {
-		// Retrieve checkpoint to create or update hosts pool location
-		_, _, checkpoint, err = a.mgr.List(locationName)
-		if err != nil {
-			return err
+	if !create {
+		// Check if location exists
+		locations, err := a.mgr.ListLocations()
+		if collections.ContainsString(locations, locationName) {
+			// Retrieve checkpoint to create or update hosts pool location
+			_, _, checkpoint, err = a.mgr.List(locationName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -99,6 +120,25 @@ func (a *hostsPoolLocationAdapter) GetLocationConfiguration(locationName string)
 // RemoveLocation allows to remove a location of hosts pool type
 func (a *hostsPoolLocationAdapter) RemoveLocation(locationName string) error {
 	return a.mgr.RemoveLocation(locationName)
+}
+
+// GetLocations allows to retrieve all hosts pool locations
+func (a *hostsPoolLocationAdapter) GetLocations() (map[string]config.DynamicMap, error) {
+	locations, err := a.mgr.ListLocations()
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]config.DynamicMap)
+	for _, location := range locations {
+		lconfig, err := a.GetLocationConfiguration(location)
+		if err != nil {
+			return nil, err
+		}
+		results[location] = lconfig
+	}
+
+	return results, err
 }
 
 func toHosts(props config.DynamicMap) ([]hostspool.Host, error) {

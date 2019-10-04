@@ -83,12 +83,18 @@ func NewManager(cfg config.Configuration) (Manager, error) {
 // If a location already exists with this name, an error will be returned.
 func (mgr *locationManager) CreateLocation(lConfig LocationConfiguration) error {
 
+	if lConfig.Type == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.CreateLocationConfiguration(lConfig.Name, lConfig.Properties)
+	}
 	return mgr.createLocation(lConfig)
 }
 
 // RemoveLocation removes a given location
 func (mgr *locationManager) RemoveLocation(locationName, locationType string) error {
 
+	if locationType == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.RemoveLocation(locationName)
+	}
 	return mgr.removeLocation(locationName, locationType)
 }
 
@@ -96,6 +102,9 @@ func (mgr *locationManager) RemoveLocation(locationName, locationType string) er
 // If this location doesn't exist, it will be created.
 func (mgr *locationManager) SetLocationConfiguration(lConfig LocationConfiguration) error {
 
+	if lConfig.Type == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.SetLocationConfiguration(lConfig.Name, lConfig.Properties)
+	}
 	return mgr.setLocationConfiguration(lConfig)
 }
 
@@ -121,6 +130,16 @@ func (mgr *locationManager) GetLocations() ([]LocationConfiguration, error) {
 			return locations, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
 		}
 		locations = append(locations, lConfig)
+	}
+
+	configHP, err := mgr.hpAdapter.GetLocations()
+	if err != nil {
+		return locations, errors.New("failed to retrieve hosts pool locations configurations")
+	}
+
+	for k, v := range configHP {
+		conf := LocationConfiguration{Name: k, Properties: v, Type: adapter.AdaptedLocationType}
+		locations = append(locations, conf)
 	}
 
 	return locations, err
@@ -241,7 +260,7 @@ func (mgr *locationManager) InitializeLocations(locationFilePath string) (bool, 
 	initDone = true
 	for _, lConfig := range locationsDefined.Locations {
 
-		err := mgr.setLocationConfiguration(lConfig)
+		err := mgr.SetLocationConfiguration(lConfig)
 		if err != nil {
 			return initDone, err
 		}
@@ -317,9 +336,7 @@ func (mgr *locationManager) createLocation(configuration LocationConfiguration) 
 }
 
 func (mgr *locationManager) setLocationConfiguration(configuration LocationConfiguration) error {
-	if configuration.Type == adapter.AdaptedLocationType {
-		return mgr.hpAdapter.SetLocationConfiguration(configuration.Name, configuration.Properties)
-	}
+
 	b, err := json.Marshal(configuration)
 	if err != nil {
 		log.Printf("Failed to marshal infrastructure config [%+v]: due to error:%+v", configuration, err)
@@ -334,9 +351,6 @@ func (mgr *locationManager) setLocationConfiguration(configuration LocationConfi
 }
 
 func (mgr *locationManager) removeLocation(locationName, locationType string) error {
-	if locationType == adapter.AdaptedLocationType {
-		return mgr.hpAdapter.RemoveLocation(locationName)
-	}
 
 	_, err := mgr.cc.KV().Delete(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
