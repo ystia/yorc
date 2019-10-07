@@ -66,3 +66,13 @@ func TestHostInfo(t *testing.T) {
 	err := hostInfo(&httpClientMockInfo{}, []string{"hostOne"}, "locationOne")
 	require.NoError(t, err, "Failed to get locations")
 }
+
+func TestHostInfoWithoutHostname(t *testing.T) {
+	err := hostInfo(&httpClientMockInfo{}, []string{}, "locationOne")
+	require.Error(t, err, "Expected error as no hostname has been provided")
+}
+
+func TestHostInfoWithoutLocation(t *testing.T) {
+	err := hostInfo(&httpClientMockInfo{}, []string{"hostOne"}, "")
+	require.Error(t, err, "Expected error as no location has been provided")
+}

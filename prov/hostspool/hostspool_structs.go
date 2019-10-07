@@ -83,7 +83,7 @@ func (conn Connection) String() string {
 	return "user: " + conn.User + ", " + pass + key + "host: " + conn.Host + ", " + "port: " + strconv.FormatUint(conn.Port, 10)
 }
 
-// A pool holds information on a hosts pool
+// A Pool holds information on a hosts pool
 type Pool struct {
 	Hosts []Host `json:"hosts,omitempty"`
 }

@@ -80,7 +80,7 @@ func NewManager(cfg config.Configuration) (Manager, error) {
 	return locationMgr, nil
 }
 
-// NewManager creates a Location Manager with a given ssh factory
+// NewManagerWithSSHFactory creates a Location Manager with a given ssh factory
 //
 // Currently this is used for testing purpose to mock the ssh connection.
 func NewManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, error) {

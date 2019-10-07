@@ -54,3 +54,13 @@ func TestDeleteHost(t *testing.T) {
 	err := deleteHost(&httpClientMockDelete{}, []string{"hostOne", "hostTwo"}, "locationOne")
 	require.NoError(t, err, "Failed to add host")
 }
+
+func TestDeleteHostWithoutHostname(t *testing.T) {
+	err := deleteHost(&httpClientMockDelete{}, []string{}, "locationOne")
+	require.Error(t, err, "Expected error as no hostname has been provided")
+}
+
+func TestDeleteHostWithoutLocation(t *testing.T) {
+	err := deleteHost(&httpClientMockDelete{}, []string{"hostOne", "hostTwo"}, "")
+	require.Error(t, err, "Expected error as no location has been provided")
+}

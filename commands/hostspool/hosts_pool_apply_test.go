@@ -80,3 +80,18 @@ func TestApplyHostsPoolConfig(t *testing.T) {
 	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/hosts_pool.yaml"}, "locationOne", true)
 	require.NoError(t, err, "Failed to apply hosts pool config")
 }
+
+func TestApplyHostsPoolConfigWithoutLocation(t *testing.T) {
+	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/hosts_pool.yaml"}, "", true)
+	require.Error(t, err, "Expected error as no location has been provided")
+}
+
+func TestApplyHostsPoolConfigWithBadFilePath(t *testing.T) {
+	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/fake.yaml"}, "", true)
+	require.Error(t, err, "Expected error as a bad file path has been provided")
+}
+
+func TestApplyHostsPoolConfigWithBadFile(t *testing.T) {
+	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/bad_hosts_pool.yaml"}, "", true)
+	require.Error(t, err, "Expected error as host has no name")
+}

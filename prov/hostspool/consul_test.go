@@ -91,6 +91,9 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testConsulManagerApplyBadConnection", func(t *testing.T) {
 		testConsulManagerApplyBadConnection(t, client)
 	})
+	t.Run("testConsulManagerApplyBadConnectionAndRestoreHostStatus", func(t *testing.T) {
+		testConsulManagerApplyBadConnectionAndRestoreHostStatus(t, client)
+	})
 	t.Run("testConsulManagerAllocateConcurrency", func(t *testing.T) {
 		testConsulManagerAllocateConcurrency(t, client)
 	})

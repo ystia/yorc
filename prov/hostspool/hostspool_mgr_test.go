@@ -1039,6 +1039,58 @@ func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
 
 }
 
+func testConsulManagerApplyBadConnectionAndRestoreHostStatus(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
+
+	var checkpoint uint64
+	err := cm.Apply(location, hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+
+	// Check an apply with one host having bad connection settings
+	_, _, checkpoint, err = cm.List(location)
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	newHost := Host{
+		Name: "testhost",
+		Connection: Connection{
+			User:     "fail",
+			Password: "testpwd",
+			Host:     "testhost",
+		},
+	}
+
+	hostpool = append(hostpool, newHost)
+	err = cm.Apply(location, hostpool, &checkpoint)
+	assert.NoError(t, err, "Expected no error apply a configuration containing a host with bad credentials")
+
+	// Check host status
+	hostInPool, err := cm.GetHost(location, newHost.Name)
+	require.NoError(t, err, "Unexpected error attempting to get host %s", newHost.Name)
+	assert.Equal(t, HostStatusError.String(), hostInPool.Status.String(),
+		"Expected a status error for host with bad credentials")
+
+	// Check a backup status exists
+	backupStatus, err := cm.getStatus(location, newHost.Name, true)
+	assert.NoError(t, err, "Expected to have a backup status")
+	assert.Equal(t, backupStatus.String(), HostStatusFree.String(), "Unexpected backup status")
+
+	// Check restoring host status
+	err = cm.restoreHostStatus(location, newHost.Name)
+	assert.NoError(t, err, "Expected restoring host status")
+
+	// Check host status change
+	hostInPool, err = cm.GetHost(location, newHost.Name)
+	require.NoError(t, err,
+		"Unexpected error attempting to get host %s after apply", newHost.Name)
+	assert.Equal(t, HostStatusFree.String(), hostInPool.Status.String(),
+		"Expected status error fixed for host with correct credentials")
+
+}
+
 func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)

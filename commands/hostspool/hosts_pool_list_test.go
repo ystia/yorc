@@ -65,3 +65,8 @@ func TestListsHostsPool(t *testing.T) {
 	err := listHostsPool(&httpClientMockList{}, nil, "locationOne", nil)
 	require.NoError(t, err, "Failed to get locations")
 }
+
+func TestListsHostsPoolWithoutLocation(t *testing.T) {
+	err := listHostsPool(&httpClientMockList{}, nil, "", nil)
+	require.Error(t, err, "Expected error as no location has been provided")
+}

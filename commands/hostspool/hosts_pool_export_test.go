@@ -23,3 +23,8 @@ func TestExportHostsPool(t *testing.T) {
 	err := exportHostsPool(&httpClientMockList{}, nil, "locationOne", "", "")
 	require.NoError(t, err, "Failed to export hosts pool")
 }
+
+func TestExportHostsPoolWithoutLocation(t *testing.T) {
+	err := exportHostsPool(&httpClientMockList{}, nil, "", "", "")
+	require.Error(t, err, "Expected error as no location has been provided")
+}

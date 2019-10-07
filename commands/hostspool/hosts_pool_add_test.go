@@ -57,3 +57,18 @@ func TestAddHost(t *testing.T) {
 	err := addHost(&httpClientMockAdd{}, []string{"hostOne"}, "locationOne", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"})
 	require.NoError(t, err, "Failed to add host")
 }
+
+func TestAddHostWithoutHostname(t *testing.T) {
+	err := addHost(&httpClientMockAdd{}, []string{}, "locationOne", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"})
+	require.Error(t, err, "Expected error as no hostname has been provided")
+}
+
+func TestAddHostWithoutLocation(t *testing.T) {
+	err := addHost(&httpClientMockAdd{}, []string{"hostOne"}, "", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"})
+	require.Error(t, err, "Expected error as no location has been provided")
+}
+
+func TestAddHostWithoutPassowrd(t *testing.T) {
+	err := addHost(&httpClientMockAdd{}, []string{"hostOne"}, "locationOne", "", "", "", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"})
+	require.Error(t, err, "Expected error as no location has been provided")
+}

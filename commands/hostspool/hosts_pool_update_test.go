@@ -23,3 +23,13 @@ func TestUpdateHost(t *testing.T) {
 	err := updateHost(&httpClientMockDelete{}, []string{"hostOne"}, "locationOne", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"}, []string{"label4=value4"})
 	require.NoError(t, err, "Failed to add host")
 }
+
+func TestUpdateHostWithoutHostname(t *testing.T) {
+	err := updateHost(&httpClientMockDelete{}, []string{}, "locationOne", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"}, []string{"label4=value4"})
+	require.Error(t, err, "Expected error as no hostname has been provided")
+}
+
+func TestUpdateHostWithoutLocation(t *testing.T) {
+	err := updateHost(&httpClientMockDelete{}, []string{"hostOne"}, "", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"}, []string{"label4=value4"})
+	require.Error(t, err, "Expected error as no location has been provided")
+}
