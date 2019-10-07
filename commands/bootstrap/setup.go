@@ -273,7 +273,7 @@ func storeDependenciesVersion(workingDirectoryPath string) {
 	}
 }
 
-func getYorcClient() (*httputil.YorcClient, error) {
+func getYorcClient() (httputil.HTTPClient, error) {
 	clientConfig := config.Client{YorcAPI: fmt.Sprintf("localhost:%d", inputValues.Yorc.Port)}
 	return httputil.GetClient(clientConfig)
 }

@@ -19,6 +19,7 @@ package locations
 import (
 	"encoding/json"
 	"github.com/ystia/yorc/v4/locations/adapter"
+	"github.com/ystia/yorc/v4/prov/hostspool"
 	"path"
 	"time"
 
@@ -74,6 +75,24 @@ func NewManager(cfg config.Configuration) (Manager, error) {
 		}
 		locationMgr = &locationManager{cc: client}
 		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client)
+	}
+
+	return locationMgr, nil
+}
+
+// NewManager creates a Location Manager with a given ssh factory
+//
+// Currently this is used for testing purpose to mock the ssh connection.
+func NewManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, error) {
+
+	var locationMgr *locationManager
+	if locationMgr == nil {
+		client, err := cfg.GetConsulClient()
+		if err != nil {
+			return locationMgr, err
+		}
+		locationMgr = &locationManager{cc: client}
+		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapterWithSSHFactory(client, sshClientFactory)
 	}
 
 	return locationMgr, nil

@@ -73,7 +73,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 }
 
 // DisplayInfo displays deployment info
-func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, follow bool, refreshTime time.Duration) error {
+func DisplayInfo(client httputil.HTTPClient, deploymentID string, detailed, follow bool, refreshTime time.Duration) error {
 
 	colorize := !NoColor
 	if colorize {
@@ -153,7 +153,7 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 	}
 	return nil
 }
-func tableBasedDeploymentRendering(client *httputil.YorcClient, dep rest.Deployment, colorize bool) []error {
+func tableBasedDeploymentRendering(client httputil.HTTPClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
 	nodesTable.AddHeaders("Node", "Status (instance/total)")
@@ -236,7 +236,7 @@ func tableBasedDeploymentRendering(client *httputil.YorcClient, dep rest.Deploym
 	return errs
 }
 
-func detailedDeploymentRendering(client *httputil.YorcClient, dep rest.Deployment, colorize bool) []error {
+func detailedDeploymentRendering(client httputil.HTTPClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	var err error
 	nodesList := []string{"Nodes:"}

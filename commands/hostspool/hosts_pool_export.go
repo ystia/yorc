@@ -38,80 +38,84 @@ func init() {
 		Short: "Export hosts pool configuration for a specified location",
 		Long:  `Export hosts pool configuration for a specified location as a YAML or JSON representation`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if location == "" {
-				return errors.Errorf("Expecting a hosts pool location name")
-			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-
-			request.Header.Add("Accept", "application/json")
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-			httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
-			var hostsColl rest.HostsCollection
-			body, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			err = json.Unmarshal(body, &hostsColl)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-
-			pool := rest.HostsPoolRequest{}
-			for _, hostLink := range hostsColl.Hosts {
-				if hostLink.Rel == rest.LinkRelHost {
-					var restHost rest.Host
-					err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &restHost)
-					if err != nil {
-						httputil.ErrExit(err)
-					}
-
-					host := rest.HostConfig{
-						Name:       restHost.Name,
-						Connection: restHost.Connection,
-						Labels:     restHost.Labels,
-					}
-					pool.Hosts = append(pool.Hosts, host)
-				}
-			}
-
-			// Marshal according to the specified output format
-			outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
-			var bSlice []byte
-			if outputFormat == "json" {
-				bSlice, err = json.MarshalIndent(pool, "", "    ")
-			} else {
-				bSlice, err = yaml.Marshal(pool)
-			}
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-
-			if filePath != "" {
-				err = ioutil.WriteFile(filePath, bSlice, 0644)
-				if err != nil {
-					httputil.ErrExit(err)
-				}
-			} else {
-				output := string(bSlice)
-				fmt.Println(output)
-			}
-
-			return nil
+			return exportHostsPool(client, args, location, outputFormat, filePath)
 		},
 	}
 	hpExportCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hpExportCmd.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format: yaml, json")
 	hpExportCmd.Flags().StringVarP(&filePath, "file", "f", "", "Path to a file where to store the output")
 	hostsPoolCmd.AddCommand(hpExportCmd)
+}
+
+func exportHostsPool(client httputil.HTTPClient, args []string, location, outputFormat, filePath string) error {
+	if location == "" {
+		return errors.Errorf("Expecting a hosts pool location name")
+	}
+	request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+
+	request.Header.Add("Accept", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	defer response.Body.Close()
+	httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
+	var hostsColl rest.HostsCollection
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	err = json.Unmarshal(body, &hostsColl)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+
+	pool := rest.HostsPoolRequest{}
+	for _, hostLink := range hostsColl.Hosts {
+		if hostLink.Rel == rest.LinkRelHost {
+			var restHost rest.Host
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &restHost)
+			if err != nil {
+				httputil.ErrExit(err)
+			}
+
+			host := rest.HostConfig{
+				Name:       restHost.Name,
+				Connection: restHost.Connection,
+				Labels:     restHost.Labels,
+			}
+			pool.Hosts = append(pool.Hosts, host)
+		}
+	}
+
+	// Marshal according to the specified output format
+	outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
+	var bSlice []byte
+	if outputFormat == "json" {
+		bSlice, err = json.MarshalIndent(pool, "", "    ")
+	} else {
+		bSlice, err = yaml.Marshal(pool)
+	}
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+
+	if filePath != "" {
+		err = ioutil.WriteFile(filePath, bSlice, 0644)
+		if err != nil {
+			httputil.ErrExit(err)
+		}
+	} else {
+		output := string(bSlice)
+		fmt.Println(output)
+	}
+
+	return nil
 }

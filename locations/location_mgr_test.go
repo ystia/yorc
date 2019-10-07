@@ -15,6 +15,10 @@
 package locations
 
 import (
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/prov/hostspool"
+	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -30,6 +34,22 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 )
+
+type mockSSHClient struct {
+	config *ssh.ClientConfig
+}
+
+func (m *mockSSHClient) RunCommand(string) (string, error) {
+	if m.config != nil && m.config.User == "fail" {
+		return "", errors.Errorf("Failed to connect")
+	}
+
+	return "ok", nil
+}
+
+var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connection) sshutil.Client {
+	return &mockSSHClient{config}
+}
 
 func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Client,
 	deploymentID string) {
@@ -213,7 +233,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
-	mgr, err := NewManager(testConfig)
+	mgr, err := NewManagerWithSSHFactory(testConfig, mockSSHClientFactory)
 	require.NoError(t, err, "Failed to create a location manager")
 
 	done, err := mgr.InitializeLocations(locationFilePath)
@@ -304,6 +324,9 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Unexpected error attempting to update hosts pool location")
 	props, err = mgr.GetLocationProperties("myHostsPoolLocation", "hostspool")
 	require.NoError(t, err, "Unexpected error attempting to get hostspool location")
+	locations, err = mgr.GetLocations()
+	require.NoError(t, err, "Unexpected error attempting to get all locations with hosts pool locations")
+	assert.Equal(t, 1, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 
 	mgr.RemoveLocation(hostsPoolLocation.Name, "hostspool")
 	require.NoError(t, err, "Unexpected error attempting to remove hosts pool location")

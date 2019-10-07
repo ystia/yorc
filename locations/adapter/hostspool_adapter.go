@@ -44,6 +44,13 @@ func NewHostsPoolLocationAdapter(client *api.Client) LocationAdapter {
 	return &hostsPoolLocationAdapter{hostspool.NewManager(client)}
 }
 
+// NewHostsPoolLocationAdapterWithSSHFactory creates a Location Adapter with a given ssh factory
+//
+// Currently this is used for testing purpose to mock the ssh connection.
+func NewHostsPoolLocationAdapterWithSSHFactory(client *api.Client, sshClientFactory hostspool.SSHClientFactory) LocationAdapter {
+	return &hostsPoolLocationAdapter{hostspool.NewManagerWithSSHFactory(client, sshClientFactory)}
+}
+
 // CreateLocationConfiguration allows to create a location configuration of hosts pool type
 func (a *hostsPoolLocationAdapter) CreateLocationConfiguration(locationName string, props config.DynamicMap) error {
 	// Check if location exists

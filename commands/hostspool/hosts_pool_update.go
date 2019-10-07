@@ -45,58 +45,11 @@ func init() {
 		Short: "Update host pool of a specified location",
 		Long:  `Update labels list or connection of a host of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
-			}
-			if location == "" {
-				return errors.Errorf("Expecting a hosts pool location name")
-			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			if len(jsonParam) == 0 {
-				var hostRequest rest.HostRequest
-				hostRequest.Connection = &hostspool.Connection{
-					User:       user,
-					Host:       host,
-					Port:       port,
-					Password:   password,
-					PrivateKey: privateKey,
-				}
-				for _, l := range labelsAdd {
-					parts := strings.SplitN(l, "=", 2)
-					me := rest.MapEntry{Op: rest.MapEntryOperationAdd, Name: parts[0]}
-					if len(parts) == 2 {
-						me.Value = parts[1]
-					}
-					hostRequest.Labels = append(hostRequest.Labels, me)
-				}
-				for _, l := range labelsRemove {
-					hostRequest.Labels = append(hostRequest.Labels, rest.MapEntry{Op: rest.MapEntryOperationRemove, Name: l})
-				}
-				tmp, err := json.Marshal(hostRequest)
-				if err != nil {
-					log.Panic(err)
-				}
-
-				jsonParam = string(tmp)
-			}
-
-			request, err := client.NewRequest("PATCH", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			request.Header.Add("Content-Type", "application/json")
-
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-
-			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
-			return nil
+			return updateHost(client, args, location, jsonParam, privateKey, password, user, host, port, labelsAdd, labelsRemove)
 		},
 	}
 	updCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
@@ -110,4 +63,55 @@ func init() {
 	updCmd.Flags().StringSliceVarP(&labelsRemove, "remove-label", "", nil, "Remove a label from the host. May be specified several time.")
 
 	hostsPoolCmd.AddCommand(updCmd)
+}
+
+func updateHost(client httputil.HTTPClient, args []string, location, jsonParam, privateKey, password, user, host string, port uint64, labelsAdd, labelsRemove []string) error {
+	if len(args) != 1 {
+		return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
+	}
+	if location == "" {
+		return errors.Errorf("Expecting a hosts pool location name")
+	}
+	if len(jsonParam) == 0 {
+		var hostRequest rest.HostRequest
+		hostRequest.Connection = &hostspool.Connection{
+			User:       user,
+			Host:       host,
+			Port:       port,
+			Password:   password,
+			PrivateKey: privateKey,
+		}
+		for _, l := range labelsAdd {
+			parts := strings.SplitN(l, "=", 2)
+			me := rest.MapEntry{Op: rest.MapEntryOperationAdd, Name: parts[0]}
+			if len(parts) == 2 {
+				me.Value = parts[1]
+			}
+			hostRequest.Labels = append(hostRequest.Labels, me)
+		}
+		for _, l := range labelsRemove {
+			hostRequest.Labels = append(hostRequest.Labels, rest.MapEntry{Op: rest.MapEntryOperationRemove, Name: l})
+		}
+		tmp, err := json.Marshal(hostRequest)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		jsonParam = string(tmp)
+	}
+
+	request, err := client.NewRequest("PATCH", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	request.Header.Add("Content-Type", "application/json")
+
+	response, err := client.Do(request)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	defer response.Body.Close()
+
+	httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+	return nil
 }

@@ -115,7 +115,7 @@ func init() {
 }
 
 // SubmitCSAR submits the deployment of an archive
-func SubmitCSAR(csarZip []byte, client *httputil.YorcClient, deploymentID string) (string, error) {
+func SubmitCSAR(csarZip []byte, client httputil.HTTPClient, deploymentID string) (string, error) {
 	var request *http.Request
 	var err error
 	if deploymentID != "" {

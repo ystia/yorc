@@ -78,7 +78,7 @@ func init() {
 	DeploymentsCmd.AddCommand(scaleCmd)
 }
 
-func postScalingRequest(client *httputil.YorcClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
+func postScalingRequest(client httputil.HTTPClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
 	request, err := client.NewRequest("POST", path.Join("/deployments", deploymentID, "scale", nodeName), nil)
 	if err != nil {
 		httputil.ErrExit(errors.Wrap(err, httputil.YorcAPIDefaultErrorMsg))

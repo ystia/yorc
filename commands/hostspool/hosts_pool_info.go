@@ -36,52 +36,56 @@ func init() {
 		Short: "Get location host pool info",
 		Long:  `Gets the description of a host of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			colorize := !noColor
-			if len(args) != 1 {
-				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
-			}
-			if location == "" {
-				return errors.Errorf("Expecting a hosts pool location name")
-			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-
-			request, err := client.NewRequest("GET", "/hosts_pool/"+location+"/"+args[0], nil)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			request.Header.Add("Accept", "application/json")
-
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-
-			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
-			var host rest.Host
-			body, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			err = json.Unmarshal(body, &host)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-
-			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
-			addRow(hostsTable, colorize, hostList, &host, true)
-			if colorize {
-				defer color.Unset()
-			}
-			fmt.Println("Host pool:")
-			fmt.Println(hostsTable.Render())
-			return nil
+			return hostInfo(client, args, location)
 		},
 	}
 	getCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hostsPoolCmd.AddCommand(getCmd)
+}
+
+func hostInfo(client httputil.HTTPClient, args []string, location string) error {
+	colorize := !noColor
+	if len(args) != 1 {
+		return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
+	}
+	if location == "" {
+		return errors.Errorf("Expecting a hosts pool location name")
+	}
+
+	request, err := client.NewRequest("GET", "/hosts_pool/"+location+"/"+args[0], nil)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	request.Header.Add("Accept", "application/json")
+
+	response, err := client.Do(request)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	defer response.Body.Close()
+
+	httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+	var host rest.Host
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	err = json.Unmarshal(body, &host)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+
+	hostsTable := tabutil.NewTable()
+	hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
+	addRow(hostsTable, colorize, hostList, &host, true)
+	if colorize {
+		defer color.Unset()
+	}
+	fmt.Println("Host pool:")
+	fmt.Println(hostsTable.Render())
+	return nil
 }

@@ -37,6 +37,16 @@ import (
 // YorcAPIDefaultErrorMsg is the default communication error message
 const YorcAPIDefaultErrorMsg = "Failed to contact Yorc API"
 
+// HTTPClient represents an HTTP client
+type HTTPClient interface {
+	NewRequest(method, path string, body io.Reader) (*http.Request, error)
+	Get(path string) (*http.Response, error)
+	Head(path string) (*http.Response, error)
+	Post(path string, contentType string, body io.Reader) (*http.Response, error)
+	PostForm(path string, data url.Values) (*http.Response, error)
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // YorcClient is the Yorc HTTP client structure
 type YorcClient struct {
 	*http.Client
@@ -69,7 +79,7 @@ func (c *YorcClient) PostForm(path string, data url.Values) (*http.Response, err
 }
 
 // GetClient returns a yorc HTTP Client
-func GetClient(cc config.Client) (*YorcClient, error) {
+func GetClient(cc config.Client) (HTTPClient, error) {
 	yorcAPI := cc.YorcAPI
 	yorcAPI = strings.TrimRight(yorcAPI, "/")
 	caFile := cc.CAFile
@@ -207,7 +217,7 @@ func ErrExit(msg interface{}) {
 }
 
 // GetJSONEntityFromAtomGetRequest returns JSON entity from AtomLink request
-func GetJSONEntityFromAtomGetRequest(client *YorcClient, atomLink rest.AtomLink, entity interface{}) error {
+func GetJSONEntityFromAtomGetRequest(client HTTPClient, atomLink rest.AtomLink, entity interface{}) error {
 	request, err := client.NewRequest("GET", atomLink.Href, nil)
 	if err != nil {
 		return errors.Wrap(err, YorcAPIDefaultErrorMsg)
