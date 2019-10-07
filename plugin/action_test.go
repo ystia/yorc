@@ -141,6 +141,19 @@ func TestActionOperatorExecAction(t *testing.T) {
 	assert.Equal(t, lof, mock.lof)
 }
 
+func TestActionOperatorExecActionWrongContext(t *testing.T) {
+	t.Parallel()
+	_, client, plugin, action, _, _ := setupExecActionTestEnv(t)
+	defer client.Close()
+	var wrongContext context.Context
+	_, err := plugin.ExecAction(
+		wrongContext,
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"testTaskID", "testDeploymentID", &action)
+	require.Error(t, err, "Expected an error calling ExecAction with wrong context")
+
+}
+
 func TestActionOperatorExecActionWithFailure(t *testing.T) {
 	t.Parallel()
 	mock, client, plugin, action, _, ctx := setupExecActionTestEnv(t)
