@@ -301,11 +301,11 @@ func testListHostsPoolLocations(t *testing.T, client *api.Client, srv *testutil.
 }
 
 func testApplyHostsPoolConfiguration(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-	poolRequest := &HostsPoolRequest{Hosts: []HostConfig{{Name: "host1", Connection: hostspool.Connection{User: "user1", Password: "password", Host: "1.2.3.4"}} }}
+	poolRequest := &HostsPoolRequest{Hosts: []HostConfig{{Name: "host1", Connection: hostspool.Connection{User: "user1", Password: "password", Host: "1.2.3.4"}}}}
 	tmp, err := json.Marshal(poolRequest)
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 
-	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest",  bytes.NewBuffer([]byte(string(tmp))))
+	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Content-Type", "application/json")
 	resp := newTestHTTPRouter(client, req)
 	_, err = ioutil.ReadAll(resp.Body)

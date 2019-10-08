@@ -86,6 +86,11 @@ func TestApplyHostsPoolConfigWithoutLocation(t *testing.T) {
 	require.Error(t, err, "Expected error as no location has been provided")
 }
 
+func TestApplyHostsPoolConfigWithNoFile(t *testing.T) {
+	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{}, "", true)
+	require.Error(t, err, "Expected error as no file path has been provided")
+}
+
 func TestApplyHostsPoolConfigWithBadFilePath(t *testing.T) {
 	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/fake.yaml"}, "", true)
 	require.Error(t, err, "Expected error as a bad file path has been provided")
