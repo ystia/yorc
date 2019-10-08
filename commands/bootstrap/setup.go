@@ -200,10 +200,10 @@ func setupYorcServer(workingDirectoryPath string) error {
 		request.Header.Add("Content-Type", "application/json")
 
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
 			return err
 		}
+		defer response.Body.Close()
 
 		httputil.HandleHTTPStatusCode(
 			response, "apply", "host pool", http.StatusOK, http.StatusCreated)
@@ -296,9 +296,9 @@ func waitForYorcServerUP(timeout time.Duration) error {
 	for {
 		response, err := client.Do(request)
 		if err == nil {
-			defer response.Body.Close()
 			return nil
 		}
+		defer response.Body.Close()
 
 		nbAttempts--
 		if nbAttempts < 0 {

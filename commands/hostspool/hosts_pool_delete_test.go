@@ -15,18 +15,24 @@
 package hostspool
 
 import (
+	"errors"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
 type httpClientMockDelete struct {
+	testID string
 }
 
 func (c *httpClientMockDelete) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(c.testID, "fails") {
+		return nil, errors.New("a failure occurs")
+	}
 	return httptest.NewRecorder().Result(), nil
 }
 
@@ -63,4 +69,9 @@ func TestDeleteHostWithoutHostname(t *testing.T) {
 func TestDeleteHostWithoutLocation(t *testing.T) {
 	err := deleteHost(&httpClientMockDelete{}, []string{"hostOne", "hostTwo"}, "")
 	require.Error(t, err, "Expected error as no location has been provided")
+}
+
+func TestDeleteHostWithHTTPFailure(t *testing.T) {
+	err := deleteHost(&httpClientMockDelete{testID: "fails"}, []string{"hostOne", "hostTwo"}, "fails")
+	require.Error(t, err, "Expected error due to HTTP failure")
 }

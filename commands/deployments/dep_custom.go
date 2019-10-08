@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -42,7 +41,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return executeCustomCommand(client, args, jsonParam, nodeName, customCName, interfaceName, inputs)
 		},
@@ -80,7 +79,7 @@ func executeCustomCommand(client httputil.HTTPClient, args []string, jsonParam, 
 
 		tmp, err := json.Marshal(InputsStruct)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 
 		jsonParam = string(tmp)
@@ -88,13 +87,13 @@ func executeCustomCommand(client httputil.HTTPClient, args []string, jsonParam, 
 
 	request, err := client.NewRequest("POST", "/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	request.Header.Add("Content-Type", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 

@@ -17,7 +17,6 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 
@@ -47,7 +46,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return updateHost(client, args, location, jsonParam, privateKey, password, user, host, port, labelsAdd, labelsRemove)
 		},
@@ -94,7 +93,7 @@ func updateHost(client httputil.HTTPClient, args []string, location, jsonParam, 
 		}
 		tmp, err := json.Marshal(hostRequest)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 
 		jsonParam = string(tmp)
@@ -102,13 +101,13 @@ func updateHost(client httputil.HTTPClient, args []string, location, jsonParam, 
 
 	request, err := client.NewRequest("PATCH", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	request.Header.Add("Content-Type", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 

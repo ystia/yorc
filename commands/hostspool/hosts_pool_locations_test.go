@@ -23,20 +23,30 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
 type httpClientMockLocations struct {
+	testID string
 }
 
 func (c *httpClientMockLocations) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(c.testID, "fails") {
+		return nil, errors.New("a failure occurs")
+	}
+
 	w := httptest.NewRecorder()
 	locations := &rest.HostsPoolLocations{Locations: []string{"locationOne", "locationTwo", "locationThree"}}
 	b, err := json.Marshal(locations)
 	if err != nil {
 		return nil, errors.New("failed to build http client mock response")
 	}
-	w.Write(b)
+	if strings.Contains(c.testID, "bad_json") {
+		w.WriteString("This is not json !!!")
+	} else {
+		w.Write(b)
+	}
 	return w.Result(), nil
 }
 
@@ -63,4 +73,14 @@ func (c *httpClientMockLocations) PostForm(path string, data url.Values) (*http.
 func TestGetLocations(t *testing.T) {
 	err := getLocations(&httpClientMockLocations{})
 	require.NoError(t, err, "Failed to get locations")
+}
+
+func TestGetLocationsWithHTTPFailure(t *testing.T) {
+	err := getLocations(&httpClientMockLocations{testID: "fails"})
+	require.Error(t, err, "Expected error due to HTTP failure")
+}
+
+func TestGetLocationsWithJSONError(t *testing.T) {
+	err := getLocations(&httpClientMockLocations{testID: "bad_json"})
+	require.Error(t, err, "Expected error due to JSON error")
 }

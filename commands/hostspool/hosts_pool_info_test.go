@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -31,6 +32,10 @@ type httpClientMockInfo struct {
 }
 
 func (c *httpClientMockInfo) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(req.URL.String(), "fails") {
+		return nil, errors.New("a failure occurs")
+	}
+
 	w := httptest.NewRecorder()
 
 	host := rest.Host{Host: hostspool.Host{Name: "hostOne", Connection: hostspool.Connection{Host: "1.2.3.4", Password: "pass", User: "user1"}}, Links: []rest.AtomLink{{Href: "", LinkType: rest.LinkRelHost}}}
@@ -38,7 +43,11 @@ func (c *httpClientMockInfo) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, errors.New("failed to build http client mock response")
 	}
-	w.Write(b)
+	if strings.Contains(req.URL.String(), "bad_json") {
+		w.WriteString("This is not json !!!")
+	} else {
+		w.Write(b)
+	}
 	return w.Result(), nil
 }
 
@@ -75,4 +84,14 @@ func TestHostInfoWithoutHostname(t *testing.T) {
 func TestHostInfoWithoutLocation(t *testing.T) {
 	err := hostInfo(&httpClientMockInfo{}, []string{"hostOne"}, "")
 	require.Error(t, err, "Expected error as no location has been provided")
+}
+
+func TestHostInfoWithHTTPFailure(t *testing.T) {
+	err := hostInfo(&httpClientMockInfo{}, []string{"hostOne"}, "fails")
+	require.Error(t, err, "Expected error due to HTTP failure")
+}
+
+func TestHostInfoWithJSONError(t *testing.T) {
+	err := hostInfo(&httpClientMockInfo{}, []string{"hostOne"}, "bad_json")
+	require.Error(t, err, "Expected error due to JSON error")
 }

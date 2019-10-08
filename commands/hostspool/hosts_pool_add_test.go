@@ -15,11 +15,13 @@
 package hostspool
 
 import (
+	"errors"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -27,6 +29,9 @@ type httpClientMockAdd struct {
 }
 
 func (c *httpClientMockAdd) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(req.URL.String(), "fails") {
+		return nil, errors.New("a failure occurs")
+	}
 	res := &httptest.ResponseRecorder{
 		Code: 201,
 	}
@@ -68,7 +73,12 @@ func TestAddHostWithoutLocation(t *testing.T) {
 	require.Error(t, err, "Expected error as no location has been provided")
 }
 
-func TestAddHostWithoutPassowrd(t *testing.T) {
+func TestAddHostWithoutPassword(t *testing.T) {
 	err := addHost(&httpClientMockAdd{}, []string{"hostOne"}, "locationOne", "", "", "", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"})
 	require.Error(t, err, "Expected error as no location has been provided")
+}
+
+func TestAddHostWithHTTPFailure(t *testing.T) {
+	err := addHost(&httpClientMockAdd{}, []string{"hostOne"}, "fails", "", "", "", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"})
+	require.Error(t, err, "Expected HTTP error")
 }

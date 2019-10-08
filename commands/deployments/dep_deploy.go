@@ -45,7 +45,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return deploy(client, args, shouldStreamLogs, shouldStreamEvents, deploymentID)
 		},
@@ -75,33 +75,33 @@ func deploy(client httputil.HTTPClient, args []string, shouldStreamLogs, shouldS
 	if !fileInfo.IsDir() {
 		file, err := os.Open(absPath)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
-
 		defer file.Close()
 
 		buff, err := ioutil.ReadAll(file)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 		fileType := http.DetectContentType(buff)
-		if fileType == "application/zip" {
-			location, err = SubmitCSAR(buff, client, deploymentID)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
+		if fileType != "application/zip" {
+			return errors.Errorf("file %q is not a zip file", args[0])
+		}
+		location, err = SubmitCSAR(buff, client, deploymentID)
+		if err != nil {
+			return err
 		}
 	}
 
 	if location == "" {
 		csarZip, err := ziputil.ZipPath(absPath)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 		location, err = SubmitCSAR(csarZip, client, deploymentID)
 
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 	}
 	taskID := path.Base(location)

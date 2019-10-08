@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -47,7 +46,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return addHost(client, args, location, jsonParam, privateKey, password, user, host, port, labels)
 		},
@@ -93,7 +92,7 @@ func addHost(client httputil.HTTPClient, args []string, location, jsonParam, pri
 		}
 		tmp, err := json.Marshal(hostRequest)
 		if err != nil {
-			log.Panic(err)
+			return errors.Wrapf(err, "failed to unmarshall json body")
 		}
 
 		jsonParam = string(tmp)
@@ -101,13 +100,13 @@ func addHost(client httputil.HTTPClient, args []string, location, jsonParam, pri
 
 	request, err := client.NewRequest("PUT", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	request.Header.Add("Content-Type", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 

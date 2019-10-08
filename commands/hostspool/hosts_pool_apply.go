@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"reflect"
@@ -50,7 +49,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return applyHostsPoolConfig(client, args, location, autoApprove)
 		},
@@ -83,13 +82,13 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	v.SetConfigFile(args[0])
 	err = v.ReadInConfig()
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	var hostsPoolRequest rest.HostsPoolRequest
 	err = v.Unmarshal(&hostsPoolRequest)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	// Organizing data per host name for easier use below
@@ -107,14 +106,14 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	// confirmation before proceeding to the change
 	request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
+	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, "", "Hosts Pool",
 		http.StatusOK, http.StatusNoContent)
 
@@ -124,11 +123,11 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	if response.StatusCode != http.StatusNoContent {
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 		err = json.Unmarshal(body, &hostsColl)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 		checkpoint = hostsColl.Checkpoint
 	}
@@ -153,7 +152,7 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 			err = httputil.GetJSONEntityFromAtomGetRequest(
 				client, hostLink, &host)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 
 			if newDef, ok := newPoolMap[host.Name]; ok {
@@ -243,7 +242,7 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	request, err = client.NewRequest("POST", "/hosts_pool/"+location,
 		bytes.NewBuffer(bArray))
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	request.Header.Add("Content-Type", "application/json")
 
@@ -256,10 +255,10 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	request.URL.RawQuery = query.Encode()
 
 	response, err = client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
+	defer response.Body.Close()
 
 	// Handle the response
 	// This is a generic response management, except from the case where
@@ -282,26 +281,26 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	for _, name := range hostsImpacted {
 
 		request, err := client.NewRequest("GET", "/hosts_pool/"+location+"/"+name, nil)
-		request.Header.Add("Accept", "application/json")
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
+		request.Header.Add("Accept", "application/json")
 
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
+		defer response.Body.Close()
 
 		httputil.HandleHTTPStatusCode(response, name, "host pool", http.StatusOK)
 		var host rest.Host
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 		err = json.Unmarshal(body, &host)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 
 		if host.Status == hostspool.HostStatusError {

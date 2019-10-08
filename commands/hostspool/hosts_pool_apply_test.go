@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -31,6 +32,10 @@ type httpClientMockApply struct {
 }
 
 func (c *httpClientMockApply) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(req.URL.String(), "fails") {
+		return nil, errors.New("a failure occurs")
+	}
+
 	var res httptest.ResponseRecorder
 	if req.Method == "POST" {
 		res = httptest.ResponseRecorder{
@@ -99,4 +104,14 @@ func TestApplyHostsPoolConfigWithBadFilePath(t *testing.T) {
 func TestApplyHostsPoolConfigWithBadFile(t *testing.T) {
 	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/bad_hosts_pool.yaml"}, "", true)
 	require.Error(t, err, "Expected error as host has no name")
+}
+
+func TestApplyHostsPoolConfigWithMalformedFile(t *testing.T) {
+	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/malformed.yaml"}, "", true)
+	require.Error(t, err, "Expected error as file is not yaml")
+}
+
+func TestApplyHostsPoolConfigWithHTTPFailure(t *testing.T) {
+	err := applyHostsPoolConfig(&httpClientMockApply{}, []string{"./testdata/hosts_pool.yaml"}, "fails", true)
+	require.Error(t, err, "Expected error due to HTTP error")
 }

@@ -49,20 +49,24 @@ func deleteHost(client httputil.HTTPClient, args []string, location string) erro
 		return errors.Errorf("Expecting a hosts pool location name")
 	}
 	for i := range args {
-		sendDeleteHostRequest(client, args[i], location)
+		err := sendDeleteHostRequest(client, args[i], location)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func sendDeleteHostRequest(client httputil.HTTPClient, hostname, location string) {
+func sendDeleteHostRequest(client httputil.HTTPClient, hostname, location string) error {
 	request, err := client.NewRequest("DELETE", "/hosts_pool/"+location+"/"+hostname, nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, hostname, "host pool", http.StatusOK)
+	return nil
 }

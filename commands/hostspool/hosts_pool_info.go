@@ -58,13 +58,13 @@ func hostInfo(client httputil.HTTPClient, args []string, location string) error 
 
 	request, err := client.NewRequest("GET", "/hosts_pool/"+location+"/"+args[0], nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	request.Header.Add("Accept", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 
@@ -72,11 +72,11 @@ func hostInfo(client httputil.HTTPClient, args []string, location string) error 
 	var host rest.Host
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	err = json.Unmarshal(body, &host)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	hostsTable := tabutil.NewTable()

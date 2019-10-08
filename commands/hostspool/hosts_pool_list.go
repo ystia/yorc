@@ -56,7 +56,7 @@ func listHostsPool(client httputil.HTTPClient, args []string, location string, f
 	colorize := !noColor
 	request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	q := request.URL.Query()
 	for i := range filters {
@@ -66,18 +66,18 @@ func listHostsPool(client httputil.HTTPClient, args []string, location string, f
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, "", "hosts pool", http.StatusOK)
 	var hostsColl rest.HostsCollection
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	err = json.Unmarshal(body, &hostsColl)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	hostsTable := tabutil.NewTable()
@@ -87,7 +87,7 @@ func listHostsPool(client httputil.HTTPClient, args []string, location string, f
 			var host rest.Host
 			err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			// If no label was defined, define an empty map
 			// to still consider there is a column to display

@@ -57,24 +57,24 @@ func exportHostsPool(client httputil.HTTPClient, args []string, location, output
 	}
 	request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
 	var hostsColl rest.HostsCollection
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	err = json.Unmarshal(body, &hostsColl)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	pool := rest.HostsPoolRequest{}
@@ -83,7 +83,7 @@ func exportHostsPool(client httputil.HTTPClient, args []string, location, output
 			var restHost rest.Host
 			err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &restHost)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 
 			host := rest.HostConfig{
@@ -104,13 +104,13 @@ func exportHostsPool(client httputil.HTTPClient, args []string, location, output
 		bSlice, err = yaml.Marshal(pool)
 	}
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	if filePath != "" {
 		err = ioutil.WriteFile(filePath, bSlice, 0644)
 		if err != nil {
-			httputil.ErrExit(err)
+			return err
 		}
 	} else {
 		output := string(bSlice)

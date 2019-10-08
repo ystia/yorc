@@ -34,7 +34,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return getLocations(client)
 		},
@@ -46,25 +46,25 @@ func getLocations(client httputil.HTTPClient) error {
 	colorize := !noColor
 	request, err := client.NewRequest("GET", "/hosts_pool", nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	q := request.URL.Query()
 	request.URL.RawQuery = q.Encode()
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, "", "hosts pool locations", http.StatusOK)
 	var coll rest.HostsPoolLocations
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	err = json.Unmarshal(body, &coll)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	locationsTable := tabutil.NewTable()

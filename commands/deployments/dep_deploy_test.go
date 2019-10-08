@@ -15,18 +15,24 @@
 package deployments
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
 type httpClientMockDeploy struct {
+	testID string
 }
 
 func (c *httpClientMockDeploy) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(c.testID, "fails") {
+		return nil, errors.New("a failure occurs")
+	}
 	res := &httptest.ResponseRecorder{
 		Code: 200,
 	}
@@ -62,4 +68,19 @@ func TestDeploy(t *testing.T) {
 func TestDeployWithoutFilePath(t *testing.T) {
 	err := deploy(&httpClientMockDeploy{}, []string{}, false, false, "myDeploymentID")
 	require.Error(t, err, "Expect error as no file path has been provided")
+}
+
+func TestDeployWithBadFilePath(t *testing.T) {
+	err := deploy(&httpClientMockDeploy{}, []string{"fake.zip"}, false, false, "myDeploymentID")
+	require.Error(t, err, "Expect error as file doesn't exist")
+}
+
+func TestDeployWithBadZip(t *testing.T) {
+	err := deploy(&httpClientMockDeploy{}, []string{"./testdata/badzip.zip"}, false, false, "myDeploymentID")
+	require.Error(t, err, "Expect error as file is not a correct zip")
+}
+
+func TestDeployWithHTTPFailure(t *testing.T) {
+	err := deploy(&httpClientMockDeploy{testID: "fails"}, []string{"./testdata/deployment.zip"}, false, false, "myDeploymentID")
+	require.Error(t, err, "Expected error due to HTTP failure")
 }

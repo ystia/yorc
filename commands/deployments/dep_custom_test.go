@@ -15,18 +15,24 @@
 package deployments
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
 type httpClientMockExecCustom struct {
+	testID string
 }
 
 func (c *httpClientMockExecCustom) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(c.testID, "fails") {
+		return nil, errors.New("a failure occurs")
+	}
 	res := &httptest.ResponseRecorder{
 		Code: 202,
 	}
@@ -58,6 +64,11 @@ func TestExecuteCustomCommand(t *testing.T) {
 	require.NoError(t, err, "Failed to execute custom command")
 }
 
+func TestExecuteCustomCommandWithBadInputs(t *testing.T) {
+	err := executeCustomCommand(&httpClientMockExecCustom{}, []string{"id"}, "", "node1", "custom", "custom", []string{"key1=[value1, value3]", "key2=value2"})
+	require.Error(t, err, "Expected error as inputs aren't quoted")
+}
+
 func TestExecuteCustomCommandWithoutInfo(t *testing.T) {
 	err := executeCustomCommand(&httpClientMockExecCustom{}, []string{"id"}, "", "", "", "", []string{"key1=value1", "key2=value2"})
 	require.Error(t, err, "Expect error as no info has been provided")
@@ -66,4 +77,9 @@ func TestExecuteCustomCommandWithoutInfo(t *testing.T) {
 func TestExecuteCustomCommandWithoutID(t *testing.T) {
 	err := executeCustomCommand(&httpClientMockExecCustom{}, []string{}, "", "node1", "custom-command", "interface", []string{})
 	require.Error(t, err, "Expect error as no ID has been provided")
+}
+
+func TestExecuteCustomCommandWithHTTPFailure(t *testing.T) {
+	err := executeCustomCommand(&httpClientMockExecCustom{testID: "fails"}, []string{}, "", "node1", "custom-command", "interface", []string{})
+	require.Error(t, err, "Expected error due to HTTP failure")
 }

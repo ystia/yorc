@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -30,6 +31,10 @@ type httpClientMockList struct {
 }
 
 func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
+	if strings.Contains(req.URL.String(), "fails") {
+		return nil, errors.New("a failure occurs")
+	}
+
 	w := httptest.NewRecorder()
 
 	hosts := &rest.HostsCollection{Checkpoint: 42, Hosts: []rest.AtomLink{{Href: "/hosts_pool/locationOne/hostOne", LinkType: rest.LinkRelHost}}}
@@ -37,7 +42,13 @@ func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, errors.New("failed to build http client mock response")
 	}
-	w.Write(b)
+
+	if strings.Contains(req.URL.String(), "bad_json") {
+		w.WriteString("This is not json !!!")
+	} else {
+		w.Write(b)
+	}
+
 	return w.Result(), nil
 }
 
@@ -69,4 +80,14 @@ func TestListsHostsPool(t *testing.T) {
 func TestListsHostsPoolWithoutLocation(t *testing.T) {
 	err := listHostsPool(&httpClientMockList{}, nil, "", nil)
 	require.Error(t, err, "Expected error as no location has been provided")
+}
+
+func TestListsHostsPoolWithHTTPFailure(t *testing.T) {
+	err := listHostsPool(&httpClientMockList{}, nil, "fails", nil)
+	require.Error(t, err, "Expected error due to HTTP failure")
+}
+
+func TestListsHostsPoolWithJSONError(t *testing.T) {
+	err := listHostsPool(&httpClientMockList{}, nil, "bad_json", nil)
+	require.Error(t, err, "Expected error due to JSON error")
 }

@@ -33,3 +33,13 @@ func TestUpdateHostWithoutLocation(t *testing.T) {
 	err := updateHost(&httpClientMockDelete{}, []string{"hostOne"}, "", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"}, []string{"label4=value4"})
 	require.Error(t, err, "Expected error as no location has been provided")
 }
+
+func TestUpdateHostWithHTTPFailure(t *testing.T) {
+	err := updateHost(&httpClientMockDelete{testID: "fails"}, []string{}, "locationOne", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"}, []string{"label4=value4"})
+	require.Error(t, err, "Expected error due to HTTP failure")
+}
+
+func TestUpdateHostWithJSONError(t *testing.T) {
+	err := updateHost(&httpClientMockDelete{testID: "bad_json"}, []string{}, "locationOne", "", "", "pass", "userOne", "1.2.3.1", 22, []string{"label1=value1", "label2=value2", "label3=value3"}, []string{"label4=value4"})
+	require.Error(t, err, "Expected error due to JSON error")
+}
