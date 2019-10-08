@@ -21,7 +21,6 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/v4/config"
@@ -293,35 +292,6 @@ func (e *execution) getExpectedInstances() (int32, error) {
 		return -1, errors.Wrapf(err, "failed to parse EXPECTED_INSTANCES: %q parameter as integer", expectedInstances)
 	}
 	return int32(r), nil
-}
-
-func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset kubernetes.Interface, namespace, rSpec string) (string, error) {
-	serviceDepsLookups, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "service_dependency_lookups")
-	if err != nil {
-		return rSpec, err
-	}
-	if serviceDepsLookups != nil && serviceDepsLookups.RawString() != "" {
-		for _, srvLookup := range strings.Split(serviceDepsLookups.RawString(), ",") {
-			srvLookupArgs := strings.SplitN(srvLookup, ":", 2)
-			srvPlaceholder := "${" + srvLookupArgs[0] + "}"
-			if !strings.Contains(rSpec, srvPlaceholder) || len(srvLookupArgs) != 2 {
-				// No need to make an API call if there is no placeholder to replace
-				// Alien set services lookups on all nodes
-				continue
-			}
-			srvName := srvLookupArgs[1]
-			srv, err := clientset.CoreV1().Services(namespace).Get(srvName, metav1.GetOptions{})
-			if err != nil {
-				return rSpec, errors.Wrapf(err, "failed to retrieve ClusterIP for service %q", srvName)
-			}
-			if srv.Spec.ClusterIP == "" || srv.Spec.ClusterIP == "None" {
-				// Not supported
-				return rSpec, errors.Wrapf(err, "failed to retrieve ClusterIP for service %q, (value=%q)", srvName, srv.Spec.ClusterIP)
-			}
-			rSpec = strings.Replace(rSpec, srvPlaceholder, srv.Spec.ClusterIP, -1)
-		}
-	}
-	return rSpec, nil
 }
 
 func (e *execution) manageNamespaceDeletion(ctx context.Context, clientset kubernetes.Interface, namespaceProvided bool, namespaceName string) error {

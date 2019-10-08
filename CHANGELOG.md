@@ -8,6 +8,7 @@
 
 ### BUG FIXES
 
+* Kubernetes Jobs do not support Service IP injection ([GH-528](https://github.com/ystia/yorc/issues/528))
 * BadAccess error may be thrown when trying to resolve a TOSCA function end up in error ([GH-526](https://github.com/ystia/yorc/issues/526))
 * Fix possible overlap on generated batch wrappers scripts when submitting several singularity jobs in parallel ([GH-522](https://github.com/ystia/yorc/issues/522))
 * Bootstrap wrongly configures on-demand resources on OpenStack ([GH-520](https://github.com/ystia/yorc/issues/520))

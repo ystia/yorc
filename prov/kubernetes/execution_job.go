@@ -46,7 +46,7 @@ func (e *execution) executeAsync(ctx context.Context, cfg config.Configuration, 
 		return nil, 0, err
 	}
 
-	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
+	job, err := getJob(ctx, e.kv, clientset, e.deploymentID, e.nodeName)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -72,7 +72,7 @@ func (e *execution) executeAsync(ctx context.Context, cfg config.Configuration, 
 }
 
 func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interface) error {
-	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
+	job, err := getJob(ctx, e.kv, clientset, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
 			"k8s job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.nodeName)
 	}
-	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
+	job, err := getJob(ctx, e.kv, clientset, e.deploymentID, e.nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete job for node %q", e.nodeName)
 	}
