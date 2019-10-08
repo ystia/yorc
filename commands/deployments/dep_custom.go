@@ -40,56 +40,11 @@ func init() {
 		Use:   "custom <id>",
 		Short: "Execute a custom command",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
-			}
 			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			if len(jsonParam) == 0 && (len(nodeName) == 0 || len(interfaceName) == 0 || len(customCName) == 0) {
-				return errors.Errorf("You need to provide a JSON or complete the mandatory flags (\"custom\", \"node\", \"interface\")")
-			}
-
-			if len(jsonParam) == 0 && len(nodeName) != 0 && len(customCName) != 0 {
-				var InputsStruct rest.CustomCommandRequest
-				InputsStruct.CustomCommandName = customCName
-				InputsStruct.NodeName = nodeName
-				InputsStruct.InterfaceName = interfaceName
-				InputsStruct.Inputs = make(map[string]*tosca.ValueAssignment)
-				for _, arg := range inputs {
-					keyValue := strings.Split(arg, "=")
-					var value tosca.ValueAssignment
-					err := json.Unmarshal([]byte(strings.TrimSpace(keyValue[1])), &value)
-					if err != nil {
-						return err
-					}
-					InputsStruct.Inputs[strings.TrimSpace(keyValue[0])] = &value
-				}
-
-				tmp, err := json.Marshal(InputsStruct)
-				if err != nil {
-					log.Panic(err)
-				}
-
-				jsonParam = string(tmp)
-			}
-
-			request, err := client.NewRequest("POST", "/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			request.Header.Add("Content-Type", "application/json")
-
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-
-			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
-			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
-			return nil
+			return executeCustomCommand(client, args, jsonParam, nodeName, customCName, interfaceName, inputs)
 		},
 	}
 	customCmd.PersistentFlags().StringVarP(&jsonParam, "data", "d", "", "Provide the JSON format of the custom command with node, interface, custom and inputs data")
@@ -98,4 +53,52 @@ func init() {
 	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "", "", "Provide the custom command name (mandatory)")
 	customCmd.PersistentFlags().StringArrayVarP(&inputs, "input", "i", make([]string, 0), "Provide the input for the custom command")
 	DeploymentsCmd.AddCommand(customCmd)
+}
+
+func executeCustomCommand(client httputil.HTTPClient, args []string, jsonParam, nodeName, customCName, interfaceName string, inputs []string) error {
+	if len(args) != 1 {
+		return errors.Errorf("Expecting an id (got %d parameters)", len(args))
+	}
+	if len(jsonParam) == 0 && (len(nodeName) == 0 || len(interfaceName) == 0 || len(customCName) == 0) {
+		return errors.Errorf("You need to provide a JSON or complete the mandatory flags (\"custom\", \"node\", \"interface\")")
+	}
+	if len(jsonParam) == 0 && len(nodeName) != 0 && len(customCName) != 0 {
+		var InputsStruct rest.CustomCommandRequest
+		InputsStruct.CustomCommandName = customCName
+		InputsStruct.NodeName = nodeName
+		InputsStruct.InterfaceName = interfaceName
+		InputsStruct.Inputs = make(map[string]*tosca.ValueAssignment)
+		for _, arg := range inputs {
+			keyValue := strings.Split(arg, "=")
+			var value tosca.ValueAssignment
+			err := json.Unmarshal([]byte(strings.TrimSpace(keyValue[1])), &value)
+			if err != nil {
+				return err
+			}
+			InputsStruct.Inputs[strings.TrimSpace(keyValue[0])] = &value
+		}
+
+		tmp, err := json.Marshal(InputsStruct)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		jsonParam = string(tmp)
+	}
+
+	request, err := client.NewRequest("POST", "/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	request.Header.Add("Content-Type", "application/json")
+
+	response, err := client.Do(request)
+	if err != nil {
+		httputil.ErrExit(err)
+	}
+	defer response.Body.Close()
+
+	httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
+	fmt.Println("Command submitted. path :", response.Header.Get("Location"))
+	return nil
 }
