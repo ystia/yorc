@@ -336,7 +336,7 @@ func resolveValueAssignment(kv *api.KV, deploymentID, nodeName, instanceName, re
 	}
 	if valueAssignment == nil {
 		ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: nodeName, events.InstanceID: instanceName})
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The value assignment %q hasn't be resolved for deployment: %q, node: %q, instance: %q. An empty string is returned instead", valueAssignment, deploymentID, nodeName, instanceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The value assignment %q hasn't be resolved for deployment: %q, node: %q, instance: %q. An empty string is returned instead", va, deploymentID, nodeName, instanceName)
 		valueAssignment = &TOSCAValue{Value: ""}
 	}
 	if fromSecret {
