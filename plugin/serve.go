@@ -35,6 +35,8 @@ const (
 	ConfigManagerPluginName = "cfgManager"
 	// OperationPluginName is the name of Operation Plugins it could be used as a lookup key in Client.Dispense
 	OperationPluginName = "operation"
+	// ActionPluginName is the name of Action Plugins it could be used as a lookup key in Client.Dispense
+	ActionPluginName = "action"
 	// InfraUsageCollectorPluginName is the name of InfraUsageCollector Plugins it could be used as a lookup key in Client.Dispense
 	InfraUsageCollectorPluginName = "infraUsageCollector"
 )
@@ -55,6 +57,9 @@ type DelegateFunc func() prov.DelegateExecutor
 // OperationFunc is a function that is called when creating a plugin server
 type OperationFunc func() prov.OperationExecutor
 
+// ActionFunc is a function that is called when creating a plugin server
+type ActionFunc func() prov.ActionOperator
+
 // InfraUsageCollectorFunc is a function that is called when creating a plugin server
 type InfraUsageCollectorFunc func() prov.InfraUsageCollector
 
@@ -65,6 +70,8 @@ type ServeOpts struct {
 	Definitions                        map[string][]byte
 	OperationFunc                      OperationFunc
 	OperationSupportedArtifactTypes    []string
+	ActionFunc                         ActionFunc
+	ActionTypes                        []string
 	InfraUsageCollectorFunc            InfraUsageCollectorFunc
 	InfraUsageCollectorSupportedInfras []string
 }
@@ -97,6 +104,7 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
 		DelegatePluginName:            &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
 		OperationPluginName:           &OperationPlugin{F: opts.OperationFunc, SupportedTypes: opts.OperationSupportedArtifactTypes},
+		ActionPluginName:              &ActionPlugin{F: opts.ActionFunc, ActionTypes: opts.ActionTypes},
 		DefinitionsPluginName:         &DefinitionsPlugin{Definitions: opts.Definitions},
 		ConfigManagerPluginName:       &ConfigManagerPlugin{&defaultConfigManager{}},
 		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: opts.InfraUsageCollectorFunc, SupportedInfras: opts.InfraUsageCollectorSupportedInfras},

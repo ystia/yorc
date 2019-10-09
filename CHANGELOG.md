@@ -5,6 +5,7 @@
 ### FEATURES
 
 * Yorc support of Kubernetes StatefulSet ([GH-206](https://github.com/ystia/yorc/issues/206))
+* Add support for asynchronous operations execution on plugins ([GH-525](https://github.com/ystia/yorc/issues/525))
 
 ### BUG FIXES
 

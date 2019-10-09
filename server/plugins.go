@@ -164,6 +164,24 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			log.Debugf("%+v", err)
 		}
 
+		// Request the action plugin
+		raw, err = rpcClient.Dispense(plugin.ActionPluginName)
+		if err == nil {
+			actionOperator := raw.(plugin.ActionOperator)
+			actionTypes, err := actionOperator.GetActionTypes()
+			if err != nil {
+				log.Printf("[Warning] Failed to retrieve action types for plugin %q.", pluginID)
+				log.Debugf("%+v", err)
+			}
+			if len(actionTypes) > 0 {
+				log.Debugf("Registering action types %v into registry for plugin %q", actionTypes, pluginID)
+				reg.RegisterActionOperator(actionTypes, actionOperator, pluginID)
+			}
+		} else {
+			log.Printf("[Warning] Can't retrieve action operator from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
+			log.Debugf("%+v", err)
+		}
+
 		// Request the definitions plugin
 		raw, err = rpcClient.Dispense(plugin.DefinitionsPluginName)
 		if err == nil {

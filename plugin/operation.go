@@ -70,7 +70,33 @@ type OperationExecutorClient struct {
 // ExecAsyncOperation is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (c *OperationExecutorClient) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
-	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
+
+	lof, ok := events.FromContext(ctx)
+	if !ok {
+		return nil, 0, errors.New("Missing contextual log optionnal fields")
+	}
+
+	id := c.Broker.NextId()
+	closeChan := make(chan struct{}, 0)
+	defer close(closeChan)
+	go clientMonitorContextCancellation(ctx, closeChan, id, c.Broker)
+
+	var resp OperationExecutorExecAsyncOperationResponse
+	args := &OperationExecutorExecAsyncOperationArgs{
+		ChannelID:         id,
+		Conf:              conf,
+		TaskID:            taskID,
+		DeploymentID:      deploymentID,
+		NodeName:          nodeName,
+		Operation:         operation,
+		StepName:          stepName,
+		LogOptionalFields: lof,
+	}
+	err := c.Client.Call("Plugin.ExecAsyncOperation", args, &resp)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "Failed to call ExecAsyncOperation for plugin")
+	}
+	return resp.Action, resp.MonitoringTimeInterval, toError(resp.Error)
 }
 
 // ExecOperation is public for use by reflexion and should be considered as private to this package.
@@ -128,6 +154,27 @@ type OperationExecutorExecOperationResponse struct {
 	Error *RPCError
 }
 
+// OperationExecutorExecAsyncOperationArgs is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
+type OperationExecutorExecAsyncOperationArgs struct {
+	ChannelID         uint32
+	Conf              config.Configuration
+	TaskID            string
+	DeploymentID      string
+	NodeName          string
+	Operation         prov.Operation
+	StepName          string
+	LogOptionalFields events.LogOptionalFields
+}
+
+// OperationExecutorExecAsyncOperationResponse is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
+type OperationExecutorExecAsyncOperationResponse struct {
+	Action                 *prov.Action
+	MonitoringTimeInterval time.Duration
+	Error                  *RPCError
+}
+
 // ExecOperation is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (s *OperationExecutorServer) ExecOperation(args *OperationExecutorExecOperationArgs, reply *OperationExecutorExecOperationResponse) error {
@@ -138,6 +185,24 @@ func (s *OperationExecutorServer) ExecOperation(args *OperationExecutorExecOpera
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
 	err := s.OpExecutor.ExecOperation(ctx, args.Conf, args.TaskID, args.DeploymentID, args.NodeName, args.Operation)
 	var resp OperationExecutorExecOperationResponse
+	if err != nil {
+		resp.Error = NewRPCError(err)
+	}
+	*reply = resp
+	return nil
+}
+
+// ExecAsyncOperation is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
+func (s *OperationExecutorServer) ExecAsyncOperation(args *OperationExecutorExecAsyncOperationArgs, reply *OperationExecutorExecAsyncOperationResponse) error {
+
+	ctx, cancelFunc := context.WithCancel(events.NewContext(context.Background(), args.LogOptionalFields))
+	defer cancelFunc()
+
+	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
+	var err error
+	var resp OperationExecutorExecAsyncOperationResponse
+	resp.Action, resp.MonitoringTimeInterval, err = s.OpExecutor.ExecAsyncOperation(ctx, args.Conf, args.TaskID, args.DeploymentID, args.NodeName, args.Operation, args.StepName)
 	if err != nil {
 		resp.Error = NewRPCError(err)
 	}

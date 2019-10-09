@@ -31,6 +31,7 @@ import (
 
 type mockOperationExecutor struct {
 	execoperationCalled            bool
+	execAsyncOperationCalled       bool
 	ctx                            context.Context
 	conf                           config.Configuration
 	taskID, deploymentID, nodeName string
@@ -40,7 +41,40 @@ type mockOperationExecutor struct {
 }
 
 func (m *mockOperationExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
-	return nil, 0, errors.New("asynchronous operation is not yet handled by this executor")
+	m.execAsyncOperationCalled = true
+	m.ctx = ctx
+	m.conf = conf
+	m.taskID = taskID
+	m.deploymentID = deploymentID
+	m.nodeName = nodeName
+	m.operation = operation
+	m.lof, _ = events.FromContext(ctx)
+
+	go func() {
+		<-m.ctx.Done()
+		m.contextCancelled = true
+	}()
+	if m.deploymentID == "TestCancel" {
+		<-m.ctx.Done()
+	}
+	if m.deploymentID == "TestFailure" {
+		return nil, 0, NewRPCError(errors.New("a failure occurred during plugin exec async operation"))
+	}
+	action := prov.Action{
+		ID:         "testID",
+		ActionType: "testActionType",
+		AsyncOperation: prov.AsyncOperation{
+			DeploymentID: deploymentID,
+			TaskID:       taskID,
+			StepName:     stepName,
+			NodeName:     nodeName,
+			Operation:    operation,
+		},
+		Data: map[string]string{
+			"testDataKey": "testDataValue",
+		},
+	}
+	return &action, 5 * time.Second, nil
 }
 
 func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
@@ -190,5 +224,64 @@ func TestOperationGetSupportedArtifactTypes(t *testing.T) {
 	require.Len(t, supportedTypes, 2)
 	require.Contains(t, supportedTypes, "tosca.my.types")
 	require.Contains(t, supportedTypes, "test")
+}
 
+func TestOperationExecutorExecAsyncOperation(t *testing.T) {
+	t.Parallel()
+	mock, client, plugin, op, lof, ctx := setupExecOperationTestEnv(t)
+	defer client.Close()
+	action, interval, err := plugin.ExecAsyncOperation(
+		ctx,
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "TestDepID", "TestNodeName", op, "TestStepName")
+	require.NoError(t, err, "Failed to call plugin ExecAsyncOperation")
+	require.True(t, mock.execAsyncOperationCalled)
+	require.Equal(t, "TestTaskID", action.AsyncOperation.TaskID)
+	require.Equal(t, "testDataValue", action.Data["testDataKey"])
+	require.Equal(t, "TestNodeName", action.AsyncOperation.NodeName)
+	require.Equal(t, op, action.AsyncOperation.Operation)
+	require.Equal(t, 5*time.Second, interval)
+	assert.Equal(t, lof, mock.lof)
+}
+
+func TestOperationExecutorExecAsyncOperationWithFailure(t *testing.T) {
+	t.Parallel()
+	mock, client, plugin, op, _, ctx := setupExecOperationTestEnv(t)
+	defer client.Close()
+	_, _, err := plugin.ExecAsyncOperation(
+		ctx,
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "TestFailure", "TestNodeName", op, "TestStepName")
+	require.True(t, mock.execAsyncOperationCalled)
+	require.Error(t, err, "An error was expected calling plugin ExecAsyncOperation")
+	require.EqualError(t, err, "a failure occurred during plugin exec async operation")
+}
+
+func TestOperationExecutorExecAsyncOperationWithCancel(t *testing.T) {
+	t.Parallel()
+	mock, client := createMockOperationExecutorClient(t)
+	defer client.Close()
+
+	raw, err := client.Dispense(OperationPluginName)
+	require.Nil(t, err)
+
+	plugin := raw.(prov.OperationExecutor)
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
+	ctx, cancelF := context.WithCancel(ctx)
+	go func() {
+		_, _, err := plugin.ExecAsyncOperation(
+			ctx,
+			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+			"TestTaskID", "TestCancel", "TestNodeName", prov.Operation{}, "TestStepName")
+		require.Nil(t, err)
+	}()
+	cancelF()
+	// Wait for cancellation signal to be dispatched
+	time.Sleep(50 * time.Millisecond)
+	require.True(t, mock.contextCancelled, "Context not cancelled")
 }
