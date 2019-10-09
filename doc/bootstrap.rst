@@ -110,7 +110,7 @@ The command ``yorc bootstrap`` will configure on the local host a basic setup wi
 Yorc and a Consul data store.
 
 This basic setup will then be used to bootstrap the full stack Alien4Cloud/Yorc
-and its dependencies over a selected infrastructure.
+and its dependencies over a selected location.
 
 You can deploy the full stack either on a single node (by default), or distributed
 on several nodes as described in :ref:`Run Yorc in HA mode <yorc_ha_section>`, using ``yorc bootstrap``
@@ -119,7 +119,7 @@ command line option ``--deployment_type HA`` described below.
 When flag ``--insecure`` is not specified, a secured installation will performed:
 
   * TLS with mutual authentication between components will be configured,
-  * a Vault will be installed and used to store infrastructure credentials.
+  * a Vault will be installed and used to store location credentials.
 
 Configuration values can be provided by the user:
 
@@ -138,8 +138,8 @@ These configuration values will allow you to specify:
       * the path to a ssh private key that will be used by the local orchestrator to connect to the bootstrapped setup
       * the Certificate authority private key passphrase to use in the default secure mode
         (while the other properties, Certificate Authority private key and PEM-encoded Certificate Authority, are optional. If not provided, they will be generated, and the generated Certificate Authority at ``work/bootstrapResources/ca.pem`` can then be imported in your Web browser as a trusted Certificate Authority)
-  * Infrastructure configuration with required configuration values depending on
-    the infrastructure, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
+  * Location configuration with required configuration values depending on
+    the infrastructure type, as described at :ref:`Locations Configuration <locations_configuration>`
   * Configuration of compute Nodes to create on demand,
   * User used to connect to these compute nodes,
   * Configuration of the connection to public network created on demand.
@@ -177,9 +177,9 @@ You can bootstrap the setup in interactive mode running:
 
     ./yorc bootstrap [--review]
 
-You will have then to select the type of infrastructure (Google Cloud, AWS,
-OpenStack, Hosts Pool) on which you want to deploy the full stack, then you will
-be asked to provide configuration values depending on the selected infrastructure.
+You will have then to select the infrastructure type (Google Cloud, AWS,
+OpenStack, Hosts Pool) and provide a name to the location on which you want to deploy the full stack, then you will
+be asked to provide configuration values depending on the infrastructure type.
 
 The command line option ``--review`` allows to review and update all configuration
 values before proceeding to the deployment, opening the editor specified in the
@@ -209,6 +209,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--insecure`` Insecure mode - no TLS configuration, no Vault to store secrets
   * ``--jdk_download_url`` Java Development Kit download URL (default, JDK downloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
   * ``--jdk_version`` Java Development Kit version (default 1.8.0-131-b11)
+  * ``--location`` Name identifying the location where to deploy Yorc
   * ``--resources_zip`` Path to bootstrap resources zip file (default, zip bundled within Yorc)
   * ``--review`` Review and update input values before starting the bootstrap
   * ``--terraform_download_url`` Terraform download URL (default, Terraform version compatible with this Yorc, under https://releases.hashicorp.com/terraform/)
@@ -226,13 +227,6 @@ The following ``yorc bootstrap`` option are available:
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
-  
-
-In addition, similarly to the configuration of infrastructures in ``yorc server``
-command described at :ref:`Infrastructures Configuration <infrastructures_configuration>`, you can use options to
-define infrastructure and on-demand resources configuration values, for example :
-
-  * ``--infrastructure_openstack_auth_url`` allows to define the authentication URL of an OpenStack infrastructure.
 
 The option ``--resources_zip`` is an advanced usage option allowing you to change
 the bootstrap deployment description. You need to clone first the Yorc source code repository at
@@ -248,7 +242,6 @@ described at :ref:`Yorc Server Configuration <yorc_config_section>`, the bootstr
 through environment variables following the same naming rules, for example:
 
   * ``YORC_ALIEN4CLOUD_PORT`` allows to define the Alien4Cloud port
-  * ``YORC_INFRA_OPENSTACK_AUTH_URL`` allows to define the authentication URL of an OpenStack infrastructure.
 
 Once these environment variables are defined, you can bootstrap the setup running :
 .. parsed-literal::
@@ -274,10 +267,12 @@ for example :
   alien4cloud:
     user: admin
     port: 8088
-  infrastructures:
-    openstack:
-      auth_url: http://10.1.2.3:5000/v2.0
-
+  locations:
+    - name: myLocation
+      type: openstack
+      properties:
+        auth_url: http://10.197.135.201:5000/v2.0
+ 
 
 The bootstrap configuration file can be also be used to define Ansible Inventory
 configuration parameters.
@@ -300,7 +295,7 @@ This would give for example in the bootstrap configuration file:
 
 See later below a :ref:`full example of bootstrap configuration file <yorc_google_example_ubuntu_section>` defining such a parameter.
 
-Sections below provide examples of configuration files for each type of infrastructure.
+Sections below provide examples of configuration files define a location for each infrastructure type.
 
 .. _yorc_google_example_section:
 
@@ -321,11 +316,13 @@ Example of a Google Cloud deployment configuration file
     # Path to PEM-encoded Certificate Authority, accessible locally
     # If not provided, a Certifcate Authority will be generated
     ca_pem_file: /home/myuser/ca.pem
-  infrastructures:
-    google:
-      # Path on local host to file containing Google service account private keys
-      application_credentials: /home/myuser/gcp/myproject-a90a&bf599ef.json
-      project: myproject
+  locations:
+    - name: firstGoogleLocation
+      type: google
+      properties:
+        # Path on local host to file containing Google service account private keys
+        application_credentials: /home/myuser/gcp/myproject-a90a&bf599ef.json
+        project: myproject
   address:
     region: europe-west1
   compute:
@@ -366,11 +363,13 @@ this python interpreter on the remote hosts.
     # Path to PEM-encoded Certificate Authority, accessible locally
     # If not provided, a Certifcate Authority will be generated
     ca_pem_file: /home/myuser/ca.pem
-  infrastructures:
-    google:
-      # Path on local host to file containing Google service account private keys
-      application_credentials: /home/myuser/gcp/myproject-a90a&bf599ef.json
-      project: myproject
+  locations:
+    - name: firstGoogleLocation
+      type: google
+      properties:
+        # Path on local host to file containing Google service account private keys
+        application_credentials: /home/myuser/gcp/myproject-a90a&bf599ef.json
+        project: myproject
   ansible:
     inventory:
       # Remote host run Ubuntu 19.04, using python3.
@@ -411,11 +410,13 @@ Example of an AWS deployment configuration file
     # Path to PEM-encoded Certificate Authority, accessible locally
     # If not provided, a Certifcate Authority will be generated
     ca_pem_file: /home/myuser/ca.pem
-  infrastructures:
-    aws:
-      region: us-east-2
-      access_key: ABCDEFABCDEFABCD12DA
-      secret_key: aabcdxYxABC/a1bcdef
+  locations:
+    - name: firstAWSLocation
+      type: aws
+      properties:
+        region: us-east-2
+        access_key: ABCDEFABCDEFABCD12DA
+        secret_key: aabcdxYxABC/a1bcdef
   address:
     ip_version: 4
   compute:
@@ -445,17 +446,19 @@ Example of an OpenStack deployment configuration file
     # Path to PEM-encoded Certificate Authority, accessible locally
     # If not provided, a Certificate Authority will be generated
     ca_pem_file: /home/myuser/ca.pem
-  infrastructures:
-    openstack:
-      auth_url: http://10.1.2.3:5000/v2.0
-      default_security_groups:
-      - secgroup1
-      - secgroup2
-      password: mypasswd
-      private_network_name: private-test
-      region: RegionOne
-      tenant_name: mytenant
-      user_name: myuser
+  locations:
+    - name: firstOpenStackLocation
+      type: openstack
+      properties:
+        auth_url: http://10.1.2.3:5000/v2.0
+        default_security_groups:
+        - secgroup1
+        - secgroup2
+        password: mypasswd
+        private_network_name: private-test
+        region: RegionOne
+        tenant_name: mytenant
+        user_name: myuser
   address:
     floating_network_name: mypublic-net
   compute:
