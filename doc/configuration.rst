@@ -213,16 +213,19 @@ Below is an example of configuration file.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
+      "locations":[
+        { "name": "myOpenstackLocation1",
+          "type": "openstack"
+          "properties: {
+            "auth_url": "http://your-openstack:5000/v2.0",
+            "tenant_name": "your-tenant",
+            "user_name": "os-user",
+            "password": "os-password",
+            "private_network_name": "default-private-network",
+            "default_security_groups": ["default"]
+          }
         }
-      }
+      ]
     }
 
 
@@ -234,16 +237,19 @@ Below is an example of configuration file with TLS enabled.
       "resources_prefix": "yorc1-",
       "key_file": "/etc/pki/tls/private/yorc.key",
       "cert_file": "/etc/pki/tls/certs/yorc.crt",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
+      "locations":[
+        { "name": "myOpenstackLocation1",
+          "type": "openstack"
+          "properties: {
+            "auth_url": "http://your-openstack:5000/v2.0",
+            "tenant_name": "your-tenant",
+            "user_name": "os-user",
+            "password": "os-password",
+            "private_network_name": "default-private-network",
+            "default_security_groups": ["default"]
+          }
         }
-      }
+      ]
     }
 
 .. _option_shut_timeout_cfg:
@@ -321,16 +327,19 @@ Below is an example of configuration file with Ansible configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
+      "locations":[
+        { "name": "myOpenstackLocation1",
+          "type": "openstack"
+          "properties: {
+            "auth_url": "http://your-openstack:5000/v2.0",
+            "tenant_name": "your-tenant",
+            "user_name": "os-user",
+            "password": "os-password",
+            "private_network_name": "default-private-network",
+            "default_security_groups": ["default"]
+          }
         }
-      },
+      ],
       "ansible": {
         "use_openssh": true,
         "connection_retries": 3,
@@ -546,16 +555,19 @@ Below is an example of configuration file with Consul configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
+      "locations":[
+        { "name": "myOpenstackLocation1",
+          "type": "openstack"
+          "properties: {
+            "auth_url": "http://your-openstack:5000/v2.0",
+            "tenant_name": "your-tenant",
+            "user_name": "os-user",
+            "password": "os-password",
+            "private_network_name": "default-private-network",
+            "default_security_groups": ["default"]
+          }
         }
-      },
+      ],
       "consul": {
         "address": "http://consul-host:8500",
         "datacenter": "dc1",
@@ -620,16 +632,19 @@ Below is an example of configuration file with Terraform configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
+      "locations":[
+        { "name": "myOpenstackLocation1",
+          "type": "openstack"
+          "properties: {
+            "auth_url": "http://your-openstack:5000/v2.0",
+            "tenant_name": "your-tenant",
+            "user_name": "os-user",
+            "password": "os-password",
+            "private_network_name": "default-private-network",
+            "default_security_groups": ["default"]
+          }
         }
-      },
+      ],
       "terraform": {
         "plugins_dir": "home/yorc/terraform_plugins_directory",
       }
@@ -677,16 +692,19 @@ Below is an example of configuration file with telemetry metrics forwarded to a 
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
+      "locations":[
+        { "name": "myOpenstackLocation1",
+          "type": "openstack"
+          "properties: {
+            "auth_url": "http://your-openstack:5000/v2.0",
+            "tenant_name": "your-tenant",
+            "user_name": "os-user",
+            "password": "os-password",
+            "private_network_name": "default-private-network",
+            "default_security_groups": ["default"]
+          }
         }
-      },
+      ],
       "telemetry": {
         "statsd_address": "127.0.0.1:8125",
         "expose_prometheus_endpoint": true
