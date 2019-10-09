@@ -213,7 +213,7 @@ Below is an example of configuration file.
 
     {
       "resources_prefix": "yorc1-",
-      "locations":[
+      "locations": [
         { "name": "myOpenstackLocation1",
           "type": "openstack"
           "properties: {
@@ -237,7 +237,7 @@ Below is an example of configuration file with TLS enabled.
       "resources_prefix": "yorc1-",
       "key_file": "/etc/pki/tls/private/yorc.key",
       "cert_file": "/etc/pki/tls/certs/yorc.crt",
-      "locations":[
+      "locations": [
         { "name": "myOpenstackLocation1",
           "type": "openstack"
           "properties: {
@@ -327,7 +327,7 @@ Below is an example of configuration file with Ansible configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "locations":[
+      "locations": [
         { "name": "myOpenstackLocation1",
           "type": "openstack"
           "properties: {
@@ -555,7 +555,7 @@ Below is an example of configuration file with Consul configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "locations":[
+      "locations": [
         { "name": "myOpenstackLocation1",
           "type": "openstack"
           "properties: {
@@ -632,7 +632,7 @@ Below is an example of configuration file with Terraform configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "locations":[
+      "locations": [
         { "name": "myOpenstackLocation1",
           "type": "openstack"
           "properties: {
@@ -692,7 +692,7 @@ Below is an example of configuration file with telemetry metrics forwarded to a 
 
     {
       "resources_prefix": "yorc1-",
-      "locations":[
+      "locations": [
         { "name": "myOpenstackLocation1",
           "type": "openstack"
           "properties: {
@@ -926,7 +926,7 @@ Here is a JSON example of locations configuration:
 .. code-block:: JSON
 
   {
-  "locations":[
+  "locations": [
     { "name": "myOpenstackLocation1",
       "type": "openstack",
       "properties": {
