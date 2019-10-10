@@ -17,6 +17,7 @@ package locations
 import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
@@ -34,6 +35,24 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 )
+
+// NewManagerWithSSHFactory creates a Location Manager with a given ssh factory
+//
+// Currently this is used for testing purpose to mock the ssh connection.
+func NewManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, error) {
+
+	var locationMgr *locationManager
+	if locationMgr == nil {
+		client, err := cfg.GetConsulClient()
+		if err != nil {
+			return locationMgr, err
+		}
+		locationMgr = &locationManager{cc: client}
+		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapterWithSSHFactory(client, sshClientFactory)
+	}
+
+	return locationMgr, nil
+}
 
 type mockSSHClient struct {
 	config *ssh.ClientConfig

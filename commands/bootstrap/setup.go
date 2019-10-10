@@ -296,7 +296,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 	for {
 		response, err := client.Do(request)
 		if err == nil {
-			defer response.Body.Close()
+			response.Body.Close()
 			return nil
 		}
 
