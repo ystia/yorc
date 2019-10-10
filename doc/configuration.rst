@@ -213,19 +213,7 @@ Below is an example of configuration file.
 
     {
       "resources_prefix": "yorc1-",
-      "locations": [
-        { "name": "myOpenstackLocation1",
-          "type": "openstack"
-          "properties: {
-            "auth_url": "http://your-openstack:5000/v2.0",
-            "tenant_name": "your-tenant",
-            "user_name": "os-user",
-            "password": "os-password",
-            "private_network_name": "default-private-network",
-            "default_security_groups": ["default"]
-          }
-        }
-      ]
+      "locations_file_path": "path-to-locations-yaml-or-json-config"
     }
 
 
@@ -237,19 +225,7 @@ Below is an example of configuration file with TLS enabled.
       "resources_prefix": "yorc1-",
       "key_file": "/etc/pki/tls/private/yorc.key",
       "cert_file": "/etc/pki/tls/certs/yorc.crt",
-      "locations": [
-        { "name": "myOpenstackLocation1",
-          "type": "openstack"
-          "properties: {
-            "auth_url": "http://your-openstack:5000/v2.0",
-            "tenant_name": "your-tenant",
-            "user_name": "os-user",
-            "password": "os-password",
-            "private_network_name": "default-private-network",
-            "default_security_groups": ["default"]
-          }
-        }
-      ]
+      "locations_file_path": "path-to-locations-yaml-or-json-config"
     }
 
 .. _option_shut_timeout_cfg:
@@ -298,7 +274,7 @@ Below is an example of configuration file with TLS enabled.
 
 .. _option_locations_cfg:
 
-  * ``locations_file_path``: Equivalent to :ref:`--location_file_path <option_locations_cmd>` command-line flag.
+  * ``locations_file_path``: Equivalent to :ref:`--locations_file_path <option_locations_cmd>` command-line flag.
 
 .. _option_workers_cfg:
 
@@ -327,19 +303,7 @@ Below is an example of configuration file with Ansible configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "locations": [
-        { "name": "myOpenstackLocation1",
-          "type": "openstack"
-          "properties: {
-            "auth_url": "http://your-openstack:5000/v2.0",
-            "tenant_name": "your-tenant",
-            "user_name": "os-user",
-            "password": "os-password",
-            "private_network_name": "default-private-network",
-            "default_security_groups": ["default"]
-          }
-        }
-      ],
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "ansible": {
         "use_openssh": true,
         "connection_retries": 3,
@@ -555,19 +519,7 @@ Below is an example of configuration file with Consul configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "locations": [
-        { "name": "myOpenstackLocation1",
-          "type": "openstack"
-          "properties: {
-            "auth_url": "http://your-openstack:5000/v2.0",
-            "tenant_name": "your-tenant",
-            "user_name": "os-user",
-            "password": "os-password",
-            "private_network_name": "default-private-network",
-            "default_security_groups": ["default"]
-          }
-        }
-      ],
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "consul": {
         "address": "http://consul-host:8500",
         "datacenter": "dc1",
@@ -632,19 +584,7 @@ Below is an example of configuration file with Terraform configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "locations": [
-        { "name": "myOpenstackLocation1",
-          "type": "openstack"
-          "properties: {
-            "auth_url": "http://your-openstack:5000/v2.0",
-            "tenant_name": "your-tenant",
-            "user_name": "os-user",
-            "password": "os-password",
-            "private_network_name": "default-private-network",
-            "default_security_groups": ["default"]
-          }
-        }
-      ],
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "terraform": {
         "plugins_dir": "home/yorc/terraform_plugins_directory",
       }
@@ -692,19 +632,7 @@ Below is an example of configuration file with telemetry metrics forwarded to a 
 
     {
       "resources_prefix": "yorc1-",
-      "locations": [
-        { "name": "myOpenstackLocation1",
-          "type": "openstack"
-          "properties: {
-            "auth_url": "http://your-openstack:5000/v2.0",
-            "tenant_name": "your-tenant",
-            "user_name": "os-user",
-            "password": "os-password",
-            "private_network_name": "default-private-network",
-            "default_security_groups": ["default"]
-          }
-        }
-      ],
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "telemetry": {
         "statsd_address": "127.0.0.1:8125",
         "expose_prometheus_endpoint": true
@@ -920,7 +848,11 @@ Its ``type`` property describes the infrastructure related to this location. Yor
 
 Its ``properties`` property contains a map with all required information for the infrastructure connection.
 
-This can be written either in JSON or YAML format.
+The :ref:`--locations_file_path option <option_locations_cmd>` allows user to define the specific locations configuration file path.
+This configuration is taken in account for the first time the server starts and allows to populate locations for the Yorc cluster.
+In near future, a REST API will let users add, remove or update existing locations configured in Yorc.
+
+This file can be written either in JSON or YAML format.
 Here is a JSON example of locations configuration:
 
 .. code-block:: JSON
@@ -969,7 +901,7 @@ OpenStack location type is ``openstack`` in lower case.
 .. tabularcolumns:: |p{0.35\textwidth}|p{0.30\textwidth}|p{0.05\textwidth}|p{0.15\textwidth}|p{0.10\textwidth}|
 
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-|            Option Name            |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
+|            Property Name          |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
 |                                   |                                                                                                                     |           |                                                    |               |
 +===================================+=====================================================================================================================+===========+====================================================+===============+
 | ``auth_url``                      | Specify the authentication url for OpenStack (should be the Keystone endpoint ie: http://your-openstack:5000/v2.0). | string    | yes                                                |               |
@@ -1026,7 +958,7 @@ Kubernetes location type is ``kubernetes`` in lower case.
 .. tabularcolumns:: |l|L|L|L|L|
 
 +----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-|           Option Name            |                                   Description                                   | Data Type | Required | Default |
+|           Property Name          |                                   Description                                   | Data Type | Required | Default |
 |                                  |                                                                                 |           |          |         |
 +==================================+=================================================================================+===========+==========+=========+
 | ``kubeconfig``                   | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
@@ -1070,7 +1002,7 @@ Google Cloud Platform
 Google Cloud Platform location type is ``google`` in lower case.
 
 +-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
-|  Option Name                |              Description                     | Data Type | Required | Default                                |
+|  Property Name              |              Description                     | Data Type | Required | Default                                |
 |                             |                                              |           |          |                                        |
 +=============================+==============================================+===========+==========+========================================+
 | ``project``                 | ID of the project to apply any resources to  | string    | yes      |                                        |
@@ -1095,7 +1027,7 @@ AWS
 AWS location type is ``aws`` in lower case.
 
 +----------------+----------------------------------------+-----------+----------+---------+
-|  Option Name   |              Description               | Data Type | Required | Default |
+|  Property Name |              Description               | Data Type | Required | Default |
 |                |                                        |           |          |         |
 +================+========================================+===========+==========+=========+
 | ``access_key`` | Specify the AWS access key credential. | string    | yes      |         |
@@ -1113,7 +1045,7 @@ Slurm
 Slurm location type is ``slurm`` in lower case.
 
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-|     Option Name                  |                          Description                             | Data Type |                     Required                      | Default |
+|     Property Name                |                          Description                             | Data Type |                     Required                      | Default |
 |                                  |                                                                  |           |                                                   |         |
 +==================================+==================================================================+===========+===================================================+=========+
 | ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes (see below for alternatives)                  |         |

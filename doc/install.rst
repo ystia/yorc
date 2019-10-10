@@ -32,8 +32,8 @@ In order to provision softwares on virtual machines that do not necessary have a
 in your OpenStack tenant. Alien4Cloud and the Alien4Cloud Yorc Plugin (see their dedicated documentation to know how to install them) may be collocated
 on the same VM or resides in a different VM.
 
-Virtual Machines created by Yorc should be connected to the same private network as the Yorc VM (the :ref:`--infrastructure_openstack_private_network_name <option_infra_os>`
-configuration flag allows to do it automatically). In order to provision Floating IPs, this private network should be connected to the public network 
+Virtual Machines created by Yorc should be connected to the same private network as the Yorc VM (the location property :ref:`private_network_name <option_infra_os>`
+related to an openstack location type allows to do it automatically). In order to provision Floating IPs, this private network should be connected to the public network
 of the tenant through a router.
 
 

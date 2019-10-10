@@ -17,7 +17,11 @@
 Yorc Supported infrastructures
 ===============================
 
-This section describes the state of our integration with supported infrastructures and their specificities
+This section describes the state of our integration with supported infrastructures and their specificities.
+Yorc deals with the concept of locations as described in `Alien4Cloud documentation <http://alien4cloud.github.io/#/documentation/2.1.0/concepts/orchestrators_locations.html>`_
+
+A location allows Yorc to connect to an infrastructure and to handle multiple locations of the same infrastructure, identified uniquely with its name.
+
 
 .. _yorc_infras_hostspool_section:
 
