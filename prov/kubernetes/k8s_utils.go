@@ -33,7 +33,6 @@ import (
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
-	"github.com/ystia/yorc/v4/log"
 )
 
 func isDeploymentFailed(deployment *v1beta1.Deployment) (bool, string) {
@@ -236,7 +235,7 @@ type k8sJob struct {
 	namespaceProvided bool
 }
 
-func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
+func getJob(ctx context.Context, kv *api.KV, clientset kubernetes.Interface, deploymentID, nodeName string) (*k8sJob, error) {
 	rSpec, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "resource_spec")
 	if err != nil {
 		return nil, err
@@ -245,10 +244,20 @@ func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
 	if rSpec == nil {
 		return nil, errors.Errorf("no resource_spec defined for node %q", nodeName)
 	}
+	rSpecString := rSpec.RawString()
 	jobRepr := &batchv1.Job{}
-	log.Debugf("jobspec: %v", rSpec.RawString())
+	// Unmarshal JSON to k8s data structs just to retrieve namespace
+	if err = json.Unmarshal([]byte(rSpecString), jobRepr); err != nil {
+		return nil, errors.Wrap(err, "The resource-spec JSON unmarshaling failed")
+	}
+	namespace, _ := getNamespace(deploymentID, jobRepr.ObjectMeta)
+	rSpecString, err = replaceServiceIPInResourceSpec(ctx, kv, clientset, deploymentID, nodeName, namespace, rSpecString)
+	if err != nil {
+		return nil, err
+	}
+
 	// Unmarshal JSON to k8s data structs
-	if err = json.Unmarshal([]byte(rSpec.RawString()), jobRepr); err != nil {
+	if err = json.Unmarshal([]byte(rSpecString), jobRepr); err != nil {
 		return nil, errors.Wrap(err, "The resource-spec JSON unmarshaling failed")
 	}
 
@@ -257,6 +266,37 @@ func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
 	job.namespace, job.namespaceProvided = getNamespace(deploymentID, objectMeta)
 
 	return job, nil
+}
+
+func replaceServiceDepLookups(ctx context.Context, clientset kubernetes.Interface, namespace, rSpec, serviceDepsLookups string) (string, error) {
+	for _, srvLookup := range strings.Split(serviceDepsLookups, ",") {
+		srvLookupArgs := strings.SplitN(srvLookup, ":", 2)
+		srvPlaceholder := "${" + srvLookupArgs[0] + "}"
+		if !strings.Contains(rSpec, srvPlaceholder) || len(srvLookupArgs) != 2 {
+			// No need to make an API call if there is no placeholder to replace
+			// Alien set services lookups on all nodes
+			continue
+		}
+		srvName := srvLookupArgs[1]
+		srv, err := clientset.CoreV1().Services(namespace).Get(srvName, metav1.GetOptions{})
+		if err != nil {
+			return rSpec, errors.Wrapf(err, "failed to retrieve ClusterIP for service %q", srvName)
+		}
+		if srv.Spec.ClusterIP == "" || srv.Spec.ClusterIP == "None" {
+			// Not supported
+			return rSpec, errors.Errorf("failed to retrieve ClusterIP for service %q, (value=%q)", srvName, srv.Spec.ClusterIP)
+		}
+		rSpec = strings.Replace(rSpec, srvPlaceholder, srv.Spec.ClusterIP, -1)
+	}
+	return rSpec, nil
+}
+
+func replaceServiceIPInResourceSpec(ctx context.Context, kv *api.KV, clientset kubernetes.Interface, deploymentID, nodeName, namespace, rSpec string) (string, error) {
+	serviceDepsLookups, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "service_dependency_lookups")
+	if err != nil || serviceDepsLookups == nil || serviceDepsLookups.RawString() == "" {
+		return rSpec, err
+	}
+	return replaceServiceDepLookups(ctx, clientset, namespace, rSpec, serviceDepsLookups.RawString())
 }
 
 //Return the external IP of a given node

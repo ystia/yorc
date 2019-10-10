@@ -75,6 +75,13 @@ an operation executor for any implementation artifact.
 Those executors are typically designed to handle new configuration managers like chef or puppet for
 instance.
 
+Action Operators
+~~~~~~~~~~~~~~~~
+
+Action Operators handle the execution of asynchronous operations.
+These executors are typically designed to handle the monitoring of a job state.
+
+
 Infrastructure Usage Collector
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
