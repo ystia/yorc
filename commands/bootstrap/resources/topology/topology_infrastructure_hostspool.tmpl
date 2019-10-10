@@ -1,7 +1,8 @@
 {{ define "Infrastructure" }}
-      type: org.ystia.yorc.infrastructure.HostsPoolConfig
+      type: org.ystia.yorc.location.HostsPoolConfig
       properties:
         hosts: |{{formatAsYAML .Hosts 10}}
+        location_name: "{{.Location.Name}}"
       requirements:
         - infraHostedOnYorcServer:
             type_requirement: yorc
