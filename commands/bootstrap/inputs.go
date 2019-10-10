@@ -653,17 +653,17 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			// Initializing this private key and checking as well mandatory
 			// labels are defined
 			privateKeyPath := filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
-			for _, host := range inputValues.Hosts {
-				host.Connection.PrivateKey = privateKeyPath
+			for i := range inputValues.Hosts {
+				inputValues.Hosts[i].Connection.PrivateKey = privateKeyPath
 				// Checking labels
-				if host.Labels == nil {
+				if inputValues.Hosts[i].Labels == nil {
 					return fmt.Errorf("Missing mandatory labels %s for host %s",
-						strings.Join(mandatoryHostPoolLabels, ", "), host.Name)
+						strings.Join(mandatoryHostPoolLabels, ", "), inputValues.Hosts[i].Name)
 				}
 				for _, label := range mandatoryHostPoolLabels {
-					if _, found := host.Labels[label]; !found {
+					if _, found := inputValues.Hosts[i].Labels[label]; !found {
 						return fmt.Errorf("Missing mandatory label %s for host %s",
-							label, host.Name)
+							label, inputValues.Hosts[i].Name)
 					}
 				}
 			}
