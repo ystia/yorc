@@ -6,6 +6,10 @@
 
 * Bootstrap wrongly configures on-demand resources on OpenStack ([GH-520](https://github.com/ystia/yorc/issues/520))
 
+### ENHANCEMENTS
+
+* Locations concept in Yorc ([GH-478(https://github.com/ystia/yorc/issues/478))
+
 ### FEATURES
 
 * Yorc support of Kubernetes StatefulSet ([GH-206](https://github.com/ystia/yorc/issues/206))
