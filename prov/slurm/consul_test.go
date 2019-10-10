@@ -40,7 +40,7 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		},
 	}
 
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 
 	slumTestLocationProps = config.DynamicMap{

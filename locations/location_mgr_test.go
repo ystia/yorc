@@ -36,10 +36,10 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-// NewManagerWithSSHFactory creates a Location Manager with a given ssh factory
+// GetManagerWithSSHFactory creates a Location Manager with a given ssh factory
 //
 // Currently this is used for testing purpose to mock the ssh connection.
-func NewManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, error) {
+func GetManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, error) {
 
 	var locationMgr *locationManager
 	if locationMgr == nil {
@@ -252,7 +252,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
-	mgr, err := NewManagerWithSSHFactory(testConfig, mockSSHClientFactory)
+	mgr, err := GetManagerWithSSHFactory(testConfig, mockSSHClientFactory)
 	require.NoError(t, err, "Failed to create a location manager")
 
 	done, err := mgr.InitializeLocations(locationFilePath)

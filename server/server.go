@@ -80,7 +80,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	}
 
 	if configuration.LocationsFilePath != "" {
-		locationMgr, err := locations.NewManager(configuration)
+		locationMgr, err := locations.GetManager(configuration)
 		if err != nil {
 			return errors.Wrap(err, "Failed to initialize locations")
 		}

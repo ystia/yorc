@@ -37,7 +37,7 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		},
 	}
 
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupAWS", func(t *testing.T) {

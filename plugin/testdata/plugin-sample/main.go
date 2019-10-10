@@ -18,7 +18,7 @@ type myDelegateExecutor struct{}
 func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	log.Printf("Hello from myDelegateExecutor")
 
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (d *myOperationExecutor) ExecAsyncOperation(ctx context.Context, conf confi
 func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Printf("Hello from myOperationExecutor")
 	
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	if err != nil {
 		return err
 	}

@@ -50,7 +50,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	infrastructure := commons.Infrastructure{}
 
 	var locationProps config.DynamicMap
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
 		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
 	}

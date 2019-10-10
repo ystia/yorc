@@ -56,7 +56,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 	// Define Terraform provider environment variables
 	var locationProps config.DynamicMap
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
 		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
 	}

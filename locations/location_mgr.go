@@ -63,8 +63,8 @@ type LocationsDefinition struct {
 	Locations []LocationConfiguration `yaml:"locations" mapstructure:"locations" json:"locations"`
 }
 
-// NewManager creates a Location Manager
-func NewManager(cfg config.Configuration) (Manager, error) {
+// GetManager gets a Location Manager, creating one if none was created yet
+func GetManager(cfg config.Configuration) (Manager, error) {
 
 	var locationMgr *locationManager
 	if locationMgr == nil {

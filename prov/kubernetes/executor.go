@@ -58,7 +58,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 	}
 
 	var locationProps config.DynamicMap
-	locationMgr, err := locations.NewManager(conf)
+	locationMgr, err := locations.GetManager(conf)
 	if err == nil {
 		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
 	}
@@ -87,7 +87,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	}
 
 	var locationProps config.DynamicMap
-	locationMgr, err := locations.NewManager(conf)
+	locationMgr, err := locations.GetManager(conf)
 	if err == nil {
 		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
 	}

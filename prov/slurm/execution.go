@@ -97,7 +97,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 
 	var locationProps config.DynamicMap
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
 		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
 	}

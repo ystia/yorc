@@ -68,7 +68,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	}
 
 	var locationProps config.DynamicMap
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
 		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
 	}

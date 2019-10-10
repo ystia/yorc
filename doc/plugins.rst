@@ -230,7 +230,7 @@ and edit it with following content.
   func (de *delegateExecutor) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 
     // Here is how to retrieve location config parameters from Yorc
-    locationMgr, err := locations.NewManager(conf)
+    locationMgr, err := locations.GetManager(conf)
     if err != nil {
       return err
     }

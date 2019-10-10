@@ -36,7 +36,7 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 		},
 	}
-	locationMgr, err := locations.NewManager(cfg)
+	locationMgr, err := locations.GetManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupOpenstack", func(t *testing.T) {
