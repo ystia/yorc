@@ -42,7 +42,7 @@ func init() {
 	var location string
 	var autoApprove bool
 	var applyCmd = &cobra.Command{
-		Use:   "apply <locationName> <path to Hosts Pool configuration>",
+		Use:   "apply -l <locationName> <path to Hosts Pool configuration>",
 		Short: "Apply a Hosts Pool configuration for a specified location",
 		Long: `Apply a Hosts Pool configuration provided in the file passed in argument for a specified location
 	This file should contain a YAML or a JSON description.`,
