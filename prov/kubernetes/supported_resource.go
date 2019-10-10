@@ -140,7 +140,7 @@ func (yorcDep *yorcK8sDeployment) unmarshalResource(ctx context.Context, e *exec
 		return err
 	}
 	ns, _ := getNamespace(e.deploymentID, yorcDep.ObjectMeta)
-	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, ns, rSpec)
+	rSpec, err = replaceServiceIPInResourceSpec(ctx, e.kv, clientset, e.deploymentID, e.nodeName, ns, rSpec)
 	if err != nil {
 		return err
 	}
@@ -236,6 +236,16 @@ func (yorcDep *yorcK8sDeployment) streamLogs(ctx context.Context, deploymentID s
 	----------------------------------------------
 */
 func (yorcSts *yorcK8sStatefulSet) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
+	err := json.Unmarshal([]byte(rSpec), &yorcSts)
+	if err != nil {
+		return err
+	}
+	ns, _ := getNamespace(e.deploymentID, yorcSts.ObjectMeta)
+	rSpec, err = replaceServiceIPInResourceSpec(ctx, e.kv, clientset, e.deploymentID, e.nodeName, ns, rSpec)
+	if err != nil {
+		return err
+	}
+
 	return json.Unmarshal([]byte(rSpec), &yorcSts)
 }
 

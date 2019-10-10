@@ -133,7 +133,7 @@ func testK8sObjectsTest(t *testing.T, kv *api.KV) {
 			}
 
 			if tt.nodeName == "node-deploy" {
-				replacedRSpec, err := e.replaceServiceIPInDeploymentSpec(ctx, k8s.clientset, "dep-id", "{}")
+				replacedRSpec, err := replaceServiceIPInResourceSpec(ctx, kv, k8s.clientset, "dep-id", tt.nodeName, "", "{}")
 				// TODO test replaceRSpec value
 				require.Nil(t, err)
 				require.NotNil(t, replacedRSpec)

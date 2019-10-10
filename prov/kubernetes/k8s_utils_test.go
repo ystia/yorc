@@ -15,6 +15,7 @@
 package kubernetes
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -329,6 +330,104 @@ func Test_podControllersInNamespace(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("podControllersInNamespace() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_replaceServiceDepLookups(t *testing.T) {
+	specWithoutPlaceHolders := `Something`
+	specWithPlaceHolders := `something ${PLACEHOLDER1} something else ${PLACEHOLDER2}`
+	placeholderToService := map[string]string{"PLACEHOLDER1": "service1", "PLACEHOLDER2": "service2"}
+	serviceToIP := map[string]string{"service1": "10.0.0.1", "service2": "10.0.0.2"}
+	replaceMapInPlaceHolders := func(inputString string, placeholderToService, serviceToIP map[string]string) string {
+		for p, s := range placeholderToService {
+			i, ok := serviceToIP[s]
+			if !ok {
+				continue
+			}
+			inputString = strings.ReplaceAll(inputString, "${"+p+"}", i)
+		}
+		return inputString
+	}
+
+	type args struct {
+		clientset          kubernetes.Interface
+		namespace          string
+		rSpec              string
+		serviceDepsLookups string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"TestWithoutPlaceHoldersAndServiceDepLookups", args{fake.NewSimpleClientset(), "", specWithoutPlaceHolders, ""}, specWithoutPlaceHolders, false},
+		{"TestWithoutPlaceHoldersButWithServiceDepLookups", args{fake.NewSimpleClientset(), "", specWithoutPlaceHolders, "PLACEHOLDER1:service1,PLACEHOLDER2:service2"}, specWithoutPlaceHolders, false},
+		{"TestWithPlaceHoldersButWithoutServiceDepLookups", args{fake.NewSimpleClientset(), "", specWithPlaceHolders, ""}, specWithPlaceHolders, false},
+		{"TestWithPlaceHoldersAndServiceDepLookups", args{
+			func() kubernetes.Interface {
+				c := fake.NewSimpleClientset()
+				c.PrependReactor("get", "services", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+					if !action.Matches("get", "services") {
+						return false, nil, nil
+					}
+					getAction := action.(k8stesting.GetAction)
+					if ip, ok := serviceToIP[getAction.GetName()]; ok {
+						return true, &corev1.Service{
+							Spec: corev1.ServiceSpec{
+								ClusterIP: ip,
+							},
+						}, nil
+					}
+					return false, nil, nil
+				})
+				return c
+			}(),
+			"", specWithPlaceHolders, "PLACEHOLDER1:service1,PLACEHOLDER2:service2"}, replaceMapInPlaceHolders(specWithPlaceHolders, placeholderToService, serviceToIP), false},
+		{"TestClusterIPNone", args{
+			func() kubernetes.Interface {
+				c := fake.NewSimpleClientset()
+				c.PrependReactor("get", "services", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+					if !action.Matches("get", "services") {
+						return false, nil, nil
+					}
+					return true, &corev1.Service{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: corev1.ClusterIPNone,
+						},
+					}, nil
+				})
+				return c
+			}(),
+			"", specWithPlaceHolders, "PLACEHOLDER1:service1,PLACEHOLDER2:service2"}, "", true},
+		{"TestClusterIPEmpty", args{
+			func() kubernetes.Interface {
+				c := fake.NewSimpleClientset()
+				c.PrependReactor("get", "services", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+					if !action.Matches("get", "services") {
+						return false, nil, nil
+					}
+					return true, &corev1.Service{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "",
+						},
+					}, nil
+				})
+				return c
+			}(),
+			"", specWithPlaceHolders, "PLACEHOLDER1:service1,PLACEHOLDER2:service2"}, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := replaceServiceDepLookups(context.Background(), tt.args.clientset, tt.args.namespace, tt.args.rSpec, tt.args.serviceDepsLookups)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("replaceServiceDepLookups() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil && got != tt.want {
+				t.Errorf("replaceServiceDepLookups() = %v, want %v", got, tt.want)
 			}
 		})
 	}
