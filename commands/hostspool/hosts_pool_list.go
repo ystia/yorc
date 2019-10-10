@@ -33,7 +33,7 @@ func init() {
 	var location string
 	var filters []string
 	hpListCmd := &cobra.Command{
-		Use:   "list",
+		Use:   "list -l <locationName>",
 		Short: "List hosts pool for a specified location",
 		Long:  `Lists hosts of a hosts pool for a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {

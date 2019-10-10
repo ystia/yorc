@@ -34,7 +34,7 @@ func init() {
 	var outputFormat string
 	var filePath string
 	hpExportCmd := &cobra.Command{
-		Use:   "export",
+		Use:   "export -l <locationName>",
 		Short: "Export hosts pool configuration for a specified location",
 		Long:  `Export hosts pool configuration for a specified location as a YAML or JSON representation`,
 		RunE: func(cmd *cobra.Command, args []string) error {

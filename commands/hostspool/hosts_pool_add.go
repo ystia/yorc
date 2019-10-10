@@ -40,7 +40,7 @@ func init() {
 	var labels []string
 
 	var addCmd = &cobra.Command{
-		Use:   "add <hostname>",
+		Use:   "add -l <locationName> <hostname>",
 		Short: "Add host to the pool of a specified location",
 		Long:  `Adds a host to the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {

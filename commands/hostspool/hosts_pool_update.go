@@ -40,7 +40,7 @@ func init() {
 	var labelsRemove []string
 
 	var updCmd = &cobra.Command{
-		Use:   "update <hostname>",
+		Use:   "update -l <locationName> <hostname>",
 		Short: "Update host pool of a specified location",
 		Long:  `Update labels list or connection of a host of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -26,7 +26,7 @@ import (
 func init() {
 	var location string
 	var delCmd = &cobra.Command{
-		Use:   "delete <hostname> [hostname...]",
+		Use:   "delete -l <locationName> <hostname> [hostname...]",
 		Short: "Delete hosts of a specified location",
 		Long:  `Delete hosts of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {

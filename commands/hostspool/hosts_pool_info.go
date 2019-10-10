@@ -32,7 +32,7 @@ import (
 func init() {
 	var location string
 	var getCmd = &cobra.Command{
-		Use:   "info <hostname>",
+		Use:   "info -l <locationName> <hostname>",
 		Short: "Get location host pool info",
 		Long:  `Gets the description of a host of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
