@@ -287,7 +287,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 		return err
 	}
 
-	request, err := client.NewRequest("PUT", "/hosts_pool", nil)
+	request, err := client.NewRequest("PUT", "/hosts_pool/bootstrapHostsPool", nil)
 	if err != nil {
 		return err
 	}
