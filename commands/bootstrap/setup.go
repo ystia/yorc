@@ -287,7 +287,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 		return err
 	}
 
-	request, err := client.NewRequest("PUT", "/hosts_pool/bootstrapHostsPool", nil)
+	request, err := client.NewRequest("GET", "/hosts_pool", nil)
 	if err != nil {
 		return err
 	}
@@ -296,9 +296,9 @@ func waitForYorcServerUP(timeout time.Duration) error {
 	for {
 		response, err := client.Do(request)
 		if err == nil {
+			defer response.Body.Close()
 			return nil
 		}
-		defer response.Body.Close()
 
 		nbAttempts--
 		if nbAttempts < 0 {
