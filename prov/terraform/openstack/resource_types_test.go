@@ -19,13 +19,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 )
 
 func Test_resourceTypes(t *testing.T) {
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			"oldOpenStack": config.DynamicMap{
+	locs := []locations.LocationConfiguration{
+		locations.LocationConfiguration{
+			Name: "oldOpenStack",
+			Type: infrastructureType,
+			Properties: config.DynamicMap{
 				"auth_url":                "http://1.2.3.4:5000/v2.0",
 				"default_security_groups": []string{"sec1", "sec2"},
 				"user_name":               "user1",
@@ -34,7 +37,11 @@ func Test_resourceTypes(t *testing.T) {
 				"private_network_name":    "private-net",
 				"region":                  "RegionOne",
 			},
-			"newOpenStack": config.DynamicMap{
+		},
+		locations.LocationConfiguration{
+			Name: "newOpenStack",
+			Type: infrastructureType,
+			Properties: config.DynamicMap{
 				"auth_url":                "http://1.2.3.4:5000/v3",
 				"default_security_groups": []string{"sec1", "sec2"},
 				"user_name":               "user1",
@@ -49,18 +56,18 @@ func Test_resourceTypes(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		infra            string
+		locationIndex    int
 		volumeTypeResult string
 	}{
-		{"testOldOpenStack", "oldOpenStack", "openstack_blockstorage_volume_v1"},
-		{"testNewOpenStack", "newOpenStack", "openstack_blockstorage_volume_v3"},
+		{"testOldOpenStack", 0, "openstack_blockstorage_volume_v1"},
+		{"testNewOpenStack", 1, "openstack_blockstorage_volume_v3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			resourceTypes := getOpenstackResourceTypes(cfg, tt.infra)
+			resourceTypes := getOpenstackResourceTypes(locs[tt.locationIndex].Properties)
 			assert.Equal(t, tt.volumeTypeResult, resourceTypes[blockStorageVolume],
-				"Unexpected resource type on infra %s", tt.infra)
+				"Unexpected resource type on location %s", locs[tt.locationIndex].Name)
 		})
 	}
 }

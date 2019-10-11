@@ -8,6 +8,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/plugin"
 	"github.com/ystia/yorc/v4/prov"
 )
@@ -16,16 +17,18 @@ type myDelegateExecutor struct{}
 
 func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	log.Printf("Hello from myDelegateExecutor")
-	_, err := cfg.GetConsulClient()
+
+	locationMgr, err := locations.GetManager(cfg)
 	if err != nil {
 		return err
 	}
 
-	if cfg.Infrastructures["plugin"] != nil {
-		for _, k := range cfg.Infrastructures["plugin"].Keys() {
+	props, err := locationMgr.GetLocationProperties("plugin", "locationType")
+	if err != nil {
+		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
-		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+		log.Printf("Secret key: %q", props.GetStringOrDefault("test", "not found!"))
 	}
 
 	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myDelegateExecutor")
@@ -40,16 +43,18 @@ func (d *myOperationExecutor) ExecAsyncOperation(ctx context.Context, conf confi
 
 func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Printf("Hello from myOperationExecutor")
-	_, err := cfg.GetConsulClient()
+	
+	locationMgr, err := locations.GetManager(cfg)
 	if err != nil {
 		return err
 	}
 
-	if cfg.Infrastructures["plugin"] != nil {
-		for _, k := range cfg.Infrastructures["plugin"].Keys() {
+	props, err := locationMgr.GetLocationProperties("plugin", "locationType")
+	if err != nil {
+		for _, k := range props.Keys() {
 			log.Printf("configuration key: %s", k)
 		}
-		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+		log.Printf("Secret key: %q", props.GetStringOrDefault("test", "not found!"))
 	}
 
 	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")

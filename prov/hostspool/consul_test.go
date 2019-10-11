@@ -16,6 +16,7 @@ package hostspool
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"strings"
 	"testing"
 
@@ -32,6 +33,14 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	defer srv.Stop()
 	kv := client.KV()
 	log.SetDebug(true)
+
+	// Populate hosts for this test location
+	location := "testHostsPoolLocation"
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.HostsPoolPrefix + "/testHostsPoolLocation/host21/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/testHostsPoolLocation/host22/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/testHostsPoolLocation/host23/status": []byte("free"),
+	})
 
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
@@ -82,6 +91,9 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testConsulManagerApplyBadConnection", func(t *testing.T) {
 		testConsulManagerApplyBadConnection(t, client)
 	})
+	t.Run("testConsulManagerApplyBadConnectionAndRestoreHostStatus", func(t *testing.T) {
+		testConsulManagerApplyBadConnectionAndRestoreHostStatus(t, client)
+	})
 	t.Run("testConsulManagerAllocateConcurrency", func(t *testing.T) {
 		testConsulManagerAllocateConcurrency(t, client)
 	})
@@ -101,12 +113,12 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testCreateFiltersFromComputeCapabilities(t, kv, deploymentID)
 	})
 	t.Run("testConcurrentExecDelegateShareableHost", func(t *testing.T) {
-		testConcurrentExecDelegateShareableHost(t, srv, client, kv, deploymentID)
+		testConcurrentExecDelegateShareableHost(t, srv, client, kv, deploymentID, location)
 	})
 	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
-		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID)
+		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID, location)
 	})
 	t.Run("testExecDelegateFailure", func(t *testing.T) {
-		testExecDelegateFailure(t, srv, client, kv, deploymentID)
+		testExecDelegateFailure(t, srv, client, kv, deploymentID, location)
 	})
 }

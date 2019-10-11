@@ -57,13 +57,6 @@ func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy-nores-props/type":                                        []byte("yorc.nodes.kubernetes.api.types.DeploymentResource"),
 	})
 
-	t.Run("testK8sObjectsTest", func(t *testing.T) {
-		testK8sObjectsTest(t, kv)
-	})
-}
-
-func testK8sObjectsTest(t *testing.T, kv *api.KV) {
-
 	ctx := context.Background()
 	k8s := newTestK8s()
 	tests := []struct {

@@ -27,12 +27,13 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-const infrastructureName = "aws"
+const infrastructureType = "aws"
 
 type awsGenerator struct {
 }
@@ -48,17 +49,26 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 
 	infrastructure := commons.Infrastructure{}
 
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return false, nil, nil, nil, err
+	}
+
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
 	cmdEnv := []string{
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", cfg.Infrastructures[infrastructureName].GetString("access_key")),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", cfg.Infrastructures[infrastructureName].GetString("secret_key")),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", locationProps.GetString("access_key")),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", locationProps.GetString("secret_key")),
 	}
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"aws": map[string]interface{}{
-			"region":  cfg.Infrastructures[infrastructureName].GetString("region"),
+			"region":  locationProps.GetString("region"),
 			"version": cfg.Terraform.AWSPluginVersionConstraint,
 		},
 		"consul": commons.GetConsulProviderfiguration(cfg),

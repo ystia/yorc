@@ -2,10 +2,103 @@
 
 ## UNRELEASED
 
+### BREAKING CHANGES
+
+The support of locations in Yorc (issue [GH-478](https://github.com/ystia/yorc/issues/478)), provides the ability to create several locations of a given infrastructure type (Openstack, Google Cloud, AWS, SLURM, Hosts Pool).
+
+It introduces breaking changes in Yorc configuration as described below.
+ 
+It is not anymore possible to define infrastructure properties through:
+* environment variables, like `YORC_INFRA_OPENSTACK_AUTH_URL`
+* yorc server command flags, like `--infrastructure_openstack_auth_url`.
+
+Yorc configuration file does not anymore contain infrastructures definitions. This configuration provides now the path to a file defining locations for any of these types: Openstack, Google Cloud, AWS, SLURM.
+
+For example, this Yorc configuration file in previous version allowed to define a single infrastructure of type OpenStack:
+
+```yaml
+resources_prefix: yorc-
+consul:
+  address: http://consul-host:8500
+  datacenter: dc1
+infrastructures:
+  openstack:
+    auth_url: http://1.2.3.4:5000
+    tenant_name: mytenant
+    user_name: myuser
+    password: mypasswd
+    region: RegionOne
+    private_network_name: private-net
+    default_security_groups: [group1,default]
+```
+
+This becomes now in this version:
+
+```yaml
+resources_prefix: yorc-
+consul:
+  address: 127.0.0.1:8500
+locations_file_path: /path/to/locations.yaml
+```
+
+And file `/path/to/locations.yaml` contains locations definitions, for example here two OpenStack locations :
+
+```yaml
+locations:
+  - name: myFirstOpenStackLocation
+    type: openstack
+    properties:
+      auth_url: http://1.2.3.4:5000
+      tenant_name: mytenant
+      user_name: myuser
+      password: mypasswd
+      region: RegionOne
+      private_network_name: private-net
+      default_security_groups: [group1,default]
+  - name: mySecondOpenStackLocation
+    type: openstack
+    properties:
+      auth_url: http://5.6.7.8:5000
+      tenant_name: mytenant
+      user_name: myuser
+      password: mypasswd
+      region: RegionOne
+      private_network_name: private-net
+      default_security_groups: [group1,default]
+```
+
+When a Yorc server is starting and has no location defined yet, it will read this locations configuration file and create the corresponding locations.
+Once this has been done, the locations configuration file won't be used anymore. Next version of Yorc will provide CLI and APIs allowing to create/update/delete locations.
+
+Regardings Hosts Pool, the file format allowing to define one Hosts Pool hasn't changed.
+But the CLI commands have now a mandatory argument to provide the location name:  `-l locationName` or `--location locationName`.
+
+For example, this command was executed in previous Yorc version to create/update a Hosts Pool from a file:
+
+```bash
+$ yorc hp apply myhostspool.yaml
+```
+
+It is now:
+ 
+```bash
+$ yorc hp apply -l myLocation myhostspool.yaml
+```
+
+See Yorc documentation for additional details:
+* section [configuration](https://yorc.readthedocs.io/en/latest/configuration.html)
+* section on [CLI commands related to Hosts pool](https://yorc.readthedocs.io/en/latest/cli.html#cli-commands-related-to-hosts-pool)
+
+
+
 ### FEATURES
 
 * Yorc support of Kubernetes StatefulSet ([GH-206](https://github.com/ystia/yorc/issues/206))
 * Add support for asynchronous operations execution on plugins ([GH-525](https://github.com/ystia/yorc/issues/525))
+
+### ENHANCEMENTS
+
+* Locations concept in Yorc ([GH-478(https://github.com/ystia/yorc/issues/478))
 
 ### BUG FIXES
 

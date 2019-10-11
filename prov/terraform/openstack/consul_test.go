@@ -17,6 +17,10 @@ package openstack
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -25,6 +29,15 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
+
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+	locationMgr, err := locations.GetManager(cfg)
+	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupOpenstack", func(t *testing.T) {
 		t.Run("simpleOSInstance", func(t *testing.T) {
@@ -70,7 +83,7 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 			testOSInstanceWithServerGroup(t, kv, srv)
 		})
 		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
-			testGenerateTerraformInfo(t, srv, kv)
+			testGenerateTerraformInfo(t, srv, kv, locationMgr)
 		})
 		t.Run("TestComputeBootVolumeWrongSize", func(t *testing.T) {
 			testComputeBootVolumeWrongSize(t, srv, kv)

@@ -30,6 +30,7 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 	"github.com/ystia/yorc/v4/tosca"
@@ -47,6 +48,7 @@ type generateInfraOptions struct {
 	kv             *api.KV
 	cfg            config.Configuration
 	infrastructure *commons.Infrastructure
+	locationProps  config.DynamicMap
 	instancesKey   string
 	deploymentID   string
 	nodeName       string
@@ -93,8 +95,16 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
 
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return false, nil, nil, nil, err
+	}
 	var cmdEnv []string
-	infrastructure.Provider, cmdEnv = getOpenStackProviderEnv(cfg, infrastructureName)
+	infrastructure.Provider, cmdEnv = getOpenStackProviderEnv(cfg, locationProps)
 
 	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
@@ -108,13 +118,14 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 		return false, nil, nil, nil, err
 	}
 
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 
 	for instIdx, instanceName := range instances {
 		infraOpts := generateInfraOptions{
 			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
+			locationProps:  locationProps,
 			instancesKey:   instancesKey,
 			deploymentID:   deploymentID,
 			nodeName:       nodeName,
@@ -142,25 +153,25 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	return true, outputs, cmdEnv, nil, nil
 }
 
-func getOpenStackProviderEnv(cfg config.Configuration, infraName string) (map[string]interface{}, []string) {
+func getOpenStackProviderEnv(cfg config.Configuration, locationProps config.DynamicMap) (map[string]interface{}, []string) {
 	cmdEnv := []string{
-		fmt.Sprintf("OS_USERNAME=%s", cfg.Infrastructures[infraName].GetString("user_name")),
-		fmt.Sprintf("OS_PASSWORD=%s", cfg.Infrastructures[infraName].GetString("password")),
-		fmt.Sprintf("OS_PROJECT_NAME=%s", cfg.Infrastructures[infraName].GetString("project_name")),
-		fmt.Sprintf("OS_PROJECT_ID=%s", cfg.Infrastructures[infraName].GetString("project_id")),
-		fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", cfg.Infrastructures[infraName].GetString("user_domain_name")),
-		fmt.Sprintf("OS_AUTH_URL=%s", cfg.Infrastructures[infraName].GetString("auth_url")),
+		fmt.Sprintf("OS_USERNAME=%s", locationProps.GetString("user_name")),
+		fmt.Sprintf("OS_PASSWORD=%s", locationProps.GetString("password")),
+		fmt.Sprintf("OS_PROJECT_NAME=%s", locationProps.GetString("project_name")),
+		fmt.Sprintf("OS_PROJECT_ID=%s", locationProps.GetString("project_id")),
+		fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", locationProps.GetString("user_domain_name")),
+		fmt.Sprintf("OS_AUTH_URL=%s", locationProps.GetString("auth_url")),
 	}
 
 	// Management of variables for Terraform
 	provider := map[string]interface{}{
 		"openstack": map[string]interface{}{
 			"version":     cfg.Terraform.OpenStackPluginVersionConstraint,
-			"tenant_name": cfg.Infrastructures[infraName].GetString("tenant_name"),
-			"insecure":    cfg.Infrastructures[infraName].GetString("insecure"),
-			"cacert_file": cfg.Infrastructures[infraName].GetString("cacert_file"),
-			"cert":        cfg.Infrastructures[infraName].GetString("cert"),
-			"key":         cfg.Infrastructures[infraName].GetString("key"),
+			"tenant_name": locationProps.GetString("tenant_name"),
+			"insecure":    locationProps.GetString("insecure"),
+			"cacert_file": locationProps.GetString("cacert_file"),
+			"cert":        locationProps.GetString("cert"),
+			"key":         locationProps.GetString("key"),
 		},
 		"consul": commons.GetConsulProviderfiguration(cfg),
 		"null": map[string]interface{}{
@@ -191,6 +202,7 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 				kv:             opts.kv,
 				cfg:            opts.cfg,
 				infrastructure: opts.infrastructure,
+				locationProps:  opts.locationProps,
 				deploymentID:   opts.deploymentID,
 				nodeName:       opts.nodeName,
 				instanceName:   opts.instanceName,
@@ -237,7 +249,8 @@ func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error
 	}
 
 	var bsVolume BlockStorageVolume
-	bsVolume, err = g.generateOSBSVolume(opts.kv, opts.cfg, opts.deploymentID, opts.nodeName, opts.instanceName)
+	bsVolume, err = g.generateOSBSVolume(opts.kv, opts.cfg, opts.locationProps,
+		opts.deploymentID, opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
 	}
@@ -329,12 +342,12 @@ func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
 	}
 
 	var network Network
-	network, err = g.generateNetwork(opts.kv, opts.cfg, opts.deploymentID, opts.nodeName)
+	network, err = g.generateNetwork(opts.kv, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}
 	var subnet Subnet
-	subnet, err = g.generateSubnet(opts.kv, opts.cfg, opts.deploymentID, opts.nodeName,
+	subnet, err = g.generateSubnet(opts.kv, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName,
 		opts.resourceTypes[networkingNetwork])
 	if err != nil {
 		return err

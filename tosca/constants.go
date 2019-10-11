@@ -72,6 +72,10 @@ const ComputeNodePrivateAddressAttributeName = "private_address"
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#_Toc379455082
 const ComputeNodeNetworksAttributeName = "networks"
 
+// MetadataLocationNameKey is the node template metadata key whose value provides
+// the name of the location where to create this node template
+const MetadataLocationNameKey = "location"
+
 // NetworkNameProperty is the name of the property containing the name of a logical
 // network
 //

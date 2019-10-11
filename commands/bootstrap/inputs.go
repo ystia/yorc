@@ -36,6 +36,7 @@ import (
 	"github.com/ystia/yorc/v4/commands"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/rest"
 	"github.com/ystia/yorc/v4/tosca"
 )
@@ -381,14 +382,13 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 	}
 
-	// Get infrastructure from viper configuration if not provided in inputs
-	if inputValues.Infrastructures == nil {
-		inputValues.Infrastructures = configuration.Infrastructures
-	}
-
 	inputValues.Insecure = insecure
 
-	//recovering infra type if needed
+	// Checking if an Alien4Cloud location is defined to set
+	// Yorc location name and infrastructure type
+	if locationName == "" {
+		locationName = inputValues.Location.Name
+	}
 	if infrastructureType == "" {
 		switch inputValues.Location.Type {
 		case "OpenStack":
@@ -403,28 +403,58 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			infrastructureType = ""
 		}
 	}
+
 	// Now check for missing mandatory parameters and ask them to the user
 
+	infraSelected := infrastructureType
 	if infrastructureType == "" {
 
-		// if one and only one infrastructure is already defined in inputs,
+		// if one and only one Yorc location is already defined in inputs,
 		// selecting this infrastructure
-		if len(inputValues.Infrastructures) == 1 && len(inputValues.Hosts) == 0 {
-			for k := range inputValues.Infrastructures {
-				infrastructureType = k
+		if len(inputValues.Locations) == 1 && len(inputValues.Hosts) == 0 {
+			for _, locationConfig := range inputValues.Locations {
+				infrastructureType = locationConfig.Type
+				locationName = locationConfig.Name
 			}
-		} else if len(inputValues.Infrastructures) == 0 && len(inputValues.Hosts) > 0 {
+		} else if len(inputValues.Locations) == 0 && len(inputValues.Hosts) > 0 {
 			infrastructureType = "hostspool"
 		}
 
 		if infrastructureType == "" {
 			fmt.Println("")
 			prompt := &survey.Select{
-				Message: "Select an infrastructure:",
+				Message: "Select an infrastructure type:",
 				Options: []string{"Google", "AWS", "OpenStack", "HostsPool"},
 			}
-			survey.AskOne(prompt, &infrastructureType, nil)
-			infrastructureType = strings.ToLower(infrastructureType)
+			survey.AskOne(prompt, &infraSelected, nil)
+			infrastructureType = strings.ToLower(infraSelected)
+		} else {
+			infraSelected = infrastructureType
+		}
+	}
+
+	if locationName == "" {
+		fmt.Println("")
+		prompt := &survey.Input{
+			Message: fmt.Sprintf("Name identifying the location where to deploy Yorc (default: %s):",
+				infraSelected)}
+
+		question := &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+		}
+
+		answer := struct {
+			Value string
+		}{}
+
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return err
+		}
+		if answer.Value != "" {
+			locationName = answer.Value
+		} else {
+			locationName = infraSelected
 		}
 	}
 
@@ -432,13 +462,13 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	var infraNodeType, networkNodeType string
 	switch infrastructureType {
 	case "openstack":
-		infraNodeType = "org.ystia.yorc.pub.infrastructure.OpenStackConfig"
+		infraNodeType = "org.ystia.yorc.pub.location.OpenStackConfig"
 		networkNodeType = "yorc.nodes.openstack.FloatingIP"
 	case "google":
-		infraNodeType = "org.ystia.yorc.pub.infrastructure.GoogleConfig"
+		infraNodeType = "org.ystia.yorc.pub.location.GoogleConfig"
 		networkNodeType = "yorc.nodes.google.Address"
 	case "aws":
-		infraNodeType = "org.ystia.yorc.pub.infrastructure.AWSConfig"
+		infraNodeType = "org.ystia.yorc.pub.location.AWSConfig"
 		networkNodeType = "yorc.nodes.aws.PublicNetwork"
 	case "hostspool":
 		// No infrastructure defined in case of hosts pool
@@ -573,28 +603,40 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 	}
 
-	fmt.Println("\nGetting Infrastructure configuration")
+	fmt.Println("\nGetting Location configuration")
 
 	askIfNotRequired := false
 	convertBooleanToString := false
+	var locationConfig locations.LocationConfiguration
 	// Get infrastructure inputs, except in the Hosts Pool case as Hosts Pool
 	// doesn't have any infrastructure property
 	if infrastructureType != "hostspool" {
-		if inputValues.Infrastructures == nil {
-			askIfNotRequired = true
-			inputValues.Infrastructures = make(map[string]config.DynamicMap)
+
+		for _, v := range inputValues.Locations {
+			if v.Name == locationName {
+				locationConfig = v
+				break
+			}
 		}
-		configMap := inputValues.Infrastructures[infrastructureType]
-		if configMap == nil {
+
+		if locationConfig.Name == "" {
 			askIfNotRequired = true
-			configMap = make(config.DynamicMap)
+			locationConfig.Name = locationName
+			locationConfig.Type = infrastructureType
+			inputValues.Locations = append(inputValues.Locations, locationConfig)
+		}
+
+		props := locationConfig.Properties
+		if props == nil {
+			askIfNotRequired = true
+			props = make(config.DynamicMap)
+			locationConfig.Properties = props
 		}
 
 		if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
-			convertBooleanToString, &configMap); err != nil {
+			convertBooleanToString, &props); err != nil {
 			return err
 		}
-		inputValues.Infrastructures[infrastructureType] = configMap
 	} else {
 
 		// Hosts Pool
@@ -611,17 +653,17 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			// Initializing this private key and checking as well mandatory
 			// labels are defined
 			privateKeyPath := filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
-			for _, host := range inputValues.Hosts {
-				host.Connection.PrivateKey = privateKeyPath
+			for i := range inputValues.Hosts {
+				inputValues.Hosts[i].Connection.PrivateKey = privateKeyPath
 				// Checking labels
-				if host.Labels == nil {
+				if inputValues.Hosts[i].Labels == nil {
 					return fmt.Errorf("Missing mandatory labels %s for host %s",
-						strings.Join(mandatoryHostPoolLabels, ", "), host.Name)
+						strings.Join(mandatoryHostPoolLabels, ", "), inputValues.Hosts[i].Name)
 				}
 				for _, label := range mandatoryHostPoolLabels {
-					if _, found := host.Labels[label]; !found {
+					if _, found := inputValues.Hosts[i].Labels[label]; !found {
 						return fmt.Errorf("Missing mandatory label %s for host %s",
-							label, host.Name)
+							label, inputValues.Hosts[i].Name)
 					}
 				}
 			}
@@ -726,7 +768,10 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		return fmt.Errorf("Bootstrapping on %s not supported yet", infrastructureType)
 	}
 
-	inputValues.Location.Name = inputValues.Location.Type
+	inputValues.Location.Name = locationName
+
+	// Properties refedenced in go template files used to build the topology
+	inputValues.Location.Properties = locationConfig.Properties
 
 	if reviewInputs {
 		if err := reviewAndUpdateInputs(); err != nil {
@@ -736,7 +781,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	// Post treatment needed on Google Cloud
 	if infrastructureType == "google" {
-		if err := prepareGoogleInfraInputs(); err != nil {
+		if err := prepareGoogleInfraInputs(locationConfig); err != nil {
 			return err
 		}
 	}
@@ -744,7 +789,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	// In insecure mode, the infrastructure secrets will not be stored in vault
 	// (Hosts Pool infrastructure config doesn't have this use_vault property)
 	if insecure && infrastructureType != "hostspool" {
-		inputValues.Infrastructures[infrastructureType].Set("use_vault", false)
+		locationConfig.Properties.Set("use_vault", false)
 	}
 
 	exportInputs()
@@ -1418,13 +1463,14 @@ func isDatatype(topology tosca.Topology, nodeType string) bool {
 
 // prepareGoogleInfraInputs updates inputs for a Google Infrastructure if needed
 // to use the content of service account key file instead of the path to this file
-func prepareGoogleInfraInputs() error {
+func prepareGoogleInfraInputs(locationConfig locations.LocationConfiguration) error {
 
-	if !inputValues.Infrastructures["google"].IsSet("application_credentials") {
+	props := locationConfig.Properties
+	if !props.IsSet("application_credentials") {
 		return nil
 	}
 
-	credsPath := inputValues.Infrastructures["google"].GetString("application_credentials")
+	credsPath := props.GetString("application_credentials")
 	if credsPath == "" {
 		return nil
 	}
@@ -1433,8 +1479,8 @@ func prepareGoogleInfraInputs() error {
 		return err
 	}
 	// Using file content instead of file path
-	inputValues.Infrastructures["google"].Set("credentials", string(data[:]))
-	inputValues.Infrastructures["google"].Set("application_credentials", "")
+	props.Set("credentials", string(data[:]))
+	props.Set("application_credentials", "")
 	return nil
 }
 

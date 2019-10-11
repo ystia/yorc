@@ -74,28 +74,28 @@ const DefaultAnsibleJobMonInterval = 15 * time.Second
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	Ansible                          Ansible               `yaml:"ansible,omitempty" mapstructure:"ansible"`
-	PluginsDirectory                 string                `yaml:"plugins_directory,omitempty" mapstructure:"plugins_directory"`
-	WorkingDirectory                 string                `yaml:"working_directory,omitempty" mapstructure:"working_directory"`
-	WorkersNumber                    int                   `yaml:"workers_number,omitempty" mapstructure:"workers_number"`
-	ServerGracefulShutdownTimeout    time.Duration         `yaml:"server_graceful_shutdown_timeout,omitempty" mapstructure:"server_graceful_shutdown_timeout"`
-	HTTPPort                         int                   `yaml:"http_port,omitempty" mapstructure:"http_port"`
-	HTTPAddress                      string                `yaml:"http_address,omitempty" mapstructure:"http_address"`
-	KeyFile                          string                `yaml:"key_file,omitempty" mapstructure:"key_file"`
-	CertFile                         string                `yaml:"cert_file,omitempty" mapstructure:"cert_file"`
-	CAFile                           string                `yaml:"ca_file,omitempty" mapstructure:"ca_file"`
-	CAPath                           string                `yaml:"ca_path,omitempty" mapstructure:"ca_path"`
-	SSLVerify                        bool                  `yaml:"ssl_verify,omitempty" mapstructure:"ssl_verify"`
-	ResourcesPrefix                  string                `yaml:"resources_prefix,omitempty" mapstructure:"resources_prefix"`
-	Consul                           Consul                `yaml:"consul,omitempty" mapstructure:"consul"`
-	Telemetry                        Telemetry             `yaml:"telemetry,omitempty" mapstructure:"telemetry"`
-	Infrastructures                  map[string]DynamicMap `yaml:"infrastructures,omitempty" mapstructure:"infrastructures"`
-	Vault                            DynamicMap            `yaml:"vault,omitempty" mapstructure:"vault"`
-	WfStepGracefulTerminationTimeout time.Duration         `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
-	PurgedDeploymentsEvictionTimeout time.Duration         `yaml:"purged_deployments_eviction_timeout,omitempty" mapstructure:"purged_deployments_eviction_timeout"`
-	ServerID                         string                `yaml:"server_id,omitempty" mapstructure:"server_id"`
-	Terraform                        Terraform             `yaml:"terraform,omitempty" mapstructure:"terraform"`
-	DisableSSHAgent                  bool                  `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
+	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
+	PluginsDirectory                 string        `yaml:"plugins_directory,omitempty" mapstructure:"plugins_directory"`
+	WorkingDirectory                 string        `yaml:"working_directory,omitempty" mapstructure:"working_directory"`
+	WorkersNumber                    int           `yaml:"workers_number,omitempty" mapstructure:"workers_number"`
+	ServerGracefulShutdownTimeout    time.Duration `yaml:"server_graceful_shutdown_timeout,omitempty" mapstructure:"server_graceful_shutdown_timeout"`
+	HTTPPort                         int           `yaml:"http_port,omitempty" mapstructure:"http_port"`
+	HTTPAddress                      string        `yaml:"http_address,omitempty" mapstructure:"http_address"`
+	KeyFile                          string        `yaml:"key_file,omitempty" mapstructure:"key_file"`
+	CertFile                         string        `yaml:"cert_file,omitempty" mapstructure:"cert_file"`
+	CAFile                           string        `yaml:"ca_file,omitempty" mapstructure:"ca_file"`
+	CAPath                           string        `yaml:"ca_path,omitempty" mapstructure:"ca_path"`
+	SSLVerify                        bool          `yaml:"ssl_verify,omitempty" mapstructure:"ssl_verify"`
+	ResourcesPrefix                  string        `yaml:"resources_prefix,omitempty" mapstructure:"resources_prefix"`
+	Consul                           Consul        `yaml:"consul,omitempty" mapstructure:"consul"`
+	Telemetry                        Telemetry     `yaml:"telemetry,omitempty" mapstructure:"telemetry"`
+	LocationsFilePath                string        `yaml:"locations_file_path,omitempty" mapstructure:"locations_file_path"`
+	Vault                            DynamicMap    `yaml:"vault,omitempty" mapstructure:"vault"`
+	WfStepGracefulTerminationTimeout time.Duration `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
+	PurgedDeploymentsEvictionTimeout time.Duration `yaml:"purged_deployments_eviction_timeout,omitempty" mapstructure:"purged_deployments_eviction_timeout"`
+	ServerID                         string        `yaml:"server_id,omitempty" mapstructure:"server_id"`
+	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
+	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -173,7 +173,7 @@ type Terraform struct {
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.
-// This is particularly useful when configuration parameters may be defined in a plugin such for infrastructures.
+// This is particularly useful when configuration parameters may be defined in a plugin such for locations.
 //
 // It has methods to automatically cast data to the desired type.
 type DynamicMap map[string]interface{}

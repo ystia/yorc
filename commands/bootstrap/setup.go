@@ -35,6 +35,7 @@ import (
 	"github.com/ystia/yorc/v4/commands/httputil"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/ziputil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/rest"
 )
@@ -82,12 +83,27 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	// First creating a Yorc config file defining the infrastructure
+	// First creating a config file defining the locations
+	locationsFilePath := ""
+	if len(inputValues.Locations) > 0 {
+		locs := locations.LocationsDefinition{Locations: inputValues.Locations}
+		bSlice, err := yaml.Marshal(locs)
+		if err != nil {
+			return err
+		}
+		locationsFilePath = filepath.Join(workingDirectoryPath, "locations.yorc.yaml")
+		err = ioutil.WriteFile(locationsFilePath, bSlice, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Creating a Yorc config file defining the infrastructure
 	serverConfig := config.Configuration{
-		WorkingDirectory: workingDirectoryPath,
-		ResourcesPrefix:  "bootstrap-",
-		WorkersNumber:    inputValues.Yorc.WorkersNumber,
-		Infrastructures:  inputValues.Infrastructures,
+		WorkingDirectory:  workingDirectoryPath,
+		ResourcesPrefix:   "bootstrap-",
+		WorkersNumber:     inputValues.Yorc.WorkersNumber,
+		LocationsFilePath: locationsFilePath,
 		Terraform: config.Terraform{
 			PluginsDir:         workDirAbsolutePath,
 			KeepGeneratedFiles: true,
@@ -176,7 +192,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 			return err
 		}
 
-		request, err := client.NewRequest("PUT", "/hosts_pool",
+		request, err := client.NewRequest("PUT", "/hosts_pool/"+locationName,
 			bytes.NewBuffer(bArray))
 		if err != nil {
 			return err
@@ -184,10 +200,10 @@ func setupYorcServer(workingDirectoryPath string) error {
 		request.Header.Add("Content-Type", "application/json")
 
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
 			return err
 		}
+		defer response.Body.Close()
 
 		httputil.HandleHTTPStatusCode(
 			response, "apply", "host pool", http.StatusOK, http.StatusCreated)
@@ -257,7 +273,7 @@ func storeDependenciesVersion(workingDirectoryPath string) {
 	}
 }
 
-func getYorcClient() (*httputil.YorcClient, error) {
+func getYorcClient() (httputil.HTTPClient, error) {
 	clientConfig := config.Client{YorcAPI: fmt.Sprintf("localhost:%d", inputValues.Yorc.Port)}
 	return httputil.GetClient(clientConfig)
 }
@@ -271,7 +287,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 		return err
 	}
 
-	request, err := client.NewRequest("PUT", "/hosts_pool", nil)
+	request, err := client.NewRequest("GET", "/hosts_pool", nil)
 	if err != nil {
 		return err
 	}
@@ -280,7 +296,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 	for {
 		response, err := client.Do(request)
 		if err == nil {
-			defer response.Body.Close()
+			response.Body.Close()
 			return nil
 		}
 
@@ -322,6 +338,7 @@ func cleanBootstrapSetup(workingDirectoryPath string) error {
 	os.RemoveAll(filepath.Join(workingDirectoryPath, "deployments"))
 	os.RemoveAll(filepath.Join(workingDirectoryPath, "consul-data"))
 	os.Remove(filepath.Join(workingDirectoryPath, "config.yorc.yaml"))
+	os.Remove(filepath.Join(workingDirectoryPath, "locations.yorc.yaml"))
 	os.Remove(filepath.Join(workingDirectoryPath, "yorc.log"))
 
 	fmt.Println("Local setup cleaned up")

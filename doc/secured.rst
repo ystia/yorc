@@ -132,16 +132,7 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
         "cert_file": "{PATH_TO_YORC_SERVER_PEM}",
         "ca_file": "{PATH_TO_CA_PEM}",
         "ssl_verify": true,
-        "infrastructures" : {
-            "openstack": {
-                "auth_url": "https://your-openstack:{OPENSTACK_PORT}/v2.0",
-                "tenant_name": "your-tenant",
-                "user_name": "os-user",
-                "password": "os-password",
-                "private_network_name": "default-private-network",
-                "default_security_groups": ["default"]
-            }
-        }
+        "locations_file_path": "path-to-locations-yaml-or-json-config"
     }
 
 In the above example SSL verification is enabled for Yorc (ssl_verify set to true). In this case, the Consul

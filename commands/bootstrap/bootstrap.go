@@ -56,6 +56,8 @@ func init() {
 	}
 
 	commands.RootCmd.AddCommand(bootstrapCmd)
+	bootstrapCmd.PersistentFlags().StringVarP(&locationName,
+		"location", "l", "", "Name identifying the location where to deploy Yorc")
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
 		"infrastructure", "i", "", "Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool")
 	viper.BindPFlag("infrastructure", bootstrapCmd.PersistentFlags().Lookup("infrastructure"))
@@ -89,6 +91,7 @@ func init() {
 
 	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
+	viper.BindEnv("location")
 	viper.BindEnv("infrastructure")
 	viper.BindEnv("deployment_type")
 	viper.BindEnv("follow")
@@ -122,6 +125,7 @@ func init() {
 
 var bootstrapCmd *cobra.Command
 var bootstrapViper *viper.Viper
+var locationName string
 var infrastructureType string
 var deploymentType string
 var followType string

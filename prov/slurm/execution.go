@@ -37,6 +37,7 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/prov/operations"
@@ -70,6 +71,7 @@ func isNoJobFoundError(err error) bool {
 type executionCommon struct {
 	kv             *api.KV
 	cfg            config.Configuration
+	locationProps  config.DynamicMap
 	deploymentID   string
 	taskID         string
 	client         *sshutil.SSHClient
@@ -93,8 +95,19 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err != nil {
 		return nil, err
 	}
+
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	execCommon := &executionCommon{kv: kv,
 		cfg:            cfg,
+		locationProps:  locationProps,
 		deploymentID:   deploymentID,
 		NodeName:       nodeName,
 		operation:      operation,
@@ -109,12 +122,12 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 	// Get user credentials from credentials node property
 	// Its not a capability, so capabilityName set to empty string
-	creds, err := getUserCredentials(kv, cfg, deploymentID, nodeName, "")
+	creds, err := getUserCredentials(kv, locationProps, deploymentID, nodeName, "")
 	if err != nil {
 		return nil, err
 	}
 	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
-	execCommon.client, err = getSSHClient(creds, cfg)
+	execCommon.client, err = getSSHClient(creds, locationProps)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +271,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	}
 	if jobName == nil || jobName.RawString() == "" {
-		e.jobInfo.Name = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		e.jobInfo.Name = e.locationProps.GetString("default_job_name")
 		if e.jobInfo.Name == "" {
 			e.jobInfo.Name = e.deploymentID
 		}
@@ -315,7 +328,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 	if e.jobInfo.MonitoringTimeInterval == 0 {
-		e.jobInfo.MonitoringTimeInterval = e.cfg.Infrastructures[infrastructureName].GetDuration("job_monitoring_time_interval")
+		e.jobInfo.MonitoringTimeInterval = e.locationProps.GetDuration("job_monitoring_time_interval")
 		if e.jobInfo.MonitoringTimeInterval <= 0 {
 			// Default value
 			e.jobInfo.MonitoringTimeInterval = 5 * time.Second
@@ -350,7 +363,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	} else if acc != nil && acc.RawString() != "" {
 		e.jobInfo.Account = acc.RawString()
-	} else if e.cfg.Infrastructures[infrastructureName].GetBool("enforce_accounting") {
+	} else if e.locationProps.GetBool("enforce_accounting") {
 		return errors.Errorf("Job account must be set as configuration enforces accounting")
 	}
 

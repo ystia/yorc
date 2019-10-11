@@ -217,23 +217,31 @@ and edit it with following content.
     "context"
     "log"
 
+    "github.com/ystia/yorc/v4/config"
     "github.com/ystia/yorc/v4/deployments"
+    "github.com/ystia/yorc/v4/events"
+    "github.com/ystia/yorc/v4/locations"
     "github.com/ystia/yorc/v4/tasks"
     "github.com/ystia/yorc/v4/tosca"
-    "github.com/ystia/yorc/v4/events"
-    "github.com/ystia/yorc/v4/config"
   )
 
   type delegateExecutor struct{}
 
   func (de *delegateExecutor) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-    // Here is how to retrieve config parameters from Yorc config file
-    if conf.Infrastructures["my-plugin"] != nil {
-      for _, k := range conf.Infrastructures["my-plugin"].Keys() {
-        log.Printf("configuration key: %s", k)
-      }
-      log.Printf("Secret key: %q", conf.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+
+    // Here is how to retrieve location config parameters from Yorc
+    locationMgr, err := locations.GetManager(conf)
+    if err != nil {
+      return err
     }
+    locationProps, err := locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, "my-plugin-location-type")
+    if err != nil {
+      return err
+    }
+    for _, k := locationProps.Keys() {
+        log.Printf("configuration key: %s", k)
+    }
+    log.Printf("Secret key: %q", locationProps.GetStringOrDefault("test", "not found!"))
 
     // Get a consul client to interact with the deployment API
     cc, err := conf.GetConsulClient()

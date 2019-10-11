@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -31,6 +30,7 @@ import (
 )
 
 func init() {
+	var location string
 	var jsonParam string
 	var privateKey string
 	var password string
@@ -40,62 +40,18 @@ func init() {
 	var labels []string
 
 	var addCmd = &cobra.Command{
-		Use:   "add <hostname>",
-		Short: "Add host pool",
-		Long:  `Adds a host to the hosts pool managed by this Yorc cluster.`,
+		Use:   "add -l <locationName> <hostname>",
+		Short: "Add host to the pool of a specified location",
+		Long:  `Adds a host to the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
-			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
-			if len(jsonParam) == 0 && len(privateKey) == 0 && len(password) == 0 {
-				return errors.Errorf("You need to provide either JSON with connection information or private key or password for the host pool")
-			}
-			if len(jsonParam) == 0 {
-				var hostRequest rest.HostRequest
-				hostRequest.Connection = &hostspool.Connection{
-					User:       user,
-					Host:       host,
-					Port:       port,
-					Password:   password,
-					PrivateKey: privateKey,
-				}
-				for _, l := range labels {
-					parts := strings.SplitN(l, "=", 2)
-					me := rest.MapEntry{Name: parts[0]}
-					if len(parts) == 2 {
-						me.Value = parts[1]
-					}
-					hostRequest.Labels = append(hostRequest.Labels, me)
-				}
-				tmp, err := json.Marshal(hostRequest)
-				if err != nil {
-					log.Panic(err)
-				}
-
-				jsonParam = string(tmp)
-			}
-
-			request, err := client.NewRequest("PUT", "/hosts_pool/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			request.Header.Add("Content-Type", "application/json")
-
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-
-			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusCreated)
-			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
-			return nil
+			return addHost(client, args, location, jsonParam, privateKey, password, user, host, port, labels)
 		},
 	}
+	addCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	addCmd.Flags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the host pool")
 	addCmd.Flags().StringVarP(&user, "user", "", "root", "User used to connect to the host")
 	addCmd.Flags().StringVarP(&host, "host", "", "", "Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)")
@@ -105,4 +61,56 @@ func init() {
 	addCmd.Flags().StringSliceVarP(&labels, "label", "", nil, "Label in form 'key=value' to add to the host. May be specified several time.")
 
 	hostsPoolCmd.AddCommand(addCmd)
+}
+
+func addHost(client httputil.HTTPClient, args []string, location, jsonParam, privateKey, password, user, host string, port uint64, labels []string) error {
+	if len(args) != 1 {
+		return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
+	}
+	if location == "" {
+		return errors.Errorf("Expecting a hosts pool location name")
+	}
+	if len(jsonParam) == 0 && len(privateKey) == 0 && len(password) == 0 {
+		return errors.Errorf("You need to provide either JSON with connection information or private key or password for the host pool")
+	}
+	if len(jsonParam) == 0 {
+		var hostRequest rest.HostRequest
+		hostRequest.Connection = &hostspool.Connection{
+			User:       user,
+			Host:       host,
+			Port:       port,
+			Password:   password,
+			PrivateKey: privateKey,
+		}
+		for _, l := range labels {
+			parts := strings.SplitN(l, "=", 2)
+			me := rest.MapEntry{Name: parts[0]}
+			if len(parts) == 2 {
+				me.Value = parts[1]
+			}
+			hostRequest.Labels = append(hostRequest.Labels, me)
+		}
+		tmp, err := json.Marshal(hostRequest)
+		if err != nil {
+			return errors.Wrapf(err, "failed to unmarshall json body")
+		}
+
+		jsonParam = string(tmp)
+	}
+
+	request, err := client.NewRequest("PUT", "/hosts_pool/"+location+"/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-Type", "application/json")
+
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusCreated)
+	fmt.Println("Command submitted. path :", response.Header.Get("Location"))
+	return nil
 }

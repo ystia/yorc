@@ -15,9 +15,10 @@
 package openstack
 
 import (
+	"strconv"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"strconv"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -25,7 +26,9 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string) (BlockStorageVolume, error) {
+func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, locationProps config.DynamicMap,
+	deploymentID, nodeName, instanceName string) (BlockStorageVolume, error) {
+
 	volume := BlockStorageVolume{}
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
@@ -57,7 +60,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, d
 	} else if region != nil && region.RawString() != "" {
 		volume.Region = region.RawString()
 	} else {
-		volume.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
+		volume.Region = locationProps.GetStringOrDefault("region", defaultOSRegion)
 	}
 	az, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
 	if err != nil {

@@ -25,24 +25,17 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/prov"
 )
 
 type actionOperator struct {
-	clientset kubernetes.Interface
 }
 
 func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
 	originalTaskID, ok := action.Data["originalTaskID"]
 	if !ok {
 		return true, errors.New(`missing mandatory parameter "originalTaskID" in monitoring action`)
-	}
-	var err error
-	if o.clientset == nil {
-		o.clientset, err = initClientSet(cfg)
-		if err != nil {
-			return false, err
-		}
 	}
 
 	jobID, ok := action.Data["jobID"]
@@ -64,28 +57,49 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		namespaceProvided = b
 	}
 
+	nodeName, ok := action.Data["nodeName"]
+	if !ok {
+		return true, errors.New(`missing mandatory parameter "nodeName" in monitoring action`)
+	}
+
 	stepName, ok := action.Data["stepName"]
 	if !ok {
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
-	return o.monitorJob(ctx, cfg, namespaceProvided, deploymentID, originalTaskID, stepName, namespace, jobID, action)
+
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return true, err
+	}
+
+	clientSet, err := getClientSet(locationProps)
+	if err != nil {
+		return true, err
+	}
+
+	return o.monitorJob(ctx, cfg, clientSet, namespaceProvided, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 }
 
 // Return true if the job is to be deregisted by yorc, so no more monitoring...
-func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, namespaceProvided bool, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration,
+	clientSet *kubernetes.Clientset, namespaceProvided bool, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
 	var (
 		err        error
 		deregister bool
 	)
-	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
+	job, err := clientSet.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve job %q", jobID)
 	}
 
-	publishJobLogs(ctx, cfg, o.clientset, deploymentID, namespace, job.Name, action)
+	publishJobLogs(ctx, cfg, clientSet, deploymentID, namespace, job.Name, action)
 
 	// Check for pods status to refine job state
-	podsList, err := o.clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
+	podsList, err := clientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve pods for job %q", jobID)
 	}
@@ -139,7 +153,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		} else {
 			jobState = "Failed"
 		}
-		err = deleteJob(ctx, deploymentID, namespace, jobID, namespaceProvided, o.clientset)
+		err = deleteJob(ctx, deploymentID, namespace, jobID, namespaceProvided, clientSet)
 		if err != nil {
 			// error to be returned
 			err = errors.Wrapf(err, "failed to delete completed job %q", jobID)

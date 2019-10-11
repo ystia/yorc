@@ -17,7 +17,10 @@ package aws
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -27,14 +30,15 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	// AWS infrastructure config
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+
+	locationMgr, err := locations.GetManager(cfg)
+	require.NoError(t, err, "Error initializing locations")
 
 	t.Run("groupAWS", func(t *testing.T) {
 		t.Run("simpleAWSInstance", func(t *testing.T) {
@@ -63,6 +67,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		})
 		t.Run("simpleAWSInstanceWithMalformedEIP", func(t *testing.T) {
 			testSimpleAWSInstanceWithMalformedEIP(t, kv, cfg)
+		})
+		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
+			testGenerateTerraformInfraForAWSNode(t, kv, cfg, locationMgr)
 		})
 
 	})

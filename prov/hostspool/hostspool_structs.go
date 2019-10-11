@@ -83,14 +83,32 @@ func (conn Connection) String() string {
 	return "user: " + conn.User + ", " + pass + key + "host: " + conn.Host + ", " + "port: " + strconv.FormatUint(conn.Port, 10)
 }
 
+// A Pool holds information on a hosts pool
+type Pool struct {
+	Hosts []Host `json:"hosts,omitempty"`
+}
+
+// A PoolConfig holds information on hosts configurations of a pool
+type PoolConfig struct {
+	Hosts []HostConfig `json:"hosts,omitempty"`
+}
+
 // An Host holds information on an Host as it is known by the hostspool
 type Host struct {
 	Name        string            `json:"name,omitempty"`
-	Connection  Connection        `json:"connection"`
-	Status      HostStatus        `json:"status"`
+	Connection  Connection        `json:"connection,omitempty"`
+	Status      HostStatus        `json:"status,omitempty"`
 	Message     string            `json:"reason,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Allocations []Allocation      `json:"allocations,omitempty"`
+}
+
+// An HostConfig holds information on an Host basic configuration
+// It's a short version of Host representation
+type HostConfig struct {
+	Name       string            `json:"name,omitempty"`
+	Connection Connection        `json:"connection,omitempty"`
+	Labels     map[string]string `json:"labels,omitempty"`
 }
 
 // An Allocation describes the related allocation associated to a host pool

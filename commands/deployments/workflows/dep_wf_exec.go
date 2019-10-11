@@ -63,10 +63,10 @@ func init() {
 			}
 			request.Header.Add("Content-Type", "application/json")
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 			ids := args[0] + "/" + workflowName
 			httputil.HandleHTTPStatusCode(response, ids, "deployment/workflow", http.StatusAccepted, http.StatusCreated)
 

@@ -26,8 +26,8 @@ func TestConsulKubernetesPackage(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupK8S", func(t *testing.T) {
-		t.Run("testsExecJob", func(t *testing.T) {
-			testsExecJob(t, kv)
+		t.Run("testExecutionCancelJob", func(t *testing.T) {
+			testExecutionCancelJob(t, kv)
 		})
 		t.Run("testsController", func(t *testing.T) {
 			testsController(t, srv, kv)

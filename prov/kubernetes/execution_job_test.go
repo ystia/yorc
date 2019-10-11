@@ -30,13 +30,6 @@ import (
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testsExecJob(t *testing.T, kv *api.KV) {
-
-	t.Run("testExecutionCancelJob", func(t *testing.T) {
-		testExecutionCancelJob(t, kv)
-	})
-}
-
 func jobRuntimeObject(id, namespace string) *batchv1.Job {
 	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: id, Namespace: namespace}}
 }

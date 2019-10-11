@@ -185,13 +185,14 @@ func (s *Server) registerHandlers() {
 	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
 	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
 
-	s.router.Put("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
-	s.router.Patch("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
-	s.router.Delete("/hosts_pool/:host", commonHandlers.ThenFunc(s.deleteHostInPool))
-	s.router.Post("/hosts_pool", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
-	s.router.Put("/hosts_pool", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
-	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
-	s.router.Get("/hosts_pool/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
+	s.router.Put("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
+	s.router.Patch("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
+	s.router.Delete("/hosts_pool/:location/:host", commonHandlers.ThenFunc(s.deleteHostInPool))
+	s.router.Post("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
+	s.router.Put("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
+	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
+	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
+	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))

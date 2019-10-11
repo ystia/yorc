@@ -41,9 +41,9 @@ const invalidJob = "Invalid job id specified"
 
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
-func getSSHClient(credentials *datatypes.Credential, cfg config.Configuration) (*sshutil.SSHClient, error) {
+func getSSHClient(credentials *datatypes.Credential, locationProps config.DynamicMap) (*sshutil.SSHClient, error) {
 	// Check manadatory slurm configuration
-	if err := checkInfraConfig(cfg); err != nil {
+	if err := checkLocationConfig(locationProps); err != nil {
 		log.Printf("Unable to provide SSH client due to:%+v", err)
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func getSSHClient(credentials *datatypes.Credential, cfg config.Configuration) (
 		SSHConfig.Auth = append(SSHConfig.Auth, ssh.Password(credentials.Token))
 	}
 
-	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
+	port, err := strconv.Atoi(locationProps.GetString("port"))
 	if err != nil {
 		wrapErr := errors.Wrap(err, "slurm configuration port is not a valid port")
 		log.Printf("Unable to provide SSH client due to:%+v", wrapErr)
@@ -86,14 +86,14 @@ func getSSHClient(credentials *datatypes.Credential, cfg config.Configuration) (
 
 	return &sshutil.SSHClient{
 		Config: SSHConfig,
-		Host:   cfg.Infrastructures[infrastructureName].GetString("url"),
+		Host:   locationProps.GetString("url"),
 		Port:   port,
 	}, nil
 }
 
 // getUserCredentials returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
-func getUserCredentials(kv *api.KV, cfg config.Configuration, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
+func getUserCredentials(kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
 	var err error
 	var credentialsValue *deployments.TOSCAValue
 	if capabilityName != "" {
@@ -118,14 +118,14 @@ func getUserCredentials(kv *api.KV, cfg config.Configuration, deploymentID, node
 			return nil, errors.New("Slurm missing authentication details in deployment properties, password or private_key should be set")
 		}
 	} else {
-		// Get user credentials from the yorc configuration
-		if err := checkInfraUserConfig(cfg); err != nil {
+		// Get user credentials from the location properties
+		if err := checkLocationUserConfig(locationProps); err != nil {
 			log.Printf("Unable to provide SSH client due to:%+v", err)
 			return nil, err
 		}
-		creds.User = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "")
+		creds.User = strings.Trim(locationProps.GetString("user_name"), "")
 		creds.User = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("slurm.user_name", creds.User).(string)
-		privateKey := strings.Trim(cfg.Infrastructures[infrastructureName].GetString("private_key"), "")
+		privateKey := strings.Trim(locationProps.GetString("private_key"), "")
 		if privateKey != "" {
 			privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("slurm.private_key", privateKey).(string)
 			if creds.Keys == nil {
@@ -133,7 +133,7 @@ func getUserCredentials(kv *api.KV, cfg config.Configuration, deploymentID, node
 			}
 			creds.Keys["default"] = privateKey
 		}
-		creds.Token = strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "")
+		creds.Token = strings.Trim(locationProps.GetString("password"), "")
 		creds.Token = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("slurm.password", creds.Token).(string)
 	}
 
@@ -141,46 +141,38 @@ func getUserCredentials(kv *api.KV, cfg config.Configuration, deploymentID, node
 
 }
 
-// checkInfraConfig checks slurm infrastructure mandatory configuration parameters :
+// checkLocationConfig checks slurm location mandatory configuration parameters :
 // - url (slurm client's node address)
 // - port (slurm client's node port)
 // returns error in case of inconsistent configuration, or nil if configuration ok
-func checkInfraConfig(cfg config.Configuration) error {
-	_, exist := cfg.Infrastructures[infrastructureName]
-	if !exist {
-		return errors.New("no slurm infrastructure configuration found")
+func checkLocationConfig(locationProps config.DynamicMap) error {
+
+	if strings.Trim(locationProps.GetString("url"), "") == "" {
+		return errors.New("slurm location url is not set")
 	}
 
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("url"), "") == "" {
-		return errors.New("slurm infrastructure url is not set")
-	}
-
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("port"), "") == "" {
-		return errors.New("slurm infrastructure port is not set")
+	if strings.Trim(locationProps.GetString("port"), "") == "" {
+		return errors.New("slurm location port is not set")
 	}
 
 	return nil
 }
 
-// checkInfraUserConfig checks slurm infrastructure configuration parameters related to user credentials
+// checkLocationUserConfig checks slurm location configuration parameters related to user credentials
 // necessary for connect using ssh to the slurm's client node
 // - user_name
 // - password or private_key
 // returns error in case of inconsistent configuration, or nil if configuration seems ok
-func checkInfraUserConfig(cfg config.Configuration) error {
-	_, exist := cfg.Infrastructures[infrastructureName]
-	if !exist {
-		return errors.New("no slurm infrastructure configuration found")
-	}
+func checkLocationUserConfig(locationProps config.DynamicMap) error {
 
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "") == "" {
-		return errors.New("slurm infrastructure user_name is not set")
+	if strings.Trim(locationProps.GetString("user_name"), "") == "" {
+		return errors.New("slurm location user_name is not set")
 	}
 
 	// Check an authentication method was specified
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "") == "" &&
-		strings.Trim(cfg.Infrastructures[infrastructureName].GetString("private_key"), "") == "" {
-		return errors.New("slurm infrastructure missing authentication details, password or private_key should be set")
+	if strings.Trim(locationProps.GetString("password"), "") == "" &&
+		strings.Trim(locationProps.GetString("private_key"), "") == "" {
+		return errors.New("slurm location missing authentication details, password or private_key should be set")
 	}
 
 	return nil

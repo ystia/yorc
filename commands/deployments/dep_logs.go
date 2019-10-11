@@ -66,7 +66,7 @@ func init() {
 }
 
 // StreamsLogs allows to stream logs
-func StreamsLogs(client *httputil.YorcClient, deploymentID string, colorize, fromBeginning, stop bool) {
+func StreamsLogs(client httputil.HTTPClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}

@@ -31,12 +31,14 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/stringutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
 )
 
+const infrastructureType = "kubernetes"
+
 type defaultExecutor struct {
-	clientset kubernetes.Interface
 }
 
 func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
@@ -55,14 +57,27 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 		return nil, 0, err
 	}
 
-	if isNilValue(e.clientset) {
-		e.clientset, err = initClientSet(conf)
-		if err != nil {
-			return nil, 0, err
-		}
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(conf)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return nil, 0, err
 	}
 
-	return exec.executeAsync(ctx, conf, stepName, e.clientset)
+	clientSet, err := getClientSet(locationProps)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	checksPeriod := locationProps.GetDuration("job_monitoring_time_interval")
+	if checksPeriod <= 0 {
+		checksPeriod = 5 * time.Second
+		log.Debugf("\"job_monitoring_time_interval\" configuration parameter is missing in Kubernetes configuration. Using default %s.", checksPeriod)
+	}
+
+	return exec.executeAsync(ctx, checksPeriod, stepName, clientSet)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
@@ -71,25 +86,28 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	if isNilValue(e.clientset) {
-		e.clientset, err = initClientSet(conf)
-		if err != nil {
-			return err
-		}
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(conf)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return err
 	}
 
-	return exec.execute(ctx, e.clientset)
+	clientSet, err := getClientSet(locationProps)
+	if err != nil {
+		return err
+	}
+
+	return exec.execute(ctx, clientSet)
 }
 
 func isNilValue(i interface{}) bool {
 	return i == nil || reflect.ValueOf(i).IsNil()
 }
 
-func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
-	kubConf := cfg.Infrastructures["kubernetes"]
-	if kubConf == nil {
-		return nil, errors.Errorf("No Kubernetes configuration found")
-	}
+func getClientSet(kubConf config.DynamicMap) (*kubernetes.Clientset, error) {
 
 	var conf *rest.Config
 	var err error

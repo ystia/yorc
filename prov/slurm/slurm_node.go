@@ -26,7 +26,7 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 )
 
-func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
+func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 
 	// Get user credentials from capability endpoint credentials property, if values are provided
-	node.credentials, err = getUserCredentials(kv, cfg, deploymentID, nodeName, "endpoint")
+	node.credentials, err = getUserCredentials(kv, locationProps, deploymentID, nodeName, "endpoint")
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 	if jobName == nil || jobName.RawString() == "" {
 		// Second: with the config
-		node.jobName = cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		node.jobName = locationProps.GetString("default_job_name")
 		if node.jobName == "" {
 			// Third: with the deploymentID
 			node.jobName = deploymentID
@@ -120,7 +120,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 	if account != nil {
 		node.account = account.RawString()
-	} else if cfg.Infrastructures[infrastructureName].GetBool("enforce_accounting") {
+	} else if locationProps.GetBool("enforce_accounting") {
 		return errors.Errorf("Compute account must be set as configuration enforces accounting")
 	}
 

@@ -24,34 +24,49 @@ import (
 )
 
 func init() {
+	var location string
 	var delCmd = &cobra.Command{
-		Use:   "delete <hostname> [hostname...]",
-		Short: "Delete hosts from hosts pool",
-		Long:  `Delete hosts of the hosts pool managed by this Yorc cluster.`,
+		Use:   "delete -l <locationName> <hostname> [hostname...]",
+		Short: "Delete hosts of a specified location",
+		Long:  `Delete hosts of the hosts pool of a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
-			}
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			for i := range args {
-				request, err := client.NewRequest("DELETE", "/hosts_pool/"+args[i], nil)
-				if err != nil {
-					httputil.ErrExit(err)
-				}
-
-				response, err := client.Do(request)
-				if err != nil {
-					httputil.ErrExit(err)
-				}
-				defer response.Body.Close()
-
-				httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
-			}
-			return nil
+			return deleteHost(client, args, location)
 		},
 	}
+	delCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hostsPoolCmd.AddCommand(delCmd)
+}
+
+func deleteHost(client httputil.HTTPClient, args []string, location string) error {
+	if len(args) < 1 {
+		return errors.Errorf("Expecting at least one hostname (got %d parameters)", len(args))
+	}
+	if location == "" {
+		return errors.Errorf("Expecting a hosts pool location name")
+	}
+	for i := range args {
+		err := sendDeleteHostRequest(client, args[i], location)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sendDeleteHostRequest(client httputil.HTTPClient, hostname, location string) error {
+	request, err := client.NewRequest("DELETE", "/hosts_pool/"+location+"/"+hostname, nil)
+	if err != nil {
+		return err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	httputil.HandleHTTPStatusCode(response, hostname, "host pool", http.StatusOK)
+	return nil
 }

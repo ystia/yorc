@@ -17,6 +17,7 @@ package hostspool
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 
@@ -29,68 +30,77 @@ import (
 )
 
 func init() {
+	var location string
 	var filters []string
 	hpListCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List hosts pools",
-		Long:  `Lists hosts of the hosts pool managed by this Yorc cluster.`,
+		Use:   "list -l <locationName>",
+		Short: "List hosts pool for a specified location",
+		Long:  `Lists hosts of a hosts pool for a specified location managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			colorize := !noColor
 			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			request, err := client.NewRequest("GET", "/hosts_pool", nil)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			q := request.URL.Query()
-			for i := range filters {
-				q.Add("filter", (filters[i]))
-			}
-			request.URL.RawQuery = q.Encode()
-			request.Header.Add("Accept", "application/json")
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-			httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
-			var hostsColl rest.HostsCollection
-			body, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			err = json.Unmarshal(body, &hostsColl)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-
-			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
-			for _, hostLink := range hostsColl.Hosts {
-				if hostLink.Rel == rest.LinkRelHost {
-					var host rest.Host
-					err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
-					if err != nil {
-						httputil.ErrExit(err)
-					}
-					// If no label was defined, define an empty map
-					// to still consider there is a column to display
-					if host.Labels == nil {
-						host.Labels = map[string]string{}
-					}
-					addRow(hostsTable, colorize, hostList, &host, true)
-				}
-			}
-			if colorize {
-				defer color.Unset()
-			}
-			fmt.Println("Host pools:")
-			fmt.Println(hostsTable.Render())
-			return nil
+			return listHostsPool(client, args, location, filters)
 		},
 	}
+	hpListCmd.Flags().StringVarP(&location, "location", "l", "", "Need to provide the specified hosts pool location name")
 	hpListCmd.Flags().StringSliceVarP(&filters, "filter", "f", nil, "Filter hosts based on their labels. May be specified several time, filters are joined by a logical 'and'. See the documentation for the filters grammar.")
 	hostsPoolCmd.AddCommand(hpListCmd)
+}
+
+func listHostsPool(client httputil.HTTPClient, args []string, location string, filters []string) error {
+	if location == "" {
+		return errors.Errorf("Expecting a hosts pool location name")
+	}
+	colorize := !noColor
+	request, err := client.NewRequest("GET", "/hosts_pool/"+location, nil)
+	if err != nil {
+		return err
+	}
+	q := request.URL.Query()
+	for i := range filters {
+		q.Add("filter", (filters[i]))
+	}
+	request.URL.RawQuery = q.Encode()
+	request.Header.Add("Accept", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	httputil.HandleHTTPStatusCode(response, "", "hosts pool", http.StatusOK)
+	var hostsColl rest.HostsCollection
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body, &hostsColl)
+	if err != nil {
+		return err
+	}
+
+	hostsTable := tabutil.NewTable()
+	hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
+	for _, hostLink := range hostsColl.Hosts {
+		if hostLink.Rel == rest.LinkRelHost {
+			var host rest.Host
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
+			if err != nil {
+				return err
+			}
+			// If no label was defined, define an empty map
+			// to still consider there is a column to display
+			if host.Labels == nil {
+				host.Labels = map[string]string{}
+			}
+			addRow(hostsTable, colorize, hostList, &host, true)
+		}
+	}
+	if colorize {
+		defer color.Unset()
+	}
+	fmt.Printf("Host pools for location %q:\n", location)
+	fmt.Println(hostsTable.Render())
+	return nil
 }

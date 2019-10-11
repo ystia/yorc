@@ -1,0 +1,31 @@
+hosts:
+  - name: host1
+    connection:
+      user: ubuntu
+      private_key: /etc/my/private/key1
+      host: 18.219.105.80
+      port: 22
+    labels:
+      type: front
+      host.disk_size: 60 GB
+      host.mem_size: 20 GB
+      host.num_cpus: "16"
+      os.architecture: x86_64
+      os.distribution: ubuntu
+      os.type: linux
+      os.version: "16.04"
+  - name:
+    connection:
+      user: ubuntu
+      private_key: /etc/my/private/key2
+      host: 18.217.46.72
+      port: 22
+    labels:
+      type: back
+      host.disk_size: 50 GB
+      host.mem_size: 20 GB
+      host.num_cpus: "16"
+      os.architecture: x86_64
+      os.distribution: ubuntu
+      os.type: linux
+      os.version: "16.04"

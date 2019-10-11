@@ -17,9 +17,14 @@ package slurm
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
+
+var slumTestLocationProps config.DynamicMap
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulSlurmPackageTests(t *testing.T) {
@@ -27,16 +32,34 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	// Slurm infrastructure config
+	// Create a slurm location
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"user_name": "root",
-				"password":  "pwd",
-				"name":      "slurm",
-				"url":       "1.2.3.4",
-				"port":      "1234",
-			}}}
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+	}
+
+	locationMgr, err := locations.GetManager(cfg)
+	require.NoError(t, err, "Error initializing locations")
+
+	slumTestLocationProps = config.DynamicMap{
+		"user_name": "root",
+		"password":  "pwd",
+		"name":      "slurm",
+		"url":       "1.2.3.4",
+		"port":      "1234",
+	}
+	err = locationMgr.CreateLocation(
+		locations.LocationConfiguration{
+			Name:       "testSlurmLocation",
+			Type:       infrastructureType,
+			Properties: slumTestLocationProps,
+		})
+	require.NoError(t, err, "Failed to create a location")
+	defer func() {
+		locationMgr.RemoveLocation(t.Name(), infrastructureType)
+	}()
 
 	t.Run("groupSlurm", func(t *testing.T) {
 		t.Run("simpleSlurmNodeAllocation", func(t *testing.T) {
@@ -47,6 +70,9 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		})
 		t.Run("multipleSlurmNodeAllocation", func(t *testing.T) {
 			testMultipleSlurmNodeAllocation(t, kv, cfg)
+		})
+		t.Run("executorTest", func(t *testing.T) {
+			testExecutor(t, srv, kv, cfg)
 		})
 	})
 }

@@ -88,7 +88,7 @@ func init() {
 	tasksCmd.AddCommand(infoTaskCmd)
 }
 
-func displayStepTables(client *httputil.YorcClient, args []string) {
+func displayStepTables(client httputil.HTTPClient, args []string) {
 	colorize := !deployments.NoColor
 	if colorize {
 		commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)

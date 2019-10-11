@@ -44,25 +44,25 @@ func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"region":               "RegionTwo",
-				"private_network_name": "test",
-			}}}
+	locationProps := config.DynamicMap{
+		"region":               "RegionTwo",
+		"private_network_name": "test",
+	}
+	var cfg config.Configuration
 
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
 
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
 			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
+			locationProps:  locationProps,
 			deploymentID:   deploymentID,
 			nodeName:       "Compute",
 			instanceName:   "0",
@@ -156,23 +156,25 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
 	})
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"provisioning_over_fip_allowed": true,
-				"private_network_name":          "test",
-			}}}
+
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": true,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
+
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
 			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
+			locationProps:  locationProps,
 			deploymentID:   deploymentID,
 			nodeName:       "Compute",
 			instanceName:   "0",
@@ -236,23 +238,25 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
 	})
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"provisioning_over_fip_allowed": false,
-				"private_network_name":          "test",
-			}}}
+
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": false,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
+
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
 			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
+			locationProps:  locationProps,
 			deploymentID:   deploymentID,
 			nodeName:       "Compute",
 			instanceName:   "0",
@@ -306,12 +310,11 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"provisioning_over_fip_allowed": false,
-				"private_network_name":          "test",
-			}}}
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": false,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -322,13 +325,14 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/ServerGroupPolicy_sg/0/attributes/id"): []byte("my_sg_id"),
 	})
 
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
 			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
+			locationProps:  locationProps,
 			deploymentID:   deploymentID,
 			nodeName:       "ComputeA",
 			instanceName:   "0",
@@ -354,19 +358,19 @@ func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestSe
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			infrastructureName: config.DynamicMap{
-				"provisioning_over_fip_allowed": false,
-				"private_network_name":          "test",
-			}}}
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": false,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
 	infrastructure := commons.Infrastructure{}
 	outputs := make(map[string]string, 0)
-	resourceTypes := getOpenstackResourceTypes(cfg, infrastructureName)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
 	opts := osInstanceOptions{
 		kv:             kv,
 		cfg:            cfg,
 		infrastructure: &infrastructure,
+		locationProps:  locationProps,
 		deploymentID:   deploymentID,
 		nodeName:       "ComputeA",
 		instanceName:   "0",

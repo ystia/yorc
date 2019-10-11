@@ -249,51 +249,49 @@ func TestPrivateKey(t *testing.T) {
 	privateKeyContent := string(bArray)
 
 	// Config to test
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.DynamicMap{
-			"slurm": {
-				"user_name":   "jdoe",
-				"url":         "127.0.0.1",
-				"port":        22,
-				"private_key": privateKeyContent}},
+	locationProps := config.DynamicMap{
+		"user_name":   "jdoe",
+		"url":         "127.0.0.1",
+		"port":        22,
+		"private_key": privateKeyContent,
 	}
 
-	err = checkInfraUserConfig(cfg)
+	err = checkLocationUserConfig(locationProps)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": privateKeyContent}}, cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": privateKeyContent}}, locationProps)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using provided properties with private key")
 
 	// Remove the private key.
 	// As there is no password defined either, check an error is returned
-	cfg.Infrastructures["slurm"].Set("private_key", "")
-	err = checkInfraUserConfig(cfg)
+	locationProps.Set("private_key", "")
+	err = checkLocationUserConfig(locationProps)
 	assert.Error(t, err, "Expected an error parsing a wrong configuration with no private key and no password defined")
-	_, err = getSSHClient(&datatypes.Credential{}, cfg)
+	_, err = getSSHClient(&datatypes.Credential{}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with no private key and no password defined")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe"}, cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe"}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using a provided user name property but no private key and no password provided")
 
 	// Setting a wrong private key path
 	// Check the attempt to use this key for the authentication method is failing
-	cfg.Infrastructures["slurm"].Set("private_key", "invalid_path_to_key.pem")
-	err = checkInfraUserConfig(cfg)
+	locationProps.Set("private_key", "invalid_path_to_key.pem")
+	err = checkLocationUserConfig(locationProps)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
-	_, err = getSSHClient(&datatypes.Credential{}, cfg)
+	_, err = getSSHClient(&datatypes.Credential{}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with bad private key and no password defined")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": "invalid_path_to_key.pem"}}, cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": "invalid_path_to_key.pem"}}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using provided credentials with bad private key and no password defined")
 
 	// Slurm Configuration with no private key but a password, the config should be valid
-	cfg.Infrastructures["slurm"] = config.DynamicMap{
+	locationProps = config.DynamicMap{
 		"user_name": "jdoe",
 		"url":       "127.0.0.1",
 		"port":      22,
 		"password":  "test",
 	}
 
-	err = checkInfraUserConfig(cfg)
+	err = checkLocationUserConfig(locationProps)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with password")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Token: "test"}, cfg)
+	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Token: "test"}, locationProps)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using provided credentials with password")
 }
 

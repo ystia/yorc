@@ -28,6 +28,7 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
@@ -93,55 +94,64 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return err
+	}
+
 	operation := strings.ToLower(delegateOperation)
 	switch {
 	case operation == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, operation)
+		err = e.installNode(ctx, kv, locationProps, deploymentID, nodeName, instances, operation)
 	case operation == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, operation)
+		err = e.uninstallNode(ctx, kv, locationProps, deploymentID, nodeName, instances, operation)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, operation string) error {
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName string, instances []string, operation string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
 		}
 	}
-	infra, err := generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
+	infra, err := generateInfrastructure(ctx, kv, locationProps, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
 
-	return e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
+	return e.createInfrastructure(ctx, kv, locationProps, deploymentID, nodeName, infra)
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, operation string) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName string, instances []string, operation string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
 			return err
 		}
 	}
-	infra, err := generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
+	infra, err := generateInfrastructure(ctx, kv, locationProps, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
 
-	return e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
+	return e.destroyInfrastructure(ctx, kv, locationProps, deploymentID, nodeName, infra)
 }
 
-func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
+func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName string, infra *infrastructure) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Creating the slurm infrastructure")
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(ctx context.Context, comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.createNodeAllocation(ctx, cfg, kv, comp, deploymentID, nodeName)
+				return e.createNodeAllocation(ctx, locationProps, kv, comp, deploymentID, nodeName)
 			})
 		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: compute.instanceName}), compute)
 	}
@@ -157,13 +167,13 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 	return nil
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName string, infra *infrastructure) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Destroying the slurm infrastructure")
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(ctx context.Context, comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.destroyNodeAllocation(ctx, cfg, kv, comp, deploymentID, nodeName)
+				return e.destroyNodeAllocation(ctx, locationProps, kv, comp, deploymentID, nodeName)
 			})
 		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: compute.instanceName}), compute)
 	}
@@ -179,12 +189,12 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	return nil
 }
 
-func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.Configuration, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, locationProps config.DynamicMap, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 
 	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
 	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(nodeAlloc.credentials, cfg)
+	sshClient, err := getSSHClient(nodeAlloc.credentials, locationProps)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
@@ -337,12 +347,12 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.C
 	return nil
 }
 
-func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, cfg config.Configuration, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
+func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, locationProps config.DynamicMap, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q, instance name:%q", deploymentID, nodeName, nodeAlloc.instanceName))
 
 	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
 	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(nodeAlloc.credentials, cfg)
+	sshClient, err := getSSHClient(nodeAlloc.credentials, locationProps)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err

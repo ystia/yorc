@@ -252,6 +252,11 @@ type HostRequest struct {
 	Labels     []MapEntry            `json:"labels,omitempty"`
 }
 
+// HostsPoolLocations represents the host pools locations handled by Yorc
+type HostsPoolLocations struct {
+	Locations []string `json:"locations"`
+}
+
 // HostsCollection is a collection of hosts registered in the host pool links
 //
 // Links are all of type LinkRelHost.

@@ -66,7 +66,7 @@ func init() {
 }
 
 // StreamsEvents allows to stream events
-func StreamsEvents(client *httputil.YorcClient, deploymentID string, colorize, fromBeginning, stop bool) {
+func StreamsEvents(client httputil.HTTPClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}

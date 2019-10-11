@@ -174,6 +174,10 @@ Globals Command-line options
 
   * ``--plugins_directory``: The name of the plugins directory of the Yorc server. The default is to use a directory named *plugins* in the current directory.
 
+.. _option_locations_cmd:
+
+  * ``--locations_file_path``: File path to locations configuration. This configuration is taken in account for the first time the server starts.
+
 .. _option_resources_prefix_cmd:
 
   * ``--resources_prefix``: Specify a prefix that will be used for names when creating resources such as Compute instances or volumes. Defaults to ``yorc-``.
@@ -209,16 +213,7 @@ Below is an example of configuration file.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
-        }
-      }
+      "locations_file_path": "path-to-locations-yaml-or-json-config"
     }
 
 
@@ -230,16 +225,7 @@ Below is an example of configuration file with TLS enabled.
       "resources_prefix": "yorc1-",
       "key_file": "/etc/pki/tls/private/yorc.key",
       "cert_file": "/etc/pki/tls/certs/yorc.crt",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
-        }
-      }
+      "locations_file_path": "path-to-locations-yaml-or-json-config"
     }
 
 .. _option_shut_timeout_cfg:
@@ -286,6 +272,10 @@ Below is an example of configuration file with TLS enabled.
 
   * ``resources_prefix``: Equivalent to :ref:`--resources_prefix <option_resources_prefix_cmd>` command-line flag.
 
+.. _option_locations_cfg:
+
+  * ``locations_file_path``: Equivalent to :ref:`--locations_file_path <option_locations_cmd>` command-line flag.
+
 .. _option_workers_cfg:
 
   * ``workers_number``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
@@ -313,16 +303,7 @@ Below is an example of configuration file with Ansible configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
-        }
-      },
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "ansible": {
         "use_openssh": true,
         "connection_retries": 3,
@@ -538,16 +519,7 @@ Below is an example of configuration file with Consul configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
-        }
-      },
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "consul": {
         "address": "http://consul-host:8500",
         "datacenter": "dc1",
@@ -612,16 +584,7 @@ Below is an example of configuration file with Terraform configuration options.
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
-        }
-      },
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "terraform": {
         "plugins_dir": "home/yorc/terraform_plugins_directory",
       }
@@ -669,16 +632,7 @@ Below is an example of configuration file with telemetry metrics forwarded to a 
 
     {
       "resources_prefix": "yorc1-",
-      "infrastructures": {
-        "openstack": {
-          "auth_url": "http://your-openstack:5000/v2.0",
-          "tenant_name": "your-tenant",
-          "user_name": "os-user",
-          "password": "os-password",
-          "private_network_name": "default-private-network",
-          "default_security_groups": ["default"]
-        }
-      },
+      "locations_file_path": "path-to-locations-yaml-or-json-config",
       "telemetry": {
         "statsd_address": "127.0.0.1:8125",
         "expose_prometheus_endpoint": true
@@ -836,6 +790,10 @@ Environment variables
 
   * ``YORC_RESOURCES_PREFIX``: Equivalent to :ref:`--resources_prefix <option_resources_prefix_cmd>` command-line flag.
 
+.. _option_locations_env:
+
+  * ``YORC_LOCATIONS_FILE_PATH``: Equivalent to :ref:`--locations_file_path <option_locations_cmd>` command-line flag.
+
 .. _option_workers_env:
 
   * ``YORC_WORKERS_NUMBER``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
@@ -880,39 +838,61 @@ Environment variables
 
   * ``YORC_TERRAFORM_KEEP_GENERATED_FILES``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
 
-.. _infrastructures_configuration:
+.. _locations_configuration:
 
-Infrastructures configuration
+Locations configuration
 -----------------------------
 
-Due to the pluggable nature of infrastructures support in Yorc their configuration differ from other configurable options.
-An infrastructure configuration option could be specified by either a its configuration placeholder in the configuration file, a command line flag
-or an environment variable.
+A location allows Yorc to connect to an infrastructure. A location is identified uniquely by its ``name`` property.
+Its ``type`` property describes the infrastructure related to this location. Yorc can handle multiple locations of the same infrastructure.
 
-The general principle is for a configurable option ``option_1`` for infrastructure ``infra1`` it should be specified in the configuration file as following:
+Its ``properties`` property contains a map with all required information for the infrastructure connection.
+
+The :ref:`--locations_file_path option <option_locations_cmd>` allows user to define the specific locations configuration file path.
+This configuration is taken in account for the first time the server starts and allows to populate locations for the Yorc cluster.
+In near future, a REST API will let users add, remove or update existing locations configured in Yorc.
+
+This file can be written either in JSON or YAML format.
+Here is a JSON example of locations configuration:
 
 .. code-block:: JSON
 
-    {
-      "infrastructures": {
-        "infra1": {
-          "option_1": "value"
-        }
+  {
+  "locations": [
+    { "name": "myOpenstackLocation1",
+      "type": "openstack",
+      "properties": {
+        "auth_url": "http://openstack:5000/v2.0",
+        "tenant_name": "Tname",
+        "tenant_id": "use_tid_or_tname",
+        "user_name": "{{with (secret \"/secret/yorc/mysecret\").Raw}}{{.Data.value}}{{end}}",
+        "password": "{{secret \"/secret/yorc/mysecret\" \"data=value\" | print}}",
+        "region": "RegionOne",
+        "private_network_name": "private-test",
+        "public_network_name": "not_supported",
+        "os_default_security_groups": ["default", "lax"]
       }
-    }
+    },
+    { "name": "myGoogleLocation1",
+      "type": "google",
+      "properties": {
+        "application_credentials": "creds.json",
+        "project": "my-project-ref"
+      }
+    },
+    ....
 
-Similarly a command line flag with the name ``--infrastructure_infra1_option_1`` and an environment variable with the name ``YORC_INFRA_INFRA1_OPTION_1`` will be
-automatically supported and recognized. The default order of precedence apply here.
-
-Builtin infrastructures configuration
+Builtin locations types configuration
 -------------------------------------
+
+Here we have principal infrastructure configurations retrieved as location properties for a specified type.
 
 .. _option_infra_os:
 
 OpenStack
 ~~~~~~~~~
 
-OpenStack infrastructure key name is ``openstack`` in lower case.
+OpenStack location type is ``openstack`` in lower case.
 
 ..
    MAG - According to:
@@ -921,7 +901,7 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 .. tabularcolumns:: |p{0.35\textwidth}|p{0.30\textwidth}|p{0.05\textwidth}|p{0.15\textwidth}|p{0.10\textwidth}|
 
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-|            Option Name            |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
+|            Property Name          |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
 |                                   |                                                                                                                     |           |                                                    |               |
 +===================================+=====================================================================================================================+===========+====================================================+===============+
 | ``auth_url``                      | Specify the authentication url for OpenStack (should be the Keystone endpoint ie: http://your-openstack:5000/v2.0). | string    | yes                                                |               |
@@ -969,7 +949,7 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 Kubernetes
 ~~~~~~~~~~
 
-Kubernetes infrastructure key name is ``kubernetes`` in lower case.
+Kubernetes location type is ``kubernetes`` in lower case.
 
 ..
    MAG - According to:
@@ -978,7 +958,7 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 .. tabularcolumns:: |l|L|L|L|L|
 
 +----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-|           Option Name            |                                   Description                                   | Data Type | Required | Default |
+|           Property Name          |                                   Description                                   | Data Type | Required | Default |
 |                                  |                                                                                 |           |          |         |
 +==================================+=================================================================================+===========+==========+=========+
 | ``kubeconfig``                   | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
@@ -1019,10 +999,10 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 Google Cloud Platform
 ~~~~~~~~~~~~~~~~~~~~~
 
-Google Cloud Platform infrastructure key name is ``google`` in lower case.
+Google Cloud Platform location type is ``google`` in lower case.
 
 +-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
-|  Option Name                |              Description                     | Data Type | Required | Default                                |
+|  Property Name              |              Description                     | Data Type | Required | Default                                |
 |                             |                                              |           |          |                                        |
 +=============================+==============================================+===========+==========+========================================+
 | ``project``                 | ID of the project to apply any resources to  | string    | yes      |                                        |
@@ -1044,10 +1024,10 @@ If no file path is specified in ``application_credentials`` and no file content 
 AWS
 ~~~
 
-AWS infrastructure key name is ``aws`` in lower case.
+AWS location type is ``aws`` in lower case.
 
 +----------------+----------------------------------------+-----------+----------+---------+
-|  Option Name   |              Description               | Data Type | Required | Default |
+|  Property Name |              Description               | Data Type | Required | Default |
 |                |                                        |           |          |         |
 +================+========================================+===========+==========+=========+
 | ``access_key`` | Specify the AWS access key credential. | string    | yes      |         |
@@ -1062,10 +1042,10 @@ AWS infrastructure key name is ``aws`` in lower case.
 Slurm
 ~~~~~
 
-Slurm infrastructure key name is ``slurm`` in lower case.
+Slurm location type is ``slurm`` in lower case.
 
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-|     Option Name                  |                          Description                             | Data Type |                     Required                      | Default |
+|     Property Name                |                          Description                             | Data Type |                     Required                      | Default |
 |                                  |                                                                  |           |                                                   |         |
 +==================================+==================================================================+===========+===================================================+=========+
 | ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes (see below for alternatives)                  |         |
