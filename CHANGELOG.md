@@ -67,7 +67,7 @@ locations:
       default_security_groups: [group1,default]
 ```
 
-When a Yorc is starting and has no location defined yet, it will read this locations configuration file and create the corresponding locations.
+When a Yorc server is starting and has no location defined yet, it will read this locations configuration file and create the corresponding locations.
 Once this has been done, the locations configuration file won't be used anymore. Next version of Yorc will provide CLI and APIs allowing to create/update/delete locations.
 
 Regardings Hosts Pool, the file format allowing to define one Hosts Pool hasn't changed.
