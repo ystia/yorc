@@ -32,6 +32,22 @@ func UpgradeTo112(kv *api.KV, leaderch <-chan struct{}) error {
 func up112UpgradeHostsPoolStorage(kv *api.KV) error {
 	log.Print("\tUpgrade hosts pool storage...")
 
+	// Check the schema is the previous one by retrieving the host status
+	keys, _, err := kv.Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, k := range keys {
+		kvp, _, err := kv.Get(path.Join(k, "status"), nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			log.Debugf("No host status retrieved. We assume the schema is up to date")
+			return nil
+		}
+	}
+
 	locationDefaultName := "hostsPool111"
 	kvps, _, err := kv.List(consulutil.HostsPoolPrefix+"/", nil)
 	if err != nil {
