@@ -341,7 +341,7 @@ func Test_execution_scale_resources(t *testing.T) {
 			}
 		}(testRes)
 	}
-	if waitTimeout(&wg, 30 * time.Second) {
+	if waitTimeout(&wg, 30*time.Second) {
 		t.Fatal("timeout exceeded")
 	} else {
 		fmt.Println("Execution ok")
@@ -395,7 +395,7 @@ func Test_execution_del_resources(t *testing.T) {
 			}
 		}(testRes)
 	}
-	if waitTimeout(&wg, 30 * time.Second) {
+	if waitTimeout(&wg, 30*time.Second) {
 		t.Fatal("timeout exceeded")
 	} else {
 		fmt.Println("Execution ok")
@@ -455,7 +455,7 @@ func Test_execution_create_resource(t *testing.T) {
 			}
 		}(testRes)
 	}
-	if waitTimeout(&wg, 30 * time.Second) {
+	if waitTimeout(&wg, 30*time.Second) {
 		t.Fatal("timeout exceeded")
 	} else {
 		fmt.Println("Execution ok")
