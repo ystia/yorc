@@ -1171,25 +1171,25 @@ Content-Type: application/json
 
 ### Execute a query to retrieve infrastructure usage for a defined infrastructure usage collector <a name="infra-usage-query-exec"></a>
 
-Submit a query for a given infrastructure to retrieve usage information.
+Submit a query for a given infrastructure and a given location to retrieve usage information.
 'Content-Type' header should be set to 'application/json'.
 
-`POST    /infra_usage/<infra_name>`
+`POST    /infra_usage/<infra_name>/<location_name>`
 
 **Response**:
 
 ```HTTP
 HTTP/1.1 202 Accepted
 Content-Length: 0
-Location: /infra_usage/<infra_name>/tasks/<task_id>
+Location: /infra_usage/<infra_name>/<location_name>/tasks/<task_id>
 ```
 
 ### Get query information <a name="task-info"></a>
 
-Retrieve information about a task for a given infrastructure usage collector.
+Retrieve information about a task for a given infrastructure usage collector on a given location.
 'Accept' header should be set to 'application/json'.
 
-`GET    /infra_usage/<infra_name>/tasks/<taskId>`
+`GET    /infra_usage/<infra_name>/<location_name>/tasks/<taskId>`
 
 **Response**:
 
@@ -1250,7 +1250,7 @@ Content-Type: application/json
 Delete an existing query. The task should be in status "DONE" or "FAILED" to be deleted otherwise an HTTP 400
 (Bad request) error is returned.
 
-`DELETE    /infra_usage/<infra_name>/tasks/<taskId>`
+`DELETE    /infra_usage/<infra_name>/<location_name>/tasks/<taskId>`
 
 **Response**:
 
@@ -1275,12 +1275,12 @@ Content-Type: application/json
 "tasks": [
   {
     "rel": "task",
-    "href": "/infra_usage/slurm/tasks/b0d91e99-1970-4fc0-8cc2-2cb4f5007e27",
+    "href": "/infra_usage/slurm/myLocationOne/tasks/b0d91e99-1970-4fc0-8cc2-2cb4f5007e27",
     "type": "application/json"
   },
   {
     "rel": "task",
-    "href": "/infra_usage/slurm/tasks/b4f9682d-7020-45dc-b2db-d0c84b8c30e2",
+    "href": "/infra_usage/slurm/myLocationOne/tasks/b4f9682d-7020-45dc-b2db-d0c84b8c30e2",
     "type": "application/json"
   }
  ]

@@ -137,7 +137,21 @@ func (s *Server) listTaskQueryHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		target := split[1]
-		link := newAtomLink(LinkRelTask, path.Join("/", query, target, "tasks", taskID))
+
+		locationName, err := tasks.GetTaskData(kv, taskID, "locationName")
+		if err != nil {
+			if !tasks.IsTaskDataNotFoundError(err) {
+				log.Panic(err)
+			}
+		}
+
+		var link AtomLink
+		if locationName != "" {
+			link = newAtomLink(LinkRelTask, path.Join("/", query, target, locationName, "tasks", taskID))
+		} else {
+			link = newAtomLink(LinkRelTask, path.Join("/", query, target, "tasks", taskID))
+		}
+
 		tasksCol.Tasks[ind] = link
 	}
 	encodeJSONResponse(w, r, tasksCol)
