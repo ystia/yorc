@@ -15,12 +15,14 @@
 package upgradeschema
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
 	"path"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 )
 
 // UpgradeTo112 allows to upgrade Consul schema from 1.1.1 to 1.1.2
@@ -31,46 +33,53 @@ func UpgradeTo112(kv *api.KV, leaderch <-chan struct{}) error {
 
 func up112UpgradeHostsPoolStorage(kv *api.KV) error {
 	log.Print("\tUpgrade hosts pool storage...")
-
+	defaultLocationName := "hostsPool111"
 	// Check the schema is the previous one by retrieving the host status
 	keys, _, err := kv.Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, k := range keys {
+		log.Debugf("check key=%q", k)
 		kvp, _, err := kv.Get(path.Join(k, "status"), nil)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
-			log.Debugf("No host status retrieved. We assume the schema is up to date")
-			return nil
+			log.Debugf("No host status retrieved for this key. We assume its a hosts pool location with up-to-date schema.")
+			continue
 		}
-	}
 
-	locationDefaultName := "hostsPool111"
-	kvps, _, err := kv.List(consulutil.HostsPoolPrefix+"/", nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
+		log.Debugf("Found a host from legacy pool: it will be associated to location name:%q. This name can be changed with the CLI/REST API locations.", defaultLocationName)
 
-	if len(kvps) > 0 {
-		log.Debugf("Found a hosts pool: it will be associated to location name:%q. This name can be changed with the CLI/REST API locations.", locationDefaultName)
-	}
-	for _, kvp := range kvps {
-		if kvp != nil && len(kvp.Value) > 0 {
-			newKey := path.Join(consulutil.HostsPoolPrefix, locationDefaultName, strings.TrimPrefix(kvp.Key, consulutil.HostsPoolPrefix))
-			log.Debugf("Create new key: %q", newKey)
-			err = consulutil.StoreConsulKey(newKey, kvp.Value)
-			if err != nil {
-				return errors.Wrapf(err, "failed to store hosts pool key with location:%q", locationDefaultName)
-			}
-		}
-		log.Debugf("Delete old key: %q", kvp.Key)
-		_, err = kv.Delete(kvp.Key, nil)
+		err = moveKeyToNewSchema(kv, k, defaultLocationName)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
+	}
+	return nil
+}
+
+func moveKeyToNewSchema(kv *api.KV, key, defaultLocationName string) error {
+	kvps, _, err := kv.List(key+"/", nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, kvp := range kvps {
+		if kvp != nil && len(kvp.Value) > 0 {
+			newKey := path.Join(consulutil.HostsPoolPrefix, defaultLocationName, strings.TrimPrefix(kvp.Key, consulutil.HostsPoolPrefix))
+			log.Debugf("Create new key: %q", newKey)
+			err = consulutil.StoreConsulKey(newKey, kvp.Value)
+			if err != nil {
+				return errors.Wrapf(err, "failed to store hosts pool key with location:%q", defaultLocationName)
+			}
+		}
+	}
+
+	log.Debugf("Delete old key tree: %q", key)
+	_, err = kv.DeleteTree(key, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return nil
 }
