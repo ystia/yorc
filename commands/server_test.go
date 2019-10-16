@@ -50,6 +50,48 @@ var expectedDefaultConsulConfig = config.Consul{
 	TLSHandshakeTimeout: config.DefaultConsulTLSHandshakeTimeout,
 }
 
+func TestServerConfigWithEnvVars(t *testing.T) {
+
+	expectedConfig := struct {
+		LocationsFilePath string
+		ResourcesPrefix   string
+		WorkingDirectory  string
+		PluginsDirectory  string
+		WorkersNumber     int
+	}{
+		LocationsFilePath: "/path/to/locations/file",
+		ResourcesPrefix:   "pref-",
+		WorkingDirectory:  "workdir",
+		PluginsDirectory:  "plugdir",
+		WorkersNumber:     42,
+	}
+
+	// Set server env variables
+	os.Setenv("YORC_LOCATIONS_FILE_PATH", expectedConfig.LocationsFilePath)
+	os.Setenv("YORC_RESOURCES_PREFIX", expectedConfig.ResourcesPrefix)
+	os.Setenv("YORC_WORKING_DIRECTORY", expectedConfig.WorkingDirectory)
+	os.Setenv("YORC_PLUGINS_DIRECTORY", expectedConfig.PluginsDirectory)
+	os.Setenv("YORC_WORKERS_NUMBER", strconv.Itoa(expectedConfig.WorkersNumber))
+
+	testResetConfig()
+	setConfig()
+	initConfig()
+	testConfig := GetConfig()
+
+	assert.Equal(t, expectedConfig.LocationsFilePath, testConfig.LocationsFilePath, "Locations file path configuration differs from expected environment configuration")
+	assert.Equal(t, expectedConfig.ResourcesPrefix, testConfig.ResourcesPrefix, "Resources prefix configuration differs from expected environment configuration")
+	assert.Equal(t, expectedConfig.WorkingDirectory, testConfig.WorkingDirectory, "Working Directory configuration differs from expected environment configuration")
+	assert.Equal(t, expectedConfig.PluginsDirectory, testConfig.PluginsDirectory, "Plugins Directory configuration differs from expected environment configuration")
+	assert.Equal(t, expectedConfig.WorkersNumber, testConfig.WorkersNumber, "Workers Number configuration differs from expected environment configuration")
+
+	// cleanup env
+	os.Unsetenv("YORC_LOCATIONS_FILE_PATH")
+	os.Unsetenv("YORC_RESOURCES_PREFIX")
+	os.Unsetenv("YORC_WORKING_DIRECTORY")
+	os.Unsetenv("YORC_PLUGINS_DIRECTORY")
+	os.Unsetenv("YORC_WORKERS_NUMBER")
+}
+
 // Test the following args:
 // ./yorc server --vault_auth_url http://localhost:5000/v2.0 --vault_tenant_name validation
 func TestServerInitVaultExtraFlagsWithSpaceDelimiter(t *testing.T) {

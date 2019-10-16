@@ -253,6 +253,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Duration("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout, "When a deployment is purged an event is keep to trace that the purge was actually done, this timeout controls the retention time of such events.")
 	serverCmd.PersistentFlags().String("server_id", host, "The server ID used to identify the server node in a cluster.")
 	serverCmd.PersistentFlags().Bool("disable_ssh_agent", false, "Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.")
+	serverCmd.PersistentFlags().String("locations_file_path", "", "File path to locations configuration. This configuration is taken in account for the first time the server starts.")
 
 	// Flags definition for Yorc HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -312,6 +313,7 @@ func setConfig() {
 	viper.BindPFlag("purged_deployments_eviction_timeout", serverCmd.PersistentFlags().Lookup("purged_deployments_eviction_timeout"))
 	viper.BindPFlag("server_id", serverCmd.PersistentFlags().Lookup("server_id"))
 	viper.BindPFlag("disable_ssh_agent", serverCmd.PersistentFlags().Lookup("disable_ssh_agent"))
+	viper.BindPFlag("locations_file_path", serverCmd.PersistentFlags().Lookup("locations_file_path"))
 
 	//Bind Flags Yorc HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
@@ -349,6 +351,7 @@ func setConfig() {
 	viper.BindEnv("resources_prefix")
 	viper.BindEnv("server_id")
 	viper.BindEnv("disable_ssh_agent")
+	viper.BindEnv("locations_file_path")
 
 	//Bind Consul environment variables flags
 	for key := range consulConfiguration {
