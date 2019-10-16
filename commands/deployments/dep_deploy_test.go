@@ -75,11 +75,6 @@ func TestDeployWithBadFilePath(t *testing.T) {
 	require.Error(t, err, "Expect error as file doesn't exist")
 }
 
-func TestDeployWithBadZip(t *testing.T) {
-	err := deploy(&httpClientMockDeploy{}, []string{"./testdata/badzip.zip"}, false, false, "myDeploymentID")
-	require.Error(t, err, "Expect error as file is not a correct zip")
-}
-
 func TestDeployWithHTTPFailure(t *testing.T) {
 	err := deploy(&httpClientMockDeploy{testID: "fails"}, []string{"./testdata/deployment.zip"}, false, false, "myDeploymentID")
 	require.Error(t, err, "Expected error due to HTTP failure")

@@ -84,12 +84,11 @@ func deploy(client httputil.HTTPClient, args []string, shouldStreamLogs, shouldS
 			return err
 		}
 		fileType := http.DetectContentType(buff)
-		if fileType != "application/zip" {
-			return errors.Errorf("file %q is not a zip file", args[0])
-		}
-		location, err = SubmitCSAR(buff, client, deploymentID)
-		if err != nil {
-			return err
+		if fileType == "application/zip" {
+			location, err = SubmitCSAR(buff, client, deploymentID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
