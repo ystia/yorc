@@ -6,6 +6,10 @@
 
 Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
 
+### BUG FIXES
+
+* YORC_LOCATIONS_FILE_PATH env variable and locations_file_path command flag are not working ([GH-535](https://github.com/ystia/yorc/issues/535))
+
 ## 4.0.0-M5 (October 11, 2019)
 
 ### BREAKING CHANGES
