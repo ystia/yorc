@@ -20,6 +20,7 @@ The support of locations in Yorc (issue [GH-478](https://github.com/ystia/yorc/i
 It introduces breaking changes in Yorc configuration as described below.
 
 It is not anymore possible to define infrastructure properties through:
+
 * environment variables, like `YORC_INFRA_OPENSTACK_AUTH_URL`
 * yorc server command flags, like `--infrastructure_openstack_auth_url`.
 
@@ -87,20 +88,19 @@ But the CLI commands have now a mandatory argument to provide the location name:
 For example, this command was executed in previous Yorc version to create/update a Hosts Pool from a file:
 
 ```bash
-$ yorc hp apply myhostspool.yaml
+yorc hp apply myhostspool.yaml
 ```
 
 It is now:
 
 ```bash
-$ yorc hp apply -l myLocation myhostspool.yaml
+yorc hp apply -l myLocation myhostspool.yaml
 ```
 
 See Yorc documentation for additional details:
+
 * section [configuration](https://yorc.readthedocs.io/en/latest/configuration.html)
 * section on [CLI commands related to Hosts pool](https://yorc.readthedocs.io/en/latest/cli.html#cli-commands-related-to-hosts-pool)
-
-
 
 ### FEATURES
 
@@ -109,7 +109,7 @@ See Yorc documentation for additional details:
 
 ### ENHANCEMENTS
 
-* Locations concept in Yorc ([GH-478(https://github.com/ystia/yorc/issues/478))
+* Locations concept in Yorc ([GH-478](https://github.com/ystia/yorc/issues/478))
 
 ### BUG FIXES
 
