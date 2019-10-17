@@ -17,6 +17,8 @@ package slurm
 import (
 	"regexp"
 	"testing"
+
+	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
 func Test_executionCommon_wrapCommand(t *testing.T) {
@@ -37,6 +39,9 @@ func Test_executionCommon_wrapCommand(t *testing.T) {
 		{"TestBasicGeneration", fields{
 			jobInfo: &jobInfo{Name: "MyJob", Nodes: 1, WorkingDir: "~"}},
 			args{"ping -c 3 1.1.1.1"}, regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n\nping -c 3 1.1.1.1\nEOF\nsbatch -D ~ --job-name='MyJob' --nodes=1 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`), false},
+		{"TestWithInlineOptsGeneration", fields{
+			jobInfo: &jobInfo{Name: "MyJob", Nodes: 1, WorkingDir: "~", ExecutionOptions: datatypes.SlurmExecutionOptions{InScriptOptions: []string{"#BB ddd", "not dash prefixed so will not appear", "#another one"}}}},
+			args{"ping -c 3 1.1.1.1"}, regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n#BB ddd\n#another one\n\nping -c 3 1.1.1.1\nEOF\nsbatch -D ~ --job-name='MyJob' --nodes=1 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

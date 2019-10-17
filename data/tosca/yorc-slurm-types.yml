@@ -90,6 +90,14 @@ data_types:
         required: false
         entry_schema:
           type: string
+      in_script_options:
+        type: list
+        description: |
+          List of options to be passed to sbatch as inline batch script options.
+          To be valid each element should start with a dash '#' character.
+        required: false
+        entry_schema:
+          type: string
 
 capability_types:
   yorc.capabilities.slurm.Endpoint:
