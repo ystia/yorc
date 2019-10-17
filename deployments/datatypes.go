@@ -47,18 +47,18 @@ func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, prop
 	if !isProp {
 		tType = "attributes"
 	}
-	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return "", err
 	}
 	propertyDefinitionPath := path.Join(typePath, tType, propertyName)
-	kvp, _, err := kv.Get(path.Join(propertyDefinitionPath, "type"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(propertyDefinitionPath, "type"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil {
+	if !exist || value == "" {
 		// Check parent
-		parentType, err := GetParentType(kv, deploymentID, typeName)
+		parentType, err := GetParentType(deploymentID, typeName)
 		if parentType == "" {
 			return "", nil
 			// return "", errors.Errorf("property %q not found in type %q", propertyName, typeName)
@@ -66,16 +66,16 @@ func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, prop
 		result, err := GetTypePropertyDataType(kv, deploymentID, parentType, propertyName)
 		return result, errors.Wrapf(err, "property %q not found in type %q", propertyName, typeName)
 	}
-	dataType := string(kvp.Value)
+	dataType := value
 	if dataType == "map" || dataType == "list" {
-		kvp, _, err := kv.Get(path.Join(propertyDefinitionPath, "entry_schema"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(propertyDefinitionPath, "entry_schema"))
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			dataType += ":string"
 		} else {
-			dataType += ":" + string(kvp.Value)
+			dataType += ":" + value
 		}
 	} else if dataType == "" {
 		dataType = "string"
@@ -123,21 +123,21 @@ func GetTopologyOutputType(kv *api.KV, deploymentID, outputName string) (string,
 }
 
 func getTopologyInputOrOutputType(kv *api.KV, deploymentID, parameterName, parameterType string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "type"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "type"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil {
+	if !exist {
 		return "", nil
 	}
-	iType := string(kvp.Value)
+	iType := value
 	if iType == "list" || iType == "map" {
-		kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "entry_schema"), nil)
+		exist, value, err = consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "entry_schema"))
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			iType += ":" + string(kvp.Value)
+		if exist && value != "" {
+			iType += ":" + value
 		} else {
 			iType += ":string"
 		}

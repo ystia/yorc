@@ -49,7 +49,7 @@ func TypeHasCapability(kv *api.KV, deploymentID, typeName, capabilityTypeName st
 // GetCapabilitiesOfType returns names of all capabilities in a given type hierarchy that derives from a given capability type
 func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeName string) ([]string, error) {
 	capabilities := make([]string, 0)
-	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return capabilities, err
 	}
@@ -59,16 +59,15 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 	}
 
 	for _, capName := range capabilitiesKeys {
-		var kvp *api.KVPair
-		kvp, _, err = kv.Get(path.Join(capName, "type"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(capName, "type"))
 		if err != nil {
 			return capabilities, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return capabilities, errors.Errorf("Missing \"type\" key for type capability %q", capName)
 		}
 		var isCorrectType bool
-		isCorrectType, err = IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), capabilityTypeName)
+		isCorrectType, err = IsTypeDerivedFrom(kv, deploymentID, value, capabilityTypeName)
 		if err != nil {
 			return capabilities, err
 		}
@@ -77,7 +76,7 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 		}
 	}
 
-	parentType, err := GetParentType(kv, deploymentID, typeName)
+	parentType, err := GetParentType(deploymentID, typeName)
 	if err != nil {
 		return capabilities, err
 	}
@@ -435,18 +434,18 @@ func GetNodeCapabilityType(kv *api.KV, deploymentID, nodeName, capabilityName st
 // It explores the type hierarchy (derived_from) to found the given capability.
 // It may return an empty string if the capability is not found in the type hierarchy
 func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityName string) (string, error) {
-	typePath, err := locateTypePath(kv, deploymentID, nodeType)
+	typePath, err := locateTypePath(deploymentID, nodeType)
 	if err != nil {
 		return "", err
 	}
-	kvp, _, err := kv.Get(path.Join(typePath, "capabilities", capabilityName, "type"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "capabilities", capabilityName, "type"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		return string(kvp.Value), nil
+	if exist || value != "" {
+		return value, nil
 	}
-	parentType, err := GetParentType(kv, deploymentID, nodeType)
+	parentType, err := GetParentType(deploymentID, nodeType)
 	if err != nil {
 		return "", err
 	}
@@ -460,7 +459,7 @@ func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityNam
 //
 // It explores the type hierarchy (derived_from) to found the given capability.
 func GetNodeTypeCapabilityPropertyValue(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (*TOSCAValue, error) {
-	typePath, err := locateTypePath(kv, deploymentID, nodeType)
+	typePath, err := locateTypePath(deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +469,7 @@ func GetNodeTypeCapabilityPropertyValue(kv *api.KV, deploymentID, nodeType, capa
 		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
 	}
 
-	parentType, err := GetParentType(kv, deploymentID, nodeType)
+	parentType, err := GetParentType(deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}

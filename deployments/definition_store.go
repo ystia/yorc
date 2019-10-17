@@ -143,7 +143,7 @@ func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID s
 			return err
 		}
 		if isImpl {
-			extensions, err := GetArtifactTypeExtensions(kv, deploymentID, t)
+			extensions, err := GetArtifactTypeExtensions(deploymentID, t)
 			if err != nil {
 				return err
 			}
@@ -246,7 +246,7 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
-		typePath, err := locateTypePath(kv, deploymentID, nodeType)
+		typePath, err := locateTypePath(deploymentID, nodeType)
 		if err != nil {
 			return err
 		}
@@ -277,7 +277,7 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 						return errors.New("Fail to get the hostedOn to fix the output")
 					}
 					if hostedNodeType, err := GetNodeType(kv, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
-						hostedTypePath, err := locateTypePath(kv, deploymentID, hostedNodeType)
+						hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
 						if err != nil {
 							return err
 						}
@@ -310,7 +310,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 		if relationshipType == "" {
 			continue
 		}
-		relTypePath, err := locateTypePath(kv, deploymentID, relationshipType)
+		relTypePath, err := locateTypePath(deploymentID, relationshipType)
 		if err != nil {
 			return err
 		}
@@ -348,7 +348,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 							}
 							nodeType, _ = GetNodeType(kv, deploymentID, targetNode)
 						}
-						typePath, err := locateTypePath(kv, deploymentID, nodeType)
+						typePath, err := locateTypePath(deploymentID, nodeType)
 						if err != nil {
 							return err
 						}
@@ -376,27 +376,27 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 		for _, attachReq := range attachReqs {
 			req := tosca.RequirementAssignment{}
 			req.Node = nodeName
-			kvp, _, err := kv.Get(path.Join(attachReq, "node"), nil)
+			exist, value, err := consulutil.GetStringValue(path.Join(attachReq, "node"))
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
 			var computeNodeName string
-			if kvp != nil {
-				computeNodeName = string(kvp.Value)
+			if exist {
+				computeNodeName = value
 			}
-			kvp, _, err = kv.Get(path.Join(attachReq, "capability"), nil)
+			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "capability"))
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
-			if kvp != nil {
-				req.Capability = string(kvp.Value)
+			if exist {
+				req.Capability = value
 			}
-			kvp, _, err = kv.Get(path.Join(attachReq, "relationship"), nil)
+			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "relationship"))
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
-			if kvp != nil {
-				req.Relationship = string(kvp.Value)
+			if exist {
+				req.Relationship = value
 			}
 			device, err := GetNodePropertyValue(kv, deploymentID, nodeName, "device")
 			if err != nil {
@@ -418,17 +418,17 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 
 			// Get all requirement properties
 			// Appending a final "/" here is not necessary as there is no other keys starting with "properties" prefix
-			kvps, _, err := kv.List(path.Join(attachReq, "properties"), nil)
+			kvs, err := consulutil.List(path.Join(attachReq, "properties"))
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
-			for _, kvp := range kvps {
+			for key, value := range kvs {
 				va := &tosca.ValueAssignment{}
-				err := yaml.Unmarshal(kvp.Value, va)
+				err := yaml.Unmarshal(value, va)
 				if err != nil {
 					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 				}
-				req.RelationshipProps[path.Base(kvp.Key)] = va
+				req.RelationshipProps[path.Base(key)] = va
 			}
 			newReqID, err := GetNbRequirementsForNode(kv, deploymentID, computeNodeName)
 			if err != nil {
@@ -484,20 +484,20 @@ func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, kv *a
 		var bsName []string
 
 		for _, requirement := range requirementsKey {
-			capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+			exist, _, err := consulutil.GetStringValue(path.Join(requirement, "capability"))
 			if err != nil {
 				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			} else if capability == nil {
+			} else if !exist {
 				continue
 			}
 
-			bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+			_, bsNode, err := consulutil.GetStringValue(path.Join(path.Join(requirement, "node")))
 			if err != nil {
 				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 
 			}
 
-			bsName = append(bsName, string(bsNode.Value))
+			bsName = append(bsName, bsNode)
 		}
 
 		for _, name := range bsName {
@@ -520,20 +520,20 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 	var bsName []string
 
 	for _, requirement := range requirementsKey {
-		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+		exist, _, err := consulutil.GetStringValue(path.Join(requirement, "capability"))
 		if err != nil {
 			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		} else if capability == nil {
+		} else if !exist {
 			continue
 		}
 
-		bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+		_, bsNode, err := consulutil.GetStringValue(path.Join(requirement, "node"))
 		if err != nil {
 			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 
 		}
 
-		bsName = append(bsName, string(bsNode.Value))
+		bsName = append(bsName, bsNode)
 	}
 
 	return true, bsName, nil

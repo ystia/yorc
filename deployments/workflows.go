@@ -73,24 +73,24 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 	step := &tosca.Step{}
 	targetIsMandatory := false
 	// Get the step operation's host (not mandatory)
-	kvp, _, err := kv.Get(path.Join(stepKey, "operation_host"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(stepKey, "operation_host"))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		step.OperationHost = string(kvp.Value)
+	if exist && value != "" {
+		step.OperationHost = value
 	}
 	// Get the target relationship (not mandatory)
-	kvp, _, err = kv.Get(path.Join(stepKey, "target_relationship"), nil)
+	exist, value, err = consulutil.GetStringValue(path.Join(stepKey, "target_relationship"))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		step.TargetRelationShip = string(kvp.Value)
+	if exist && value != "" {
+		step.TargetRelationShip = value
 	}
 	// Get the step's activities
 	// Appending a final "/" here is not necessary as there is no other keys starting with "activities" prefix
-	activitiesKeys, _, err := kv.List(stepKey+"/activities", nil)
+	activitiesKeys, err := consulutil.List(stepKey + "/activities")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -98,37 +98,39 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for i, actKV := range activitiesKeys {
+	var i int
+	for key, value := range activitiesKeys {
 		activity := tosca.Activity{}
-		key := strings.TrimPrefix(actKV.Key, stepKey+"activities/"+strconv.Itoa(i)+"/")
+		key := strings.TrimPrefix(key, stepKey+"activities/"+strconv.Itoa(i)+"/")
 		switch {
 		case key == "delegate":
-			activity.Delegate = string(actKV.Value)
+			activity.Delegate = string(value)
 			step.Activities[i] = activity
 			targetIsMandatory = true
 		case key == "set-state":
-			activity.SetState = string(actKV.Value)
+			activity.SetState = string(value)
 			step.Activities[i] = activity
 			targetIsMandatory = true
 		case key == "call-operation":
-			activity.CallOperation = string(actKV.Value)
+			activity.CallOperation = string(value)
 			step.Activities[i] = activity
 			targetIsMandatory = true
 		case key == "inline":
-			activity.Inline = string(actKV.Value)
+			activity.Inline = string(value)
 			step.Activities[i] = activity
 		}
+		i++
 	}
 	// Get the step's target (mandatory except if all activities are inline)
-	kvp, _, err = kv.Get(path.Join(stepKey, "target"), nil)
+	exist, value, err = consulutil.GetStringValue(path.Join(stepKey, "target"))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if targetIsMandatory && (kvp == nil || len(kvp.Value) == 0) {
+	if targetIsMandatory && (!exist || value == "") {
 		return step, errors.Errorf("Missing mandatory attribute \"target\" for step %q", path.Base(stepKey))
 	}
-	if kvp != nil && len(kvp.Value) > 0 {
-		step.Target = string(kvp.Value)
+	if exist && value != "" {
+		step.Target = value
 	}
 
 	// Get the next steps of the current step and use it to set the OnSuccess filed

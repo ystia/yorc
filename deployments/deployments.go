@@ -91,26 +91,26 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 //  	}
 //  }
 func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"))
 	if err != nil {
 		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
 	}
-	return DeploymentStatusFromString(string(kvp.Value), true)
+	return DeploymentStatusFromString(value, true)
 }
 
 //GetDeploymentTemplateName only return the name of the template used during the deployment
 func GetDeploymentTemplateName(kv *api.KV, deploymentID string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return "", deploymentNotFound{deploymentID: deploymentID}
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment

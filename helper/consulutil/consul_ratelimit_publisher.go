@@ -137,6 +137,55 @@ func StoreConsulKey(key string, value []byte) error {
 	return StoreConsulKeyWithFlags(key, value, 0)
 }
 
+// GetValue retrieves the value for the specified key in bytes array
+// If the key doesn't exist, it returns false
+func GetValue(key string) (bool, []byte, error) {
+	kv := GetKV()
+	kvp, _, err := kv.Get(key, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	if kvp == nil {
+		return false, nil, nil
+	}
+	return true, kvp.Value, nil
+}
+
+// GetStringValue retrieves the value for the specified key in string type
+// If the key doesn't exist, it returns false
+func GetStringValue(key string) (bool, string, error) {
+	exist, value, err := GetValue(key)
+	if err != nil || !exist {
+		return false, "", err
+	}
+	return true, string(value), nil
+}
+
+// GetKeys returns the sub-keys list from a specified key
+func GetKeys(key string) ([]string, error) {
+	kv := GetKV()
+	subKeys, _, err := kv.Keys(key+"/", "/", nil)
+	if err != nil {
+		return nil, err
+	}
+	return subKeys, nil
+}
+
+// List returns the key-value map of all sub-keys from a specified key
+func List(key string) (map[string][]byte, error) {
+	kv := GetKV()
+	kvps, _, err := kv.List(key, nil)
+	kvs := make(map[string][]byte, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, kvp := range kvps {
+		kvs[kvp.Key] = kvp.Value
+	}
+
+	return kvs, nil
+}
+
 // StoreConsulKeyWithFlags stores a Consul key without the use of a ConsulStore you should avoid to use it when storing several keys that could be
 // stored concurrently as this function has an important overhead of creating an execution context using the WithContext function and
 // waiting for the key to be store in Consul using errGroup.Wait()

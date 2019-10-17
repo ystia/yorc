@@ -35,14 +35,14 @@ func GetRequirementKeyByNameForNode(kv *api.KV, deploymentID, nodeName, requirem
 	}
 	for _, reqIndexKey := range reqKVPs {
 		reqIndexKey = path.Clean(reqIndexKey)
-		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(reqIndexKey, "name"))
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return "", errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
 		}
-		if string(kvp.Value) == requirementName {
+		if value == requirementName {
 			return reqIndexKey, nil
 		}
 	}
@@ -63,25 +63,25 @@ func GetRequirementsKeysByTypeForNode(kv *api.KV, deploymentID, nodeName, requir
 		reqIndexKey = path.Clean(reqIndexKey)
 
 		// Search matching with name
-		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(reqIndexKey, "name"))
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return nil, errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
 		}
-		if string(kvp.Value) == requirementType {
+		if value == requirementType {
 			reqKeys = append(reqKeys, reqIndexKey)
 			// Pass to the next index
 			continue
 		}
 
 		// Search matching with type_requirement
-		kvp, _, err = kv.Get(path.Join(reqIndexKey, "type_requirement"), nil)
+		exist, value, err = consulutil.GetStringValue(path.Join(reqIndexKey, "type_requirement"))
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil && string(kvp.Value) == requirementType {
+		if exist && value == requirementType {
 			reqKeys = append(reqKeys, reqIndexKey)
 		}
 	}
@@ -106,11 +106,11 @@ func GetRequirementIndexByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 
 // GetRequirementNameByIndexForNode returns the requirement name for a given node and requirement index
 func GetRequirementNameByIndexForNode(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "name"), nil)
-	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "name"))
+	if err != nil || !exist || value == "" {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // GetRequirementsIndexes returns the list of requirements indexes for a given node
@@ -140,35 +140,35 @@ func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, e
 //
 // If there is no relationship defined for this requirement then an empty string is returned.
 func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"))
 	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it furthermore it can refer to a relationship_template_name instead of a relationship_type_name
-	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+	if err != nil || !exist || value == "" {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // GetCapabilityForRequirement returns the capability associated with a given requirementIndex for the given nodeName.
 //
 // If there is no capability defined for this requirement then an empty string is returned.
 func GetCapabilityForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "capability"), nil)
-	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "capability"))
+	if err != nil || !exist || value == "" {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // GetTargetNodeForRequirement returns the target node associated with a given requirementIndex for the given nodeName.
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"))
 	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
-	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+	if err != nil || !exist || value == "" {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // GetTargetInstanceForRequirement returns the target node and instances
@@ -179,23 +179,22 @@ func GetTargetInstanceForRequirement(kv *api.KV, deploymentID, nodeName, require
 		consulutil.DeploymentKVPrefix, deploymentID,
 		"topology", "relationship_instances", nodeName, requirementIndex,
 		instanceName, "target")
-	kvp, _, err := kv.Get(path.Join(targetPrefix, "name"), nil)
+	exist, targetNodeName, err := consulutil.GetStringValue(path.Join(targetPrefix, "name"))
 	if err != nil {
 		return "", nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || targetNodeName == "" {
 		return "", nil, nil
 	}
-	targetNodeName := string(kvp.Value)
 
-	kvp, _, err = kv.Get(path.Join(targetPrefix, "instances"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(targetPrefix, "instances"))
 	if err != nil {
 		return "", nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return "", nil, nil
 	}
-	instanceIds := strings.Split(string(kvp.Value), ",")
+	instanceIds := strings.Split(value, ",")
 	return targetNodeName, instanceIds, nil
 }
 
@@ -211,17 +210,17 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 	}
 
 	for _, req := range kvp {
-		reqKv, _, err := kv.Get(req+"/type_requirement", nil)
-		if err != nil || kv == nil {
+		existR, value, err := consulutil.GetStringValue(req + "/type_requirement")
+		if err != nil || !existR {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 
-		if string(reqKv.Value) == requirementName {
-			nodeNameKvp, _, err := kv.Get(req+"/node", nil)
-			if err != nil || nodeNameKvp == nil {
+		if value == requirementName {
+			existN, node, err := consulutil.GetStringValue(req + "/node")
+			if err != nil || !existN {
 				return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
-			return string(nodeNameKvp.Value), nil
+			return node, nil
 		}
 
 	}

@@ -99,14 +99,14 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	// First test operation outputs detection
 	vaTypePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/yorc.tests.nodes.ValueAssignmentNode")
-	kvp, _, err := kv.Get(path.Join(vaTypePrefix, "interfaces/standard/create/outputs/SELF/CREATE_OUTPUT/expression"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/create/outputs/SELF/CREATE_OUTPUT/expression"))
 	require.Nil(t, err)
-	require.NotNil(t, kvp)
-	require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", string(kvp.Value))
-	kvp, _, err = kv.Get(path.Join(vaTypePrefix, "interfaces/standard/configure/outputs/SELF/PARTITION_NAME/expression"), nil)
+	require.True(t, exist)
+	require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", value)
+	exist, value, err = consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/configure/outputs/SELF/PARTITION_NAME/expression"))
 	require.Nil(t, err)
-	require.NotNil(t, kvp)
-	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", string(kvp.Value))
+	require.True(t, exist)
+	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", value)
 
 	// Then test node properties
 	type nodePropArgs struct {
@@ -991,10 +991,10 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV, deploymentID string) {
 
 	for key, expectedValue := range expectedKeyValuePairs {
 		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		kvp, _, err := kv.Get(consulKey, nil)
+		exist, value, err := consulutil.GetStringValue(consulKey)
 		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
+		require.True(t, exist, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
 	}
 }
 
@@ -1016,10 +1016,10 @@ func testTopologyTemplateMetadata(t *testing.T, kv *api.KV, deploymentID string)
 
 	for key, expectedValue := range expectedKeyValuePairs {
 		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		kvp, _, err := kv.Get(consulKey, nil)
+		exist, value, err := consulutil.GetStringValue(consulKey)
 		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
+		require.True(t, exist, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
 	}
 
 }
@@ -1045,10 +1045,10 @@ func testRunnableWorkflowsAutoCancel(t *testing.T, kv *api.KV) {
 
 	for key, expectedValue := range expectedKeyValuePairs {
 		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		kvp, _, err := kv.Get(consulKey, nil)
+		exist, value, err := consulutil.GetStringValue(consulKey)
 		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
+		require.True(t, exist, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
 	}
 
 	wf, err := ReadWorkflow(kv, deploymentID, "run")
@@ -1074,10 +1074,10 @@ func testAttributeNotifications(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for key, expectedValue := range expectedKeyValuePairs {
 		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		kvp, _, err := kv.Get(consulKey, nil)
+		exist, value, err := consulutil.GetStringValue(consulKey)
 		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
+		require.True(t, exist, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, expectedValue, value, "Wrong value for key %s", key)
 	}
 }
 

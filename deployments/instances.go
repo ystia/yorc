@@ -65,14 +65,14 @@ func GetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string) (
 
 // GetInstanceStateString retrieves the string value of the state attribute of a given node instance
 func GetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return "", errors.Errorf("Missing mandatory attribute \"state\" on instance %q for node %q", instanceName, nodeName)
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // DeleteInstance deletes the given instance of the given node from the Consul store

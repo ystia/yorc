@@ -137,13 +137,13 @@ func (an *AttributeNotifier) NotifyValueChange(kv *api.KV, deploymentID string) 
 }
 
 func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID string) error {
-	kvps, _, err := kv.List(notificationsPath+"/", nil)
+	kvs, err := consulutil.List(notificationsPath + "/")
 	if err != nil {
 		return err
 	}
-	for _, kvp := range kvps {
+	for _, value := range kvs {
 
-		notified, err := getNotifiedAttribute(string(kvp.Value))
+		notified, err := getNotifiedAttribute(string(value))
 		log.Debugf("Need to notify attribute:%+v from attribute/operation output value change", notified)
 		if err != nil {
 			return err

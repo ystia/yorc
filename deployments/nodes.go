@@ -177,24 +177,24 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 	for _, reqKey := range reqKVPs {
 		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
 		// Check requirement relationship
-		kvp, _, err := kv.Get(path.Join(reqKey, "relationship"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(reqKey, "relationship"))
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		// Is this "HostedOn" relationship ?
-		if kvp != nil && len(kvp.Value) > 0 {
-			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
+		if exist && value != "" {
+			if ok, err := IsTypeDerivedFrom(kv, deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
 				return "", err
 			} else if ok {
 				// An HostedOn! Great! let inspect the target node.
-				kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
+				exist, value, err := consulutil.GetStringValue(path.Join(reqKey, "node"))
 				if err != nil {
 					return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
-				if kvp == nil || len(kvp.Value) == 0 {
+				if !exist || value == "" {
 					return "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
 				}
-				return string(kvp.Value), nil
+				return value, nil
 			}
 		}
 	}
@@ -216,21 +216,21 @@ func GetHostedOnNodeInstance(kv *api.KV, deploymentID, nodeName, instanceName st
 	for _, reqKey := range reqKVPs {
 		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
 		// Check requirement relationship
-		kvp, _, err := kv.Get(path.Join(reqKey, "relationship"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(reqKey, "relationship"))
 		if err != nil {
 			return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		// Is this "HostedOn" relationship ?
-		if kvp.Value != nil {
-			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
+		if exist && value != "" {
+			if ok, err := IsTypeDerivedFrom(kv, deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
 				return "", "", err
 			} else if ok {
 				// An HostedOn! Great! let inspect the target node.
-				kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
+				exist, value, err := consulutil.GetStringValue(path.Join(reqKey, "node"))
 				if err != nil {
 					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
-				if kvp == nil || len(kvp.Value) == 0 {
+				if !exist || value == "" {
 					return "", "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
 				}
 				// Get the corresponding target instances
@@ -507,15 +507,13 @@ func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 
 // GetNodeType returns the type of a given node identified by its name
 func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"), nil)
+	exist, nodeType, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"))
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || nodeType == "" {
 		return "", errors.Errorf("Missing mandatory parameter \"type\" for node %q", nodeName)
 	}
-
-	nodeType := string(kvp.Value)
 
 	// If the corresponding node is substitutable, get its real node type
 	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
@@ -592,7 +590,7 @@ func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string
 func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string, error) {
 	attributesSet := make(map[string]struct{})
 
-	parentType, err := GetParentType(kv, deploymentID, typeName)
+	parentType, err := GetParentType(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -608,7 +606,7 @@ func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string
 		}
 	}
 
-	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -653,16 +651,15 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 	}
 	nodesList := make([]string, 0)
 	for _, req := range localStorageReqs {
-		var kvp *api.KVPair
-		kvp, _, err = kv.Get(path.Join(req, "node"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(req, "node"))
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
 
 		}
-		nodesList = append(nodesList, string(kvp.Value))
+		nodesList = append(nodesList, value)
 	}
 	networkReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
@@ -674,26 +671,24 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 	}
 	allReqs := append(networkReqs, assignmentReqs...)
 	for _, req := range allReqs {
-		var kvp *api.KVPair
-
-		kvp, _, err = kv.Get(path.Join(req, "capability"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(req, "capability"))
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 || (string(kvp.Value) != "yorc.capabilities.openstack.FIPConnectivity" && string(kvp.Value) != "yorc.capabilities.Assignable") {
+		if !exist || value == "" || (value != "yorc.capabilities.openstack.FIPConnectivity" && value != "yorc.capabilities.Assignable") {
 			// Neither a FIP connectivity nor an assignable cap: see next
 			continue
 		}
 
-		kvp, _, err = kv.Get(path.Join(req, "node"), nil)
+		exist, value, err = consulutil.GetStringValue(path.Join(req, "node"))
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
 
 		}
-		nodesList = append(nodesList, string(kvp.Value))
+		nodesList = append(nodesList, value)
 	}
 	return nodesList, nil
 }
@@ -828,14 +823,14 @@ func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 
 // GetNodeMetadata retrieves the related node metadata key if exists
 func GetNodeMetadata(kv *api.KV, deploymentID, nodeName, key string) (bool, string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "metadata", key), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "metadata", key))
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Can't get metadata for node %q", nodeName)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return false, "", nil
 	}
-	return true, string(kvp.Value), nil
+	return true, value, nil
 }
 
 // NodeHasAttribute returns true if the node type has an attribute named attributeName defined

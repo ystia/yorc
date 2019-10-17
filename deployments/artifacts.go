@@ -30,7 +30,7 @@ import (
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
 func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]string, error) {
-	parentType, err := GetParentType(kv, deploymentID, typeName)
+	parentType, err := GetParentType(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 	} else {
 		artifacts = make(map[string]string)
 	}
-	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -86,32 +86,32 @@ func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsP
 
 	for _, artifactPath := range kvps {
 		artifactName := path.Base(artifactPath)
-		kvp, _, err := kv.Get(path.Join(artifactPath, "file"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(artifactPath, "file"))
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return errors.Errorf("Missing mandatory attribute \"file\" for artifact %q", path.Base(artifactPath))
 		}
 		// TODO path is relative to the type and may not be the same as a child type
-		artifacts[artifactName] = path.Join(importPath, string(kvp.Value))
+		artifacts[artifactName] = path.Join(importPath, value)
 	}
 	return nil
 }
 
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.
 // If the artifact doesn't define any extension then a nil slice is returned
-func GetArtifactTypeExtensions(kv *api.KV, deploymentID, artifactType string) ([]string, error) {
-	typePath, err := locateTypePath(kv, deploymentID, artifactType)
+func GetArtifactTypeExtensions(deploymentID, artifactType string) ([]string, error) {
+	typePath, err := locateTypePath(deploymentID, artifactType)
 	if err != nil {
 		return nil, err
 	}
-	kvp, _, err := kv.Get(path.Join(typePath, "file_ext"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "file_ext"))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return nil, nil
 	}
-	return strings.Split(string(kvp.Value), ","), nil
+	return strings.Split(value, ","), nil
 }

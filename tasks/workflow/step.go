@@ -290,7 +290,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			return err
 		}
 
-		exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
+		exec, err := getOperationExecutor(deploymentID, op.ImplementationArtifact)
 		if err != nil {
 			return err
 		}

@@ -150,7 +150,7 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 					}
 				}
 			}
-			currentDatatype, err = GetParentType(kv, deploymentID, currentDatatype)
+			currentDatatype, err = GetParentType(deploymentID, currentDatatype)
 			if err != nil {
 				return nil, err
 			}

@@ -242,23 +242,23 @@ func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV,
 func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeName, instanceName string, add bool) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
 	// Appending a final "/" here is not necessary has there is no other keys starting with "relationship_instances" prefix
-	relInstKVPairs, _, err := kv.List(relInstancePath, nil)
+	relInstKVPairs, err := consulutil.List(relInstancePath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	_, errGrp, store := consulutil.WithContext(context.Background())
-	for _, relInstKVPair := range relInstKVPairs {
-		if strings.HasSuffix(relInstKVPair.Key, "target/name") {
-			if string(relInstKVPair.Value) == nodeName {
-				instPath := path.Join(relInstKVPair.Key, "../instances")
-				kvp, _, err := kv.Get(instPath, nil)
+	for key, value := range relInstKVPairs {
+		if strings.HasSuffix(key, "target/name") {
+			if string(value) == nodeName {
+				instPath := path.Join(key, "../instances")
+				exist, value, err := consulutil.GetStringValue(instPath)
 				if err != nil {
 					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
-				if kvp == nil || len(kvp.Value) == 0 {
+				if !exist || value == "" {
 					return errors.Errorf("Missing key %q", instPath)
 				}
-				instances := strings.Split(string(kvp.Value), ",")
+				instances := strings.Split(value, ",")
 				if add {
 					// TODO for now we consider only relationships for every source instances to every target instances
 					if !collections.ContainsString(instances, instanceName) {

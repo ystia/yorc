@@ -32,52 +32,48 @@ const SingularityHubURL = "https://singularity-hub.org/"
 // GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
 func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
-	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "url"), nil)
+	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "url"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if res == nil {
+	if !exist {
 		return "", errors.Errorf("The repository %v has been not found", repoName)
 	}
-	return string(res.Value), nil
+	return res, nil
 }
 
 // GetRepositoryTokenTypeFromName retrieves the token_type of credential for a given repoName
 func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
-	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token_type"), nil)
+	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token_type"))
 	if err != nil {
 		return "", errors.Wrap(err, "An error has occurred when trying to get repository token_type")
 	}
 
-	if res == nil {
+	if !exist {
 		return "", errors.Errorf("The repository %v has been not found", repoName)
 	}
 
-	return string(res.Value), nil
+	return res, nil
 }
 
 // GetRepositoryTokenUserFromName This function get the credentials (user/token) for a given repoName
 func GetRepositoryTokenUserFromName(kv *api.KV, deploymentID, repoName string) (string, string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
-	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token"), nil)
+	existToken, token, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token"))
 	if err != nil {
 		return "", "", errors.Wrap(err, "An error has occurred when trying to get repository token")
 	}
+	if !existToken || token == "" {
+		return "", "", errors.Errorf("The token for repository %v has been not found", repoName)
+	}
 
-	resUser, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "user"), nil)
+	existUser, user, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "user"))
 	if err != nil {
 		return "", "", errors.Wrap(err, "An error has occurred when trying to get repository user")
 	}
-
-	if res == nil {
-		return "", "", errors.Errorf("The repository %v has been not found", repoName)
-	}
-
-	token := string(res.Value)
-	var user string
-	if resUser != nil {
-		user = string(resUser.Value)
+	if !existUser || user == "" {
+		return "", "", errors.Errorf("The user for repository %v has been not found", repoName)
 	}
 
 	return token, user, nil

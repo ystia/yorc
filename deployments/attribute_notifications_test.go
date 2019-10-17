@@ -55,11 +55,11 @@ func TestBuildAttributeData(t *testing.T) {
 }
 
 func assertOneConsulKeyExistAndHasValueInList(t *testing.T, kv *api.KV, keyPrefix string, expectedValue []byte) {
-	kvps, _, err := kv.List(keyPrefix, nil)
+	kvs, err := consulutil.List(keyPrefix)
 	require.NoError(t, err, "Consul error on listing keys under %q", keyPrefix)
 	var found bool
-	for _, kvp := range kvps {
-		if reflect.DeepEqual(kvp.Value, expectedValue) {
+	for _, value := range kvs {
+		if reflect.DeepEqual(value, expectedValue) {
 			found = true
 		}
 	}

@@ -107,7 +107,7 @@ func setNodeStatus(ctx context.Context, kv *api.KV, taskID, deploymentID, nodeNa
 	return nil
 }
 
-func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.OperationExecutor, error) {
+func getOperationExecutor(deploymentID, artifact string) (prov.OperationExecutor, error) {
 	reg := registry.GetRegistry()
 
 	exec, originalErr := reg.GetOperationExecutor(artifact)
@@ -115,12 +115,12 @@ func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.Opera
 		return exec, nil
 	}
 	// Try to get an executor for artifact parent type but return the original error if we do not found any executors
-	parentArt, err := deployments.GetParentType(kv, deploymentID, artifact)
+	parentArt, err := deployments.GetParentType(deploymentID, artifact)
 	if err != nil {
 		return nil, err
 	}
 	if parentArt != "" {
-		exec, err := getOperationExecutor(kv, deploymentID, parentArt)
+		exec, err := getOperationExecutor(deploymentID, parentArt)
 		if err == nil {
 			return exec, nil
 		}
@@ -307,7 +307,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 		}
 		return ctx, errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
 	}
-	exec, err := getOperationExecutor(kv, t.targetID, op.ImplementationArtifact)
+	exec, err := getOperationExecutor(t.targetID, op.ImplementationArtifact)
 	if err != nil {
 		err = setNodeStatus(ctx, t.cc.KV(), t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err != nil {
