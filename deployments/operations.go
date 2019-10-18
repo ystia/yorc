@@ -162,13 +162,13 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 
 // This function return the path for a given operation
 func getOperationPath(kv *api.KV, deploymentID, nodeTemplate, nodeType, operationName string) (string, error) {
-	opPath, _, err := getOperationAndInterfacePath(kv, deploymentID, nodeTemplate, nodeType, operationName)
+	opPath, _, err := getOperationAndInterfacePath(deploymentID, nodeTemplate, nodeType, operationName)
 	return opPath, err
 }
 
 // This function return the path for a given operation and the path of its interface
 // It handles the ways that implementation is a node template or a node type
-func getOperationAndInterfacePath(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, string, error) {
+func getOperationAndInterfacePath(deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, string, error) {
 	var operationPath, interfacePath string
 	opShortName := stringutil.GetLastElement(operationName, ".")
 
@@ -207,7 +207,7 @@ func GetRelationshipTypeImplementingAnOperation(kv *api.KV, deploymentID, nodeNa
 		if err != nil {
 			return "", err
 		}
-		keys, _, err := kv.Keys(operationPath+"/", "/", nil)
+		keys, err := consulutil.GetKeys(operationPath)
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -238,7 +238,7 @@ func IsNodeTemplateImplementingOperation(kv *api.KV, deploymentID, nodeName, ope
 	if err != nil {
 		return false, errors.Wrapf(err, "Can't define if operation with name:%q exists for node %q", operationName, nodeName)
 	}
-	keys, _, err := kv.Keys(operationPath+"/", "/", nil)
+	keys, err := consulutil.GetKeys(operationPath)
 	if err != nil {
 		return false, errors.Wrapf(err, "Can't define if operation with name:%q exists for node %q", operationName, nodeName)
 	}
@@ -262,7 +262,7 @@ func GetTypeImplementingAnOperation(kv *api.KV, deploymentID, typeName, operatio
 		}
 		log.Debugf("[GetTypeImplementingAnOperation] operationPath=%q", operationPath)
 
-		keys, _, err := kv.Keys(operationPath+"/", "/", nil)
+		keys, err := consulutil.GetKeys(operationPath)
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -306,7 +306,7 @@ func GetOperationImplementationType(kv *api.KV, deploymentID, nodeTemplateImpl, 
 
 	primarySlice := strings.Split(primary, ".")
 	ext := primarySlice[len(primarySlice)-1]
-	artImpl, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+	artImpl, err := GetImplementationArtifactForExtension(deploymentID, ext)
 	if err != nil {
 		return "", err
 	}
@@ -390,7 +390,7 @@ func GetOperationOutputForNode(kv *api.KV, deploymentID, nodeName, instanceName,
 
 // GetOperationOutputForRelationship retrieves an operation output for a relationship
 // The returned value may be empty if the operation output could not be retrieved
-func GetOperationOutputForRelationship(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, interfaceName, operationName, outputName string) (string, error) {
+func GetOperationOutputForRelationship(deploymentID, nodeName, instanceName, requirementIndex, interfaceName, operationName, outputName string) (string, error) {
 	exist, result, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "outputs", strings.ToLower(path.Join(interfaceName, operationName)), outputName))
 	if err != nil {
 		return "", err
@@ -408,7 +408,7 @@ func getOperationOutputForRequirements(kv *api.KV, deploymentID, nodeName, insta
 		return "", err
 	}
 	for _, reqIndex := range reqIndexes {
-		result, err := GetOperationOutputForRelationship(kv, deploymentID, nodeName, instanceName, reqIndex, interfaceName, operationName, outputName)
+		result, err := GetOperationOutputForRelationship(deploymentID, nodeName, instanceName, reqIndex, interfaceName, operationName, outputName)
 		if err != nil || result != "" {
 			return result, err
 		}
@@ -419,7 +419,7 @@ func getOperationOutputForRequirements(kv *api.KV, deploymentID, nodeName, insta
 // GetImplementationArtifactForExtension returns the implementation artifact type for a given extension.
 //
 // If the extension is unknown then an empty string is returned
-func GetImplementationArtifactForExtension(kv *api.KV, deploymentID, extension string) (string, error) {
+func GetImplementationArtifactForExtension(deploymentID, extension string) (string, error) {
 	extension = strings.ToLower(extension)
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, extension))
 	if err != nil {
@@ -467,12 +467,12 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 
 // GetOperationInputs returns the list of inputs names for a given operation
 func GetOperationInputs(kv *api.KV, deploymentID, nodeTemplateImpl, typeNameImpl, operationName string) ([]string, error) {
-	operationPath, interfacePath, err := getOperationAndInterfacePath(kv, deploymentID, nodeTemplateImpl, typeNameImpl, operationName)
+	operationPath, interfacePath, err := getOperationAndInterfacePath(deploymentID, nodeTemplateImpl, typeNameImpl, operationName)
 	if err != nil {
 		return nil, err
 	}
 	// First Get operation inputs
-	inputKeys, _, err := kv.Keys(operationPath+"/inputs/", "/", nil)
+	inputKeys, err := consulutil.GetKeys(operationPath + "/inputs")
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -482,7 +482,7 @@ func GetOperationInputs(kv *api.KV, deploymentID, nodeTemplateImpl, typeNameImpl
 	}
 
 	// Then Get global interface inputs
-	inputKeys, _, err = kv.Keys(interfacePath+"/inputs/", "/", nil)
+	inputKeys, err = consulutil.GetKeys(interfacePath + "/inputs")
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -538,7 +538,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		return nil, errors.Errorf("Input %q for operation %v is a property definition we can't resolve it without a task input", inputName, operation)
 	}
 
-	operationPath, interfacePath, err := getOperationAndInterfacePath(kv, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
+	operationPath, interfacePath, err := getOperationAndInterfacePath(deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -650,7 +650,7 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 	} else if !isPropDef {
 		return nil, errors.Errorf("Input %q for operation %v is not a property definition we can't resolve its default value", inputName, operation)
 	}
-	operationPath, interfacePath, err := getOperationAndInterfacePath(kv, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
+	operationPath, interfacePath, err := getOperationAndInterfacePath(deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -702,7 +702,7 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 
 // IsOperationInputAPropertyDefinition checks if a given operation input is a property definition
 func IsOperationInputAPropertyDefinition(kv *api.KV, deploymentID, nodeTemplateImpl, typeNameImpl, operationName, inputName string) (bool, error) {
-	operationPath, interfacePath, err := getOperationAndInterfacePath(kv, deploymentID, nodeTemplateImpl, typeNameImpl, operationName)
+	operationPath, interfacePath, err := getOperationAndInterfacePath(deploymentID, nodeTemplateImpl, typeNameImpl, operationName)
 	if err != nil {
 		return false, err
 	}
@@ -746,7 +746,7 @@ func GetOperationHostFromTypeOperation(kv *api.KV, deploymentID, typeName, inter
 // The returned value may be an empty string. This function doesn't explore the type heirarchy to
 // find the operation or declared value for operation_host.
 func GetOperationHostFromTypeOperationByName(kv *api.KV, deploymentID, typeName, operationName string) (string, error) {
-	opPath, _, err := getOperationAndInterfacePath(kv, deploymentID, "", typeName, operationName)
+	opPath, _, err := getOperationAndInterfacePath(deploymentID, "", typeName, operationName)
 	if err != nil {
 		return "", err
 	}
@@ -767,7 +767,7 @@ func IsOperationImplemented(kv *api.KV, deploymentID, nodeName, operationName st
 	if err != nil {
 		return false, err
 	}
-	result, err := isOperationPathImplemented(kv, nodeTemplateOpPath)
+	result, err := isOperationPathImplemented(nodeTemplateOpPath)
 	if err != nil {
 		return false, err
 	}
@@ -785,7 +785,7 @@ func IsOperationImplemented(kv *api.KV, deploymentID, nodeName, operationName st
 		if err != nil {
 			return false, err
 		}
-		result, err := isOperationPathImplemented(kv, typeNameOpPath)
+		result, err := isOperationPathImplemented(typeNameOpPath)
 		if err != nil {
 			return false, err
 		}
@@ -801,7 +801,7 @@ func IsOperationImplemented(kv *api.KV, deploymentID, nodeName, operationName st
 	return false, nil
 }
 
-func isOperationPathImplemented(kv *api.KV, operationPath string) (bool, error) {
+func isOperationPathImplemented(operationPath string) (bool, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(operationPath, "implementation", "primary"))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)

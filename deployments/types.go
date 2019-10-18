@@ -117,7 +117,7 @@ func IsTypeDerivedFrom(kv *api.KV, deploymentID, nodeType, derives string) (bool
 // GetTypes returns the names of the different types for a given deployment.
 func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
-	types, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types")+"/", "/", nil)
+	types, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types"))
 	if err != nil {
 		return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -130,7 +130,7 @@ func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
 		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types")
 	}
 	for _, builtinTypesPath := range builtinTypesPaths {
-		types, _, err := kv.Keys(builtinTypesPath+"/", "/", nil)
+		types, err := consulutil.GetKeys(builtinTypesPath)
 		if err != nil {
 			return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -164,7 +164,7 @@ func getTypeAttributesOrProperties(kv *api.KV, deploymentID, typeName, paramType
 	if err != nil {
 		return nil, err
 	}
-	result, _, err := kv.Keys(path.Join(typePath, paramType)+"/", "/", nil)
+	result, err := consulutil.GetKeys(path.Join(typePath, paramType))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

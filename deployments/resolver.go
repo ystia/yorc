@@ -168,7 +168,7 @@ func (fr *functionResolver) resolveGetOperationOutput(operands []string) (string
 	case funcKeywordSELF, funcKeywordSOURCE:
 		if fr.requirementIndex != "" {
 			// Relationship case
-			return GetOperationOutputForRelationship(fr.kv, fr.deploymentID, fr.nodeName, fr.instanceName, fr.requirementIndex, ifName, opName, varName)
+			return GetOperationOutputForRelationship(fr.deploymentID, fr.nodeName, fr.instanceName, fr.requirementIndex, ifName, opName, varName)
 		}
 		// Node case
 		// Check entity
@@ -189,7 +189,7 @@ func (fr *functionResolver) resolveGetOperationOutput(operands []string) (string
 		if err != nil {
 			return "", err
 		}
-		return GetOperationOutputForRelationship(fr.kv, fr.deploymentID, targetNode, fr.instanceName, fr.requirementIndex, ifName, opName, varName)
+		return GetOperationOutputForRelationship(fr.deploymentID, targetNode, fr.instanceName, fr.requirementIndex, ifName, opName, varName)
 	default:
 		instanceIDs, err := GetNodeInstancesIds(fr.kv, fr.deploymentID, entity)
 		if err != nil {

@@ -35,7 +35,7 @@ const (
 // GetWorkflows returns the list of workflows names for a given deployment
 func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
 	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix)
-	keys, _, err := kv.Keys(workflowsPath+"/", "/", nil)
+	keys, err := consulutil.GetKeys(workflowsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -49,7 +49,7 @@ func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
 // ReadWorkflow reads a workflow definition from Consul and built its TOSCA representation
 func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error) {
 	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix, workflowName)
-	steps, _, err := kv.Keys(workflowPath+"/steps/", "/", nil)
+	steps, err := consulutil.GetKeys(workflowPath + "/steps")
 	wf := tosca.Workflow{}
 	if err != nil {
 		return wf, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -60,7 +60,7 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 		if err != nil {
 			return wf, errors.Wrapf(err, "Failed to get back step name from Consul")
 		}
-		step, err := readWfStep(kv, stepKey, stepName, workflowName)
+		step, err := readWfStep(stepKey, stepName, workflowName)
 		if err != nil {
 			return wf, err
 		}
@@ -69,7 +69,7 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 	return wf, nil
 }
 
-func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*tosca.Step, error) {
+func readWfStep(stepKey string, stepName string, wfName string) (*tosca.Step, error) {
 	step := &tosca.Step{}
 	targetIsMandatory := false
 	// Get the step operation's host (not mandatory)
@@ -95,9 +95,6 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	step.Activities = make([]tosca.Activity, len(activitiesKeys))
-	if err != nil {
-		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
 	var i int
 	for key, value := range activitiesKeys {
 		activity := tosca.Activity{}
@@ -134,7 +131,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 	}
 
 	// Get the next steps of the current step and use it to set the OnSuccess filed
-	nextSteps, _, err := kv.Keys(stepKey+"/next/", "/", nil)
+	nextSteps, err := consulutil.GetKeys(stepKey + "/next")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -149,7 +146,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		}
 	}
 	// Get the on cancel steps of the current step and use it to set the OnSuccess filed
-	onCancelSteps, _, err := kv.Keys(stepKey+"/on-cancel/", "/", nil)
+	onCancelSteps, err := consulutil.GetKeys(stepKey + "/on-cancel")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -164,7 +161,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		}
 	}
 	// Get the on cancel steps of the current step and use it to set the OnSuccess filed
-	onFailureSteps, _, err := kv.Keys(stepKey+"/on-failure/", "/", nil)
+	onFailureSteps, err := consulutil.GetKeys(stepKey + "/on-failure")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -183,9 +180,8 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 
 // DeleteWorkflow deletes the given workflow from the Consul store
 func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-		workflowsPrefix, workflowName)+"/", nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+		workflowsPrefix, workflowName)+"/", true)
 }
 
 func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {

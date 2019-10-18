@@ -38,15 +38,15 @@ func urlEscapeAll(keys []string) []string {
 
 func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	keyPath := path.Join(vaPath, path.Join(urlEscapeAll(nestedKeys)...))
-	kvp, _, err := kv.Get(keyPath, nil)
+	exist, value, meta, err := consulutil.GetValueWithMetadata(keyPath)
 	if err != nil {
 		return nil, false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil {
-		vat := tosca.ValueAssignmentType(kvp.Flags)
+	if exist && meta != nil {
+		vat := tosca.ValueAssignmentType(meta.Flag)
 		switch vat {
 		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
-			return &TOSCAValue{Value: string(kvp.Value)}, vat == tosca.ValueAssignmentFunction, nil
+			return &TOSCAValue{Value: string(value)}, vat == tosca.ValueAssignmentFunction, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			res, err := readComplexVA(kv, vat, deploymentID, keyPath, baseDatatype, nestedKeys...)
 			if err != nil {
@@ -80,7 +80,7 @@ func getValueAssignmentWithDataType(kv *api.KV, deploymentID, vaPath, nodeName, 
 }
 
 func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, keyPath, baseDatatype string, nestedKeys ...string) (interface{}, error) {
-	keys, _, err := kv.Keys(keyPath+"/", "/", nil)
+	keys, err := consulutil.GetKeys(keyPath)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -94,17 +94,17 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 	sort.Sort(sortorder.Natural(keys))
 	var i int
 	for _, k := range keys {
-		kvp, _, err := kv.Get(k, nil)
+		exist, value, meta, err := consulutil.GetValueWithMetadata(k)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil {
+		if exist && meta != nil {
 			// Sounds weird to be nil as we listed it just before but also sounds a good practice to check it
 			kr, err := url.QueryUnescape(path.Base(k))
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to unescape key: %q", path.Base(k))
 			}
-			subKeyType := tosca.ValueAssignmentType(kvp.Flags)
+			subKeyType := tosca.ValueAssignmentType(meta.Flag)
 			var sr interface{}
 			switch subKeyType {
 			case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
@@ -114,7 +114,7 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 					return nil, err
 				}
 			default:
-				sr = string(kvp.Value)
+				sr = string(value)
 			}
 			switch v := result.(type) {
 			case []interface{}:
