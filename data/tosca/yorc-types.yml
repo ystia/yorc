@@ -36,6 +36,27 @@ data_types:
         type: string
         required: true
         description: The user (name or ID) used as a credential for authorization or access to a networked resource.
+  yorc.datatypes.ProvisioningBastion:
+    derived_from: tosca.datatypes.Root
+    properties:
+      use:
+        type: boolean
+        required: true
+        default: false
+        description: Enable using a bastion host to connect to the node.
+      host:
+        type: string
+        required: true
+        description: The ip address of the bastion host to connect to.
+      port:
+        type: integer
+        required: false
+        default: 22
+        description: The port ssh is listening on.
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        required: true
+        description: The credentials to use to authorize against the bastion host
   yorc.datatypes.TLSClientConfig:
     derived_from: tosca.datatypes.Root
     properties:
@@ -66,6 +87,10 @@ capability_types:
       credentials:
         type: yorc.datatypes.ProvisioningCredential
         description: Credentials used to provision the resource
+        required: false
+      bastion:
+        type: yorc.datatypes.ProvisioningBastion
+        description: Configuration of a bastion host to use to connect
         required: false
     # # Not supported by alien
     # attributes:
@@ -98,6 +123,10 @@ relationship_types:
     derived_from: tosca.relationships.Root
     description: This type represents the membership of a node to a group.
     valid_target_types: [ yorc.capabilities.Group ]
+  yorc.relationships.DeploysThrough:
+    derived_from: tosca.relationships.DependsOn
+    description: This type assigns a bastion host to use for connecting to a compute instance.
+    valid_target_types: [ yorc.nodes.SSHBastionHost ]
 
 node_types:
   yorc.nodes.Compute:
@@ -121,6 +150,28 @@ node_types:
           description: Monitor a submitted job for completion.
         cancel:
           description: Cancel a submitted job.
+  
+  yorc.nodes.SSHBastionHost:
+    derived_from: tosca.nodes.SoftwareComponent
+    attributes:
+      ip_address: { get_attribute: [HOST, ip_address] }
+      port: { get_attribute: [HOST, endpoint, port] }
+      network_name: { get_attribute: [HOST, endpoint, network_name] }
+      port_name: { get_attribute: [HOST, endpoint, port_name] }
+      credentials: { get_attribute: [HOST, endpoint, credentials] }
+    capabilities:
+      os:
+        type: tosca.capabilities.OperatingSystem
+        properties:
+          architecture: x86_64
+          type: linux
+          distribution: ubuntu
+    interfaces:
+      Standard:
+        configure:
+          implementation:
+            file: ansible/bastion.yml
+            type: tosca.artifacts.Implementation.Ansible
 
 policy_types:
   yorc.policies.Monitoring:
