@@ -1,0 +1,41 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+imports:
+  - <normative-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    SSHBastionHost:
+      type: yorc.nodes.SSHBastionHost
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Bastion
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+      capabilities:
+    Bastion:
+      type: yorc.nodes.Compute
+      capabilities:
+        endpoint:
+          properties:
+            credentials: { user: 'ubuntu' }
+    Compute:
+      type: yorc.nodes.Compute
+      requirements:
+        - dependsOnSshBastionHostFeature:
+            type_requirement: dependency
+            node: SSHBastionHost
+            capability: tosca.capabilities.Node
+            relationship: yorc.relationships.DeploysThrough
+      capabilities:
+        endpoint:
+          properties:
+            bastion:
+              use: true
+              host: 10.0.0.2
+              credentials:
+                user: "ubuntu"
+                token_type: "password"
+                token: "secret"

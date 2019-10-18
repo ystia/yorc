@@ -15,14 +15,7 @@
 package provutil
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"strings"
-
-	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/helper/sshutil"
-	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 // SanitizeForShell allows to sanitize a string in order to be embedded in shell command
@@ -43,67 +36,4 @@ func SanitizeForShell(str string) string {
 		return r
 
 	}, str)
-}
-
-// GetInstanceBastionHost looks for a DeploysThrough relationship to another host and returns
-// a bastion host configuration for the relationship.
-// If a node has multiple matching relationships, the first one is chosen. If no relationship
-// is found, nil is returned.
-func GetInstanceBastionHost(ctx context.Context, deploymentID, nodeName string) (*sshutil.BastionHostConfig, error) {
-	deps, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "dependency")
-	if err != nil {
-		return nil, err
-	}
-	for _, depPrefix := range deps {
-		depIdx := deployments.GetRequirementIndexFromRequirementKey(ctx, depPrefix)
-		rel, err := deployments.GetRelationshipForRequirement(ctx, deploymentID, nodeName, depIdx)
-		if err != nil {
-			return nil, err
-		}
-
-		if rel == "yorc.relationships.DeploysThrough" {
-			bastionNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, depIdx)
-			if err != nil {
-				return nil, err
-			}
-
-			bastionNodeType, err := deployments.GetNodeType(ctx, deploymentID, bastionNodeName)
-			if err != nil {
-				return nil, err
-			}
-			if bastionNodeType != "yorc.nodes.SSHBastionHost" {
-				return nil, errors.New("unspported node type for DeploysThrough relationship")
-			}
-
-			ipAddr, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastionNodeName, "0", "ip_address")
-			if err != nil {
-				return nil, err
-			}
-
-			credsJSON, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastionNodeName, "0", "credentials")
-			if err != nil {
-				return nil, err
-			}
-
-			creds := types.Credential{}
-			if err := json.Unmarshal([]byte(credsJSON.RawString()), &creds); err != nil {
-				return nil, err
-			}
-
-			b := &sshutil.BastionHostConfig{Host: ipAddr.String(), User: creds.User}
-
-			if creds.TokenType == "password" {
-				b.Password = creds.Token
-			}
-
-			keys, err := sshutil.GetKeysFromCredentialsDataType(&creds)
-			if err != nil {
-				return nil, err
-			}
-			b.PrivateKeys = keys
-
-			return b, nil
-		}
-	}
-	return nil, nil
 }
