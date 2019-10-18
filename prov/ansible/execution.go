@@ -826,6 +826,9 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 	buffer.WriteString(host.host)
 
 	if host.bastion != nil {
+		if host.bastion.Password != "" {
+			return errors.New("ansible provider does not support password authentication with bastion hosts")
+		}
 		if host.bastion.Port == "" {
 			host.bastion.Port = "22"
 		}
@@ -1266,6 +1269,13 @@ func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAg
 		for _, key := range host.privateKeys {
 			if err = agent.AddPrivateKey(key, 3600); err != nil {
 				return nil, err
+			}
+		}
+		if host.bastion != nil && len(host.bastion.PrivateKeys) > 0 {
+			for _, key := range host.bastion.PrivateKeys {
+				if err = agent.AddPrivateKey(key, 3600); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
