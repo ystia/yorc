@@ -50,7 +50,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/operations"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tosca"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 const taskContextOutput = "task_context"
@@ -361,7 +361,7 @@ func (e *executionCommon) setHostConnection(ctx context.Context, host, instanceI
 		if err != nil {
 			return err
 		}
-		credentials := new(datatypes.Credential)
+		credentials := new(types.Credential)
 		if credentialValue != nil && credentialValue.RawString() != "" {
 			err = mapstructure.Decode(credentialValue.Value, credentials)
 			if err != nil {

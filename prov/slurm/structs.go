@@ -17,7 +17,7 @@ package slurm
 import (
 	"time"
 
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 type infrastructure struct {
@@ -31,27 +31,27 @@ type nodeAllocation struct {
 	constraint   string
 	partition    string
 	jobName      string
-	credentials  *datatypes.Credential
+	credentials  *types.Credential
 	instanceName string
 	account      string
 	reservation  string
 }
 
 type jobInfo struct {
-	ID                     string                          `json:"id,omitempty"`
-	Name                   string                          `json:"name,omitempty"`
-	Tasks                  int                             `json:"tasks,omitempty"`
-	Cpus                   int                             `json:"cpus,omitempty"`
-	Nodes                  int                             `json:"nodes,omitempty"`
-	Mem                    string                          `json:"mem,omitempty"`
-	MaxTime                string                          `json:"max_time,omitempty"`
-	Opts                   []string                        `json:"opts,omitempty"`
-	ExecutionOptions       datatypes.SlurmExecutionOptions `json:"execution_options,omitempty"`
-	Inputs                 map[string]string               `json:"inputs,omitempty"`
-	MonitoringTimeInterval time.Duration                   `json:"monitoring_time_interval,omitempty"`
-	Account                string                          `json:"account,omitempty"`
-	Reservation            string                          `json:"reservation,omitempty"`
-	WorkingDir             string                          `json:"working_directory,omitempty"`
-	Artifacts              []string                        `json:"artifacts,omitempty"`
-	EnvFile                string                          `json:"env_file,omitempty"`
+	ID                     string                      `json:"id,omitempty"`
+	Name                   string                      `json:"name,omitempty"`
+	Tasks                  int                         `json:"tasks,omitempty"`
+	Cpus                   int                         `json:"cpus,omitempty"`
+	Nodes                  int                         `json:"nodes,omitempty"`
+	Mem                    string                      `json:"mem,omitempty"`
+	MaxTime                string                      `json:"max_time,omitempty"`
+	Opts                   []string                    `json:"opts,omitempty"`
+	ExecutionOptions       types.SlurmExecutionOptions `json:"execution_options,omitempty"`
+	Inputs                 map[string]string           `json:"inputs,omitempty"`
+	MonitoringTimeInterval time.Duration               `json:"monitoring_time_interval,omitempty"`
+	Account                string                      `json:"account,omitempty"`
+	Reservation            string                      `json:"reservation,omitempty"`
+	WorkingDir             string                      `json:"working_directory,omitempty"`
+	Artifacts              []string                    `json:"artifacts,omitempty"`
+	EnvFile                string                      `json:"env_file,omitempty"`
 }

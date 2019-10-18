@@ -22,7 +22,7 @@ import (
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/sshutil"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 // SanitizeForShell allows to sanitize a string in order to be embedded in shell command
@@ -85,7 +85,7 @@ func GetInstanceBastionHost(ctx context.Context, deploymentID, nodeName string) 
 				return nil, err
 			}
 
-			creds := datatypes.Credential{}
+			creds := types.Credential{}
 			if err := json.Unmarshal([]byte(credsJSON.RawString()), &creds); err != nil {
 				return nil, err
 			}
