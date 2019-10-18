@@ -4,7 +4,8 @@
 
 ### ENHANCEMENTS
 
-Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
+* Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
+* Update Infrastructure collector feature to handle locations ([GH-533](https://github.com/ystia/yorc/issues/533))
 
 ### BUG FIXES
 

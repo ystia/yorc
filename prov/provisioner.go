@@ -88,11 +88,11 @@ type OperationExecutor interface {
 	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation, stepName string) (*Action, time.Duration, error)
 }
 
-// InfraUsageCollector is the interface for collecting information about infrastructure usage
+// InfraUsageCollector is the interface for collecting information about infrastructure usage for a defined location
 //
-// GetUsageInfo returns data about infrastructure usage for defined infrastructure
+// GetUsageInfo returns data about infrastructure usage for defined infrastructure and location
 type InfraUsageCollector interface {
-	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error)
+	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName, locationName string) (map[string]interface{}, error)
 }
 
 // Action represents an executable action

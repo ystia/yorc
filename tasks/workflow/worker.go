@@ -507,7 +507,12 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) error {
 		if err != nil {
 			return err
 		}
-		res, err := collector.GetUsageInfo(ctx, w.cfg, t.taskID, target)
+
+		locationName, err := tasks.GetTaskData(w.consulClient.KV(), t.taskID, "locationName")
+		if err != nil {
+			return err
+		}
+		res, err := collector.GetUsageInfo(ctx, w.cfg, t.taskID, target, locationName)
 		if err != nil {
 			return err
 		}

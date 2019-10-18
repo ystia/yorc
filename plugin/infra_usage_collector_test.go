@@ -35,16 +35,18 @@ type mockInfraUsageCollector struct {
 	conf               config.Configuration
 	taskID             string
 	infraName          string
+	locationName       string
 	contextCancelled   bool
 	lof                events.LogOptionalFields
 }
 
-func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName string) (map[string]interface{}, error) {
+func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string) (map[string]interface{}, error) {
 	m.getUsageInfoCalled = true
 	m.ctx = ctx
 	m.conf = conf
 	m.taskID = taskID
 	m.infraName = infraName
+	m.locationName = locationName
 	m.lof, _ = events.FromContext(ctx)
 
 	go func() {
@@ -99,13 +101,14 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 	info, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-		"TestTaskID", "myInfra")
+		"TestTaskID", "myInfra", "myLocation")
 	require.Nil(t, err)
 	require.True(t, mock.getUsageInfoCalled)
 	require.Equal(t, "test", mock.conf.Consul.Address)
 	require.Equal(t, "testdc", mock.conf.Consul.Datacenter)
 	require.Equal(t, "TestTaskID", mock.taskID)
 	require.Equal(t, "myInfra", mock.infraName)
+	require.Equal(t, "myLocation", mock.locationName)
 	require.Equal(t, 3, len(info))
 	assert.Equal(t, lof, mock.lof)
 
@@ -128,7 +131,7 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 	_, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-		"TestFailure", "myInfra")
+		"TestFailure", "myInfra", "myLocation")
 	require.Error(t, err, "An error was expected during executing plugin infra usage collector")
 	require.EqualError(t, err, "a failure occurred during plugin infra usage collector")
 }
@@ -141,7 +144,7 @@ func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 		_, err := plugin.GetUsageInfo(
 			ctx,
 			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-			"TestCancel", "myInfra")
+			"TestCancel", "myInfra", "myLocation")
 		require.Nil(t, err)
 	}()
 	cancelF()
