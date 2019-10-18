@@ -22,8 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/v4/helper/provutil"
-
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -419,22 +417,13 @@ func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName,
 		"/attributes/private_address")] = privateIPKey
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, opts.deploymentID, opts.nodeName)
+	user, pk, err := commons.GetConnInfoFromEndpointCredentials(ctx, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}
 
-	bast, err := provutil.GetInstanceBastionHost(ctx, opts.deploymentID, opts.nodeName)
-	if err != nil {
-		return err
-	}
-	if bast != nil {
-		// TODO(schrej): Do this properly
-		bast.PrivateKeys["0"] = privateKey
-	}
-
-	return commons.AddConnectionCheckResource(opts.infrastructure, user,
-		privateKey, accessIP, instance.Name, bast, env)
+	return commons.AddConnectionCheckResource(ctx, opts.deploymentID, opts.nodeName, opts.infrastructure, user,
+		pk, accessIP, instance.Name, env)
 
 }
 
@@ -452,7 +441,7 @@ func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
 	resultChan := make(chan string, 1)
 	go func() {
 		for {
-			if fip, _ := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
+			if fip, _ := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, "0", "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
 				resultChan <- fip.RawString()
 				return
 			}
