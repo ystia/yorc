@@ -64,7 +64,7 @@ type InfraUsageCollectorClient struct {
 
 // GetUsageInfo is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error) {
+func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName, locationName string) (map[string]interface{}, error) {
 	lof, ok := events.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("Missing contextual log optionnal fields")
@@ -81,6 +81,7 @@ func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config
 		Conf:              cfg,
 		TaskID:            taskID,
 		InfraName:         infraName,
+		LocationName:      locationName,
 		LogOptionalFields: lof,
 	}
 	err := c.Client.Call("Plugin.GetUsageInfo", args, &resp)
@@ -117,6 +118,7 @@ type InfraUsageCollectorGetUsageInfoArgs struct {
 	Conf              config.Configuration
 	TaskID            string
 	InfraName         string
+	LocationName      string
 	LogOptionalFields events.LogOptionalFields
 }
 
@@ -141,7 +143,7 @@ func (s *InfraUsageCollectorServer) GetUsageInfo(args *InfraUsageCollectorGetUsa
 	defer cancelFunc()
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
-	usageInfo, err := s.InfraUsageCollector.GetUsageInfo(ctx, args.Conf, args.TaskID, args.InfraName)
+	usageInfo, err := s.InfraUsageCollector.GetUsageInfo(ctx, args.Conf, args.TaskID, args.InfraName, args.LocationName)
 
 	var resp InfraUsageCollectorGetUsageInfoResponse
 	resp.UsageInfo = usageInfo
