@@ -82,6 +82,10 @@ func testExecutionCommonBuildJobInfo(t *testing.T, kv *api.KV) {
 	err := deployments.StoreDeploymentDefinition(ctx, kv, deploymentID, "testdata/simple_job.yaml")
 	require.NoError(t, err)
 
+	deploymentIDOpts := deploymentID + "-with-opts"
+	err = deployments.StoreDeploymentDefinition(ctx, kv, deploymentIDOpts, "testdata/job_with_options.yaml")
+	require.NoError(t, err)
+
 	type fields struct {
 		locationProps config.DynamicMap
 		deploymentID  string
@@ -102,6 +106,14 @@ func testExecutionCommonBuildJobInfo(t *testing.T, kv *api.KV) {
 		{"ChecklocationPropertiesValues", fields{config.DynamicMap{"default_job_name": "myjobname", "job_monitoring_time_interval": "1s"}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "primary", false}, false,
 			jobInfo{Name: "myjobname", Tasks: 1, Nodes: 1, MonitoringTimeInterval: time.Second, Inputs: make(map[string]string), WorkingDir: home}},
 		{"CheckErrorIfNoCommandAndPrimary", fields{config.DynamicMap{}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "", false}, true, jobInfo{}},
+		{"CheckDefaultValues", fields{config.DynamicMap{}, deploymentIDOpts, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "primary", false}, false,
+			jobInfo{Name: "ClassificationJobUnit_Singularity", Tasks: 1, Nodes: 1, MonitoringTimeInterval: 5 * time.Second, Inputs: make(map[string]string), WorkingDir: home,
+				ExecutionOptions: datatypes.SlurmExecutionOptions{
+					Args:            []string{"-c", "python3 /opt/kdetect.py ${STORAGE_PATH}"},
+					InScriptOptions: []string{"#BB volume=a4b4f33c-994f-4f3f-877e-395d21bd3fb2 user=bu key=key path=/sharing lustre_path=/fs1/myuser/bu size=1"},
+					Command:         "sh",
+					EnvVars:         []string{"STORAGE_PATH=/mnt/data-bu/models/C56A8BCD-380E-4E6C-B265-D50208641102-4203addf-aca9-3040-271d-d2bbe0719f79"},
+				}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
