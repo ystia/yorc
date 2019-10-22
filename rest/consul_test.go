@@ -76,5 +76,11 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 		t.Run("testDeploymentHandlers", func(t *testing.T) {
 			testDeploymentHandlers(t, client, srv)
 		})
+		t.Run("testPostInfraUsageHandler", func(t *testing.T) {
+			testPostInfraUsageHandler(t, client, srv)
+		})
+		t.Run("testTaskQueryHandlers", func(t *testing.T) {
+			testTaskQueryHandlers(t, client, srv)
+		})
 	})
 }
