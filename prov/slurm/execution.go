@@ -399,6 +399,14 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	} else {
 		e.jobInfo.WorkingDir = home
 	}
+
+	envFile, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "environment_file")
+	if err != nil {
+		return err
+	}
+	if envFile != nil {
+		e.jobInfo.EnvFile = envFile.RawString()
+	}
 	return nil
 }
 
@@ -441,7 +449,7 @@ func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 			return err
 		}
 	} else {
-		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
+		cmd = fmt.Sprintf("%s%s%ssbatch -D %s%s %s", e.sourceEnvFile(), e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
 	}
 	return e.submitJob(ctx, cmd)
 }
@@ -466,7 +474,7 @@ func (e *executionCommon) wrapCommand(innerCmd string) (string, error) {
 EOF
 `, pathScript, e.buildInlineSBatchoptions(), innerCmd)
 	// Ensure generated script removal after its submission
-	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s; rm -f %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
+	return fmt.Sprintf("%s%s%s%ssbatch -D %s%s %s; rm -f %s", e.sourceEnvFile(), e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
 }
 
 func (e *executionCommon) buildInlineSBatchoptions() string {
@@ -485,6 +493,14 @@ func (e *executionCommon) addWorkingDirCmd() string {
 	var cmd string
 	if e.jobInfo.WorkingDir != home {
 		cmd = fmt.Sprintf("mkdir -p %s;", e.jobInfo.WorkingDir)
+	}
+	return cmd
+}
+
+func (e *executionCommon) sourceEnvFile() string {
+	var cmd string
+	if e.jobInfo.EnvFile != "" {
+		cmd = fmt.Sprintf("[ -f %s ] && { source %s ; } ;", e.jobInfo.EnvFile, e.jobInfo.EnvFile)
 	}
 	return cmd
 }
