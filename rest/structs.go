@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"github.com/ystia/yorc/v4/registry"
@@ -76,6 +77,23 @@ func newAtomLink(rel, href string) AtomLink {
 // Health of a Yorc instance
 type Health struct {
 	Value string `json:"value"`
+}
+
+// LocationRequest represents a request for creating or updating a location
+type LocationRequest struct {
+	Type       string            `json:"type"`
+	Properties config.DynamicMap `json:"properties"`
+}
+
+// LocationResult represents a location definition
+type LocationResult struct {
+	Name       string            `json:"name"`
+	Type       string            `json:"type"`
+	Properties config.DynamicMap `json:"properties"`
+}
+
+type LocationsCollection struct {
+	Locations []LocationResult `json:"locations"`
 }
 
 // Deployment is the representation of a Yorc deployment

@@ -28,6 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"github.com/ystia/yorc/v4/tasks/collector"
@@ -84,6 +85,7 @@ type Server struct {
 	tasksCollector *collector.Collector
 	config         config.Configuration
 	hostsPoolMgr   hostspool.Manager
+	locationMgr    locations.Manager
 }
 
 // Shutdown stops the HTTP server
@@ -122,6 +124,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		tasksCollector: collector.NewCollector(client),
 		config:         configuration,
 		hostsPoolMgr:   hostspool.NewManager(client),
+		locationMgr:    locations.NewManager(client),
 	}
 
 	httpServer.registerHandlers()
@@ -193,6 +196,11 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
 	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
 	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
+
+	s.router.Get("/locations", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.listLocations))
+	s.router.Put("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocation))
+	s.router.Patch("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocation))
+	s.router.Delete("/locations/:locationName/:locationType", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.deleteLocation))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))

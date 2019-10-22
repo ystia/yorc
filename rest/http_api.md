@@ -1286,3 +1286,114 @@ Content-Type: application/json
  ]
 }
 ```
+## Locations ##
+
+### List locations
+
+List all the existent location definitions. 'Content-Type' header should be set to 'application/json'.
+
+`GET    /locations`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "locations":[
+    {
+      "name":"location1",
+      "type":"openstack",
+      "properties": {
+        "auth_url":"http://openstack:5000/v2.0",
+        "os_default_security_groups":["default","lax"],
+        "password":"StPass","private_network_name":"private-test",
+        "public_network_name":"not_supported","region":"RegionOne",
+        "tenant_id":"use_tid_or_tname",
+        "tenant_name":"Tname",
+        "user_name":"Starlings"
+      }
+    }
+  ]
+}
+```
+
+### Create location <a name="location-create"></a>
+
+Create a new location.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PUT /locations/<location_name>`
+
+**Request body**:
+
+```json
+{
+  "type": "slurm",
+  "properties": {
+		"user_name":   "slurmuser1",
+		"private_key": "/path/to/key",
+		"url":         "10.1.2.3",
+		"port":        22
+  }
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 201 Created
+```
+
+Other possible response response code is `400` if a location with the same `<location_name>` already exists.
+
+### Update location
+
+Update an existent location.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PATCH /locations/<location_name>`
+
+**Request body**:
+
+```json
+{
+  "type": "slurm",
+  "properties": {
+		"user_name":   "slurmuser2",
+		"private_key": "/path/to/key",
+		"url":         "10.1.2.3",
+		"port":        22
+  }
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+```
+
+Other possible response response code is `400` if a location with the `<location_name>` does not exist.
+
+### Remove location
+
+Remove a location of a given type.
+
+'Content-Type' header should be set to 'application/json'.
+
+`DELETE /locations/<location_name>/<location_type>`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+```
+
+Other possible response response code is `400` if a location with the name `<location_name>` and with the type `<location_type>` does not exist.
+

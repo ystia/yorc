@@ -18,9 +18,10 @@ package locations
 
 import (
 	"encoding/json"
-	"github.com/ystia/yorc/v4/locations/adapter"
 	"path"
 	"time"
+
+	"github.com/ystia/yorc/v4/locations/adapter"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -44,12 +45,14 @@ type LocationConfiguration struct {
 type Manager interface {
 	InitializeLocations(locationFilePath string) (bool, error)
 	CreateLocation(lConfig LocationConfiguration) error
+	UpdateLocation(lConfig LocationConfiguration) error
 	RemoveLocation(locationName, locationType string) error
 	SetLocationConfiguration(lConfig LocationConfiguration) error
 	GetLocations() ([]LocationConfiguration, error)
 	GetLocationProperties(locationName, locationType string) (config.DynamicMap, error)
 	GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error)
 	GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error)
+
 	Cleanup() error
 }
 
@@ -79,6 +82,20 @@ func GetManager(cfg config.Configuration) (Manager, error) {
 	return locationMgr, nil
 }
 
+// NewManager creates a Location Manager for the http server
+// The http server has already a Consul client instance that was
+// provided to it as a constructor input parameter (see rest.NewServer function).
+func NewManager(client *api.Client) Manager {
+
+	var locationMgr *locationManager
+	if locationMgr == nil {
+		locationMgr = &locationManager{cc: client}
+		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client)
+	}
+
+	return locationMgr
+}
+
 // CreateLocation creates a location. Its name must be unique.
 // If a location already exists with this name, an error will be returned.
 func (mgr *locationManager) CreateLocation(lConfig LocationConfiguration) error {
@@ -87,6 +104,16 @@ func (mgr *locationManager) CreateLocation(lConfig LocationConfiguration) error 
 		return mgr.hpAdapter.CreateLocationConfiguration(lConfig.Name, lConfig.Properties)
 	}
 	return mgr.createLocation(lConfig)
+}
+
+// UpdateLocation updates a location. Its name must exist.
+// If no location exists with this name, an error will be returned.
+func (mgr *locationManager) UpdateLocation(lConfig LocationConfiguration) error {
+
+	if lConfig.Type == adapter.AdaptedLocationType {
+		return mgr.hpAdapter.SetLocationConfiguration(lConfig.Name, lConfig.Properties)
+	}
+	return mgr.updateLocation(lConfig)
 }
 
 // RemoveLocation removes a given location
@@ -329,7 +356,28 @@ func (mgr *locationManager) createLocation(configuration LocationConfiguration) 
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil && len(kvp.Value) != 0 {
-		return errors.Errorf("location %q already exists", configuration.Name)
+		return errors.WithStack(locationAlreadyExistError{})
+	}
+
+	return mgr.setLocationConfiguration(configuration)
+}
+
+func (mgr *locationManager) updateLocation(configuration LocationConfiguration) error {
+
+	lock, _, err := mgr.lockLocations()
+	if err != nil {
+		return err
+	}
+
+	defer lock.Unlock()
+
+	// Check if a location with this name already exists
+	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, configuration.Name), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil {
+		return errors.WithStack(locationNotFoundError{})
 	}
 
 	return mgr.setLocationConfiguration(configuration)
@@ -351,8 +399,24 @@ func (mgr *locationManager) setLocationConfiguration(configuration LocationConfi
 }
 
 func (mgr *locationManager) removeLocation(locationName, locationType string) error {
-
-	_, err := mgr.cc.KV().Delete(path.Join(consulutil.LocationsPrefix, locationName), nil)
+	// Check if a location with this name already exists
+	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil {
+		return errors.WithStack(locationNotFoundError{})
+	} else {
+		var lConfig LocationConfiguration
+		err = json.Unmarshal(kvp.Value, &lConfig)
+		if err != nil {
+			return errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
+		}
+		if lConfig.Type != locationType {
+			return errors.WithStack(badRequestError{})
+		}
+	}
+	_, err = mgr.cc.KV().Delete(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove location %s", locationName)
 	}
