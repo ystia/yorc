@@ -19,6 +19,10 @@ premium version is required to perform a deployment update.
 
 This is tracked on ([GH-547: Refactor Deployment updates API](https://github.com/ystia/yorc/issues/547)).
 
+### FEATURES
+
+* Add support for using bastion hosts to provision instances with ansible and terraform ([GH-128](https://github.com/ystia/yorc/issues/128))
+
 ### ENHANCEMENTS
 
 * Allow to specify query parameters in infrastructure usage queries ([GH-543](https://github.com/ystia/yorc/issues/543))
