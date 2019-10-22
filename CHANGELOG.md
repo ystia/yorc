@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
+
 ### ENHANCEMENTS
 
 Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
