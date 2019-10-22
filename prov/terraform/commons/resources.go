@@ -209,10 +209,10 @@ func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName stri
 	var bastPk *sshutil.PrivateKey
 	if bast != nil {
 		bastPk = sshutil.SelectPrivateKeyOnName(bast.PrivateKeys, false)
-	}
-	if bastPk == nil {
-		// If no key is explicitly defined, use the same as for the instance.
-		bastPk = privateKey
+		if bastPk == nil {
+			// If no key is explicitly defined, use the same as for the instance.
+			bastPk = privateKey
+		}
 	}
 	if bastPk != nil {
 		*env = append(*env, fmt.Sprintf("TF_VAR_bastion_private_key=%s", string(bastPk.Content)))
