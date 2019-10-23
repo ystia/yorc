@@ -291,6 +291,14 @@ func TestParseJobIDFromSbatchOut(t *testing.T) {
 	require.Equal(t, "4567", ret, "unexpected JobID parsing")
 }
 
+func TestParseJobIDFromSbatchOutWithInterferenceLogs(t *testing.T) {
+	t.Parallel()
+	str := "WARNING Verify of certificates disabled! ::TESTING USE ONLY::\nSubmitted batch job 4567"
+	ret, err := retrieveJobID(str)
+	require.Nil(t, err, "unexpected error")
+	require.Equal(t, "4567", ret, "unexpected JobID parsing")
+}
+
 func TestParseKeyValue(t *testing.T) {
 	t.Parallel()
 	type args struct {

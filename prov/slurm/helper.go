@@ -35,7 +35,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
-const reSbatch = `^Submitted batch job (\d+)`
+const reSbatch = `Submitted batch job (\d+)`
 
 const invalidJob = "Invalid job id specified"
 
