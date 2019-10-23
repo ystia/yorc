@@ -200,7 +200,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/locations", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.listLocations))
 	s.router.Put("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocation))
 	s.router.Patch("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocation))
-	s.router.Delete("/locations/:locationName/:locationType", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.deleteLocation))
+	s.router.Delete("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.deleteLocation))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))

@@ -1383,11 +1383,11 @@ Other possible response response code is `400` if a location with the `<location
 
 ### Remove location
 
-Remove a location of a given type.
+Remove a location with a given name.
 
 'Content-Type' header should be set to 'application/json'.
 
-`DELETE /locations/<location_name>/<location_type>`
+`DELETE /locations/<location_name>`
 
 **Response**:
 
@@ -1395,5 +1395,5 @@ Remove a location of a given type.
 HTTP/1.1 200 OK
 ```
 
-Other possible response response code is `400` if a location with the name `<location_name>` and with the type `<location_type>` does not exist.
+Other possible response response code is `400` if a location with the name `<location_name>` does not exist.
 

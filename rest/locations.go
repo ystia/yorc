@@ -124,15 +124,10 @@ func (s *Server) deleteLocation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	locationName := params.ByName("locationName")
-	locationType := params.ByName("locationType")
-	err := s.locationMgr.RemoveLocation(locationName, locationType)
+	err := s.locationMgr.RemoveLocation(locationName)
 	if err != nil {
 		if locations.IsLocationNotFoundError(err) {
 			writeError(w, r, newBadRequestError(errors.Errorf("Cannot remove location %s as it does not exist", locationName)))
-			return
-		}
-		if locations.IsBadRequestError(err) {
-			writeError(w, r, newBadRequestError(errors.Errorf("Cannot remove location %s as it has not type %s", locationName, locationType)))
 			return
 		}
 		log.Panic(err)
