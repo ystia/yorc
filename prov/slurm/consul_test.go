@@ -77,5 +77,8 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		t.Run("ExecutionCommonBuildJobInfo", func(t *testing.T) {
 			testExecutionCommonBuildJobInfo(t, kv)
 		})
+		t.Run("ExecutionCommonPrepareAndSubmitJob", func(t *testing.T) {
+			testExecutionCommonPrepareAndSubmitJob(t, kv)
+		})
 	})
 }

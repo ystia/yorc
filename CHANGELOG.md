@@ -6,6 +6,7 @@
 
 * Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
 * Allow to provide inline configuration options for generated sbatch scripts ([GH-537](https://github.com/ystia/yorc/issues/537))
+* Optionally source an environment file before submitting slurm jobs ([GH-541](https://github.com/ystia/yorc/issues/541))
 * Update Infrastructure collector feature to handle locations ([GH-533](https://github.com/ystia/yorc/issues/533))
 
 ### BUG FIXES

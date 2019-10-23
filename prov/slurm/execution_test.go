@@ -20,15 +20,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/testutil"
-
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/prov/operations"
+	"github.com/ystia/yorc/v4/testutil"
 	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
@@ -132,6 +132,71 @@ func testExecutionCommonBuildJobInfo(t *testing.T, kv *api.KV) {
 			}
 			if err == nil {
 				assert.Equal(t, tt.expectedJobInfo, *e.jobInfo)
+			}
+		})
+	}
+}
+
+func testExecutionCommonPrepareAndSubmitJob(t *testing.T, kv *api.KV) {
+
+	deploymentID := testutil.BuildDeploymentID(t)
+	ctx := context.Background()
+	err := deployments.StoreDeploymentDefinition(ctx, kv, deploymentID, "testdata/simple_job.yaml")
+	require.NoError(t, err)
+	type fields struct {
+		cfg           config.Configuration
+		locationProps config.DynamicMap
+		deploymentID  string
+		NodeName      string
+		EnvInputs     []*operations.EnvInput
+		PrimaryFile   string
+		jobInfo       *jobInfo
+	}
+	tests := []struct {
+		name                   string
+		fields                 fields
+		expectedCommandPattern *regexp.Regexp
+		wantErr                bool
+	}{
+		{"CheckProvidedBatchScript",
+			fields{config.Configuration{}, config.DynamicMap{}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "primary.batch",
+				&jobInfo{Name: "MyJob", Tasks: 2, Nodes: 4, WorkingDir: home}},
+			regexp.MustCompile("sbatch -D ~ --job-name='MyJob' --ntasks=2 --nodes=4 ~/primary.batch"),
+			false},
+		{"CheckWrappedCommand",
+			fields{config.Configuration{}, config.DynamicMap{}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "",
+				&jobInfo{Name: "MyJob", Tasks: 2, Nodes: 4, WorkingDir: home,
+					ExecutionOptions: datatypes.SlurmExecutionOptions{
+						Command: "cat",
+						Args:    []string{"/etc/os-release"},
+					}}},
+			regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n\nsrun cat '/etc/os-release' \nEOF\nsbatch -D ~ --job-name='MyJob' --ntasks=2 --nodes=4 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`),
+			false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &executionCommon{
+				kv:            kv,
+				cfg:           tt.fields.cfg,
+				locationProps: tt.fields.locationProps,
+				deploymentID:  tt.fields.deploymentID,
+				NodeName:      tt.fields.NodeName,
+				EnvInputs:     tt.fields.EnvInputs,
+				PrimaryFile:   tt.fields.PrimaryFile,
+				jobInfo:       tt.fields.jobInfo,
+			}
+
+			e.client = &sshutil.MockSSHClient{
+				MockRunCommand: func(cmd string) (string, error) {
+					if tt.expectedCommandPattern != nil && !tt.expectedCommandPattern.MatchString(cmd) {
+						return "", errors.Errorf("unexpected command: %q", cmd)
+					}
+					return "Submitted batch job 42", nil
+				},
+			}
+
+			if err := e.prepareAndSubmitJob(ctx); (err != nil) != tt.wantErr {
+				t.Errorf("executionCommon.prepareAndSubmitJob() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

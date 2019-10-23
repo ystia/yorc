@@ -16,7 +16,7 @@ package sshutil
 
 import "io"
 
-// MockSSHSession allows to mock an SSH Client
+// MockSSHClient allows to mock an SSH Client
 type MockSSHClient struct {
 	MockRunCommand func(string) (string, error)
 	MockCopyFile   func(source io.Reader, remotePath string, permissions string) error
@@ -30,7 +30,7 @@ func (s *MockSSHClient) RunCommand(cmd string) (string, error) {
 	return "", nil
 }
 
-// RunCommand to mock a command ran via SSH
+// CopyFile to mock a file copy via SSH
 func (s *MockSSHClient) CopyFile(source io.Reader, remotePath string, permissions string) error {
 	if s.MockCopyFile != nil {
 		return s.MockCopyFile(source, remotePath, permissions)
