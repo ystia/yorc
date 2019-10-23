@@ -75,7 +75,7 @@ type executionCommon struct {
 	locationProps  config.DynamicMap
 	deploymentID   string
 	taskID         string
-	client         *sshutil.SSHClient
+	client         sshutil.Client
 	NodeName       string
 	operation      prov.Operation
 	NodeType       string
