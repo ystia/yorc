@@ -50,28 +50,16 @@ func (s *Server) listLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createLocation(w http.ResponseWriter, r *http.Request) {
-	locationName := getRequestparamet(r, "locationName")
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	var locationRequest LocationRequest
-	err = json.Unmarshal(body, &locationRequest)
+	lConfig, err := getRequestedLocationConfig(r)
 	if err != nil {
 		writeError(w, r, newBadRequestError(err))
 		return
 	}
 
-	var lConfig locations.LocationConfiguration
-	lConfig.Name = locationName
-	lConfig.Type = locationRequest.Type
-	lConfig.Properties = locationRequest.Properties
 	err = s.locationMgr.CreateLocation(lConfig)
 	if err != nil {
 		if locations.IsLocationAlreadyExistError(err) {
-			writeError(w, r, newBadRequestError(errors.Errorf("Cannot create location. Already exist a location with name %s", locationName)))
+			writeError(w, r, newBadRequestError(errors.Errorf("Cannot create location. Already exist a location with name %s", lConfig.Name)))
 			return
 		}
 		log.Panic(err)
@@ -81,28 +69,16 @@ func (s *Server) createLocation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) updateLocation(w http.ResponseWriter, r *http.Request) {
-	locationName := getRequestparamet(r, "locationName")
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	var locationRequest LocationRequest
-	err = json.Unmarshal(body, &locationRequest)
+	lConfig, err := getRequestedLocationConfig(r)
 	if err != nil {
 		writeError(w, r, newBadRequestError(err))
 		return
 	}
 
-	var lConfig locations.LocationConfiguration
-	lConfig.Name = locationName
-	lConfig.Type = locationRequest.Type
-	lConfig.Properties = locationRequest.Properties
 	err = s.locationMgr.UpdateLocation(lConfig)
 	if err != nil {
 		if locations.IsLocationNotFoundError(err) {
-			writeError(w, r, newBadRequestError(errors.Errorf("Cannot update location %s as it does not exist", locationName)))
+			writeError(w, r, newBadRequestError(errors.Errorf("Cannot update location %s as it does not exist", lConfig.Name)))
 			return
 		}
 		log.Panic(err)
@@ -129,9 +105,29 @@ func (s *Server) deleteLocation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func getRequestparamet(r *http.Request, paramName string) string {
+func getRequestedLocationConfig(r *http.Request) (locations.LocationConfiguration, error) {
+	var lConfig locations.LocationConfiguration
+
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
-	return params.ByName(paramName)
+	locationName := params.ByName("locationName")
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Panic(err)
+		return lConfig, err
+	}
+
+	var locationRequest *LocationRequest
+	err = json.Unmarshal(body, &locationRequest)
+	if err != nil {
+		return lConfig, err
+	}
+
+	lConfig.Name = locationName
+	lConfig.Type = locationRequest.Type
+	lConfig.Properties = locationRequest.Properties
+
+	return lConfig, nil
 }
