@@ -50,10 +50,7 @@ func (s *Server) listLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createLocation(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value(paramsLookupKey).(httprouter.Params)
-	locationName := params.ByName("locationName")
+	locationName := getRequestparamet(r, "locationName")
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -84,10 +81,7 @@ func (s *Server) createLocation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) updateLocation(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value(paramsLookupKey).(httprouter.Params)
-	locationName := params.ByName("locationName")
+	locationName := getRequestparamet(r, "locationName")
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -133,4 +127,11 @@ func (s *Server) deleteLocation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func getRequestparamet(r *http.Request, paramName string) string {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	return params.ByName(paramName)
 }
