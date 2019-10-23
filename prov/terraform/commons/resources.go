@@ -196,39 +196,43 @@ func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName stri
 	// Define private_key variable
 	infrastructure.Variable = make(map[string]interface{})
 	infrastructure.Variable["private_key"] = struct{}{}
-	infrastructure.Variable["bastion_private_key"] = struct{}{}
 
 	// Add env TF variable for private key
 	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(privateKey.Content)))
-
-	bast, err := provutil.GetInstanceBastionHost(ctx, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-
-	var bastPk *sshutil.PrivateKey
-	if bast != nil {
-		bastPk = sshutil.SelectPrivateKeyOnName(bast.PrivateKeys, false)
-		if bastPk == nil {
-			// If no key is explicitly defined, use the same as for the instance.
-			bastPk = privateKey
-		}
-	}
-	if bastPk != nil {
-		*env = append(*env, fmt.Sprintf("TF_VAR_bastion_private_key=%s", string(bastPk.Content)))
-	}
 
 	conn := &Connection{
 		User:       user,
 		Host:       accessIP,
 		PrivateKey: "${var.private_key}",
 	}
+
+	bast, err := provutil.GetInstanceBastionHost(ctx, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
 	if bast != nil {
 		conn.BastionHost = bast.Host
 		conn.BastionPort = bast.Port
 		conn.BastionUser = bast.User
 		conn.BastionPassword = bast.Password
-		conn.BastionPrivateKey = "${var.bastion_private_key}"
+
+		var bastPk *sshutil.PrivateKey
+		if bast != nil {
+			bastPk = sshutil.SelectPrivateKeyOnName(bast.PrivateKeys, false)
+			if bastPk == nil {
+				// If no key is explicitly defined, use the same as for the instance.
+				bastPk = privateKey
+			}
+		}
+
+		if bastPk != nil {
+			infrastructure.Variable["bastion_private_key"] = struct{}{}
+			*env = append(*env, fmt.Sprintf("TF_VAR_bastion_private_key=%s", string(bastPk.Content)))
+			conn.BastionPrivateKey = "${var.bastion_private_key}"
+		} else if bast.Password == "" {
+			return errors.New("bastion host configuration is missing credentials")
+		}
 	}
 
 	// Build null Resource
