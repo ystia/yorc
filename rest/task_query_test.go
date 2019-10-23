@@ -149,15 +149,15 @@ func testListTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Te
 		consulutil.TasksPrefix + "/task123/resultSet":         []byte("{\"result\": \"success\"}"),
 		consulutil.TasksPrefix + "/task123/data/locationName": []byte("slurm"),
 
-		consulutil.TasksPrefix + "/task124/type":              []byte("7"),
-		consulutil.TasksPrefix + "/task124/targetId":          []byte("infra_usage:slurm"),
-		consulutil.TasksPrefix + "/task124/status":            []byte("2"),
-		consulutil.TasksPrefix + "/task124/resultSet":         []byte("{\"result\": \"success\"}"),
+		consulutil.TasksPrefix + "/task124/type":      []byte("7"),
+		consulutil.TasksPrefix + "/task124/targetId":  []byte("infra_usage:slurm"),
+		consulutil.TasksPrefix + "/task124/status":    []byte("2"),
+		consulutil.TasksPrefix + "/task124/resultSet": []byte("{\"result\": \"success\"}"),
 
-		consulutil.TasksPrefix + "/task125/type":              []byte("7"),
-		consulutil.TasksPrefix + "/task125/targetId":          []byte("bad format"),
-		consulutil.TasksPrefix + "/task125/status":            []byte("2"),
-		consulutil.TasksPrefix + "/task125/resultSet":         []byte("{\"result\": \"success\"}"),
+		consulutil.TasksPrefix + "/task125/type":      []byte("7"),
+		consulutil.TasksPrefix + "/task125/targetId":  []byte("bad format"),
+		consulutil.TasksPrefix + "/task125/status":    []byte("2"),
+		consulutil.TasksPrefix + "/task125/resultSet": []byte("{\"result\": \"success\"}"),
 	})
 
 	req := httptest.NewRequest("GET", "/infra_usage", nil)

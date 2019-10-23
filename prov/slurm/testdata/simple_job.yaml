@@ -1,0 +1,35 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: Classification
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-slurm-types.yml>
+
+topology_template:
+
+  node_templates:
+    ClassificationJobUnit_Singularity:
+      type: yorc.nodes.slurm.Job
+      properties:
+        # slurm_options:
+        #   name: "ClassificationJobUnit_Singularity"
+        #   extra_options:
+        #     - "--singularity-image=/fs1/myuser/images/kdetect.simg"
+        #     - "-bb"
+        #     - "--singularity-bind=/fs1/myuser/bu:/mnt/data-bu"
+        # execution_options:
+        #   args:
+        #     - "-c"
+        #     - "python3 /opt/kdetect.py ${STORAGE_PATH}"
+        #   in_script_options:
+        #     - "#BB volume=a4b4f33c-994f-4f3f-877e-395d21bd3fb2 user=bu key=key path=/sharing lustre_path=/fs1/myuser/bu size=1"
+        #   command: sh
+        #   env_vars:
+        #     - "STORAGE_PATH=/mnt/data-bu/models/C56A8BCD-380E-4E6C-B265-D50208641102-4203addf-aca9-3040-271d-d2bbe0719f79"

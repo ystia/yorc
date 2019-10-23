@@ -40,6 +40,7 @@ import (
 // Client is interface allowing running command
 type Client interface {
 	RunCommand(string) (string, error)
+	CopyFile(source io.Reader, remotePath string, permissions string) error
 }
 
 // TODO(loicalbertin) sshSession and SSHSessionWrapper may be merged

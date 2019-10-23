@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -74,7 +75,7 @@ type executionCommon struct {
 	locationProps  config.DynamicMap
 	deploymentID   string
 	taskID         string
-	client         *sshutil.SSHClient
+	client         sshutil.Client
 	NodeName       string
 	operation      prov.Operation
 	NodeType       string
@@ -169,7 +170,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		if err := e.buildJobInfo(ctx); err != nil {
 			return errors.Wrap(err, "failed to build job information")
 		}
-		if e.jobInfo.Command != "" && e.Primary != "" {
+		if e.jobInfo.ExecutionOptions.Command != "" && e.Primary != "" {
 			// If both primary artifact is provided (script) and command: return an error
 			return errors.Errorf("Either a script artifact or a command must be provided, but not both.")
 		}
@@ -375,25 +376,18 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Execution options
-	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "args"); err != nil {
+	eo, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options")
+	if err != nil {
 		return err
-	} else if ea != nil && ea.RawString() != "" {
-		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
-			return err
+	}
+	if eo != nil && eo.Value != nil {
+		err = mapstructure.Decode(eo.Value, &e.jobInfo.ExecutionOptions)
+		if err != nil {
+			return errors.Wrapf(err, `invalid execution options datatype for attribute "execution_options" for node %q`, e.NodeName)
 		}
 	}
-	if envVars, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "env_vars"); err != nil {
-		return err
-	} else if envVars != nil && envVars.RawString() != "" {
-		if err = json.Unmarshal([]byte(envVars.RawString()), &e.jobInfo.EnvVars); err != nil {
-			return err
-		}
-	}
-	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "command"); err != nil {
-		return err
-	} else if cmd != nil && cmd.RawString() != "" {
-		e.jobInfo.Command = cmd.RawString()
-	} else if e.Primary == "" {
+
+	if e.jobInfo.ExecutionOptions.Command == "" && e.Primary == "" {
 		return errors.Errorf("Either job command property must be filled or batch script must be provided")
 	}
 
@@ -404,6 +398,14 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		e.jobInfo.WorkingDir = wd.RawString()
 	} else {
 		e.jobInfo.WorkingDir = home
+	}
+
+	envFile, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "environment_file")
+	if err != nil {
+		return err
+	}
+	if envFile != nil {
+		e.jobInfo.EnvFile = envFile.RawString()
 	}
 	return nil
 }
@@ -439,15 +441,15 @@ func (e *executionCommon) buildJobOpts() string {
 
 func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
-	if e.jobInfo.Command != "" {
-		inner := fmt.Sprintf("%s %s", e.jobInfo.Command, quoteArgs(e.jobInfo.Args))
+	if e.jobInfo.ExecutionOptions.Command != "" {
+		inner := fmt.Sprintf("srun %s %s", e.jobInfo.ExecutionOptions.Command, quoteArgs(e.jobInfo.ExecutionOptions.Args))
 		var err error
 		cmd, err = e.wrapCommand(inner)
 		if err != nil {
 			return err
 		}
 	} else {
-		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
+		cmd = fmt.Sprintf("%s%s%ssbatch -D %s%s %s", e.sourceEnvFile(), e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
 	}
 	return e.submitJob(ctx, cmd)
 }
@@ -467,12 +469,24 @@ func (e *executionCommon) wrapCommand(innerCmd string) (string, error) {
 	// Write script
 	cat := fmt.Sprintf(`cat <<'EOF' > %s
 #!/bin/bash
-
+%s
 %s
 EOF
-`, pathScript, innerCmd)
+`, pathScript, e.buildInlineSBatchoptions(), innerCmd)
 	// Ensure generated script removal after its submission
-	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s; rm -f %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
+	return fmt.Sprintf("%s%s%s%ssbatch -D %s%s %s; rm -f %s", e.sourceEnvFile(), e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript, pathScript), nil
+}
+
+func (e *executionCommon) buildInlineSBatchoptions() string {
+	var b strings.Builder
+	for _, opt := range e.jobInfo.ExecutionOptions.InScriptOptions {
+		if strings.HasPrefix(opt, "#") {
+			b.WriteString(opt)
+			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
 }
 
 func (e *executionCommon) addWorkingDirCmd() string {
@@ -483,9 +497,17 @@ func (e *executionCommon) addWorkingDirCmd() string {
 	return cmd
 }
 
+func (e *executionCommon) sourceEnvFile() string {
+	var cmd string
+	if e.jobInfo.EnvFile != "" {
+		cmd = fmt.Sprintf("[ -f %s ] && { source %s ; } ;", e.jobInfo.EnvFile, e.jobInfo.EnvFile)
+	}
+	return cmd
+}
+
 func (e *executionCommon) buildEnvVars() string {
 	var exports string
-	for _, v := range e.jobInfo.EnvVars {
+	for _, v := range e.jobInfo.ExecutionOptions.EnvVars {
 		if is, key, val := parseKeyValue(v); is {
 			log.Debugf("Add env var with key:%q and value:%q", key, val)
 			export := fmt.Sprintf("export %s='%s';", key, val)
