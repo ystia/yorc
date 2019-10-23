@@ -46,7 +46,7 @@ type Manager interface {
 	InitializeLocations(locationFilePath string) (bool, error)
 	CreateLocation(lConfig LocationConfiguration) error
 	UpdateLocation(lConfig LocationConfiguration) error
-	RemoveLocation(locationName, locationType string) error
+	RemoveLocation(locationName string) error
 	SetLocationConfiguration(lConfig LocationConfiguration) error
 	GetLocations() ([]LocationConfiguration, error)
 	GetLocationProperties(locationName, locationType string) (config.DynamicMap, error)
@@ -117,12 +117,15 @@ func (mgr *locationManager) UpdateLocation(lConfig LocationConfiguration) error 
 }
 
 // RemoveLocation removes a given location
-func (mgr *locationManager) RemoveLocation(locationName, locationType string) error {
-
-	if locationType == adapter.AdaptedLocationType {
+func (mgr *locationManager) RemoveLocation(locationName string) error {
+	err, isHostPoolLocationType := mgr.checkIsHotPoolLocationType(locationName)
+	if err != nil {
+		return err
+	}
+	if isHostPoolLocationType {
 		return mgr.hpAdapter.RemoveLocation(locationName)
 	}
-	return mgr.removeLocation(locationName, locationType)
+	return mgr.removeLocation(locationName)
 }
 
 // SetLocationConfiguration sets the configuration of a location.
@@ -398,27 +401,33 @@ func (mgr *locationManager) setLocationConfiguration(configuration LocationConfi
 	return err
 }
 
-func (mgr *locationManager) removeLocation(locationName, locationType string) error {
+func (mgr *locationManager) removeLocation(locationName string) error {
 	// Check if a location with this name already exists
 	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil {
+		// locationName location does not exist
 		return errors.WithStack(locationNotFoundError{})
-	} else {
-		var lConfig LocationConfiguration
-		err = json.Unmarshal(kvp.Value, &lConfig)
-		if err != nil {
-			return errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
-		}
-		if lConfig.Type != locationType {
-			return errors.WithStack(badRequestError{})
-		}
 	}
+	//It exits, delete it.
 	_, err = mgr.cc.KV().Delete(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove location %s", locationName)
 	}
 	return err
+}
+
+// Return true only if a hostpool location with name locationName exists
+func (mgr *locationManager) checkIsHotPoolLocationType(locationName string) (error, bool) {
+	hostpoolLocations, err := mgr.hpAdapter.ListLocations()
+	exists := false
+	for _, location := range hostpoolLocations {
+		if location == locationName {
+			exists = true
+			break
+		}
+	}
+	return err, exists
 }

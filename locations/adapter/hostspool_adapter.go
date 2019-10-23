@@ -16,6 +16,7 @@ package adapter
 
 import (
 	"encoding/json"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/config"
@@ -33,6 +34,7 @@ type LocationAdapter interface {
 	SetLocationConfiguration(locationName string, props config.DynamicMap) error
 	RemoveLocation(locationName string) error
 	GetLocations() (map[string]config.DynamicMap, error)
+	ListLocations() ([]string, error)
 }
 
 type hostsPoolLocationAdapter struct {
@@ -146,6 +148,15 @@ func (a *hostsPoolLocationAdapter) GetLocations() (map[string]config.DynamicMap,
 	}
 
 	return results, err
+}
+
+// ListLocations allows to list all locations
+func (a *hostsPoolLocationAdapter) ListLocations() ([]string, error) {
+	locations, err := a.mgr.ListLocations()
+	if err != nil {
+		return nil, err
+	}
+	return locations, nil
 }
 
 func toHosts(props config.DynamicMap) ([]hostspool.Host, error) {

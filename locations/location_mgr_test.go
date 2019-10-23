@@ -15,14 +15,15 @@
 package locations
 
 import (
+	"io/ioutil"
+	"os"
+	"testing"
+
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"golang.org/x/crypto/ssh"
-	"io/ioutil"
-	"os"
-	"testing"
 
 	"gopkg.in/yaml.v2"
 
@@ -316,7 +317,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Unexpected error attempting to get all locations")
 	assert.Equal(t, 3, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 
-	err = mgr.RemoveLocation("myLocation2", "openstack")
+	err = mgr.RemoveLocation("myLocation2")
 	require.NoError(t, err, "Unexpected error attempting to remove location myLocation2")
 
 	props, err = mgr.GetLocationProperties("myLocation2", "slurm")
@@ -347,7 +348,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.NoError(t, err, "Unexpected error attempting to get all locations with hosts pool locations")
 	assert.Equal(t, 1, len(locations), "Unexpected number of locations returned by GetLocations():%+v", locations)
 
-	mgr.RemoveLocation(hostsPoolLocation.Name, "hostspool")
+	mgr.RemoveLocation(hostsPoolLocation.Name)
 	require.NoError(t, err, "Unexpected error attempting to remove hosts pool location")
 	locations, err = mgr.GetLocations()
 	require.NoError(t, err, "Unexpected error attempting to get all locations after cleanup")
