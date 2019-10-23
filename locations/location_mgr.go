@@ -118,7 +118,7 @@ func (mgr *locationManager) UpdateLocation(lConfig LocationConfiguration) error 
 
 // RemoveLocation removes a given location
 func (mgr *locationManager) RemoveLocation(locationName string) error {
-	err, isHostPoolLocationType := mgr.checkIsHotPoolLocationType(locationName)
+	isHostPoolLocationType, err := mgr.checkIsHotPoolLocationType(locationName)
 	if err != nil {
 		return err
 	}
@@ -420,7 +420,7 @@ func (mgr *locationManager) removeLocation(locationName string) error {
 }
 
 // Return true only if a hostpool location with name locationName exists
-func (mgr *locationManager) checkIsHotPoolLocationType(locationName string) (error, bool) {
+func (mgr *locationManager) checkIsHotPoolLocationType(locationName string) (bool, error) {
 	hostpoolLocations, err := mgr.hpAdapter.ListLocations()
 	exists := false
 	for _, location := range hostpoolLocations {
@@ -429,5 +429,5 @@ func (mgr *locationManager) checkIsHotPoolLocationType(locationName string) (err
 			break
 		}
 	}
-	return err, exists
+	return exists, err
 }

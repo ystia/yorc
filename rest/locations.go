@@ -28,7 +28,6 @@ import (
 
 func (s *Server) listLocations(w http.ResponseWriter, r *http.Request) {
 	locs := make([]LocationResult, 0)
-	//var locationConfigurations []locations.LocationConfiguration
 	locationConfigurations, err := s.locationMgr.GetLocations()
 	if err != nil {
 		log.Panic(err)

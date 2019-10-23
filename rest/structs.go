@@ -92,6 +92,7 @@ type LocationResult struct {
 	Properties config.DynamicMap `json:"properties"`
 }
 
+// LocationsCollection represents all the existent location definitions, of any type
 type LocationsCollection struct {
 	Locations []LocationResult `json:"locations"`
 }
