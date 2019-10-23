@@ -283,12 +283,26 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	assert.Equal(t, "slurmuser1", props["user_name"])
 
 	slurmLocation.Properties["user_name"] = "slurmuser2"
-	err = mgr.SetLocationConfiguration(slurmLocation)
+	err = mgr.UpdateLocation(slurmLocation)
 	require.NoError(t, err, "Unexpected error attempting to update location myLocation3")
 
 	props, err = mgr.GetLocationProperties("myLocation3", "slurm")
 	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
 	assert.Equal(t, "slurmuser2", props["user_name"])
+
+	slurmLocation.Properties["user_name"] = "slurmuser3"
+	err = mgr.SetLocationConfiguration(slurmLocation)
+	require.NoError(t, err, "Unexpected error attempting to set location configuration for myLocation3")
+
+	props, err = mgr.GetLocationProperties("myLocation3", "slurm")
+	require.NoError(t, err, "Unexpected error attempting to get location myLocation3")
+	assert.Equal(t, "slurmuser3", props["user_name"])
+
+	// provide unexisting location name in update
+	slurmLocation.Name = "myLocationUpdated"
+	slurmLocation.Properties["user_name"] = "slurmuser3"
+	err = mgr.UpdateLocation(slurmLocation)
+	require.Error(t, err, "Expected to have an error attempting to update a non existing location")
 
 	// testdata/test_topology.yaml defines a location in Compute1 metadata
 	props, err = mgr.GetLocationPropertiesForNode(deploymentID, "Compute1", "openstack")
@@ -303,7 +317,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 
 	props, err = mgr.GetPropertiesForFirstLocationOfType("slurm")
 	require.NoError(t, err, "Unexpected error attempting to get slurm location")
-	assert.Equal(t, "slurmuser2", props["user_name"], "Wrong user name in %+v", props)
+	assert.Equal(t, "slurmuser3", props["user_name"], "Wrong user name in %+v", props)
 
 	props, err = mgr.GetPropertiesForFirstLocationOfType("UnknownType")
 	require.Error(t, err, "Expected to have an error attempting to get location of unknown type, got %+v", props)
