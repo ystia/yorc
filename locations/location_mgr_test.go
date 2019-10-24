@@ -40,19 +40,22 @@ import (
 // GetManagerWithSSHFactory creates a Location Manager with a given ssh factory
 //
 // Currently this is used for testing purpose to mock the ssh connection.
-func GetManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, error) {
+func GetManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, Manager, error) {
 
 	var locationMgr *locationManager
+	var manager Manager
 	if locationMgr == nil {
 		client, err := cfg.GetConsulClient()
 		if err != nil {
-			return locationMgr, err
+			return locationMgr, manager, err
 		}
 		locationMgr = &locationManager{cc: client}
+		manager = NewManager(client)
 		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapterWithSSHFactory(client, sshClientFactory)
 	}
 
-	return locationMgr, nil
+	//return locationMgr, nil
+	return locationMgr, manager, nil
 }
 
 type mockSSHClient struct {
@@ -291,8 +294,12 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
-	mgr, err := GetManagerWithSSHFactory(testConfig, mockSSHClientFactory)
+	mgr, mgr1, err := GetManagerWithSSHFactory(testConfig, mockSSHClientFactory)
 	require.NoError(t, err, "Failed to create a location manager")
+
+	// Check no locations exist and use mgr1
+	nolocations, err := mgr1.GetLocations()
+	assert.Equal(t, 0, len(nolocations))
 
 	done, err := mgr.InitializeLocations(locationFilePath)
 	require.NoError(t, err, "Failed to initialize locations")
