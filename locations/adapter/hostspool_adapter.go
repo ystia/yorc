@@ -79,6 +79,8 @@ func (a *hostsPoolLocationAdapter) setLocationConfiguration(locationName string,
 		if err != nil {
 			return err
 		}
+	} else {
+		return errors.WithStack(badRequestError{})
 	}
 
 	var checkpoint uint64
