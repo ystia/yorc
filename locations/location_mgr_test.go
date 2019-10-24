@@ -188,6 +188,9 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 			},
 		},
 	}
+	myHostsPoolLocationPropertiesForUpdateHosts := config.DynamicMap{
+		"hostssssss": []interface{}{},
+	}
 
 	hostsPoolLocationModified := LocationConfiguration{
 		Name: "myHostsPoolLocation",
@@ -391,7 +394,11 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 
 	hostsPoolLocation.Properties = myHostsPoolLocationPropertiesForUpdate
 	err = mgr.UpdateLocation(hostsPoolLocation)
-	require.NoError(t, err, "Unexpecte error attempting to update hostsPoolLocation ....")
+	require.NoError(t, err, "Unexpected error attempting to update hostsPoolLocation")
+
+	hostsPoolLocation.Properties = myHostsPoolLocationPropertiesForUpdateHosts
+	err = mgr.UpdateLocation(hostsPoolLocation)
+	require.Error(t, err, "Expected error attempting to update hostsPoolLocation with no hosts in defeinition")
 
 	err = mgr.SetLocationConfiguration(hostsPoolLocationModified)
 	require.NoError(t, err, "Unexpected error attempting to update hosts pool location")
