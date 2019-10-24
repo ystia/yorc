@@ -154,6 +154,41 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 		},
 	}
 
+	myHostsPoolLocationPropertiesForUpdate := config.DynamicMap{
+		"hosts": []interface{}{
+			map[string]interface{}{
+				"name": "host1",
+				"connection": map[string]interface{}{
+					"user":     "test1",
+					"port":     22,
+					"password": "pass",
+					"host":     "host1.example.com",
+				},
+				"labels": map[string]interface{}{
+					"environment":        "dev",
+					"testlabel":          "hello",
+					"host.cpu_frequency": "3 GHz",
+					"host.disk_size":     "50 GB",
+					"host.mem_size":      "4GB",
+					"host.num_cpus":      "4",
+					"os.architecture":    "x86_64",
+					"os.distribution":    "ubuntu",
+					"os.type":            "linux",
+					"os.version":         "17.1",
+				},
+			},
+			map[string]interface{}{
+				"name": "host2",
+				"connection": map[string]interface{}{
+					"user":     "test",
+					"port":     22,
+					"password": "pass",
+					"host":     "another.example.com",
+				},
+			},
+		},
+	}
+
 	hostsPoolLocationModified := LocationConfiguration{
 		Name: "myHostsPoolLocation",
 		Type: "hostspool",
@@ -353,6 +388,10 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	props, err = mgr.GetLocationProperties("myHostsPoolLocation", "hostspool")
 	require.NoError(t, err, "Unexpected error attempting to get hostspool location")
 	//assert.Equal(t, hostsPoolLocation.Properties, props, "Wrong props in %+v", props)
+
+	hostsPoolLocation.Properties = myHostsPoolLocationPropertiesForUpdate
+	err = mgr.UpdateLocation(hostsPoolLocation)
+	require.NoError(t, err, "Unexpecte error attempting to update hostsPoolLocation ....")
 
 	err = mgr.SetLocationConfiguration(hostsPoolLocationModified)
 	require.NoError(t, err, "Unexpected error attempting to update hosts pool location")
