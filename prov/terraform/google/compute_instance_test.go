@@ -21,7 +21,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,23 +41,23 @@ func init() {
 	}
 }
 
-func loadTestYaml(t *testing.T, kv *api.KV) string {
+func loadTestYaml(t *testing.T) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.NoError(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }
 
-func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleComputeInstance(t *testing.T, cfg config.Configuration) {
 	privateKey := expectedKey
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	env := make([]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string), &env)
+	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	instanceName := resourcePrefix + "computeinstance-0"
@@ -109,21 +108,21 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	assert.Equal(t, "default", compute.NetworkInterfaces[0].Network, "default network is not retrieved")
 }
 
-func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := googleGenerator{}
 	env := make([]string, 0)
 	infrastructure := commons.Infrastructure{}
 
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string), &env)
+	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.Error(t, err, "Expected missing mandatory parameter error, but had no error")
 	assert.Contains(t, err.Error(), "mandatory parameter zone", "Expected an error on missing parameter zone")
 }
 
-func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+func testSimpleComputeInstanceWithAddress(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	// Simulate the google address "ip_address" attribute registration
 	srv1.PopulateKV(t, map[string][]byte{
@@ -134,7 +133,7 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testut
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	env := make([]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string), &env)
+	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"
@@ -154,9 +153,9 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testut
 	assert.Equal(t, "1.2.3.4", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")
 }
 
-func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	// Simulate the google persistent disk "volume_id" attribute registration
 	srv1.PopulateKV(t, map[string][]byte{
@@ -168,7 +167,7 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	g := googleGenerator{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
+	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
@@ -222,9 +221,9 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 
 }
 
-func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"
 
@@ -237,7 +236,7 @@ func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.
 	g := googleGenerator{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
+	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
@@ -252,9 +251,9 @@ func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.
 	assert.Equal(t, "mynet", compute.NetworkInterfaces[0].Network, "Network is not retrieved")
 }
 
-func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "comp1-0"
 
@@ -267,7 +266,7 @@ func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, kv *api.KV, srv1 *
 	g := googleGenerator{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Comp1", "0", 0, &infrastructure, outputs, &env)
+	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Comp1", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")

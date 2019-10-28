@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -29,9 +28,9 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-func testExecutor(t *testing.T, srv *testutil.TestServer, kv *api.KV, cfg config.Configuration) {
+func testExecutor(t *testing.T, srv *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	jobInfoTest := jobInfo{
 		ID: "myJobID",

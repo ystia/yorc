@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -31,10 +30,9 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID,
-	nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
+func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
@@ -56,7 +54,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
@@ -75,7 +73,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	privateNetwork.Name = strings.Replace(name, "_", "-", -1)
 
 	var autoCreateSubNets bool
-	s, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "auto_create_subnetworks")
+	s, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "auto_create_subnetworks")
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
@@ -108,8 +106,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	return nil
 }
 
-func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string,
-	infrastructure *commons.Infrastructure, outputs map[string]string) error {
+func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
 	subnet := &SubNetwork{}
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
@@ -128,7 +125,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 		{&subnet.Project, "project", false},
 	}
 	for _, param := range strParams {
-		*param.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, param.propertyName, param.mandatory)
+		*param.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName, param.propertyName, param.mandatory)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
@@ -141,7 +138,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 		{&subnet.PrivateIPGoogleAccess, "private_ip_google_access"},
 	}
 	for _, param := range boolParams {
-		*param.pAttr, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, param.propertyName)
+		*param.pAttr, err = deployments.GetBooleanNodeProperty(deploymentID, nodeName, param.propertyName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
@@ -149,7 +146,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 
 	// Network is either set by user or retrieved via dependency relationship with network node
 	if subnet.Network == "" {
-		hasDep, networkNode, err := deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "dependency", "yorc.nodes.google.PrivateNetwork")
+		hasDep, networkNode, err := deployments.HasAnyRequirementFromNodeType(deploymentID, nodeName, "dependency", "yorc.nodes.google.PrivateNetwork")
 		if err != nil {
 			return err
 		}
@@ -157,7 +154,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 			return errors.Errorf("failed to retrieve dependency btw any network and the subnet with name:%q", subnet.Name)
 		}
 
-		subnet.Network, err = deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, networkNode, "0", "network_name")
+		subnet.Network, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkNode, "0", "network_name")
 		if err != nil {
 			return err
 		}
@@ -171,7 +168,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 
 	// Handle secondary IP ranges
 	var secondarySourceRange []string
-	secondaryIPRangesRaws, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "secondary_ip_ranges")
+	secondaryIPRangesRaws, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "secondary_ip_ranges")
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	} else if secondaryIPRangesRaws != nil && secondaryIPRangesRaws.RawString() != "" {
@@ -182,7 +179,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 
 		ipRanges := make([]IPRange, 0)
 		for i := range list {
-			ipRange, err := buildIPRange(kv, deploymentID, nodeName, i)
+			ipRange, err := buildIPRange(deploymentID, nodeName, i)
 			if err != nil {
 				return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 			}
@@ -223,11 +220,11 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 	return nil
 }
 
-func buildIPRange(kv *api.KV, deploymentID, nodeName string, ipRangeIndex int) (*IPRange, error) {
+func buildIPRange(deploymentID, nodeName string, ipRangeIndex int) (*IPRange, error) {
 	ind := strconv.Itoa(ipRangeIndex)
 	ipRange := &IPRange{}
 	// Name is a mandatory property
-	nameRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "secondary_ip_ranges", ind, "name")
+	nameRaw, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "secondary_ip_ranges", ind, "name")
 	if err != nil {
 		return nil, err
 	} else if nameRaw == nil || nameRaw.RawString() == "" {
@@ -236,7 +233,7 @@ func buildIPRange(kv *api.KV, deploymentID, nodeName string, ipRangeIndex int) (
 	ipRange.Name = strings.Replace(strings.ToLower(nameRaw.RawString()), "_", "-", -1)
 
 	// IPCIDRRange is a mandatory property
-	cidrRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "secondary_ip_ranges", ind, "ip_cidr_range")
+	cidrRaw, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "secondary_ip_ranges", ind, "ip_cidr_range")
 	if err != nil {
 		return nil, err
 	} else if cidrRaw == nil || cidrRaw.RawString() == "" {

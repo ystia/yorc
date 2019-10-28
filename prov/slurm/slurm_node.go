@@ -19,15 +19,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 )
 
-func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -37,7 +36,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 	node := &nodeAllocation{instanceName: instanceName}
 
 	// Set the node CPU and memory property from Tosca Compute 'host' capability property
-	cpu, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "num_cpus")
+	cpu, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return err
 	}
@@ -45,7 +44,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 		node.cpu = cpu.RawString()
 	}
 
-	memory, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "mem_size")
+	memory, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "mem_size")
 	if err != nil {
 		return err
 	}
@@ -56,14 +55,14 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 	}
 
 	// Get user credentials from capability endpoint credentials property, if values are provided
-	node.credentials, err = getUserCredentials(kv, locationProps, deploymentID, nodeName, "endpoint")
+	node.credentials, err = getUserCredentials(locationProps, deploymentID, nodeName, "endpoint")
 	if err != nil {
 		return err
 	}
 
 	// Set the job name property
 	// first: with the prop
-	jobName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "job_name")
+	jobName, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "job_name")
 	if err != nil {
 		return err
 	}
@@ -79,7 +78,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 	}
 
 	// Set the node gres property from Tosca slurm.Compute property
-	gres, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "gres")
+	gres, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "gres")
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 		node.gres = gres.RawString()
 	}
 	// Set the node constraint property from Tosca slurm.Compute property
-	constraint, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "constraint")
+	constraint, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "constraint")
 	if err != nil {
 		return err
 	}
@@ -95,7 +94,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 		node.constraint = constraint.RawString()
 	}
 	// Set the node partition property from Tosca slurm.Compute property
-	partition, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "partition")
+	partition, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "partition")
 	if err != nil {
 		return err
 	}
@@ -106,7 +105,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 	// Check that is userName provided, then password or privateKey provided also
 	// Otherwise, raise error, event ...
 
-	reservation, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "reservation")
+	reservation, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "reservation")
 	if err != nil {
 		return err
 	}
@@ -114,7 +113,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, locationProps confi
 		node.reservation = reservation.RawString()
 	}
 
-	account, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "account")
+	account, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "account")
 	if err != nil {
 		return err
 	}

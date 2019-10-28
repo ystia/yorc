@@ -34,11 +34,10 @@ type serverGroupOptions struct {
 }
 
 func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupOptions, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
-	kv := opts.kv
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -47,11 +46,11 @@ func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupO
 	}
 
 	serverGroup := &ServerGroup{}
-	serverGroup.Name, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "name", true)
+	serverGroup.Name, err = deployments.GetStringNodeProperty(deploymentID, nodeName, "name", true)
 	if err != nil {
 		return err
 	}
-	policy, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "policy", true)
+	policy, err := deployments.GetStringNodeProperty(deploymentID, nodeName, "policy", true)
 	if err != nil {
 		return err
 	}

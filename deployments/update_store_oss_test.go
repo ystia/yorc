@@ -18,18 +18,16 @@ package deployments
 
 import (
 	"testing"
-
-	"github.com/hashicorp/consul/api"
 )
 
 // Testing topology template metadata
-func testTopologyUpdate(t *testing.T, kv *api.KV) {
+func testTopologyUpdate(t *testing.T) {
 
 	// Topology update is a premium feature
 }
 
 // Testing topology template metadata
-func testTopologyBadUpdate(t *testing.T, kv *api.KV) {
+func testTopologyBadUpdate(t *testing.T) {
 
 	// Topology update is a premium feature
 }

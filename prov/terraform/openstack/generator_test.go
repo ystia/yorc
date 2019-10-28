@@ -65,7 +65,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/topology_test.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	// Simulate the persistent disk "volume_id" attribute registration
@@ -141,7 +141,6 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 	// Error case
 	infra := commons.Infrastructure{}
 	infraOpts := generateInfraOptions{
-		kv:             kv,
 		cfg:            cfg,
 		infrastructure: &infra,
 		locationProps:  locationProps,

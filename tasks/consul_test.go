@@ -85,7 +85,7 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 			testGetQueryTaskIDs(t, kv)
 		})
 		t.Run("TestIsStepRegistrationInProgress", func(t *testing.T) {
-			testIsStepRegistrationInProgress(t, kv)
+			testIsStepRegistrationInProgress(t)
 		})
 	})
 }

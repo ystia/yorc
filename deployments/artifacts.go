@@ -19,7 +19,6 @@ import (
 
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -29,14 +28,14 @@ import (
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
-func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]string, error) {
+func GetArtifactsForType(deploymentID, typeName string) (map[string]string, error) {
 	parentType, err := GetParentType(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 	var artifacts map[string]string
 	if parentType != "" {
-		artifacts, err = GetArtifactsForType(kv, deploymentID, parentType)
+		artifacts, err = GetArtifactsForType(deploymentID, parentType)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +48,7 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 	}
 
 	artifactsPath := path.Join(typePath, "artifacts")
-	importPath, err := GetTypeImportPath(kv, deploymentID, typeName)
+	importPath, err := GetTypeImportPath(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -62,12 +61,12 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 // The returned artifacts paths are relative to root of the deployment archive.
 // It will first fetch artifacts from it node type and its parents and fetch artifacts for the node template itself.
 // This way artifacts from a parent type may be overridden by child types and artifacts from node type may be overridden by the node template
-func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+func GetArtifactsForNode(deploymentID, nodeName string) (map[string]string, error) {
+	nodeType, err := GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
-	artifacts, err := GetArtifactsForType(kv, deploymentID, nodeType)
+	artifacts, err := GetArtifactsForType(deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}

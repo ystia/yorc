@@ -73,13 +73,13 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to marshal Slurm job information")
 		}
-		err = tasks.SetTaskData(e.kv, e.taskID, e.NodeName+"-jobInfo", string(jobInfoJSON))
+		err = tasks.SetTaskData(e.taskID, e.NodeName+"-jobInfo", string(jobInfoJSON))
 		if err != nil {
 			return err
 		}
 		// Set the JobID attribute
 		// TODO(should be contextual to the current workflow)
-		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "job_id", e.jobInfo.ID)
+		err = deployments.SetAttributeForAllInstances(e.deploymentID, e.NodeName, "job_id", e.jobInfo.ID)
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
 		}
@@ -135,14 +135,14 @@ func (e *executionSingularity) resolveImageURI(ctx context.Context) error {
 }
 
 func (e *executionSingularity) buildImageURI(ctx context.Context, prefix string) error {
-	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+	repoName, err := deployments.GetOperationImplementationRepository(e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
 	if repoName == "" {
 		e.imageURI = e.Primary
 	} else {
-		repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
+		repoURL, err := deployments.GetRepositoryURLFromName(e.deploymentID, repoName)
 		if err != nil {
 			return err
 		}
@@ -167,14 +167,14 @@ func (e *executionSingularity) buildImageURI(ctx context.Context, prefix string)
 
 func (e *executionSingularity) getSingularityProps() error {
 	var err error
-	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "singularity_command_options"); err != nil {
+	if o, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "singularity_command_options"); err != nil {
 		return err
 	} else if o != nil && o.RawString() != "" {
 		if err = json.Unmarshal([]byte(o.RawString()), &e.commandOptions); err != nil {
 			return err
 		}
 	}
-	if e.debug, err = deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.NodeName, "singularity_debug"); err != nil {
+	if e.debug, err = deployments.GetBooleanNodeProperty(e.deploymentID, e.NodeName, "singularity_debug"); err != nil {
 		return err
 	}
 	return nil

@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -60,13 +59,9 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	opErr := o.executor.ExecOperation(ctx, cfg, originalTaskID, deploymentID, nodeName, operation)
 
 	if strings.ToLower(operation.Name) == tosca.RunnableRunOperationName {
-		cc, err := cfg.GetConsulClient()
-		if err != nil {
-			return false, err
-		}
 		// for now we consider only instance 0
 		dataName := nodeName + "-0-TOSCA_JOB_STATUS"
-		status, err := tasks.GetTaskData(cc.KV(), originalTaskID, dataName)
+		status, err := tasks.GetTaskData(originalTaskID, dataName)
 		if err != nil {
 			return false, err
 		}
@@ -75,13 +70,13 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		case "RUNNING", "QUEUED":
 			return false, opErr
 		case "COMPLETED":
-			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", tosca.NodeStateStarted.String())
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, action.Data["nodeName"], "0", tosca.NodeStateStarted.String())
 			return true, opErr
 		case "FAILED":
 			if opErr == nil {
 				opErr = errors.Errorf("job implementation of node %q was detected as failed", nodeName)
 			}
-			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", tosca.NodeStateError.String())
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, action.Data["nodeName"], "0", tosca.NodeStateError.String())
 			return true, opErr
 		}
 

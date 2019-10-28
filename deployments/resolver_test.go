@@ -20,10 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -33,21 +32,21 @@ import (
 	"github.com/ystia/yorc/v4/vault"
 )
 
-func testResolver(t *testing.T, kv *api.KV) {
+func testResolver(t *testing.T) {
 	log.SetDebug(true)
 
 	t.Run("deployments/resolver/testGetOperationOutput", func(t *testing.T) {
-		testGetOperationOutput(t, kv)
+		testGetOperationOutput(t)
 	})
 	t.Run("deployments/resolver/testGetOperationOutputReal", func(t *testing.T) {
-		testGetOperationOutputReal(t, kv)
+		testGetOperationOutputReal(t)
 	})
 	t.Run("deployments/resolver/testResolveComplex", func(t *testing.T) {
-		testResolveComplex(t, kv)
+		testResolveComplex(t)
 	})
 
 	t.Run("TestResolveSecret", func(t *testing.T) {
-		testResolveSecret(t, kv)
+		testResolveSecret(t)
 	})
 
 }
@@ -61,15 +60,15 @@ func generateToscaValueAssignmentFromString(t *testing.T, valueAssignment string
 	return va
 }
 
-func testGetOperationOutput(t *testing.T, kv *api.KV) {
+func testGetOperationOutput(t *testing.T) {
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
 
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/GetOPOutputsNode/0/outputs/standard/configure/MY_OUTPUT"), "MY_RESULT")
 	require.Nil(t, err)
-	r := resolver(kv, deploymentID)
+	r := resolver(deploymentID)
 
 	result, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`).GetFunction())
 	require.Nil(t, err)
@@ -104,13 +103,13 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 
 }
 
-func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
+func testGetOperationOutputReal(t *testing.T) {
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output_real.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_op_output_real.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output_real.yaml definition: %+v", err)
 
-	r := resolver(kv, deploymentID)
+	r := resolver(deploymentID)
 
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), "/mypath")
 	require.Nil(t, err)
@@ -122,12 +121,12 @@ func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
 
 }
 
-func testResolveComplex(t *testing.T, kv *api.KV) {
+func testResolveComplex(t *testing.T) {
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err, "Failed to parse testdata/value_assignments.yaml definition: %+v", err)
-	r := resolver(kv, deploymentID)
+	r := resolver(deploymentID)
 
 	type context struct {
 		nodeName         string
@@ -213,13 +212,13 @@ func (m *vaultSecretMock) Raw() interface{} {
 	return m.result
 }
 
-func testResolveSecret(t *testing.T, kv *api.KV) {
+func testResolveSecret(t *testing.T) {
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_secrets.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_secrets.yaml")
 	require.Nil(t, err, "Failed to parse testdata/value_assignments.yaml definition: %+v", err)
 	_, grp, store := consulutil.WithContext(context.Background())
-	createNodeInstance(kv, store, deploymentID, "Tomcat", "0")
+	createNodeInstance(store, deploymentID, "Tomcat", "0")
 	require.NoError(t, grp.Wait(), "Failed to create node instances")
 
 	type context struct {
@@ -238,7 +237,7 @@ func testResolveSecret(t *testing.T, kv *api.KV) {
 				op.RelOp.RequirementIndex = requirementIndex
 			}
 
-			inputs, err := GetOperationInput(kv, deploymentID, ctx.nodeName, op, input)
+			inputs, err := GetOperationInput(deploymentID, ctx.nodeName, op, input)
 			if err != nil {
 				return nil, err
 			}
@@ -261,24 +260,24 @@ func testResolveSecret(t *testing.T, kv *api.KV) {
 		want        string
 	}{
 		{"ResolvePropWithoutVault", context{"JDK", "", ""}, nil, func(ctx context) (*TOSCAValue, error) {
-			return GetNodePropertyValue(kv, deploymentID, ctx.nodeName, "java_home")
+			return GetNodePropertyValue(deploymentID, ctx.nodeName, "java_home")
 		}, true, false, ""},
 		{"ResolveCapabilityPropWithoutVault", context{"Tomcat", "", ""}, nil, func(ctx context) (*TOSCAValue, error) {
-			return GetCapabilityPropertyValue(kv, deploymentID, ctx.nodeName, "data_endpoint", "port")
+			return GetCapabilityPropertyValue(deploymentID, ctx.nodeName, "data_endpoint", "port")
 		}, true, false, ""},
 		{"ResolveAttributeWithoutVault", context{"JDK", "0", ""}, nil, func(ctx context) (*TOSCAValue, error) {
-			return GetInstanceAttributeValue(kv, deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
+			return GetInstanceAttributeValue(deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
 		}, true, false, ""},
 		{"ResolveOperationInputWithoutVault", context{"Tomcat", "0", ""}, nil, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), true, false, ""},
 		{"ResolveOperationInputRelWithoutVault", context{"Tomcat", "0", "0"}, nil, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), true, false, ""},
 		{"ResolvePropWithVault", context{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(ctx context) (*TOSCAValue, error) {
-			return GetNodePropertyValue(kv, deploymentID, ctx.nodeName, "java_home")
+			return GetNodePropertyValue(deploymentID, ctx.nodeName, "java_home")
 		}, false, true, "mysupersecret"},
 		{"ResolveCapabilityPropWithoutVault", context{"Tomcat", "", ""}, &vaultClientMock{"/secrets/myapp/tomcatport", "443", []string{"tom_opt1=1", "tom_opt2=2"}}, func(ctx context) (*TOSCAValue, error) {
-			return GetCapabilityPropertyValue(kv, deploymentID, ctx.nodeName, "data_endpoint", "port")
+			return GetCapabilityPropertyValue(deploymentID, ctx.nodeName, "data_endpoint", "port")
 		}, false, true, "443"},
 		{"ResolveAttributeWithoutVault", context{"JDK", "0", ""}, &vaultClientMock{id: "/secrets/app/javatype", result: "java_supersecret"}, func(ctx context) (*TOSCAValue, error) {
-			return GetInstanceAttributeValue(kv, deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
+			return GetInstanceAttributeValue(deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
 		}, false, true, "java_supersecret"},
 		{"ResolveOperationInputWithoutVault", context{"Tomcat", "0", ""}, &vaultClientMock{"/secrets/app/javatype", "tomcat_supersecret_input", []string{"ji_o"}}, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), false, true, "tomcat_supersecret_input"},
 		{"ResolveOperationInputRelWithoutVault", context{"Tomcat", "0", "0"}, &vaultClientMock{id: "/secrets/app/tominput", result: "java_supersecret_rel_input"}, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), false, true, "java_supersecret_rel_input"},

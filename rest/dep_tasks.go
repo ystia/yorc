@@ -27,9 +27,7 @@ import (
 )
 
 func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {
-	kv := s.consulClient.KV()
-
-	tExists, err := tasks.TaskExists(kv, taskID)
+	tExists, err := tasks.TaskExists(taskID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -39,7 +37,7 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 	}
 
 	// First check that the targetId of the task is the deployment id
-	ttid, err := tasks.GetTaskTarget(kv, taskID)
+	ttid, err := tasks.GetTaskTarget(taskID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -56,19 +54,18 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	taskID := params.ByName("taskId")
-	kv := s.consulClient.KV()
 	if !s.tasksPreChecks(w, r, id, taskID) {
 		return
 	}
 
-	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
+	if taskStatus, err := tasks.GetTaskStatus(taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.TaskStatusRUNNING && taskStatus != tasks.TaskStatusINITIAL {
 		writeError(w, r, newBadRequestError(errors.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
 		return
 	}
 
-	if err := tasks.CancelTask(kv, taskID); err != nil {
+	if err := tasks.CancelTask(taskID); err != nil {
 		log.Panic(err)
 	}
 	w.WriteHeader(http.StatusAccepted)
@@ -80,26 +77,25 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	taskID := params.ByName("taskId")
-	kv := s.consulClient.KV()
 
 	if !s.tasksPreChecks(w, r, id, taskID) {
 		return
 	}
 
 	task := Task{ID: taskID, TargetID: id}
-	status, err := tasks.GetTaskStatus(kv, taskID)
+	status, err := tasks.GetTaskStatus(taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.Status = status.String()
 
-	taskType, err := tasks.GetTaskType(kv, taskID)
+	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.Type = taskType.String()
 
-	resultSet, err := tasks.GetTaskResultSet(kv, taskID)
+	resultSet, err := tasks.GetTaskResultSet(taskID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -115,13 +111,12 @@ func (s *Server) getTaskStepsHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 	taskID := params.ByName("taskId")
-	kv := s.consulClient.KV()
 
 	if !s.tasksPreChecks(w, r, deploymentID, taskID) {
 		return
 	}
 
-	steps, err := tasks.GetTaskRelatedSteps(kv, taskID)
+	steps, err := tasks.GetTaskRelatedSteps(taskID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -141,8 +136,7 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Check TaskStep/Task existence
-	kv := s.consulClient.KV()
-	stExists, stepBefore, err := tasks.TaskStepExists(kv, taskID, stepID)
+	stExists, stepBefore, err := tasks.TaskStepExists(taskID, stepID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -172,7 +166,7 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 		log.Panicf("The task step status update from %s to %s is forbidden", stepBefore.Status, step.Status)
 	}
 
-	err = tasks.UpdateTaskStepStatus(kv, taskID, step)
+	err = tasks.UpdateTaskStepStatus(taskID, step)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -185,12 +179,11 @@ func (s *Server) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	taskID := params.ByName("taskId")
-	kv := s.consulClient.KV()
 	if !s.tasksPreChecks(w, r, id, taskID) {
 		return
 	}
 
-	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
+	if taskStatus, err := tasks.GetTaskStatus(taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.TaskStatusFAILED {
 		writeError(w, r, newBadRequestError(errors.Errorf("Cannot resume a task with status %q. Only task in %q status can be resumed.", taskStatus.String(), tasks.TaskStatusFAILED.String())))

@@ -30,7 +30,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
@@ -70,7 +69,6 @@ func isNoJobFoundError(err error) bool {
 }
 
 type executionCommon struct {
-	kv             *api.KV
 	cfg            config.Configuration
 	locationProps  config.DynamicMap
 	deploymentID   string
@@ -91,8 +89,8 @@ type executionCommon struct {
 	isSingularity  bool
 }
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
-	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
+func newExecution(cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
+	isSingularity, err := deployments.IsTypeDerivedFrom(deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +104,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, err
 	}
 
-	execCommon := &executionCommon{kv: kv,
+	execCommon := &executionCommon{
 		cfg:            cfg,
 		locationProps:  locationProps,
 		deploymentID:   deploymentID,
@@ -123,7 +121,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 	// Get user credentials from credentials node property
 	// Its not a capability, so capabilityName set to empty string
-	creds, err := getUserCredentials(kv, locationProps, deploymentID, nodeName, "")
+	creds, err := getUserCredentials(locationProps, deploymentID, nodeName, "")
 	if err != nil {
 		return nil, err
 	}
@@ -202,13 +200,13 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to marshal Slurm job information")
 		}
-		err = tasks.SetTaskData(e.kv, e.taskID, e.NodeName+"-jobInfo", string(jobInfoJSON))
+		err = tasks.SetTaskData(e.taskID, e.NodeName+"-jobInfo", string(jobInfoJSON))
 		if err != nil {
 			return err
 		}
 		// Set the JobID attribute
 		// TODO(should be contextual to the current workflow)
-		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "job_id", e.jobInfo.ID)
+		err = deployments.SetAttributeForAllInstances(e.deploymentID, e.NodeName, "job_id", e.jobInfo.ID)
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
 		}
@@ -219,7 +217,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 				return err
 			}
 			// Not cancelling within the same task try to get jobID from attribute
-			id, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+			id, err := deployments.GetInstanceAttributeValue(e.deploymentID, e.NodeName, "0", "job_id")
 			if err != nil {
 				return err
 			} else if id != nil && id.RawString() != "" {
@@ -238,7 +236,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 }
 
 func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
-	jobInfoJSON, err := tasks.GetTaskData(e.kv, e.taskID, e.NodeName+"-jobInfo")
+	jobInfoJSON, err := tasks.GetTaskData(e.taskID, e.NodeName+"-jobInfo")
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +265,7 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	// Get main properties from node
 	e.jobInfo = &jobInfo{}
-	jobName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "name")
+	jobName, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "name")
 	if err != nil {
 		return err
 	}
@@ -280,7 +278,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		e.jobInfo.Name = jobName.RawString()
 	}
 
-	if ts, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "tasks"); err != nil {
+	if ts, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "tasks"); err != nil {
 		return err
 	} else if ts != nil && ts.RawString() != "" {
 		if e.jobInfo.Tasks, err = strconv.Atoi(ts.RawString()); err != nil {
@@ -289,7 +287,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	var nodes = 1
-	if ns, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "nodes"); err != nil {
+	if ns, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "nodes"); err != nil {
 		return err
 	} else if ns != nil && ns.RawString() != "" {
 		if nodes, err = strconv.Atoi(ns.RawString()); err != nil {
@@ -298,7 +296,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 	e.jobInfo.Nodes = nodes
 
-	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "mem_per_node"); err != nil {
+	if m, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "mem_per_node"); err != nil {
 		return err
 	} else if m != nil && m.RawString() != "" {
 		if e.jobInfo.Mem, err = toSlurmMemFormat(m.RawString()); err != nil {
@@ -306,7 +304,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "cpus_per_task"); err != nil {
+	if c, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "cpus_per_task"); err != nil {
 		return err
 	} else if c != nil && c.RawString() != "" {
 		if e.jobInfo.Cpus, err = strconv.Atoi(c.RawString()); err != nil {
@@ -314,13 +312,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if maxTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "time"); err != nil {
+	if maxTime, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "time"); err != nil {
 		return err
 	} else if maxTime != nil {
 		e.jobInfo.MaxTime = maxTime.RawString()
 	}
 
-	if monitoringTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "monitoring_time_interval"); err != nil {
+	if monitoringTime, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "monitoring_time_interval"); err != nil {
 		return err
 	} else if monitoringTime != nil && monitoringTime.RawString() != "" {
 		e.jobInfo.MonitoringTimeInterval, err = time.ParseDuration(monitoringTime.RawString())
@@ -336,7 +334,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "extra_options"); err != nil {
+	if extra, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "extra_options"); err != nil {
 		return err
 	} else if extra != nil && extra.RawString() != "" {
 		if err = json.Unmarshal([]byte(extra.RawString()), &e.jobInfo.Opts); err != nil {
@@ -352,7 +350,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 
 	// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
 	// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
-	id, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+	id, err := deployments.GetInstanceAttributeValue(e.deploymentID, e.NodeName, "0", "job_id")
 	if err != nil {
 		return err
 	} else if id != nil && id.RawString() != "" {
@@ -360,7 +358,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Job account
-	if acc, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "account"); err != nil {
+	if acc, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "account"); err != nil {
 		return err
 	} else if acc != nil && acc.RawString() != "" {
 		e.jobInfo.Account = acc.RawString()
@@ -369,14 +367,14 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Reservation
-	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "slurm_options", "reservation"); err != nil {
+	if res, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "slurm_options", "reservation"); err != nil {
 		return err
 	} else if res != nil && res.RawString() != "" {
 		e.jobInfo.Reservation = res.RawString()
 	}
 
 	// Execution options
-	eo, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options")
+	eo, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "execution_options")
 	if err != nil {
 		return err
 	}
@@ -392,7 +390,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Working directory: default is user's home
-	if wd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "working_directory"); err != nil {
+	if wd, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "working_directory"); err != nil {
 		return err
 	} else if wd != nil && wd.RawString() != "" {
 		e.jobInfo.WorkingDir = wd.RawString()
@@ -400,7 +398,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		e.jobInfo.WorkingDir = home
 	}
 
-	envFile, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "environment_file")
+	envFile, err := deployments.GetNodePropertyValue(e.deploymentID, e.NodeName, "environment_file")
 	if err != nil {
 		return err
 	}
@@ -606,7 +604,7 @@ func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifact
 
 func (e *executionCommon) resolveOperation() error {
 	var err error
-	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+	e.NodeType, err = deployments.GetNodeType(e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
 	}
@@ -618,9 +616,9 @@ func (e *executionCommon) resolveOperation() error {
 
 	// Only operation file is required for Singularity execution
 	if e.isSingularity {
-		e.Primary, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+		e.Primary, err = deployments.GetOperationImplementationFile(e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 	} else {
-		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
 	}
 	if err != nil {
 		return err
@@ -633,7 +631,7 @@ func (e *executionCommon) resolveOperation() error {
 	// Get operation implementation file for upload purpose
 	if !e.isSingularity && e.Primary != "" {
 		var err error
-		e.PrimaryFile, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+		e.PrimaryFile, err = deployments.GetOperationImplementationFile(e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 		if err != nil {
 			return err
 		}
@@ -645,7 +643,7 @@ func (e *executionCommon) resolveOperation() error {
 
 func (e *executionCommon) resolveInstances() error {
 	var err error
-	if e.nodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName); err != nil {
+	if e.nodeInstances, err = tasks.GetInstances(e.taskID, e.deploymentID, e.NodeName); err != nil {
 		return err
 	}
 	return nil
@@ -653,7 +651,7 @@ func (e *executionCommon) resolveInstances() error {
 
 func (e *executionCommon) resolveExecution() error {
 	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
-	ovPath, err := operations.GetOverlayPath(e.kv, e.cfg, e.taskID, e.deploymentID)
+	ovPath, err := operations.GetOverlayPath(e.cfg, e.taskID, e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -671,14 +669,14 @@ func (e *executionCommon) resolveExecution() error {
 
 func (e *executionCommon) resolveInputs() error {
 	var err error
-	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputsWithInstances(e.kv, e.deploymentID, e.NodeName, e.taskID, e.operation, nil, nil)
+	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputsWithInstances(e.deploymentID, e.NodeName, e.taskID, e.operation, nil, nil)
 	return err
 }
 
 func (e *executionCommon) resolveArtifacts() error {
 	var err error
 	log.Debugf("Get artifacts for node:%q", e.NodeName)
-	e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.deploymentID, e.NodeName)
+	e.Artifacts, err = deployments.GetArtifactsForNode(e.deploymentID, e.NodeName)
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
 	return err
 }

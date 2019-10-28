@@ -100,7 +100,7 @@ func (sca *scheduledAction) proceed() error {
 	sca.Data["asyncOperation"] = sca.asyncOperationString
 
 	if sca.latestTaskID != "" {
-		status, err := tasks.GetTaskStatus(sca.kv, sca.latestTaskID)
+		status, err := tasks.GetTaskStatus(sca.latestTaskID)
 		// As action task is deleted after being executed asynchronously, we handle if task still exists
 		if tasks.IsTaskNotFoundError(err) {
 			return sca.registerNewTask()

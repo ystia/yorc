@@ -82,10 +82,9 @@ func testResumeTask(t *testing.T, client *api.Client) {
 }
 
 func testRegisterTaskWithBigWorkflow(t *testing.T, client *api.Client) {
-	kv := client.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	topologyFile := "testdata/bigTopology.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, topologyFile)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, topologyFile)
 	require.NoError(t, err, "Failed to store topology %s", topologyFile)
 
 	testCollector := NewCollector(client)

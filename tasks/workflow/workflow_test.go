@@ -76,7 +76,7 @@ func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, t
 func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 	kv := cc.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/workflow.yaml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/workflow.yaml")
 	require.Nil(t, err)
 
 	mockExecutor := &mockExecutor{}
@@ -189,7 +189,7 @@ func testRegisterInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api
 	kv := cc.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	topologyPath := "../../deployments/testdata/inline_workflow.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, topologyPath)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, topologyPath)
 	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
 
 	_, err = builder.BuildWorkFlow(kv, deploymentID, "install")

@@ -50,9 +50,9 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, srv *testutil.Test
 	})
 }
 
-func loadTestYaml(t *testing.T, deploymentID string, kv *api.KV) {
+func loadTestYaml(t *testing.T, deploymentID string) {
 	yamlName := "testdata/testSimpleTopology.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 }
 
@@ -67,7 +67,7 @@ func cleanTest(kv *api.KV, deploymentID, taskID string) {
 
 func prepareTest(t *testing.T, deploymentID string, client *api.Client, srv *testutil.TestServer) {
 	if deploymentID != "noDeployment" {
-		loadTestYaml(t, deploymentID, client.KV())
+		loadTestYaml(t, deploymentID)
 		srv.PopulateKV(t, map[string][]byte{
 			consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte("DEPLOYED"),
 		})
@@ -127,7 +127,7 @@ func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.C
 				locationSplit := strings.Split(location, "/")
 				require.Equal(t, 5, len(locationSplit), "unexpected location format")
 				taskID := strings.Split(location, "/")[4]
-				continueOnErrorStr, err := tasks.GetTaskData(client.KV(), taskID, "continueOnError")
+				continueOnErrorStr, err := tasks.GetTaskData(taskID, "continueOnError")
 				require.Nil(t, err, "unexpected error getting continueOnError task data")
 				continueOnError, err := strconv.ParseBool(continueOnErrorStr)
 				require.Nil(t, err, "unexpected error parsing bool continueOnError")
@@ -193,7 +193,7 @@ func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client,
 				locationSplit := strings.Split(location, "/")
 				require.Equal(t, 5, len(locationSplit), "unexpected location format")
 				taskID := strings.Split(location, "/")[4]
-				taskType, err := tasks.GetTaskType(client.KV(), taskID)
+				taskType, err := tasks.GetTaskType(taskID)
 				require.Nil(t, err, "unexpected error getting task type")
 				require.Equal(t, tt.want.taskType, taskType, "unexpected task type")
 

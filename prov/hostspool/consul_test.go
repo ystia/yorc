@@ -43,7 +43,7 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	})
 
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/topology_hp_compute.yaml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/topology_hp_compute.yaml")
 	require.NoError(t, err)
 
 	t.Run("TestConsulManagerAdd", func(t *testing.T) {

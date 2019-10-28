@@ -139,7 +139,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		t.Run(tt.name, func(t *testing.T) {
 			deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 
-			err := deployments.StoreDeploymentDefinition(ctx, kv, deploymentID, "testdata/compute.yaml")
+			err := deployments.StoreDeploymentDefinition(ctx, deploymentID, "testdata/compute.yaml")
 			require.Nil(t, err)
 
 			taskID := uuid.NewV4().String()
@@ -165,7 +165,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 			postComputeCreationHook(ctx, cfg, taskID, deploymentID, target, activity)
 
 			for i, check := range tt.checks {
-				actualIP, err := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address")
+				actualIP, err := deployments.GetInstanceCapabilityAttributeValue(deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address")
 				require.NoError(t, err)
 				if check != "" {
 					require.NotNil(t, actualIP, "postComputeCreationHook: expecting a value for endpoint.ip_address attribute")

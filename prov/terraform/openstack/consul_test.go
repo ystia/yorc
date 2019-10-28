@@ -53,28 +53,28 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 			testFipOSInstanceNotAllowed(t, kv, srv)
 		})
 		t.Run("TestGenerateOSBSVolumeSizeConvert", func(t *testing.T) {
-			testGenerateOSBSVolumeSizeConvert(t, srv, kv)
+			testGenerateOSBSVolumeSizeConvert(t, srv)
 		})
 		t.Run("TestGenerateOSBSVolumeSizeConvertError", func(t *testing.T) {
-			testGenerateOSBSVolumeSizeConvertError(t, srv, kv)
+			testGenerateOSBSVolumeSizeConvertError(t, srv)
 		})
 		t.Run("TestGenerateOSBSVolumeMissingSize", func(t *testing.T) {
-			testGenerateOSBSVolumeMissingSize(t, srv, kv)
+			testGenerateOSBSVolumeMissingSize(t, srv)
 		})
 		t.Run("TestGenerateOSBSVolumeWrongType", func(t *testing.T) {
-			testGenerateOSBSVolumeWrongType(t, srv, kv)
+			testGenerateOSBSVolumeWrongType(t, srv)
 		})
 		t.Run("TestGenerateOSBSVolumeCheckOptionalValues", func(t *testing.T) {
-			testGenerateOSBSVolumeCheckOptionalValues(t, srv, kv)
+			testGenerateOSBSVolumeCheckOptionalValues(t, srv)
 		})
 		t.Run("TestGeneratePoolIP", func(t *testing.T) {
-			testGeneratePoolIP(t, srv, kv)
+			testGeneratePoolIP(t, srv)
 		})
 		t.Run("TestGenerateSingleIp", func(t *testing.T) {
-			testGenerateSingleIP(t, srv, kv)
+			testGenerateSingleIP(t, srv)
 		})
 		t.Run("TestGenerateMultipleIP", func(t *testing.T) {
-			testGenerateMultipleIP(t, srv, kv)
+			testGenerateMultipleIP(t, srv)
 		})
 		t.Run("simpleServerGroup", func(t *testing.T) {
 			testSimpleServerGroup(t, kv)

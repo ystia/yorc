@@ -45,7 +45,6 @@ type osGenerator struct {
 }
 
 type generateInfraOptions struct {
-	kv             *api.KV
 	cfg            config.Configuration
 	infrastructure *commons.Infrastructure
 	locationProps  config.DynamicMap
@@ -107,13 +106,13 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	infrastructure.Provider, cmdEnv = getOpenStackProviderEnv(cfg, locationProps)
 
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
 	outputs := make(map[string]string)
 
-	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
@@ -122,7 +121,6 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 
 	for instIdx, instanceName := range instances {
 		infraOpts := generateInfraOptions{
-			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
 			locationProps:  locationProps,
@@ -185,7 +183,7 @@ func getOpenStackProviderEnv(cfg config.Configuration, locationProps config.Dyna
 func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateInfraOptions,
 	outputs map[string]string, cmdEnv *[]string) error {
 
-	instanceState, err := deployments.GetInstanceState(opts.kv, opts.deploymentID,
+	instanceState, err := deployments.GetInstanceState(opts.deploymentID,
 		opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
@@ -199,7 +197,6 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 	case "yorc.nodes.openstack.Compute":
 		err = g.generateOSInstance(ctx,
 			osInstanceOptions{
-				kv:             opts.kv,
 				cfg:            opts.cfg,
 				infrastructure: opts.infrastructure,
 				locationProps:  opts.locationProps,
@@ -222,7 +219,6 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 	case "yorc.nodes.openstack.ServerGroup":
 		err = g.generateServerGroup(ctx,
 			serverGroupOptions{
-				kv:            opts.kv,
 				deploymentID:  opts.deploymentID,
 				nodeName:      opts.nodeName,
 				resourceTypes: opts.resourceTypes,
@@ -238,7 +234,7 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error {
 
 	var bsIds []string
-	volumeID, err := deployments.GetNodePropertyValue(opts.kv, opts.deploymentID, opts.nodeName, "volume_id")
+	volumeID, err := deployments.GetNodePropertyValue(opts.deploymentID, opts.nodeName, "volume_id")
 	if err != nil {
 		return err
 	}
@@ -249,7 +245,7 @@ func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error
 	}
 
 	var bsVolume BlockStorageVolume
-	bsVolume, err = g.generateOSBSVolume(opts.kv, opts.cfg, opts.locationProps,
+	bsVolume, err = g.generateOSBSVolume(opts.cfg, opts.locationProps,
 		opts.deploymentID, opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
@@ -276,7 +272,7 @@ func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error
 
 func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
 
-	ip, err := g.generateFloatingIP(opts.kv, opts.deploymentID, opts.nodeName, opts.instanceName)
+	ip, err := g.generateFloatingIP(opts.deploymentID, opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
 	}
@@ -297,7 +293,7 @@ func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
 			return err
 		}
 		if (len(ips) - 1) < instName {
-			networkName, err := deployments.GetNodePropertyValue(opts.kv, opts.deploymentID,
+			networkName, err := deployments.GetNodePropertyValue(opts.deploymentID,
 				opts.nodeName, "floating_network_name")
 			if err != nil {
 				return err
@@ -331,7 +327,7 @@ func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
 
 func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
 
-	networkID, err := deployments.GetNodePropertyValue(opts.kv, opts.deploymentID,
+	networkID, err := deployments.GetNodePropertyValue(opts.deploymentID,
 		opts.nodeName, "network_id")
 	if err != nil {
 		return err
@@ -342,12 +338,12 @@ func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
 	}
 
 	var network Network
-	network, err = g.generateNetwork(opts.kv, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName)
+	network, err = g.generateNetwork(opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}
 	var subnet Subnet
-	subnet, err = g.generateSubnet(opts.kv, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName,
+	subnet, err = g.generateSubnet(opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName,
 		opts.resourceTypes[networkingNetwork])
 	if err != nil {
 		return err

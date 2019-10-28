@@ -59,17 +59,17 @@ PAgZzG5OTZiu+YohUPnC66eFiyS6anLBj0DGNa9VA8j352ecgeNO4A==
 -----END RSA PRIVATE KEY-----
 `
 
-func loadTestYaml(t *testing.T, kv *api.KV) string {
+func loadTestYaml(t *testing.T) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }
 
 func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -80,7 +80,7 @@ func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV, cfg config.Configurat
 
 func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -138,7 +138,7 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 
 func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -172,7 +172,7 @@ func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Co
 
 func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -192,7 +192,7 @@ func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.
 
 func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -220,7 +220,7 @@ func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV, cfg config.Configura
 
 func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -243,12 +243,12 @@ func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV, cfg config.C
 
 func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
+	nb, err := deployments.GetDefaultNbInstancesForNode(deploymentID, "ComputeAWS")
 	require.Nil(t, err)
 	require.Equal(t, uint32(4), nb)
 
@@ -279,7 +279,7 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg co
 
 func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
@@ -290,12 +290,12 @@ func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, kv *api.KV, cfg config.
 
 func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
+	nb, err := deployments.GetDefaultNbInstancesForNode(deploymentID, "ComputeAWS")
 	require.Nil(t, err)
 	require.Equal(t, uint32(5), nb)
 

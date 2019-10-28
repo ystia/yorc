@@ -19,7 +19,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"vbom.ml/util/sortorder"
 
@@ -27,7 +26,7 @@ import (
 )
 
 // GetRequirementKeyByNameForNode returns path to requirement which name match with defined requirementName for a given node name
-func GetRequirementKeyByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
+func GetRequirementKeyByNameForNode(deploymentID, nodeName, requirementName string) (string, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
 	if err != nil {
@@ -52,7 +51,7 @@ func GetRequirementKeyByNameForNode(kv *api.KV, deploymentID, nodeName, requirem
 // GetRequirementsKeysByTypeForNode returns paths to requirements whose name or type_requirement match the given requirementType
 //
 // The returned slice may be empty if there is no matching requirements.
-func GetRequirementsKeysByTypeForNode(kv *api.KV, deploymentID, nodeName, requirementType string) ([]string, error) {
+func GetRequirementsKeysByTypeForNode(deploymentID, nodeName, requirementType string) ([]string, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
 	reqKeys := make([]string, 0)
@@ -96,8 +95,8 @@ func GetRequirementIndexFromRequirementKey(requirementKey string) string {
 }
 
 // GetRequirementIndexByNameForNode returns the requirement index which name match with defined requirementName for a given node name
-func GetRequirementIndexByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
-	reqPath, err := GetRequirementKeyByNameForNode(kv, deploymentID, nodeName, requirementName)
+func GetRequirementIndexByNameForNode(deploymentID, nodeName, requirementName string) (string, error) {
+	reqPath, err := GetRequirementKeyByNameForNode(deploymentID, nodeName, requirementName)
 	if err != nil {
 		return "", err
 	}
@@ -105,7 +104,7 @@ func GetRequirementIndexByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 }
 
 // GetRequirementNameByIndexForNode returns the requirement name for a given node and requirement index
-func GetRequirementNameByIndexForNode(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+func GetRequirementNameByIndexForNode(deploymentID, nodeName, requirementIndex string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "name"))
 	if err != nil || !exist || value == "" {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -114,7 +113,7 @@ func GetRequirementNameByIndexForNode(kv *api.KV, deploymentID, nodeName, requir
 }
 
 // GetRequirementsIndexes returns the list of requirements indexes for a given node
-func GetRequirementsIndexes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+func GetRequirementsIndexes(deploymentID, nodeName string) ([]string, error) {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
 	reqKVPs, err := consulutil.GetKeys(reqPath)
 	if err != nil {
@@ -127,7 +126,7 @@ func GetRequirementsIndexes(kv *api.KV, deploymentID, nodeName string) ([]string
 }
 
 // GetNbRequirementsForNode returns the number of requirements declared for the given node
-func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, error) {
+func GetNbRequirementsForNode(deploymentID, nodeName string) (int, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
 	if err != nil {
@@ -139,7 +138,7 @@ func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, e
 // GetRelationshipForRequirement returns the relationship associated with a given requirementIndex for the given nodeName.
 //
 // If there is no relationship defined for this requirement then an empty string is returned.
-func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+func GetRelationshipForRequirement(deploymentID, nodeName, requirementIndex string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"))
 	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it furthermore it can refer to a relationship_template_name instead of a relationship_type_name
 	if err != nil || !exist || value == "" {
@@ -151,7 +150,7 @@ func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requireme
 // GetCapabilityForRequirement returns the capability associated with a given requirementIndex for the given nodeName.
 //
 // If there is no capability defined for this requirement then an empty string is returned.
-func GetCapabilityForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+func GetCapabilityForRequirement(deploymentID, nodeName, requirementIndex string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "capability"))
 	if err != nil || !exist || value == "" {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -162,7 +161,7 @@ func GetCapabilityForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 // GetTargetNodeForRequirement returns the target node associated with a given requirementIndex for the given nodeName.
 //
 // If there is no node defined for this requirement then an empty string is returned.
-func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+func GetTargetNodeForRequirement(deploymentID, nodeName, requirementIndex string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"))
 	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
 	if err != nil || !exist || value == "" {
@@ -174,7 +173,7 @@ func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 // GetTargetInstanceForRequirement returns the target node and instances
 // associated with a given requirementIndex of the given nodeName/instanceName.
 //
-func GetTargetInstanceForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, instanceName string) (string, []string, error) {
+func GetTargetInstanceForRequirement(deploymentID, nodeName, requirementIndex, instanceName string) (string, []string, error) {
 	targetPrefix := path.Join(
 		consulutil.DeploymentKVPrefix, deploymentID,
 		"topology", "relationship_instances", nodeName, requirementIndex,
@@ -201,7 +200,7 @@ func GetTargetInstanceForRequirement(kv *api.KV, deploymentID, nodeName, require
 // GetTargetNodeForRequirementByName returns the target node associated with a given requirementName for the given nodeName.
 //
 // If there is no node defined for this requirement then an empty string is returned.
-func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
+func GetTargetNodeForRequirementByName(deploymentID, nodeName, requirementName string) (string, error) {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements")
 	kvp, err := consulutil.GetKeys(reqPath)
 	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
@@ -230,18 +229,18 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 // HasAnyRequirementCapability returns true and the the related node name addressing the capability
 // if node with name nodeName has the requirement with the capability type equal or derived from the provided type
 // otherwise it returns false and empty string
-func HasAnyRequirementCapability(kv *api.KV, deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
-	reqkKeys, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
+func HasAnyRequirementCapability(deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
+	reqkKeys, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, requirement)
 	if err != nil {
 		return false, "", err
 	}
 	for _, reqPrefix := range reqkKeys {
 		requirementIndex := GetRequirementIndexFromRequirementKey(reqPrefix)
-		capability, err := GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		capability, err := GetCapabilityForRequirement(deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return false, "", err
 		}
-		relatedNodeName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		relatedNodeName, err := GetTargetNodeForRequirement(deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return false, "", err
 		}
@@ -250,7 +249,7 @@ func HasAnyRequirementCapability(kv *api.KV, deploymentID, nodeName, requirement
 			if capability == capabilityType {
 				return true, relatedNodeName, nil
 			}
-			is, err := IsTypeDerivedFrom(kv, deploymentID, capability, capabilityType)
+			is, err := IsTypeDerivedFrom(deploymentID, capability, capabilityType)
 			if err != nil {
 				return false, "", err
 			}
@@ -264,24 +263,24 @@ func HasAnyRequirementCapability(kv *api.KV, deploymentID, nodeName, requirement
 // HasAnyRequirementFromNodeType returns true and the the related node name addressing the capability
 // if node with name nodeName has the requirement with the node type equal or derived from the provided type
 // otherwise it returns false and empty string
-func HasAnyRequirementFromNodeType(kv *api.KV, deploymentID, nodeName, requirement, nodeType string) (bool, string, error) {
-	reqkKeys, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
+func HasAnyRequirementFromNodeType(deploymentID, nodeName, requirement, nodeType string) (bool, string, error) {
+	reqkKeys, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, requirement)
 	if err != nil {
 		return false, "", err
 	}
 	for _, reqPrefix := range reqkKeys {
 		requirementIndex := GetRequirementIndexFromRequirementKey(reqPrefix)
-		capability, err := GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		capability, err := GetCapabilityForRequirement(deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return false, "", err
 		}
-		relatedNodeName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		relatedNodeName, err := GetTargetNodeForRequirement(deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return false, "", err
 		}
 
 		if capability != "" {
-			is, err := IsNodeDerivedFrom(kv, deploymentID, relatedNodeName, nodeType)
+			is, err := IsNodeDerivedFrom(deploymentID, relatedNodeName, nodeType)
 			if err != nil {
 				return false, "", err
 			} else if is {

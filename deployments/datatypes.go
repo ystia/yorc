@@ -18,7 +18,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -29,8 +28,8 @@ import (
 // Default value is "string" if not specified.
 // Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
-func GetTypePropertyDataType(kv *api.KV, deploymentID, typeName, propertyName string) (string, error) {
-	return getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, true)
+func GetTypePropertyDataType(deploymentID, typeName, propertyName string) (string, error) {
+	return getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName, true)
 }
 
 // GetTypeAttributeDataType returns the type of a attribute as defined in its attribute definition
@@ -38,11 +37,11 @@ func GetTypePropertyDataType(kv *api.KV, deploymentID, typeName, propertyName st
 // Default value is "string" if not specified.
 // Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
-func GetTypeAttributeDataType(kv *api.KV, deploymentID, typeName, propertyName string) (string, error) {
-	return getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, false)
+func GetTypeAttributeDataType(deploymentID, typeName, propertyName string) (string, error) {
+	return getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName, false)
 }
 
-func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
+func getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName string, isProp bool) (string, error) {
 	tType := "properties"
 	if !isProp {
 		tType = "attributes"
@@ -63,7 +62,7 @@ func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, prop
 			return "", nil
 			// return "", errors.Errorf("property %q not found in type %q", propertyName, typeName)
 		}
-		result, err := GetTypePropertyDataType(kv, deploymentID, parentType, propertyName)
+		result, err := GetTypePropertyDataType(deploymentID, parentType, propertyName)
 		return result, errors.Wrapf(err, "property %q not found in type %q", propertyName, typeName)
 	}
 	dataType := value
@@ -84,7 +83,7 @@ func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, prop
 }
 
 // GetNestedDataType return the type of a nested datatype
-func GetNestedDataType(kv *api.KV, deploymentID, baseType string, nestedKeys ...string) (string, error) {
+func GetNestedDataType(deploymentID, baseType string, nestedKeys ...string) (string, error) {
 	currentType := baseType
 	var err error
 	for i := 0; i < len(nestedKeys); i++ {
@@ -95,7 +94,7 @@ func GetNestedDataType(kv *api.KV, deploymentID, baseType string, nestedKeys ...
 			currentType = currentType[4:]
 			continue
 		}
-		currentType, err = GetTypePropertyDataType(kv, deploymentID, currentType, nestedKeys[i])
+		currentType, err = GetTypePropertyDataType(deploymentID, currentType, nestedKeys[i])
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get type of nested datatype %q.%q", baseType, strings.Join(nestedKeys, "."))
 		}
@@ -109,8 +108,8 @@ func GetNestedDataType(kv *api.KV, deploymentID, baseType string, nestedKeys ...
 // As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetTopologyInputType(kv *api.KV, deploymentID, inputName string) (string, error) {
-	return getTopologyInputOrOutputType(kv, deploymentID, inputName, "inputs")
+func GetTopologyInputType(deploymentID, inputName string) (string, error) {
+	return getTopologyInputOrOutputType(deploymentID, inputName, "inputs")
 }
 
 // GetTopologyOutputType retrieves the optional data type of the parameter.
@@ -118,11 +117,11 @@ func GetTopologyInputType(kv *api.KV, deploymentID, inputName string) (string, e
 // As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetTopologyOutputType(kv *api.KV, deploymentID, outputName string) (string, error) {
-	return getTopologyInputOrOutputType(kv, deploymentID, outputName, "outputs")
+func GetTopologyOutputType(deploymentID, outputName string) (string, error) {
+	return getTopologyInputOrOutputType(deploymentID, outputName, "outputs")
 }
 
-func getTopologyInputOrOutputType(kv *api.KV, deploymentID, parameterName, parameterType string) (string, error) {
+func getTopologyInputOrOutputType(deploymentID, parameterName, parameterType string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "type"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -147,14 +146,14 @@ func AddOutput(infrastructure *Infrastructure, outputName string, output *Output
 }
 
 // GetConnInfoFromEndpointCredentials allow to retrieve user and private key path for connection needs from endpoint credentials
-func GetConnInfoFromEndpointCredentials(ctx context.Context, kv *api.KV, deploymentID, nodeName string) (string, *sshutil.PrivateKey, error) {
-	user, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "user")
+func GetConnInfoFromEndpointCredentials(ctx context.Context, deploymentID, nodeName string) (string, *sshutil.PrivateKey, error) {
+	user, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "endpoint", "credentials", "user")
 	if err != nil {
 		return "", nil, err
 	} else if user == nil || user.RawString() == "" {
 		return "", nil, errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
-	keys, err := sshutil.GetKeysFromCredentialsAttribute(kv, deploymentID, nodeName, "0", "endpoint")
+	keys, err := sshutil.GetKeysFromCredentialsAttribute(deploymentID, nodeName, "0", "endpoint")
 	if err != nil {
 		return "", nil, err
 	}

@@ -20,9 +20,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
@@ -46,7 +45,6 @@ const funcKeywordREQTARGET string = "REQ_TARGET"
 
 // functionResolver is used to resolve TOSCA functions
 type functionResolver struct {
-	kv               *api.KV
 	deploymentID     string
 	nodeName         string
 	instanceName     string
@@ -62,8 +60,8 @@ func (fr *functionResolver) context(contexts ...resolverContext) *functionResolv
 	return fr
 }
 
-func resolver(kv *api.KV, deploymentID string) *functionResolver {
-	return &functionResolver{kv: kv, deploymentID: deploymentID}
+func resolver(deploymentID string) *functionResolver {
+	return &functionResolver{deploymentID: deploymentID}
 }
 
 func withNodeName(nodeName string) resolverContext {
@@ -148,7 +146,7 @@ func (fr *functionResolver) resolveGetInput(operands []string) (string, error) {
 		return "", errors.Errorf("expecting at least one parameter for a get_input function")
 	}
 	args := getFuncNestedArgs(operands...)
-	return GetInputValue(fr.kv, fr.deploymentID, args[0], args[1:]...)
+	return GetInputValue(fr.deploymentID, args[0], args[1:]...)
 }
 
 func (fr *functionResolver) resolveGetOperationOutput(operands []string) (string, error) {
@@ -175,32 +173,32 @@ func (fr *functionResolver) resolveGetOperationOutput(operands []string) (string
 		if entity == funcKeywordSOURCE {
 			return "", errors.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", funcKeywordSOURCE)
 		}
-		output, err := GetOperationOutputForNode(fr.kv, fr.deploymentID, fr.nodeName, fr.instanceName, ifName, opName, varName)
+		output, err := GetOperationOutputForNode(fr.deploymentID, fr.nodeName, fr.instanceName, ifName, opName, varName)
 		if err != nil || output != "" {
 			return output, err
 		}
 		// Workaround to be backward compatible lets look at relationships
-		return getOperationOutputForRequirements(fr.kv, fr.deploymentID, fr.nodeName, fr.instanceName, ifName, opName, varName)
+		return getOperationOutputForRequirements(fr.deploymentID, fr.nodeName, fr.instanceName, ifName, opName, varName)
 	case funcKeywordTARGET, funcKeywordRTARGET:
 		if fr.requirementIndex != "" {
 			return "", errors.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", funcKeywordTARGET)
 		}
-		targetNode, err := GetTargetNodeForRequirement(fr.kv, fr.deploymentID, fr.nodeName, fr.requirementIndex)
+		targetNode, err := GetTargetNodeForRequirement(fr.deploymentID, fr.nodeName, fr.requirementIndex)
 		if err != nil {
 			return "", err
 		}
 		return GetOperationOutputForRelationship(fr.deploymentID, targetNode, fr.instanceName, fr.requirementIndex, ifName, opName, varName)
 	default:
-		instanceIDs, err := GetNodeInstancesIds(fr.kv, fr.deploymentID, entity)
+		instanceIDs, err := GetNodeInstancesIds(fr.deploymentID, entity)
 		if err != nil {
 			return "", err
 		}
 		if collections.ContainsString(instanceIDs, fr.instanceName) {
-			return GetOperationOutputForNode(fr.kv, fr.deploymentID, entity, fr.instanceName, ifName, opName, varName)
+			return GetOperationOutputForNode(fr.deploymentID, entity, fr.instanceName, ifName, opName, varName)
 		}
 		for _, id := range instanceIDs {
 			// by default take the first one
-			return GetOperationOutputForNode(fr.kv, fr.deploymentID, entity, id, ifName, opName, varName)
+			return GetOperationOutputForNode(fr.deploymentID, entity, id, ifName, opName, varName)
 		}
 
 		return "", errors.Errorf(`Can't resolve "get_operation_output: [%s]" can't find a valid instance for %q`, strings.Join(operands, ", "), entity)
@@ -230,17 +228,17 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	case funcKeywordSELF, funcKeywordSOURCE:
 		actualNode = fr.nodeName
 	case funcKeywordHOST:
-		actualNode, err = GetHostedOnNode(fr.kv, fr.deploymentID, fr.nodeName)
+		actualNode, err = GetHostedOnNode(fr.deploymentID, fr.nodeName)
 		if err != nil {
 			return nil, err
 		}
 	case funcKeywordTARGET, funcKeywordRTARGET:
-		actualNode, err = GetTargetNodeForRequirement(fr.kv, fr.deploymentID, fr.nodeName, fr.requirementIndex)
+		actualNode, err = GetTargetNodeForRequirement(fr.deploymentID, fr.nodeName, fr.requirementIndex)
 		if err != nil {
 			return nil, err
 		}
 	case funcKeywordREQTARGET:
-		actualNode, err = GetTargetNodeForRequirementByName(fr.kv, fr.deploymentID, fr.nodeName, operands[1])
+		actualNode, err = GetTargetNodeForRequirementByName(fr.deploymentID, fr.nodeName, operands[1])
 		if err != nil {
 			return nil, err
 		}
@@ -257,16 +255,16 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	// this does not makes sense for a REQTARGET
 	if entity != funcKeywordREQTARGET {
 		if len(operands) > 2 {
-			cap, err := GetNodeCapabilityType(fr.kv, fr.deploymentID, actualNode, operands[1])
+			cap, err := GetNodeCapabilityType(fr.deploymentID, actualNode, operands[1])
 			if err != nil {
 				return nil, err
 			}
 			if cap != "" {
 				args := getFuncNestedArgs(operands[2:]...)
 				if rType == "attribute" {
-					result, err = GetInstanceCapabilityAttributeValue(fr.kv, fr.deploymentID, actualNode, fr.instanceName, operands[1], args[0], args[1:]...)
+					result, err = GetInstanceCapabilityAttributeValue(fr.deploymentID, actualNode, fr.instanceName, operands[1], args[0], args[1:]...)
 				} else {
-					result, err = GetCapabilityPropertyValue(fr.kv, fr.deploymentID, actualNode, operands[1], args[0], args[1:]...)
+					result, err = GetCapabilityPropertyValue(fr.deploymentID, actualNode, operands[1], args[0], args[1:]...)
 				}
 				if err != nil || result != nil {
 					return result, err
@@ -282,15 +280,15 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 
 	if rType == "attribute" {
 		if entity == funcKeywordSELF && fr.requirementIndex != "" {
-			result, err = GetRelationshipAttributeValueFromRequirement(fr.kv, fr.deploymentID, actualNode, fr.instanceName, fr.requirementIndex, args[0], args[1:]...)
+			result, err = GetRelationshipAttributeValueFromRequirement(fr.deploymentID, actualNode, fr.instanceName, fr.requirementIndex, args[0], args[1:]...)
 		} else {
-			result, err = GetInstanceAttributeValue(fr.kv, fr.deploymentID, actualNode, fr.instanceName, args[0], args[1:]...)
+			result, err = GetInstanceAttributeValue(fr.deploymentID, actualNode, fr.instanceName, args[0], args[1:]...)
 		}
 	} else {
 		if entity == funcKeywordSELF && fr.requirementIndex != "" {
-			result, err = GetRelationshipPropertyValueFromRequirement(fr.kv, fr.deploymentID, actualNode, fr.requirementIndex, args[0], args[1:]...)
+			result, err = GetRelationshipPropertyValueFromRequirement(fr.deploymentID, actualNode, fr.requirementIndex, args[0], args[1:]...)
 		} else {
-			result, err = GetNodePropertyValue(fr.kv, fr.deploymentID, actualNode, args[0], args[1:]...)
+			result, err = GetNodePropertyValue(fr.deploymentID, actualNode, args[0], args[1:]...)
 		}
 	}
 	if err != nil || result != nil {
@@ -317,11 +315,11 @@ func getFuncNestedArgs(nestedKeys ...string) []string {
 	return res
 }
 
-func resolveValueAssignmentAsString(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, valueAssignment string, nestedKeys ...string) (*TOSCAValue, error) {
-	return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, &TOSCAValue{Value: valueAssignment}, nestedKeys...)
+func resolveValueAssignmentAsString(deploymentID, nodeName, instanceName, requirementIndex, valueAssignment string, nestedKeys ...string) (*TOSCAValue, error) {
+	return resolveValueAssignment(deploymentID, nodeName, instanceName, requirementIndex, &TOSCAValue{Value: valueAssignment}, nestedKeys...)
 }
 
-func resolveValueAssignment(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex string, valueAssignment *TOSCAValue, nestedKeys ...string) (*TOSCAValue, error) {
+func resolveValueAssignment(deploymentID, nodeName, instanceName, requirementIndex string, valueAssignment *TOSCAValue, nestedKeys ...string) (*TOSCAValue, error) {
 	// Function
 	fromSecret := valueAssignment.IsSecret
 	va := &tosca.ValueAssignment{}
@@ -329,7 +327,7 @@ func resolveValueAssignment(kv *api.KV, deploymentID, nodeName, instanceName, re
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", valueAssignment, nodeName)
 	}
-	r := resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(instanceName), withRequirementIndex(requirementIndex))
+	r := resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(instanceName), withRequirementIndex(requirementIndex))
 	valueAssignment, err = r.resolveFunction(va.GetFunction())
 	if err != nil {
 		return nil, err

@@ -33,7 +33,7 @@ import (
 )
 
 func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.Tags.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
 	// image_id is mandatory
-	image, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "image_id")
+	image, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "image_id")
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.ImageID = image.RawString()
 
 	// instance_type is mandatory
-	instanceType, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "instance_type")
+	instanceType, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "instance_type")
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.InstanceType = instanceType.RawString()
 
 	// key_name is mandatory
-	keyName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "key_name")
+	keyName, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "key_name")
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.KeyName = keyName.RawString()
 
 	// security_groups needs to contain a least one occurrence
-	secGroups, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "security_groups")
+	secGroups, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
 	}
@@ -91,13 +91,13 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
 	// Check optional provided Elastic IPs
-	eips, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "elastic_ips")
+	eips, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "elastic_ips")
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 
 	// Check if the root block device must be deleted on termination
 	deleteVolumeOnTermination := true // Default is deleting root block device on compute termination
-	s, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "delete_volume_on_termination")
+	s, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "delete_volume_on_termination")
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: deleteVolumeOnTermination}
 
 	// Optional property to select availability zone of the compute instance
-	availabilityZone, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
+	availabilityZone, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 
 	// Optional property to add the compute to a logical grouping of instances
-	placementGroup, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "placement_group")
+	placementGroup, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "placement_group")
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	// Check existing network requirement otherwise
 	var isElasticIP = len(instance.ElasticIps) > 0
 	if !isElasticIP {
-		isElasticIP, _, err = deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "network", "yorc.nodes.aws.PublicNetwork")
+		isElasticIP, _, err = deployments.HasAnyRequirementFromNodeType(deploymentID, nodeName, "network", "yorc.nodes.aws.PublicNetwork")
 		if err != nil {
 			return err
 		}

@@ -19,13 +19,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 )
 
-func testGetTypePropertyDataType(t *testing.T, kv *api.KV) {
+func testGetTypePropertyDataType(t *testing.T) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
 
 	type args struct {
@@ -45,7 +44,7 @@ func testGetTypePropertyDataType(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTypePropertyDataType(kv, deploymentID, tt.args.typeName, tt.args.propertyName)
+			got, err := GetTypePropertyDataType(deploymentID, tt.args.typeName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTypePropertyDataType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -57,9 +56,9 @@ func testGetTypePropertyDataType(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetNestedDataType(t *testing.T, kv *api.KV) {
+func testGetNestedDataType(t *testing.T) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
 
 	type args struct {
@@ -86,7 +85,7 @@ func testGetNestedDataType(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetNestedDataType(kv, deploymentID, tt.args.baseType, tt.args.nestedKeys...)
+			got, err := GetNestedDataType(deploymentID, tt.args.baseType, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetNestedDataType() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -29,7 +29,7 @@ import (
 
 func testSimpleServerGroup(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	infrastructure := commons.Infrastructure{}
 	g := osGenerator{}
 	outputs := make(map[string]string, 0)

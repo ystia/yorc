@@ -57,7 +57,7 @@ func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.C
 	locationMgr locations.Manager) {
 
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	locationProps := config.DynamicMap{
 		"access_key": "ak1",

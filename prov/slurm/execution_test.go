@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,15 +74,15 @@ func Test_executionCommon_wrapCommand(t *testing.T) {
 	}
 }
 
-func testExecutionCommonBuildJobInfo(t *testing.T, kv *api.KV) {
+func testExecutionCommonBuildJobInfo(t *testing.T) {
 
 	deploymentID := testutil.BuildDeploymentID(t)
 	ctx := context.Background()
-	err := deployments.StoreDeploymentDefinition(ctx, kv, deploymentID, "testdata/simple_job.yaml")
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, "testdata/simple_job.yaml")
 	require.NoError(t, err)
 
 	deploymentIDOpts := deploymentID + "-with-opts"
-	err = deployments.StoreDeploymentDefinition(ctx, kv, deploymentIDOpts, "testdata/job_with_options.yaml")
+	err = deployments.StoreDeploymentDefinition(ctx, deploymentIDOpts, "testdata/job_with_options.yaml")
 	require.NoError(t, err)
 
 	type fields struct {
@@ -118,7 +117,6 @@ func testExecutionCommonBuildJobInfo(t *testing.T, kv *api.KV) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &executionCommon{
-				kv:            kv,
 				locationProps: tt.fields.locationProps,
 				deploymentID:  tt.fields.deploymentID,
 				NodeName:      tt.fields.NodeName,
@@ -137,11 +135,11 @@ func testExecutionCommonBuildJobInfo(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testExecutionCommonPrepareAndSubmitJob(t *testing.T, kv *api.KV) {
+func testExecutionCommonPrepareAndSubmitJob(t *testing.T) {
 
 	deploymentID := testutil.BuildDeploymentID(t)
 	ctx := context.Background()
-	err := deployments.StoreDeploymentDefinition(ctx, kv, deploymentID, "testdata/simple_job.yaml")
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, "testdata/simple_job.yaml")
 	require.NoError(t, err)
 	type fields struct {
 		cfg           config.Configuration
@@ -176,7 +174,6 @@ func testExecutionCommonPrepareAndSubmitJob(t *testing.T, kv *api.KV) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &executionCommon{
-				kv:            kv,
 				cfg:           tt.fields.cfg,
 				locationProps: tt.fields.locationProps,
 				deploymentID:  tt.fields.deploymentID,

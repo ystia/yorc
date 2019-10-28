@@ -35,9 +35,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 
-	kv := s.consulClient.KV()
-
-	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	dExits, err := deployments.DoesDeploymentExists(id)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -64,7 +62,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := deployments.DoesNodeExist(kv, id, nodeName)
+	exists, err := deployments.DoesNodeExist(id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -73,7 +71,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var ok bool
-	if ok, err = deployments.HasScalableCapability(kv, id, nodeName); err != nil {
+	if ok, err = deployments.HasScalableCapability(id, nodeName); err != nil {
 		log.Panic(err)
 	} else if !ok {
 		writeError(w, r, newBadRequestParameter("node", errors.Errorf("Node %q must be scalable", nodeName)))
@@ -103,12 +101,11 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, error) {
-	kv := s.consulClient.KV()
-	maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
+	maxInstances, err := deployments.GetMaxNbInstancesForNode(id, nodeName)
 	if err != nil {
 		return "", err
 	}
-	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
+	currentNbInstance, err := deployments.GetNbInstancesForNode(id, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -130,13 +127,11 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 }
 
 func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, error) {
-	kv := s.consulClient.KV()
-
-	minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodeName)
+	minInstances, err := deployments.GetMinNbInstancesForNode(id, nodeName)
 	if err != nil {
 		return "", err
 	}
-	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
+	currentNbInstance, err := deployments.GetNbInstancesForNode(id, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +144,7 @@ func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, er
 		}
 	}
 
-	instancesByNodes, err := deployments.SelectNodeStackInstances(kv, id, nodeName, int(instancesDelta))
+	instancesByNodes, err := deployments.SelectNodeStackInstances(id, nodeName, int(instancesDelta))
 	if err != nil {
 		return "", err
 	}

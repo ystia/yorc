@@ -23,8 +23,6 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
@@ -131,7 +129,7 @@ func testGetTasksIdsForTarget(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTasksIdsForTarget(tt.args.kv, tt.args.targetID)
+			got, err := GetTasksIdsForTarget(tt.args.targetID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTasksIdsForTarget() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -165,7 +163,7 @@ func testGetTaskStatus(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskStatus(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskStatus(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -201,7 +199,7 @@ func testGetTaskType(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskType(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskType(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -229,7 +227,7 @@ func testGetTaskTarget(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskTarget(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskTarget(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskTarget() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -257,7 +255,7 @@ func testTaskExists(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := TaskExists(tt.args.kv, tt.args.taskID)
+			got, err := TaskExists(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TaskExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -283,7 +281,7 @@ func testCancelTask(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := CancelTask(tt.args.kv, tt.args.taskID); (err != nil) != tt.wantErr {
+			if err := CancelTask(tt.args.taskID); (err != nil) != tt.wantErr {
 				t.Errorf("CancelTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -327,7 +325,7 @@ func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := TargetHasLivingTasks(tt.args.kv, tt.args.targetID, tt.args.typesToIgnore)
+			got, got1, got2, err := TargetHasLivingTasks(tt.args.targetID, tt.args.typesToIgnore)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TargetHasLivingTasks() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -364,7 +362,7 @@ func testGetTaskInput(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskInput(tt.args.kv, tt.args.taskID, tt.args.inputName)
+			got, err := GetTaskInput(tt.args.taskID, tt.args.inputName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskInput() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -398,7 +396,7 @@ func testGetInstances(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstances(tt.args.kv, tt.args.taskID, tt.args.deploymentID, tt.args.nodeName)
+			got, err := GetInstances(tt.args.taskID, tt.args.deploymentID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInstances() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -428,7 +426,7 @@ func testGetTaskRelatedNodes(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskRelatedNodes(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskRelatedNodes(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskRelatedNodes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -460,7 +458,7 @@ func testIsTaskRelatedNode(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IsTaskRelatedNode(tt.args.kv, tt.args.taskID, tt.args.nodeName)
+			got, err := IsTaskRelatedNode(tt.args.taskID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IsTaskRelatedNode() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -489,7 +487,7 @@ func testGetTaskRelatedWFSteps(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskRelatedSteps(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskRelatedSteps(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskRelatedSteps() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -517,8 +515,8 @@ func testUpdateTaskStepStatus(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			UpdateTaskStepStatus(tt.args.kv, tt.args.taskID, tt.want)
-			_, found, err := TaskStepExists(tt.args.kv, tt.args.taskID, tt.args.step.Name)
+			UpdateTaskStepStatus(tt.args.taskID, tt.want)
+			_, found, err := TaskStepExists(tt.args.taskID, tt.args.step.Name)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TaskStepExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -581,7 +579,7 @@ func testTaskStepExists(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exist, stepFound, err := TaskStepExists(tt.args.kv, tt.args.taskID, tt.args.stepID)
+			exist, stepFound, err := TaskStepExists(tt.args.taskID, tt.args.stepID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("testTaskStepExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -612,7 +610,7 @@ func testGetTaskResultSet(t *testing.T, kv *api.KV) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskResultSet(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskResultSet(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -641,12 +639,12 @@ func testDeleteTask(t *testing.T, kv *api.KV) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := DeleteTask(tt.args.kv, tt.args.taskID)
+			err := DeleteTask(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			got, err := TaskExists(tt.args.kv, tt.args.taskID)
+			got, err := TaskExists(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -675,7 +673,7 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetQueryTaskIDs(kv, TaskTypeQuery, "infra_usage", "slurm")
+			got, err := GetQueryTaskIDs(TaskTypeQuery, "infra_usage", "slurm")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetQueryTaskIDs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -687,14 +685,8 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
-	cc := api.DefaultConfig()
-	cc.Address = "my.dummy.test.server:8500"
-	badClient, err := api.NewClient(cc)
-	require.NoError(t, err, "Failed to create bad consul client")
-
+func testIsStepRegistrationInProgress(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -703,14 +695,13 @@ func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
 		want    bool
 		wantErr bool
 	}{
-		{"RegistrationInProgress", args{kv, "t1"}, true, false},
-		{"NoRegistrationInProgress", args{kv, "t2"}, false, false},
-		{"ConsulFailure", args{badClient.KV(), "t2"}, false, true},
+		{"RegistrationInProgress", args{"t1"}, true, false},
+		{"NoRegistrationInProgress", args{"t2"}, false, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IsStepRegistrationInProgress(tt.args.kv, tt.args.taskID)
+			got, err := IsStepRegistrationInProgress(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("%s error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return

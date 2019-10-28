@@ -67,7 +67,7 @@ func PublishAndLogMapAttributeValueChange(ctx context.Context, deploymentID, nod
 // PublishAndLogInstanceStatusChange publishes a status change for a given instance of a given node and log this change into the log API
 //
 // PublishAndLogInstanceStatusChange returns the published event id
-func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
+func PublishAndLogInstanceStatusChange(ctx context.Context, deploymentID, nodeName, instance, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
 	info := buildInfoFromContext(ctx)
 	info[ENodeID] = nodeName
@@ -87,7 +87,7 @@ func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deployme
 // PublishAndLogDeploymentStatusChange publishes a status change for a given deployment and log this change into the log API
 //
 // PublishAndLogDeploymentStatusChange returns the published event id
-func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploymentID, status string) (string, error) {
+func PublishAndLogDeploymentStatusChange(ctx context.Context, deploymentID, status string) (string, error) {
 	e, err := newStatusChange(StatusChangeTypeDeployment, nil, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -103,7 +103,7 @@ func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploy
 // PublishAndLogCustomCommandStatusChange publishes a status change for a custom command and log this change into the log API
 //
 // PublishAndLogCustomCommandStatusChange returns the published event id
-func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+func PublishAndLogCustomCommandStatusChange(ctx context.Context, deploymentID, taskID, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
@@ -124,7 +124,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 // PublishAndLogScalingStatusChange publishes a status change for a scaling task and log this change into the log API
 //
 // PublishAndLogScalingStatusChange returns the published event id
-func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+func PublishAndLogScalingStatusChange(ctx context.Context, deploymentID, taskID, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
@@ -145,7 +145,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 // PublishAndLogWorkflowStepStatusChange publishes a status change for a workflow step execution and log this change into the log API
 //
 // PublishAndLogWorkflowStepStatusChange returns the published event id
-func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
+func PublishAndLogWorkflowStepStatusChange(ctx context.Context, deploymentID, taskID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
@@ -176,7 +176,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 // PublishAndLogAlienTaskStatusChange publishes a status change for a task execution and log this change into the log API
 //
 // PublishAndLogAlienTaskStatusChange returns the published event id
-func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, taskExecutionID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
+func PublishAndLogAlienTaskStatusChange(ctx context.Context, deploymentID, taskID, taskExecutionID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID, TaskExecutionID: taskExecutionID})
 	}
@@ -206,7 +206,7 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 // PublishAndLogWorkflowStatusChange publishes a status change for a workflow task and log this change into the log API
 //
 // PublishAndLogWorkflowStatusChange returns the published event id
-func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowID, status string) (string, error) {
+func PublishAndLogWorkflowStatusChange(ctx context.Context, deploymentID, taskID, workflowID, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
@@ -259,36 +259,36 @@ func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.
 	return getEvents(kv, deploymentID, waitIndex, timeout, consulutil.LogsPrefix)
 }
 
-func getEventsIndex(kv *api.KV, deploymentID string, eventsPrefix string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(eventsPrefix, deploymentID), nil)
+func getEventsIndex(deploymentID string, eventsPrefix string) (uint64, error) {
+	_, _, metadata, err := consulutil.GetValueWithMetadata(path.Join(eventsPrefix, deploymentID))
 	if err != nil {
 		return 0, err
 	}
-	if qm == nil {
+	if metadata == nil {
 		return 0, errors.New("Failed to retrieve last index for events")
 	}
-	return qm.LastIndex, nil
+	return metadata.LastIndex, nil
 }
 
 // GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment
-func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	return getEventsIndex(kv, deploymentID, consulutil.EventsPrefix)
+func GetStatusEventsIndex(deploymentID string) (uint64, error) {
+	return getEventsIndex(deploymentID, consulutil.EventsPrefix)
 }
 
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
-func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	return getEventsIndex(kv, deploymentID, consulutil.LogsPrefix)
+func GetLogsEventsIndex(deploymentID string) (uint64, error) {
+	return getEventsIndex(deploymentID, consulutil.LogsPrefix)
 }
 
 // PurgeDeploymentEvents deletes all events for a given deployment
-func PurgeDeploymentEvents(kv *api.KV, deploymentID string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.EventsPrefix, deploymentID)+"/", nil)
+func PurgeDeploymentEvents(deploymentID string) error {
+	err := consulutil.Delete(path.Join(consulutil.EventsPrefix, deploymentID)+"/", true)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
 // PurgeDeploymentLogs deletes all logs for a given deployment
-func PurgeDeploymentLogs(kv *api.KV, deploymentID string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.LogsPrefix, deploymentID)+"/", nil)
+func PurgeDeploymentLogs(deploymentID string) error {
+	err := consulutil.Delete(path.Join(consulutil.LogsPrefix, deploymentID)+"/", true)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 

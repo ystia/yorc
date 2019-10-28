@@ -68,17 +68,17 @@ func (c *Collector) RegisterTask(targetID string, taskType tasks.TaskType) (stri
 
 // ResumeTask allows to resume a task previously failed
 func (c *Collector) ResumeTask(taskID string) error {
-	taskType, err := tasks.GetTaskType(c.consulClient.KV(), taskID)
+	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
 	}
-	targetID, err := tasks.GetTaskTarget(c.consulClient.KV(), taskID)
+	targetID, err := tasks.GetTaskTarget(taskID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
 	}
 	var workflowName string
 	if tasks.IsWorkflowTask(taskType) {
-		workflowName, err = tasks.GetTaskData(c.consulClient.KV(), taskID, "workflowName")
+		workflowName, err = tasks.GetTaskData(taskID, "workflowName")
 		if err != nil {
 			return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
 		}
@@ -109,7 +109,7 @@ func (c *Collector) ResumeTask(taskID string) error {
 		return err
 	}
 
-	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
+	tasks.EmitTaskEventWithContextualLogs(nil, targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
 	return nil
 }
 
@@ -133,7 +133,7 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 		}
 
 		hasLivingTask, livingTaskID, livingTaskStatus, err :=
-			tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID, tasksTypesToIgnore)
+			tasks.TargetHasLivingTasks(targetID, tasksTypesToIgnore)
 		if err != nil {
 			return "", err
 		} else if hasLivingTask {
@@ -200,7 +200,7 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 	})
 
 	if taskType == tasks.TaskTypeUnDeploy || taskType == tasks.TaskTypePurge {
-		status, err := deployments.GetDeploymentStatus(c.consulClient.KV(), targetID)
+		status, err := deployments.GetDeploymentStatus(targetID)
 		if err != nil {
 			return "", err
 		}
@@ -208,10 +208,10 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 			// Set the deployment status to undeployment in progress right now as the task was registered
 			// But we don't know when it will be processed. This will prevent someone to retry to undeploy as
 			// the status stay in deployed. Doing this will be an error as the task for undeploy is already registered.
-			deployments.SetDeploymentStatus(ctx, c.consulClient.KV(), targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
+			deployments.SetDeploymentStatus(ctx, targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		}
 	}
-	tasks.EmitTaskEventWithContextualLogs(ctx, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
+	tasks.EmitTaskEventWithContextualLogs(ctx, targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
 	return taskID, nil
 }
 

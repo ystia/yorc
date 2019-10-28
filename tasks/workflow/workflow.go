@@ -86,11 +86,11 @@ func updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx context.Context, cc *
 }
 
 func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName string) (tasks.TaskStatus, error) {
-	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(kv, taskID)
+	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(taskID)
 	if err != nil {
 		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
 	}
-	hasErrorFlag, err := tasks.TaskHasErrorFlag(kv, taskID)
+	hasErrorFlag, err := tasks.TaskHasErrorFlag(taskID)
 	if err != nil {
 		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
 	}

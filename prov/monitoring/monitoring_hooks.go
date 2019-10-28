@@ -57,7 +57,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
 
 		// Check if monitoring is required
-		isMonitorReq, policyName, err := checkExistingMonitoringPolicy(kv, deploymentID, target)
+		isMonitorReq, policyName, err := checkExistingMonitoringPolicy(deploymentID, target)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
@@ -79,18 +79,12 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 	// Monitoring check are removed before (pre-hook):
 	// - Delegate activity and uninstall operation
 	// - SetState activity and node state "Deleted"
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
-		return
-	}
-	kv := cc.KV()
 	switch {
 	case activity.Type() == builder.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
 		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
 
 		// Check if monitoring has been required
-		isMonitorReq, _, err := checkExistingMonitoringPolicy(kv, deploymentID, target)
+		isMonitorReq, _, err := checkExistingMonitoringPolicy(deploymentID, target)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
@@ -100,7 +94,7 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 			return
 		}
 
-		instances, err := tasks.GetInstances(kv, taskID, deploymentID, target)
+		instances, err := tasks.GetInstances(taskID, deploymentID, target)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
@@ -117,8 +111,8 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 	}
 }
 
-func checkExistingMonitoringPolicy(kv *api.KV, deploymentID, target string) (bool, string, error) {
-	policies, err := deployments.GetPoliciesForTypeAndNode(kv, deploymentID, baseMonitoring, target)
+func checkExistingMonitoringPolicy(deploymentID, target string) (bool, string, error) {
+	policies, err := deployments.GetPoliciesForTypeAndNode(deploymentID, baseMonitoring, target)
 	if err != nil {
 		return false, "", err
 	}
@@ -134,13 +128,13 @@ func checkExistingMonitoringPolicy(kv *api.KV, deploymentID, target string) (boo
 
 func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, policyName string) error {
 	log.Debugf("Add monitoring policy:%q for deploymentID:%q, node name:%q", policyName, deploymentID, target)
-	policyType, err := deployments.GetPolicyType(kv, deploymentID, policyName)
+	policyType, err := deployments.GetPolicyType(deploymentID, policyName)
 	if err != nil {
 		return err
 	}
 
 	// Retrieve time_interval and port
-	tiValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "time_interval")
+	tiValue, err := deployments.GetPolicyPropertyValue(deploymentID, policyName, "time_interval")
 	if err != nil || tiValue == nil || tiValue.RawString() == "" {
 		return errors.Errorf("Failed to retrieve time_interval for monitoring policy:%q due to: %v", policyName, err)
 	}
@@ -149,7 +143,7 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 	if err != nil {
 		return errors.Errorf("Failed to retrieve time_interval as correct duration for monitoring policy:%q due to: %v", policyName, err)
 	}
-	portValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "port")
+	portValue, err := deployments.GetPolicyPropertyValue(deploymentID, policyName, "port")
 	if err != nil || portValue == nil || portValue.RawString() == "" {
 		return errors.Errorf("Failed to retrieve port for monitoring policy:%q due to: %v", policyName, err)
 	}
@@ -157,7 +151,7 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 	if err != nil {
 		return errors.Errorf("Failed to retrieve port as correct integer for monitoring policy:%q due to: %v", policyName, err)
 	}
-	instances, err := tasks.GetInstances(kv, taskID, deploymentID, target)
+	instances, err := tasks.GetInstances(taskID, deploymentID, target)
 	if err != nil {
 		return err
 	}
@@ -174,7 +168,7 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 
 func applyTCPMonitoringPolicy(kv *api.KV, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
-		ipAddress, err := retrieveIPAddress(kv, deploymentID, target, instance)
+		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
 		if err != nil {
 			return err
 		}
@@ -187,22 +181,22 @@ func applyTCPMonitoringPolicy(kv *api.KV, deploymentID, target string, timeInter
 
 func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
-		ipAddress, err := retrieveIPAddress(kv, deploymentID, target, instance)
+		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
 		if err != nil {
 			return err
 		}
-		schemeValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "scheme")
+		schemeValue, err := deployments.GetPolicyPropertyValue(deploymentID, policyName, "scheme")
 		if err != nil || schemeValue == nil || schemeValue.RawString() == "" {
 			return errors.Errorf("Failed to retrieve scheme for monitoring policy:%q due to: %v", policyName, err)
 		}
 		var urlPath string
-		pathValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "path")
+		pathValue, err := deployments.GetPolicyPropertyValue(deploymentID, policyName, "path")
 		if pathValue != nil && pathValue.RawString() != "" {
 			urlPath = pathValue.RawString()
 		}
 		var d map[string]interface{}
 		var headersMap map[string]string
-		headersValue, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "http_headers")
+		headersValue, err := deployments.GetPolicyPropertyValue(deploymentID, policyName, "http_headers")
 		if headersValue != nil && headersValue.RawString() != "" {
 			var ok bool
 			d, ok = headersValue.Value.(map[string]interface{})
@@ -222,7 +216,7 @@ func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target stri
 
 		var tlsClientConfig map[string]string
 		if schemeValue.RawString() == "https" {
-			tlsClientConfig, err = retrieveTLSClientConfig(kv, policyName, deploymentID)
+			tlsClientConfig, err = retrieveTLSClientConfig(policyName, deploymentID)
 			if err != nil {
 				return err
 			}
@@ -235,11 +229,11 @@ func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target stri
 	return nil
 }
 
-func retrieveTLSClientConfig(kv *api.KV, policyName, deploymentID string) (map[string]string, error) {
+func retrieveTLSClientConfig(policyName, deploymentID string) (map[string]string, error) {
 	tlsClientConfig := make(map[string]string, 0)
 	props := []string{"ca_cert", "ca_path", "client_cert", "client_key", "skip_verify"}
 	for _, prop := range props {
-		val, err := deployments.GetPolicyPropertyValue(kv, deploymentID, policyName, "tls_client", prop)
+		val, err := deployments.GetPolicyPropertyValue(deploymentID, policyName, "tls_client", prop)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to retrieve TLS client config properties for policy:%q", policyName)
 		}
@@ -250,8 +244,8 @@ func retrieveTLSClientConfig(kv *api.KV, policyName, deploymentID string) (map[s
 	return tlsClientConfig, nil
 }
 
-func retrieveIPAddress(kv *api.KV, deploymentID, target, instance string) (string, error) {
-	ipAddress, err := deployments.GetInstanceAttributeValue(kv, deploymentID, target, instance, "ip_address")
+func retrieveIPAddress(deploymentID, target, instance string) (string, error) {
+	ipAddress, err := deployments.GetInstanceAttributeValue(deploymentID, target, instance, "ip_address")
 	if err != nil {
 		return "", errors.Errorf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
 	}

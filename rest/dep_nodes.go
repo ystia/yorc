@@ -34,10 +34,9 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 
-	kv := s.consulClient.KV()
 	node := Node{Name: nodeName}
 	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path), newAtomLink(LinkRelDeployment, path.Clean(r.URL.Path+"/../.."))}
-	instanceIds, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
+	instanceIds, err := deployments.GetNodeInstancesIds(id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -71,7 +70,7 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 		newAtomLink(LinkRelNode, nodePath),
 		newAtomLink(LinkRelDeployment, path.Clean(r.URL.Path+"/../../../..")),
 	}
-	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
+	attributesNames, err := deployments.GetNodeAttributesNames(id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
@@ -99,7 +98,7 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
+	attributesNames, err := deployments.GetNodeAttributesNames(id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
@@ -119,9 +118,9 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	nodeName := params.ByName("nodeName")
 	instanceID := params.ByName("instanceId")
 	attributeName := params.ByName("attributeName")
-	kv := s.consulClient.KV()
+
 	// state should exists if instance exists
-	instances, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
@@ -130,7 +129,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 		writeError(w, r, newContentNotFoundError(fmt.Sprintf("Instance %q for node %q", instanceID, nodeName)))
 		return
 	}
-	instanceAttribute, err := deployments.GetInstanceAttributeValue(kv, id, nodeName, instanceID, attributeName)
+	instanceAttribute, err := deployments.GetInstanceAttributeValue(id, nodeName, instanceID, attributeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return

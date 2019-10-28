@@ -32,7 +32,7 @@ import (
 
 // BuildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
 func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) (map[string]*Step, error) {
-	wf, err := deployments.ReadWorkflow(kv, deploymentID, wfName)
+	wf, err := deployments.ReadWorkflow(deploymentID, wfName)
 	if err != nil {
 		log.Print(err)
 		return nil, err

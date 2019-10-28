@@ -137,7 +137,7 @@ func (t *taskExecution) delete() error {
 }
 
 func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
-	return tasks.GetTaskStatus(t.cc.KV(), t.taskID)
+	return tasks.GetTaskStatus(t.taskID)
 }
 
 // checkAndSetTaskStatus allows to check the task status before updating it
@@ -186,14 +186,14 @@ func setTaskStatus(ctx context.Context, kv *api.KV, targetID, taskID string, sta
 
 	// Emit event for status change
 	// wfName may be empty as this data is not filled for non-workflow task type (as for custom command by instance)
-	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
-	taskType, err := tasks.GetTaskType(kv, taskID)
+	wfName, _ := tasks.GetTaskData(taskID, "workflowName")
+	taskType, err := tasks.GetTaskType(taskID)
 	// As task has been set, error are ignored but taskType is mandatory for emitting event
 	if err != nil {
 		log.Printf("[WARNING] Failed to emit event for change status to %q for taskID:%q due to error:%+v", status.String(), taskID, err)
 		return nil
 	}
-	tasks.EmitTaskEventWithContextualLogs(ctx, kv, targetID, taskID, taskType, wfName, status.String())
+	tasks.EmitTaskEventWithContextualLogs(ctx, targetID, taskID, taskType, wfName, status.String())
 	return nil
 }
 
@@ -203,11 +203,11 @@ func buildTaskExecution(cc *api.Client, execID string) (*taskExecution, error) {
 	if err != nil {
 		return nil, err
 	}
-	targetID, err := tasks.GetTaskTarget(kv, taskID)
+	targetID, err := tasks.GetTaskTarget(taskID)
 	if err != nil {
 		return nil, err
 	}
-	taskType, err := tasks.GetTaskType(kv, taskID)
+	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return nil, err
 	}

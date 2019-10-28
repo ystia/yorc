@@ -78,7 +78,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	}
 
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
@@ -86,14 +86,14 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	var instances []string
 	switch nodeType {
 	case "yorc.nodes.aws.Compute":
-		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(deploymentID, nodeName)
 		if err != nil {
 			return false, nil, nil, nil, err
 		}
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
+			instanceState, err = deployments.GetInstanceState(deploymentID, nodeName, instanceName)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

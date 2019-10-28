@@ -37,14 +37,14 @@ func jobRuntimeObject(id, namespace string) *batchv1.Job {
 func testExecutionCancelJob(t *testing.T, kv *api.KV) {
 
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/JobCompute.yml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/JobCompute.yml")
 	require.Nil(t, err, "Failed to parse testdata/JobCompute.yml definition")
 
 	nodeName := "ContainerJobUnit_Resource"
 	defNamespace := defaultNamespace(deploymentID)
 	taskJobID := "containerjobunit--74546570"
 	instanceJobID := "instanceProvidedID"
-	err = tasks.SetTaskData(kv, "t1", nodeName+"-jobId", taskJobID)
+	err = tasks.SetTaskData("t1", nodeName+"-jobId", taskJobID)
 	require.NoError(t, err)
 
 	err = deployments.SetInstanceAttribute(deploymentID, nodeName, "0", "job_id", instanceJobID)

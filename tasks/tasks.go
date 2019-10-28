@@ -105,18 +105,18 @@ func IsTaskNotFoundError(err error) bool {
 }
 
 // GetTasksIdsForTarget returns IDs of tasks related to a given targetID
-func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
-	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+func GetTasksIdsForTarget(targetID string) ([]string, error) {
+	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix + "/")
 	if err != nil {
 		return nil, err
 	}
 	tasks := make([]string, 0)
 	for _, taskKey := range tasksKeys {
-		kvp, _, err := kv.Get(path.Join(taskKey, "targetId"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(taskKey, "targetId"))
 		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			return nil, err
 		}
-		if kvp != nil && len(kvp.Value) > 0 && string(kvp.Value) == targetID {
+		if exist && value == targetID {
 			tasks = append(tasks, path.Base(taskKey))
 		}
 	}
@@ -126,26 +126,26 @@ func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 // GetTaskResultSet retrieves the task related resultSet in json string format
 //
 // If no resultSet is found, nil is returned instead
-func GetTaskResultSet(kv *api.KV, taskID string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "resultSet"), nil)
+func GetTaskResultSet(taskID string) (string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "resultSet"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil {
-		return string(kvp.Value), nil
+	if exist {
+		return value, nil
 	}
 	return "", nil
 }
 
 // GetTaskStatus retrieves the TaskStatus of a task
-func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
+func GetTaskStatus(taskID string) (TaskStatus, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "status"))
 	if err != nil {
 		return TaskStatusFAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		// Check if task exists to return specific error
-		ok, err := TaskExists(kv, taskID)
+		ok, err := TaskExists(taskID)
 		if err != nil {
 			return TaskStatusFAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -154,58 +154,58 @@ func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 		}
 		return TaskStatusFAILED, errors.WithStack(taskNotFound{taskID: taskID})
 	}
-	statusInt, err := strconv.Atoi(string(kvp.Value))
+	statusInt, err := strconv.Atoi(value)
 	if err != nil {
 		return TaskStatusFAILED, errors.Wrapf(err, "Invalid task status:")
 	}
 	if statusInt < 0 || statusInt > int(TaskStatusCANCELED) {
-		return TaskStatusFAILED, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
+		return TaskStatusFAILED, errors.Errorf("Invalid status for task with id %q: %q", taskID, value)
 	}
 	return TaskStatus(statusInt), nil
 }
 
 // GetTaskType retrieves the TaskType of a task
-func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "type"), nil)
+func GetTaskType(taskID string) (TaskType, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "type"))
 	if err != nil {
 		return TaskTypeDeploy, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return TaskTypeDeploy, errors.Errorf("Missing type for task with id %q", taskID)
 	}
-	typeInt, err := strconv.Atoi(string(kvp.Value))
+	typeInt, err := strconv.Atoi(value)
 	if err != nil {
 		return TaskTypeDeploy, errors.Wrapf(err, "Invalid task type:")
 	}
 	if typeInt < 0 || typeInt > int(TaskTypeRemoveNodes) {
-		return TaskTypeDeploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, string(kvp.Value))
+		return TaskTypeDeploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, value)
 	}
 	return TaskType(typeInt), nil
 }
 
 // GetTaskTarget retrieves the targetID of a task
-func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "targetId"), nil)
+func GetTaskTarget(taskID string) (string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "targetId"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return "", errors.Errorf("Missing targetId for task with id %q", taskID)
 	}
-	return string(kvp.Value), nil
+	return value, nil
 }
 
 // GetTaskCreationDate retrieves the creationDate of a task
-func GetTaskCreationDate(kv *api.KV, taskID string) (time.Time, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "creationDate"), nil)
+func GetTaskCreationDate(taskID string) (time.Time, error) {
+	exist, value, err := consulutil.GetValue(path.Join(consulutil.TasksPrefix, taskID, "creationDate"))
 	creationDate := time.Time{}
 	if err != nil {
 		return creationDate, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || len(value) == 0 {
 		return creationDate, errors.Errorf("Missing creationDate for task with id %q", taskID)
 	}
-	err = creationDate.UnmarshalBinary(kvp.Value)
+	err = creationDate.UnmarshalBinary(value)
 	if err != nil {
 		return creationDate, errors.Wrapf(err, "Failed to get task creationDate for task with id %q", taskID)
 	}
@@ -213,12 +213,12 @@ func GetTaskCreationDate(kv *api.KV, taskID string) (time.Time, error) {
 }
 
 // TaskExists checks if a task with the given taskID exists
-func TaskExists(kv *api.KV, taskID string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "targetId"), nil)
+func TaskExists(taskID string) (bool, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "targetId"))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return false, nil
 	}
 	return true, nil
@@ -226,12 +226,12 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 
 // IsStepRegistrationInProgress checks if a task registration is still in progress,
 // in which case it should not yet be executed
-func IsStepRegistrationInProgress(kv *api.KV, taskID string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey), nil)
+func IsStepRegistrationInProgress(taskID string) (bool, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return false, nil
 	}
 	return true, nil
@@ -256,29 +256,28 @@ func StoreOperations(kv *api.KV, taskID string, operations api.KVTxnOps) error {
 }
 
 // CancelTask marks a task as Canceled
-func CancelTask(kv *api.KV, taskID string) error {
+func CancelTask(taskID string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), "true")
 }
 
 // DeleteTask allows to delete a stored task
-func DeleteTask(kv *api.KV, taskID string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.TasksPrefix, taskID)+"/", nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+func DeleteTask(taskID string) error {
+	return consulutil.Delete(path.Join(consulutil.TasksPrefix, taskID)+"/", true)
 }
 
 // TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
 //
 // The last argument specifies tasks types which should be ignored.
-func TargetHasLivingTasks(kv *api.KV, targetID string, tasksTypesToIgnore []TaskType) (bool, string, string, error) {
+func TargetHasLivingTasks(targetID string, tasksTypesToIgnore []TaskType) (bool, string, string, error) {
 
-	taskIDs, err := GetTasksIdsForTarget(kv, targetID)
+	taskIDs, err := GetTasksIdsForTarget(targetID)
 	if err != nil {
 		return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	for _, taskID := range taskIDs {
 
-		tStatus, err := GetTaskStatus(kv, taskID)
+		tStatus, err := GetTaskStatus(taskID)
 		if err != nil {
 			return false, "", "", err
 		}
@@ -286,7 +285,7 @@ func TargetHasLivingTasks(kv *api.KV, targetID string, tasksTypesToIgnore []Task
 		if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
 
 			// Check if this task type should be ignored
-			tType, err := GetTaskType(kv, taskID)
+			tType, err := GetTaskType(taskID)
 			if err != nil {
 				return false, "", "", err
 			}
@@ -299,34 +298,34 @@ func TargetHasLivingTasks(kv *api.KV, targetID string, tasksTypesToIgnore []Task
 }
 
 // GetTaskInput retrieves inputs for tasks
-func GetTaskInput(kv *api.KV, taskID, inputName string) (string, error) {
-	return GetTaskData(kv, taskID, path.Join("inputs", inputName))
+func GetTaskInput(taskID, inputName string) (string, error) {
+	return GetTaskData(taskID, path.Join("inputs", inputName))
 }
 
 // GetTaskData retrieves data for tasks
-func GetTaskData(kv *api.KV, taskID, dataName string) (string, error) {
-	kvP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "data", dataName), nil)
+func GetTaskData(taskID, dataName string) (string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "data", dataName))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvP == nil {
+	if !exist {
 		return "", errors.WithStack(taskDataNotFound{name: dataName, taskID: taskID})
 	}
-	return string(kvP.Value), nil
+	return value, nil
 }
 
 // GetAllTaskData returns all registered data for a task
-func GetAllTaskData(kv *api.KV, taskID string) (map[string]string, error) {
+func GetAllTaskData(taskID string) (map[string]string, error) {
 	dataPrefix := path.Join(consulutil.TasksPrefix, taskID, "data")
 	// Appending a final "/" here is not necessary as there is no other keys starting with "data" prefix
-	kvps, _, err := kv.List(dataPrefix, nil)
+	kvs, err := consulutil.List(dataPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	data := make(map[string]string, len(kvps))
-	for _, kvp := range kvps {
-		if kvp.Value != nil {
-			data[strings.TrimPrefix(kvp.Key, dataPrefix+"/")] = string(kvp.Value)
+	data := make(map[string]string, len(kvs))
+	for key, value := range kvs {
+		if value != nil {
+			data[strings.TrimPrefix(key, dataPrefix+"/")] = string(value)
 		}
 	}
 
@@ -334,12 +333,12 @@ func GetAllTaskData(kv *api.KV, taskID string) (map[string]string, error) {
 }
 
 // SetTaskData sets a data in the task's context
-func SetTaskData(kv *api.KV, taskID, dataName, dataValue string) error {
+func SetTaskData(taskID, dataName, dataValue string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "data", dataName), dataValue)
 }
 
 // SetTaskDataList sets a list of data into the task's context
-func SetTaskDataList(kv *api.KV, taskID string, data map[string]string) error {
+func SetTaskDataList(taskID string, data map[string]string) error {
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for k, v := range data {
 		store.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "data", k), v)
@@ -351,22 +350,22 @@ func SetTaskDataList(kv *api.KV, taskID string, data map[string]string) error {
 //
 // Basically it checks if a list of instances is defined for this task for example in case of scaling.
 // If not found it will returns the result of deployments.GetNodeInstancesIds(kv, deploymentID, nodeName).
-func GetInstances(kv *api.KV, taskID, deploymentID, nodeName string) ([]string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "data/nodes", nodeName), nil)
+func GetInstances(taskID, deploymentID, nodeName string) ([]string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "data/nodes", nodeName))
 	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nil, err
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if !exist || value == "" {
+		return deployments.GetNodeInstancesIds(deploymentID, nodeName)
 	}
-	return strings.Split(string(kvp.Value), ","), nil
+	return strings.Split(value, ","), nil
 }
 
 // GetTaskRelatedNodes returns the list of nodes that are specifically targeted by this task
 //
 // Currently it only appens for scaling tasks
-func GetTaskRelatedNodes(kv *api.KV, taskID string) ([]string, error) {
-	nodes, _, err := kv.Keys(path.Join(consulutil.TasksPrefix, taskID, "data/nodes")+"/", "/", nil)
+func GetTaskRelatedNodes(taskID string) ([]string, error) {
+	nodes, err := consulutil.GetKeys(path.Join(consulutil.TasksPrefix, taskID, "data/nodes"))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -377,80 +376,79 @@ func GetTaskRelatedNodes(kv *api.KV, taskID string) ([]string, error) {
 }
 
 // IsTaskRelatedNode checks if the given nodeName is declared as a task related node
-func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "data/nodes", nodeName), nil)
+func IsTaskRelatedNode(taskID, nodeName string) (bool, error) {
+	exist, _, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "data/nodes", nodeName))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return kvp != nil, nil
+	return exist, nil
 }
 
 // EmitTaskEventWithContextualLogs emits a task event based on task type
-func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, taskID string, taskType TaskType, workflowName, status string) (string, error) {
+func EmitTaskEventWithContextualLogs(ctx context.Context, deploymentID, taskID string, taskType TaskType, workflowName, status string) (string, error) {
 	if ctx == nil {
 		ctx = events.NewContext(context.Background(), events.LogOptionalFields{events.ExecutionID: taskID})
 	}
 	switch taskType {
 	case TaskTypeCustomCommand:
-		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
+		return events.PublishAndLogCustomCommandStatusChange(ctx, deploymentID, taskID, strings.ToLower(status))
 	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeAddNodes, TaskTypeRemoveNodes:
-		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, strings.ToLower(status))
+		return events.PublishAndLogWorkflowStatusChange(ctx, deploymentID, taskID, workflowName, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
-		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
+		return events.PublishAndLogScalingStatusChange(ctx, deploymentID, taskID, strings.ToLower(status))
 	}
 	return "", errors.Errorf("unsupported task type: %s", taskType)
 }
 
 // GetTaskRelatedSteps returns the steps of the related workflow
-func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
+func GetTaskRelatedSteps(taskID string) ([]TaskStep, error) {
 	steps := make([]TaskStep, 0)
-
-	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID)+"/", nil)
+	kvs, err := consulutil.List(path.Join(consulutil.WorkflowsPrefix, taskID) + "/")
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	for _, kvp := range kvps {
-		steps = append(steps, TaskStep{Name: path.Base(kvp.Key), Status: string(kvp.Value)})
+	for key, value := range kvs {
+		steps = append(steps, TaskStep{Name: path.Base(key), Status: string(value)})
 	}
 	return steps, nil
 }
 
 // GetTaskStepStatus returns the step status of the related step name
-func GetTaskStepStatus(kv *api.KV, taskID, stepName string) (TaskStepStatus, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepName), nil)
+func GetTaskStepStatus(taskID, stepName string) (TaskStepStatus, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.WorkflowsPrefix, taskID, stepName))
 	if err != nil {
 		return TaskStepStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return TaskStepStatusINITIAL, nil
 	}
-	return ParseTaskStepStatus(string(kvp.Value))
+	return ParseTaskStepStatus(value)
 }
 
 // TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
-func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepID), nil)
+func TaskStepExists(taskID, stepID string) (bool, *TaskStep, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.WorkflowsPrefix, taskID, stepID))
 	if err != nil {
 		return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return false, nil, nil
 	}
-	return true, &TaskStep{Name: stepID, Status: string(kvp.Value)}, nil
+	return true, &TaskStep{Name: stepID, Status: value}, nil
 }
 
 // UpdateTaskStepStatus allows to update the task step status
-func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
+func UpdateTaskStepStatus(taskID string, step *TaskStep) error {
 	status, err := ParseTaskStepStatus(step.Status)
 	if err != nil {
 		return err
 	}
-	return UpdateTaskStepWithStatus(kv, taskID, step.Name, status)
+	return UpdateTaskStepWithStatus(taskID, step.Name, status)
 }
 
 // UpdateTaskStepWithStatus allows to update the task step status
-func UpdateTaskStepWithStatus(kv *api.KV, taskID, stepName string, status TaskStepStatus) error {
+func UpdateTaskStepWithStatus(taskID, stepName string, status TaskStepStatus) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, stepName), status.String())
 }
 
@@ -475,15 +473,15 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 }
 
 // GetQueryTaskIDs returns an array of taskID query-typed, optionally filtered by query and target
-func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string, target string) ([]string, error) {
-	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+func GetQueryTaskIDs(taskType TaskType, query string, target string) ([]string, error) {
+	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
 	if err != nil {
 		return nil, err
 	}
 	tasks := make([]string, 0)
 	for _, taskKey := range tasksKeys {
 		id := path.Base(taskKey)
-		if ttyp, err := GetTaskType(kv, id); err != nil {
+		if ttyp, err := GetTaskType(id); err != nil {
 			// Ignore errors
 			log.Printf("[WARNING] the task with id:%q won't be listed due to error:%+v", id, err)
 			continue
@@ -491,15 +489,15 @@ func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string, target string)
 			continue
 		}
 
-		kvp, _, err := kv.Get(path.Join(taskKey, "targetId"), nil)
+		exist, targetID, err := consulutil.GetStringValue(path.Join(taskKey, "targetId"))
 		if err != nil {
 			// Ignore errors
 			log.Printf("[WARNING] the task with id:%q won't be listed due to error:%+v", id, err)
 			continue
 		}
-		targetID := string(kvp.Value)
+
 		log.Debugf("targetId:%q", targetID)
-		if kvp != nil && len(kvp.Value) > 0 && strings.HasPrefix(targetID, query) && strings.HasSuffix(targetID, target) {
+		if exist && targetID != "" && strings.HasPrefix(targetID, query) && strings.HasSuffix(targetID, target) {
 			tasks = append(tasks, id)
 		}
 	}
@@ -507,21 +505,21 @@ func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string, target string)
 }
 
 // TaskHasErrorFlag check if a task has was flagged as error
-func TaskHasErrorFlag(kv *api.KV, taskID string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, ".errorFlag"), nil)
+func TaskHasErrorFlag(taskID string) (bool, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, ".errorFlag"))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return kvp != nil && string(kvp.Value) == "true", nil
+	return exist && value == "true", nil
 }
 
 // TaskHasCancellationFlag check if a task has was flagged as canceled
-func TaskHasCancellationFlag(kv *api.KV, taskID string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), nil)
+func TaskHasCancellationFlag(taskID string) (bool, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	return kvp != nil && string(kvp.Value) == "true", nil
+	return exist && value == "true", nil
 }
 
 // NotifyErrorOnTask sets a flag that is used to notify task executors that a part of the task failed.

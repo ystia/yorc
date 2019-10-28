@@ -20,7 +20,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -31,12 +30,9 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
-	infrastructure *commons.Infrastructure,
-	outputs map[string]string, env *[]string) error {
+func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -72,7 +68,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return err
 		}
@@ -104,25 +100,25 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Network definition
 	var noAddress bool
-	if noAddress, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
+	if noAddress, err = deployments.GetBooleanNodeProperty(deploymentID, nodeName, "no_address"); err != nil {
 		return err
 	}
 
 	// Define if a private network access is required
 	var netInterfaces []NetworkInterface
-	reqPrivateNetwork, _, err := deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "network", "yorc.nodes.google.PrivateNetwork")
+	reqPrivateNetwork, _, err := deployments.HasAnyRequirementFromNodeType(deploymentID, nodeName, "network", "yorc.nodes.google.PrivateNetwork")
 	if err != nil {
 		return err
 	}
 	// Check for subnet otherwise
 	if !reqPrivateNetwork {
-		reqPrivateNetwork, _, err = deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "network", "yorc.nodes.google.Subnetwork")
+		reqPrivateNetwork, _, err = deployments.HasAnyRequirementFromNodeType(deploymentID, nodeName, "network", "yorc.nodes.google.Subnetwork")
 		if err != nil {
 			return err
 		}
 	}
 	if reqPrivateNetwork {
-		netInterfaces, err = addPrivateNetworkInterfaces(ctx, kv, deploymentID, nodeName)
+		netInterfaces, err = addPrivateNetworkInterfaces(ctx, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -133,7 +129,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Define an external access if there will be an external IP address
 	if !noAddress {
-		hasStaticAddressReq, addressNode, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+		hasStaticAddressReq, addressNode, err := deployments.HasAnyRequirementCapability(deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
 		if err != nil {
 			return err
 		}
@@ -141,7 +137,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		// External IP address can be static if required
 		if hasStaticAddressReq {
 			// Address Lookup
-			externalAddress, err = deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, addressNode, instanceName, "ip_address")
+			externalAddress, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, addressNode, instanceName, "ip_address")
 			if err != nil {
 				return err
 			}
@@ -155,7 +151,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Scheduling definition
 	var preemptible bool
-	if preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
+	if preemptible, err = deployments.GetBooleanNodeProperty(deploymentID, nodeName, "preemptible"); err != nil {
 		return err
 	}
 
@@ -165,7 +161,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Get list of strings parameters
 	var scopes []string
-	if scopes, err = deployments.GetStringArrayNodeProperty(kv, deploymentID, nodeName, "scopes"); err != nil {
+	if scopes, err = deployments.GetStringArrayNodeProperty(deploymentID, nodeName, "scopes"); err != nil {
 		return err
 	}
 
@@ -178,27 +174,27 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		instance.ServiceAccounts = []ServiceAccount{configuredAccount}
 	}
 
-	if instance.Tags, err = deployments.GetStringArrayNodeProperty(kv, deploymentID, nodeName, "tags"); err != nil {
+	if instance.Tags, err = deployments.GetStringArrayNodeProperty(deploymentID, nodeName, "tags"); err != nil {
 		return err
 	}
 
 	// Get list of key/value pairs parameters
-	if instance.Labels, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "labels"); err != nil {
+	if instance.Labels, err = deployments.GetKeyValuePairsNodeProperty(deploymentID, nodeName, "labels"); err != nil {
 		return err
 	}
 
-	if instance.Metadata, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "metadata"); err != nil {
+	if instance.Metadata, err = deployments.GetKeyValuePairsNodeProperty(deploymentID, nodeName, "metadata"); err != nil {
 		return err
 	}
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
 	// Add additional Scratch disks
-	scratchDisks, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "scratch_disks")
+	scratchDisks, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "scratch_disks")
 	if err != nil {
 		return err
 	}
@@ -229,7 +225,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "google_compute_instance", instance.Name, &instance)
 
 	// Attach Persistent disks
-	devices, err := addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure, outputs)
+	devices, err := addAttachedDisks(ctx, cfg, deploymentID, nodeName, instanceName, instance.Name, infrastructure, outputs)
 	if err != nil {
 		return err
 	}
@@ -339,40 +335,40 @@ func handleDeviceAttributes(ctx context.Context, cfg config.Configuration, infra
 	return nil
 }
 
-func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
 	devices := make([]string, 0)
 
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
 	for _, storagePrefix := range storageKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
-		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		volumeNodeName, err := deployments.GetTargetNodeForRequirement(deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return nil, err
 		}
 
 		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 
-		zone, err := deployments.GetStringNodeProperty(kv, deploymentID, volumeNodeName, "zone", true)
+		zone, err := deployments.GetStringNodeProperty(deploymentID, volumeNodeName, "zone", true)
 		if err != nil {
 			return nil, err
 		}
 
-		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "mode")
+		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(deploymentID, nodeName, requirementIndex, "mode")
 		if err != nil {
 			return nil, err
 		}
 
-		volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
+		volumeIDValue, err := deployments.GetNodePropertyValue(deploymentID, volumeNodeName, "volume_id")
 		if err != nil {
 			return nil, err
 		}
 		var volumeID string
 		if volumeIDValue == nil || volumeIDValue.RawString() == "" {
 			// Lookup for attribute volume_id
-			volumeID, err = deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+			volumeID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "volume_id")
 			if err != nil {
 				return nil, err
 			}
@@ -409,30 +405,30 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 	return devices, nil
 }
 
-func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, nodeName string) ([]NetworkInterface, error) {
+func addPrivateNetworkInterfaces(ctx context.Context, deploymentID, nodeName string) ([]NetworkInterface, error) {
 	var netInterfaces []NetworkInterface
 
 	// Check if subnets have been specified by user into network relationship
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "network")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
 	for _, storagePrefix := range storageKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
 
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		networkNodeName, err := deployments.GetTargetNodeForRequirement(deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 
 		// Check if node is network or subnet
-		netType, err := deployments.GetNodeType(kv, deploymentID, networkNodeName)
+		netType, err := deployments.GetNodeType(deploymentID, networkNodeName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 		switch netType {
 		case "yorc.nodes.google.Subnetwork":
-			subnet, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, networkNodeName, "0", "subnetwork_name")
+			subnet, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkNodeName, "0", "subnetwork_name")
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 			}
@@ -440,7 +436,7 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 			netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subnet})
 		case "yorc.nodes.google.PrivateNetwork":
 			// We mention subnet if provided by network relationship property
-			subRaw, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "subnet")
+			subRaw, err := deployments.GetRelationshipPropertyValueFromRequirement(deploymentID, nodeName, requirementIndex, "subnet")
 			if err != nil {
 				return nil, err
 			}
@@ -448,7 +444,7 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 				log.Debugf("add network interface with user-specified sub-network property:%s", subRaw.RawString())
 				netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subRaw.RawString()})
 			} else { // we mention the network
-				network, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, networkNodeName, "0", "network_name")
+				network, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkNodeName, "0", "network_name")
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 				}

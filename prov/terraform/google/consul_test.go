@@ -25,8 +25,7 @@ var testLocationProperties config.DynamicMap
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulGooglePackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	testLocationProperties = config.DynamicMap{
@@ -37,34 +36,34 @@ func TestRunConsulGooglePackageTests(t *testing.T) {
 
 	t.Run("googleProvider", func(t *testing.T) {
 		t.Run("simpleComputeInstance", func(t *testing.T) {
-			testSimpleComputeInstance(t, kv, cfg)
+			testSimpleComputeInstance(t, cfg)
 		})
 		t.Run("simpleComputeInstanceMissingMandatoryParameter", func(t *testing.T) {
-			testSimpleComputeInstanceMissingMandatoryParameter(t, kv, cfg)
+			testSimpleComputeInstanceMissingMandatoryParameter(t, cfg)
 		})
 		t.Run("simpleComputeAddress", func(t *testing.T) {
-			testSimpleComputeAddress(t, kv, cfg)
+			testSimpleComputeAddress(t, cfg)
 		})
 		t.Run("simpleComputeInstanceWithAddress", func(t *testing.T) {
-			testSimpleComputeInstanceWithAddress(t, kv, srv, cfg)
+			testSimpleComputeInstanceWithAddress(t, srv, cfg)
 		})
 		t.Run("simplePersistentDisk", func(t *testing.T) {
-			testSimplePersistentDisk(t, kv, cfg)
+			testSimplePersistentDisk(t, cfg)
 		})
 		t.Run("simpleComputeInstanceWithPersistentDisk", func(t *testing.T) {
-			testSimpleComputeInstanceWithPersistentDisk(t, kv, srv, cfg)
+			testSimpleComputeInstanceWithPersistentDisk(t, srv, cfg)
 		})
 		t.Run("simplePrivateNetwork", func(t *testing.T) {
-			testSimplePrivateNetwork(t, kv, cfg)
+			testSimplePrivateNetwork(t, cfg)
 		})
 		t.Run("simpleSubnet", func(t *testing.T) {
-			testSimpleSubnet(t, kv, srv, cfg)
+			testSimpleSubnet(t, srv, cfg)
 		})
 		t.Run("simpleComputeInstanceWithAutoCreationModeNetwork", func(t *testing.T) {
-			testSimpleComputeInstanceWithAutoCreationModeNetwork(t, kv, srv, cfg)
+			testSimpleComputeInstanceWithAutoCreationModeNetwork(t, srv, cfg)
 		})
 		t.Run("simpleComputeInstanceWithSimpleNetwork", func(t *testing.T) {
-			testSimpleComputeInstanceWithSimpleNetwork(t, kv, srv, cfg)
+			testSimpleComputeInstanceWithSimpleNetwork(t, srv, cfg)
 		})
 	})
 }

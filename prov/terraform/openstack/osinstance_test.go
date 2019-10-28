@@ -31,10 +31,10 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func loadTestYaml(t *testing.T, kv *api.KV) string {
+func loadTestYaml(t *testing.T) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }
@@ -42,7 +42,7 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 // initTestInfra loads a deployment topology and creates resources
 func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []string, map[string]string, error) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	locationProps := config.DynamicMap{
 		"region":               "RegionTwo",
@@ -151,7 +151,7 @@ func testOSInstanceWithBootVolume(t *testing.T, kv *api.KV) {
 
 func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
@@ -233,7 +233,7 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 
 func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
@@ -308,7 +308,7 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 
 func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	locationProps := config.DynamicMap{
 		"provisioning_over_fip_allowed": false,
@@ -356,7 +356,7 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 
 func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	locationProps := config.DynamicMap{
 		"provisioning_over_fip_allowed": false,

@@ -123,7 +123,7 @@ func getPurgedDeploymentsNb(t *testing.T) int {
 	return len(k)
 }
 
-func testDeleteDeployment(t *testing.T, kv *api.KV) {
+func testDeleteDeployment(t *testing.T) {
 	deploymentID1 := "testDeleteDeploymentA"
 	deploymentID2 := "testDeleteDeploymentAA"
 	err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID1, "status"), "INITIAL")
@@ -131,20 +131,20 @@ func testDeleteDeployment(t *testing.T, kv *api.KV) {
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID2, "status"), "INITIAL")
 	require.NoError(t, err)
 
-	exists, err := DoesDeploymentExists(kv, deploymentID1)
+	exists, err := DoesDeploymentExists(deploymentID1)
 	require.NoError(t, err)
 	require.True(t, exists)
-	exists, err = DoesDeploymentExists(kv, deploymentID2)
+	exists, err = DoesDeploymentExists(deploymentID2)
 	require.NoError(t, err)
 	require.True(t, exists)
 
-	err = DeleteDeployment(kv, deploymentID1)
+	err = DeleteDeployment(deploymentID1)
 	assert.NoError(t, err)
 
-	exists, err = DoesDeploymentExists(kv, deploymentID1)
+	exists, err = DoesDeploymentExists(deploymentID1)
 	assert.NoError(t, err)
 	assert.False(t, exists)
-	exists, err = DoesDeploymentExists(kv, deploymentID2)
+	exists, err = DoesDeploymentExists(deploymentID2)
 	assert.NoError(t, err)
 	assert.True(t, exists)
 

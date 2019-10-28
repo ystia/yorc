@@ -64,13 +64,13 @@ func getNbAndMaxTasksWaitTimeMs(kv *api.KV) (float32, float64, error) {
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
-		status, err := tasks.GetTaskStatus(kv, taskID)
+		status, err := tasks.GetTaskStatus(taskID)
 		if err != nil {
 			return nb, max, err
 		}
 		if status == tasks.TaskStatusINITIAL {
 			nb++
-			createDate, err := tasks.GetTaskCreationDate(kv, path.Base(taskKey))
+			createDate, err := tasks.GetTaskCreationDate(path.Base(taskKey))
 			if err != nil {
 				return nb, max, err
 			}
@@ -209,7 +209,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 			// Check TaskExecution status
-			status, err := tasks.GetTaskStatus(kv, taskID)
+			status, err := tasks.GetTaskStatus(taskID)
 			if err != nil {
 				log.Debugf("Seems the task with id:%q is no longer relevant due to error:%s so related execution will be removed", taskID, err)
 				d.deleteExecutionTree(execID)
@@ -226,7 +226,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			inProgress, err := tasks.IsStepRegistrationInProgress(kv, taskID)
+			inProgress, err := tasks.IsStepRegistrationInProgress(taskID)
 			if err != nil {
 				log.Printf("Can't check if task %s registration is in progress %+v", taskID, err)
 				continue

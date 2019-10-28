@@ -18,42 +18,41 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testDeleteInstance(t *testing.T, kv *api.KV) {
+func testDeleteInstance(t *testing.T) {
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	nodeName := "SomeNode"
 	instanceName1 := "1"
 	instanceName11 := "11"
 	state := "created"
-	err := SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName, instanceName1, state)
+	err := SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName1, state)
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName, instanceName11, state)
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName11, state)
 	require.NoError(t, err)
 
-	actualState, err := GetInstanceStateString(kv, deploymentID, nodeName, instanceName1)
+	actualState, err := GetInstanceStateString(deploymentID, nodeName, instanceName1)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName, instanceName11)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName, instanceName11)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
 
-	err = DeleteInstance(kv, deploymentID, nodeName, instanceName1)
+	err = DeleteInstance(deploymentID, nodeName, instanceName1)
 
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName, instanceName1)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName, instanceName1)
 	require.Error(t, err)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName, instanceName11)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName, instanceName11)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
 
 }
 
-func testDeleteAllInstances(t *testing.T, kv *api.KV) {
+func testDeleteAllInstances(t *testing.T) {
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	nodeName1 := "SomeNode1"
@@ -61,38 +60,38 @@ func testDeleteAllInstances(t *testing.T, kv *api.KV) {
 	instanceName1 := "1"
 	instanceName11 := "11"
 	state := "created"
-	err := SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName1, instanceName1, state)
+	err := SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName1, instanceName1, state)
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName1, instanceName11, state)
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName1, instanceName11, state)
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName11, instanceName1, state)
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName11, instanceName1, state)
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName11, instanceName11, state)
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName11, instanceName11, state)
 	require.NoError(t, err)
 
-	actualState, err := GetInstanceStateString(kv, deploymentID, nodeName1, instanceName1)
+	actualState, err := GetInstanceStateString(deploymentID, nodeName1, instanceName1)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName1, instanceName11)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName1, instanceName11)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName11, instanceName1)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName11, instanceName1)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName11, instanceName11)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName11, instanceName11)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
 
-	err = DeleteAllInstances(kv, deploymentID, nodeName1)
+	err = DeleteAllInstances(deploymentID, nodeName1)
 
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName1, instanceName1)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName1, instanceName1)
 	require.Error(t, err)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName1, instanceName11)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName1, instanceName11)
 	require.Error(t, err)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName11, instanceName1)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName11, instanceName1)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
-	actualState, err = GetInstanceStateString(kv, deploymentID, nodeName11, instanceName11)
+	actualState, err = GetInstanceStateString(deploymentID, nodeName11, instanceName11)
 	require.NoError(t, err)
 	require.Equal(t, state, actualState)
 

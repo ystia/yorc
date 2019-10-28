@@ -31,16 +31,14 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 	opt := params.ByName("opt")
 
-	kv := s.consulClient.KV()
-
-	status, err := deployments.GetDeploymentStatus(kv, id)
+	status, err := deployments.GetDeploymentStatus(id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
 			writeError(w, r, errNotFound)
 		}
 	}
 
-	result, err := deployments.GetTopologyOutputValue(kv, id, opt)
+	result, err := deployments.GetTopologyOutputValue(id, opt)
 	if err != nil {
 		if status == deployments.DEPLOYMENT_IN_PROGRESS {
 			// Things may not be resolvable yet
@@ -74,8 +72,7 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listOutputsLinks(id string) []AtomLink {
-	kv := s.consulClient.KV()
-	outNames, err := deployments.GetTopologyOutputsNames(kv, id)
+	outNames, err := deployments.GetTopologyOutputsNames(id)
 	if err != nil {
 		log.Panic(err)
 	}

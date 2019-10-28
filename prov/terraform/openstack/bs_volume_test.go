@@ -31,13 +31,13 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	locationProps := config.DynamicMap{"region": "Region_" + depID}
@@ -68,7 +68,7 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		bsv, err := g.generateOSBSVolume(kv, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
+		bsv, err := g.generateOSBSVolume(cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
@@ -76,13 +76,13 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 	}
 }
 
-func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	locationProps := config.DynamicMap{"region": "Region_" + depID}
@@ -107,18 +107,18 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		_, err := g.generateOSBSVolume(kv, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
+		_, err := g.generateOSBSVolume(cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
 }
 
-func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	locationProps := config.DynamicMap{"region": "Region_" + depID}
@@ -133,18 +133,18 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume(kv, cfg, locationProps, depID, nodeName, "0")
+	_, err = g.generateOSBSVolume(cfg, locationProps, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
 
-func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	locationProps := config.DynamicMap{"region": "Region_" + depID}
@@ -159,18 +159,18 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv
 	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume(kv, cfg, locationProps, depID, nodeName, "0")
+	_, err = g.generateOSBSVolume(cfg, locationProps, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
 
-func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	locationProps := config.DynamicMap{"region": "Region_" + depID}
@@ -190,7 +190,7 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	data[path.Join(nodePrefix, "properties/region")] = []byte("Region2")
 
 	srv1.PopulateKV(t, data)
-	bsv, err := g.generateOSBSVolume(kv, cfg, locationProps, depID, nodeName, "0")
+	bsv, err := g.generateOSBSVolume(cfg, locationProps, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)
@@ -202,10 +202,10 @@ func testComputeBootVolumeWrongSize(t *testing.T, srv1 *testutil.TestServer, kv 
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/BootVolumeWrongSize.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	_, err = computeBootVolume(kv, depID, "Compute")
+	_, err = computeBootVolume(depID, "Compute")
 	require.Error(t, err, "Expected a failure to parse %s boot volume definition", yamlName)
 }
 
@@ -215,9 +215,9 @@ func testComputeBootVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv 
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/BootVolumeWrongType.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
-	_, err = computeBootVolume(kv, depID, "Compute")
+	_, err = computeBootVolume(depID, "Compute")
 	require.Error(t, err, "Expected a failure to parse %s boot volume definition", yamlName)
 }

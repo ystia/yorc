@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -36,12 +35,12 @@ func init() {
 	}
 }
 
-func testGetKeysFromCredentialsAttribute(t *testing.T, kv *api.KV) {
-	deploymentID := loadTestYaml(t, kv, "ComputeWithCredentials.yaml")
+func testGetKeysFromCredentialsAttribute(t *testing.T) {
+	deploymentID := loadTestYaml(t, "ComputeWithCredentials.yaml")
 
-	err := deployments.SetInstanceStateStringWithContextualLogs(context.Background(), kv, deploymentID, "Compute", "0", "started")
+	err := deployments.SetInstanceStateStringWithContextualLogs(context.Background(), deploymentID, "Compute", "0", "started")
 	require.NoError(t, err, "Failed to setup instance state")
-	err = deployments.SetInstanceStateStringWithContextualLogs(context.Background(), kv, deploymentID, "ComputeMultiKeys", "0", "started")
+	err = deployments.SetInstanceStateStringWithContextualLogs(context.Background(), deploymentID, "ComputeMultiKeys", "0", "started")
 	require.NoError(t, err, "Failed to setup instance state")
 	type args struct {
 		nodeName       string
@@ -59,7 +58,7 @@ func testGetKeysFromCredentialsAttribute(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetKeysFromCredentialsAttribute(kv, deploymentID, tt.args.nodeName, tt.args.instanceID, tt.args.capabilityName)
+			got, err := GetKeysFromCredentialsAttribute(deploymentID, tt.args.nodeName, tt.args.instanceID, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetKeysFromCredentialsAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return

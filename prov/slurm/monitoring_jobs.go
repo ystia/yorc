@@ -26,7 +26,6 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
@@ -112,7 +111,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		return true, err
 	}
 
-	credentials, err := getUserCredentials(consulutil.GetKV(), locationProps, deploymentID, nodeName, "")
+	credentials, err := getUserCredentials(locationProps, deploymentID, nodeName, "")
 	if err != nil {
 		return true, err
 	}
@@ -126,7 +125,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	if err != nil {
 		if isNoJobFoundError(err) {
 			// the job is not found in slurm database (should have been purged) : pass its status to "UNKNOWN"
-			deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, nodeName, "0", "UNKNOWN")
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, "0", "UNKNOWN")
 		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
 	}
@@ -157,12 +156,12 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
-	previousJobState, err := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, nodeName, "0")
+	previousJobState, err := deployments.GetInstanceStateString(deploymentID, nodeName, "0")
 	if err != nil {
 		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
 	}
 	if previousJobState != info["JobState"] {
-		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, nodeName, "0", info["JobState"])
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, "0", info["JobState"])
 	}
 
 	// See if monitoring must be continued and set job state if terminated

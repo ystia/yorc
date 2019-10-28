@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -37,100 +36,100 @@ import (
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
-func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID string, defPath string) error {
-	if err := SetDeploymentStatus(ctx, kv, deploymentID, INITIAL); err != nil {
-		return handleDeploymentStatus(ctx, kv, deploymentID, err)
+func StoreDeploymentDefinition(ctx context.Context, deploymentID string, defPath string) error {
+	if err := SetDeploymentStatus(ctx, deploymentID, INITIAL); err != nil {
+		return handleDeploymentStatus(ctx, deploymentID, err)
 	}
 
 	topology := tosca.Topology{}
 	definition, err := os.Open(defPath)
 	if err != nil {
-		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
+		return handleDeploymentStatus(ctx, deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
 	}
 	defBytes, err := ioutil.ReadAll(definition)
 	if err != nil {
-		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
+		return handleDeploymentStatus(ctx, deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
 	}
 
 	err = yaml.Unmarshal(defBytes, &topology)
 	if err != nil {
-		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath))
+		return handleDeploymentStatus(ctx, deploymentID, errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath))
 	}
 
 	consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(INITIAL))
 
 	err = store.Deployment(ctx, topology, deploymentID, filepath.Dir(defPath))
 	if err != nil {
-		return handleDeploymentStatus(ctx, kv, deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
+		return handleDeploymentStatus(ctx, deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
 	}
-	err = registerImplementationTypes(ctx, kv, deploymentID)
+	err = registerImplementationTypes(ctx, deploymentID)
 	if err != nil {
-		return handleDeploymentStatus(ctx, kv, deploymentID, err)
+		return handleDeploymentStatus(ctx, deploymentID, err)
 	}
 
 	// Enhance nodes
-	nodes, err := GetNodes(kv, deploymentID)
+	nodes, err := GetNodes(deploymentID)
 	if err != nil {
 		return err
 	}
-	return handleDeploymentStatus(ctx, kv, deploymentID, enhanceNodes(ctx, kv, deploymentID, nodes))
+	return handleDeploymentStatus(ctx, deploymentID, enhanceNodes(ctx, deploymentID, nodes))
 }
 
-func handleDeploymentStatus(ctx context.Context, kv *api.KV, deploymentID string, err error) error {
+func handleDeploymentStatus(ctx context.Context, deploymentID string, err error) error {
 	if err != nil {
-		SetDeploymentStatus(ctx, kv, deploymentID, DEPLOYMENT_FAILED)
+		SetDeploymentStatus(ctx, deploymentID, DEPLOYMENT_FAILED)
 	}
 	return err
 }
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
-func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
-	nbInstances, err := GetDefaultNbInstancesForNode(kv, deploymentID, nodeName)
+func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID, nodeName string) error {
+	nbInstances, err := GetDefaultNbInstancesForNode(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
+	createNodeInstances(consulStore, nbInstances, deploymentID, nodeName)
 
 	// Check for FIPConnectivity capabilities
-	is, capabilityNodeName, err := HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
+	is, capabilityNodeName, err := HasAnyRequirementCapability(deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
 	if err != nil {
 		return err
 	}
 	if is {
-		createNodeInstances(consulStore, kv, nbInstances, deploymentID, capabilityNodeName)
+		createNodeInstances(consulStore, nbInstances, deploymentID, capabilityNodeName)
 	}
 
 	// Check for Assignable capabilities
-	is, capabilityNodeName, err = HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+	is, capabilityNodeName, err = HasAnyRequirementCapability(deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
 	if err != nil {
 		return err
 	}
 	if is {
-		createNodeInstances(consulStore, kv, nbInstances, deploymentID, capabilityNodeName)
+		createNodeInstances(consulStore, nbInstances, deploymentID, capabilityNodeName)
 	}
 
-	bs, bsNames, err := checkBlockStorage(kv, deploymentID, nodeName)
+	bs, bsNames, err := checkBlockStorage(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
 	if bs {
 		for _, name := range bsNames {
-			createNodeInstances(consulStore, kv, nbInstances, deploymentID, name)
+			createNodeInstances(consulStore, nbInstances, deploymentID, name)
 		}
 
 	}
 	return nil
 }
 
-func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID string) error {
+func registerImplementationTypes(ctx context.Context, deploymentID string) error {
 	// We use synchronous communication with consul here to allow to check for duplicates
-	types, err := GetTypes(kv, deploymentID)
+	types, err := GetTypes(deploymentID)
 	if err != nil {
 		return err
 	}
 	for _, t := range types {
-		isImpl, err := IsTypeDerivedFrom(kv, deploymentID, t, "tosca.artifacts.Implementation")
+		isImpl, err := IsTypeDerivedFrom(deploymentID, t, "tosca.artifacts.Implementation")
 		if err != nil {
 			if IsTypeMissingError(err) {
 				// Bypassing this error it may happen in case of an used type let's trust Alien
@@ -166,11 +165,11 @@ func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID s
 }
 
 // EnhanceNodes walk through the provided nodes an for each of them if needed it creates the instances and fix alien BlockStorage declaration
-func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string, nodes []string) error {
+func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) error {
 	ctxStore, errGroup, consulStore := consulutil.WithContext(ctx)
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
-		isCompute, err := createInstanceAndFixModel(ctxStore, consulStore, kv, deploymentID, nodeName)
+		isCompute, err := createInstanceAndFixModel(ctxStore, consulStore, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -178,7 +177,7 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string, nodes []
 			computes = append(computes, nodeName)
 		}
 	}
-	err := createMissingBlockStorageForNodes(consulStore, kv, deploymentID, computes)
+	err := createMissingBlockStorageForNodes(consulStore, deploymentID, computes)
 	if err != nil {
 		return err
 	}
@@ -189,33 +188,32 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string, nodes []
 
 	_, errGroup, consulStore = consulutil.WithContext(ctx)
 	for _, nodeName := range nodes {
-		err = createRelationshipInstances(consulStore, kv, deploymentID, nodeName)
+		err = createRelationshipInstances(consulStore, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = enhanceWorkflows(consulStore, kv, deploymentID)
+	err = enhanceWorkflows(consulStore, deploymentID)
 	if err != nil {
 		return err
 	}
 
-	err = enhanceAttributes(kv, deploymentID, nodes)
+	err = enhanceAttributes(deploymentID, nodes)
 	if err != nil {
 		return err
 	}
 	return errGroup.Wait()
 }
 
-func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore,
-	kv *api.KV, deploymentID string, nodeName string) (bool, error) {
+func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
 
 	var isCompute bool
-	err := fixGetOperationOutputForRelationship(ctx, kv, deploymentID, nodeName)
+	err := fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
-	err = fixGetOperationOutputForHost(ctx, kv, deploymentID, nodeName)
+	err = fixGetOperationOutputForHost(ctx, deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
@@ -225,23 +223,23 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 		return isCompute, err
 	}
 	if !substitutable {
-		err = createInstancesForNode(ctx, consulStore, kv, deploymentID, nodeName)
+		err = createInstancesForNode(ctx, consulStore, deploymentID, nodeName)
 		if err != nil {
 			return isCompute, err
 		}
-		err = fixAlienBlockStorages(ctx, kv, deploymentID, nodeName)
+		err = fixAlienBlockStorages(ctx, deploymentID, nodeName)
 		if err != nil {
 			return isCompute, err
 		}
-		isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
+		isCompute, err = IsNodeDerivedFrom(deploymentID, nodeName, "tosca.nodes.Compute")
 	}
 
 	return isCompute, err
 }
 
 // In this function we iterate over all node to know which node need to have a HOST output and search for this HOST and tell him to export this output
-func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+func fixGetOperationOutputForHost(ctx context.Context, deploymentID, nodeName string) error {
+	nodeType, err := GetNodeType(deploymentID, nodeName)
 	if nodeType != "" && err == nil {
 		typePath, err := locateTypePath(deploymentID, nodeType)
 		if err != nil {
@@ -267,13 +265,13 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 					continue
 				}
 				for _, outputNamePath := range outputsNamesPaths {
-					hostedOn, err := GetHostedOnNode(kv, deploymentID, nodeName)
+					hostedOn, err := GetHostedOnNode(deploymentID, nodeName)
 					if err != nil {
 						return nil
 					} else if hostedOn == "" {
 						return errors.New("Fail to get the hostedOn to fix the output")
 					}
-					if hostedNodeType, err := GetNodeType(kv, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
+					if hostedNodeType, err := GetNodeType(deploymentID, hostedOn); hostedNodeType != "" && err == nil {
 						hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
 						if err != nil {
 							return err
@@ -293,14 +291,14 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 
 // This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
 // Ex: To get an variable from a past operation or a future operation
-func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string) error {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
 	reqName, err := consulutil.GetKeys(reqPath)
 	if err != nil {
 		return err
 	}
 	for _, reqKeyIndex := range reqName {
-		relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, path.Base(reqKeyIndex))
+		relationshipType, err := GetRelationshipForRequirement(deploymentID, nodeName, path.Base(reqKeyIndex))
 		if err != nil {
 			return err
 		}
@@ -337,13 +335,13 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 						}
 						var nodeType string
 						if path.Base(modEntityNamePath) == "SOURCE" {
-							nodeType, _ = GetNodeType(kv, deploymentID, nodeName)
+							nodeType, _ = GetNodeType(deploymentID, nodeName)
 						} else if path.Base(modEntityNamePath) == "TARGET" {
-							targetNode, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, reqKeyIndex)
+							targetNode, err := GetTargetNodeForRequirement(deploymentID, nodeName, reqKeyIndex)
 							if err != nil {
 								return err
 							}
-							nodeType, _ = GetNodeType(kv, deploymentID, targetNode)
+							nodeType, _ = GetNodeType(deploymentID, targetNode)
 						}
 						typePath, err := locateTypePath(deploymentID, nodeType)
 						if err != nil {
@@ -360,13 +358,13 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
-func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
-	isBS, err := IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.BlockStorage")
+func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) error {
+	isBS, err := IsNodeDerivedFrom(deploymentID, nodeName, "tosca.nodes.BlockStorage")
 	if err != nil {
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
@@ -395,7 +393,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 			if exist {
 				req.Relationship = value
 			}
-			device, err := GetNodePropertyValue(kv, deploymentID, nodeName, "device")
+			device, err := GetNodePropertyValue(deploymentID, nodeName, "device")
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
@@ -427,7 +425,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 				}
 				req.RelationshipProps[path.Base(key)] = va
 			}
-			newReqID, err := GetNbRequirementsForNode(kv, deploymentID, computeNodeName)
+			newReqID, err := GetNbRequirementsForNode(deploymentID, computeNodeName)
 			if err != nil {
 				return err
 			}
@@ -450,7 +448,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 /**
 This function create a given number of floating IP instances
 */
-func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentID, nodeName string) {
+func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uint32, deploymentID, nodeName string) {
 
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
@@ -458,22 +456,21 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 
 	for i := uint32(0); i < numberInstances; i++ {
 		instanceName := strconv.FormatUint(uint64(i), 10)
-		createNodeInstance(kv, consulStore, deploymentID, nodeName, instanceName)
+		createNodeInstance(consulStore, deploymentID, nodeName, instanceName)
 	}
 }
 
 // createInstancesForNodes checks if the given nodes are hosted on a Scalable node,
 // stores the number of required instances and sets the instance's status to INITIAL
-func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, kv *api.KV,
-	deploymentID string, nodeNames []string) error {
+func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, deploymentID string, nodeNames []string) error {
 
 	for _, nodeName := range nodeNames {
-		requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
+		requirementsKey, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "local_storage")
 		if err != nil {
 			return err
 		}
 
-		nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
+		nbInstances, err := GetNbInstancesForNode(deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -498,7 +495,7 @@ func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, kv *a
 		}
 
 		for _, name := range bsName {
-			createNodeInstances(consulStore, kv, nbInstances, deploymentID, name)
+			createNodeInstances(consulStore, nbInstances, deploymentID, name)
 		}
 	}
 
@@ -508,8 +505,8 @@ func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, kv *a
 /**
 This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
-func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
+func checkBlockStorage(deploymentID, nodeName string) (bool, []string, error) {
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
@@ -538,16 +535,16 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 
 // enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes notifications
 // to allow resolving any attribute when one is updated
-func enhanceAttributes(kv *api.KV, deploymentID string, nodes []string) error {
+func enhanceAttributes(deploymentID string, nodes []string) error {
 	for _, nodeName := range nodes {
 		// retrieve all node attributes
-		attributes, err := GetNodeAttributesNames(kv, deploymentID, nodeName)
+		attributes, err := GetNodeAttributesNames(deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
 
 		// retrieve all node instances
-		instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+		instances, err := GetNodeInstancesIds(deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -556,7 +553,7 @@ func enhanceAttributes(kv *api.KV, deploymentID string, nodes []string) error {
 		// 2. Resolve attributes and publish default values when not nil or empty
 		for _, instanceName := range instances {
 			for _, attribute := range attributes {
-				err := addAttributeNotifications(kv, deploymentID, nodeName, instanceName, attribute)
+				err := addAttributeNotifications(deploymentID, nodeName, instanceName, attribute)
 				if err != nil {
 					return err
 				}

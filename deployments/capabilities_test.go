@@ -20,18 +20,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testCapabilities(t *testing.T, srv1 *testutil.TestServer) {
 	log.SetDebug(true)
 
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/capabilities.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/capabilities.yaml")
 	require.Nil(t, err)
 
 	srv1.PopulateKV(t, map[string][]byte{
@@ -46,30 +45,30 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
 		t.Run("TestHasScalableCapability", func(t *testing.T) {
-			testHasScalableCapability(t, kv, deploymentID)
+			testHasScalableCapability(t, deploymentID)
 		})
 		t.Run("TestGetCapabilitiesOfType", func(t *testing.T) {
-			testGetCapabilitiesOfType(t, kv, deploymentID)
+			testGetCapabilitiesOfType(t, deploymentID)
 		})
 		t.Run("TestGetNodeCapabilityType", func(t *testing.T) {
-			testGetNodeCapabilityType(t, kv, deploymentID)
+			testGetNodeCapabilityType(t, deploymentID)
 		})
 		t.Run("TestGetCapabilityProperty", func(t *testing.T) {
-			testGetCapabilityProperty(t, kv, deploymentID)
+			testGetCapabilityProperty(t, deploymentID)
 		})
 		t.Run("TestGetCapabilityPropertyType", func(t *testing.T) {
-			testGetCapabilityPropertyType(t, kv, deploymentID)
+			testGetCapabilityPropertyType(t, deploymentID)
 		})
 		t.Run("TestGetInstanceCapabilityAttribute", func(t *testing.T) {
-			testGetInstanceCapabilityAttribute(t, kv, deploymentID)
+			testGetInstanceCapabilityAttribute(t, deploymentID)
 		})
 		t.Run("TestGetIPAddressFromHost", func(t *testing.T) {
-			testGetIPAddressFromHost(t, kv, deploymentID)
+			testGetIPAddressFromHost(t, deploymentID)
 		})
 	})
 }
 
-func testHasScalableCapability(t *testing.T, kv *api.KV, deploymentID string) {
+func testHasScalableCapability(t *testing.T, deploymentID string) {
 	type args struct {
 		nodeName string
 	}
@@ -87,7 +86,7 @@ func testHasScalableCapability(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := HasScalableCapability(kv, deploymentID, tt.args.nodeName)
+			got, err := HasScalableCapability(deploymentID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("HasScalableCapability() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -99,7 +98,7 @@ func testHasScalableCapability(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 }
 
-func testGetCapabilitiesOfType(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetCapabilitiesOfType(t *testing.T, deploymentID string) {
 	type args struct {
 		typeName           string
 		capabilityTypeName string
@@ -119,7 +118,7 @@ func testGetCapabilitiesOfType(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilitiesOfType(kv, deploymentID, tt.args.typeName, tt.args.capabilityTypeName)
+			got, err := GetCapabilitiesOfType(deploymentID, tt.args.typeName, tt.args.capabilityTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilitiesOfType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -131,7 +130,7 @@ func testGetCapabilitiesOfType(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 }
 
-func testGetCapabilityProperty(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetCapabilityProperty(t *testing.T, deploymentID string) {
 	type args struct {
 		nodeName       string
 		capabilityName string
@@ -152,7 +151,7 @@ func testGetCapabilityProperty(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilityPropertyValue(kv, deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
+			got, err := GetCapabilityPropertyValue(deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilityProperty() %q error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return
@@ -169,7 +168,7 @@ func testGetCapabilityProperty(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 }
 
-func testGetCapabilityPropertyType(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetCapabilityPropertyType(t *testing.T, deploymentID string) {
 	type args struct {
 		nodeName       string
 		capabilityName string
@@ -195,7 +194,7 @@ func testGetCapabilityPropertyType(t *testing.T, kv *api.KV, deploymentID string
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			propFound, propTypeValue, err := GetCapabilityPropertyType(kv, deploymentID,
+			propFound, propTypeValue, err := GetCapabilityPropertyType(deploymentID,
 				tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilityPropertyType() %q error %v, wantErr %v",
@@ -216,7 +215,7 @@ func testGetCapabilityPropertyType(t *testing.T, kv *api.KV, deploymentID string
 	}
 }
 
-func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetInstanceCapabilityAttribute(t *testing.T, deploymentID string) {
 	type args struct {
 		nodeName       string
 		instanceName   string
@@ -249,7 +248,7 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV, deploymentID s
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstanceCapabilityAttributeValue(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetInstanceCapabilityAttributeValue(deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -264,7 +263,7 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV, deploymentID s
 	}
 }
 
-func testGetNodeCapabilityType(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetNodeCapabilityType(t *testing.T, deploymentID string) {
 	type args struct {
 		nodeName       string
 		capabilityName string
@@ -285,7 +284,7 @@ func testGetNodeCapabilityType(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetNodeCapabilityType(kv, deploymentID, tt.args.nodeName, tt.args.capabilityName)
+			got, err := GetNodeCapabilityType(deploymentID, tt.args.nodeName, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetNodeCapabilityType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -297,25 +296,25 @@ func testGetNodeCapabilityType(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 }
 
-func testGetCapabilityProperties(t *testing.T, kv *api.KV) {
+func testGetCapabilityProperties(t *testing.T) {
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/capabilities_properties.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/capabilities_properties.yaml")
 	require.Nil(t, err)
-	value, err := GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "port")
+	value, err := GetCapabilityPropertyValue(deploymentID, "Tomcat", "data_endpoint", "port")
 	require.NotNil(t, value)
 	require.Equal(t, "8088", value.RawString())
 
-	value, err = GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "protocol")
+	value, err = GetCapabilityPropertyValue(deploymentID, "Tomcat", "data_endpoint", "protocol")
 	require.NotNil(t, value)
 	require.Equal(t, "http", value.RawString())
 
-	value, err = GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "network_name")
+	value, err = GetCapabilityPropertyValue(deploymentID, "Tomcat", "data_endpoint", "network_name")
 	require.NotNil(t, value)
 	require.Equal(t, "PRIVATE", value.RawString())
 }
 
-func testGetIPAddressFromHost(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetIPAddressFromHost(t *testing.T, deploymentID string) {
 	type args struct {
 		hostName       string
 		hostInstance   string
@@ -341,7 +340,7 @@ func testGetIPAddressFromHost(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getIPAddressFromHost(kv, deploymentID, tt.args.hostName, tt.args.hostInstance, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName)
+			got, err := getIPAddressFromHost(deploymentID, tt.args.hostName, tt.args.hostInstance, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getIPAddressFromHost() error = %v, wantErr %v", err, tt.wantErr)
 				return

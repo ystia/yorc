@@ -17,7 +17,6 @@ package deployments
 import (
 	"path"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -27,14 +26,14 @@ import (
 //
 // GetInputValue first checks if a non-empty field value exists for this input, if it doesn't then it checks for a non-empty field default.
 // If none of them exists then it returns an empty string.
-func GetInputValue(kv *api.KV, deploymentID, inputName string, nestedKeys ...string) (string, error) {
-	dataType, err := GetTopologyInputType(kv, deploymentID, inputName)
+func GetInputValue(deploymentID, inputName string, nestedKeys ...string) (string, error) {
+	dataType, err := GetTopologyInputType(deploymentID, inputName)
 
-	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "value"), "", "", "", dataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "value"), "", "", "", dataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result.RawString(), errors.Wrapf(err, "Failed to get input %q value", inputName)
 	}
-	result, err = getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "default"), "", "", "", dataType, nestedKeys...)
+	result, err = getValueAssignmentWithDataType(deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "default"), "", "", "", dataType, nestedKeys...)
 	if result == nil {
 		return "", errors.Wrapf(err, "Failed to get input %q value", inputName)
 	}

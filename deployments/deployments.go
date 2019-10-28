@@ -90,7 +90,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 //  		// Do something in case of deployment not found
 //  	}
 //  }
-func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, error) {
+func GetDeploymentStatus(deploymentID string) (DeploymentStatus, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"))
 	if err != nil {
 		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -102,7 +102,7 @@ func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, err
 }
 
 //GetDeploymentTemplateName only return the name of the template used during the deployment
-func GetDeploymentTemplateName(kv *api.KV, deploymentID string) (string, error) {
+func GetDeploymentTemplateName(deploymentID string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -114,8 +114,8 @@ func GetDeploymentTemplateName(kv *api.KV, deploymentID string) (string, error) 
 }
 
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment
-func DoesDeploymentExists(kv *api.KV, deploymentID string) (bool, error) {
-	if _, err := GetDeploymentStatus(kv, deploymentID); err != nil {
+func DoesDeploymentExists(deploymentID string) (bool, error) {
+	if _, err := GetDeploymentStatus(deploymentID); err != nil {
 		if IsDeploymentNotFoundError(err) {
 			return false, nil
 		}
@@ -129,7 +129,7 @@ func DoesDeploymentExists(kv *api.KV, deploymentID string) (bool, error) {
 // This function will first check for an update of the current status and do it only if necessary.
 // It will also emit a proper event to notify of status change.
 // It is safe for concurrent use by using a CAS mechanism.
-func SetDeploymentStatus(ctx context.Context, kv *api.KV, deploymentID string, status DeploymentStatus) error {
+func SetDeploymentStatus(ctx context.Context, deploymentID string, status DeploymentStatus) error {
 RETRY:
 	// As we loop check if context is not cancelled
 	select {
@@ -164,7 +164,7 @@ RETRY:
 			}
 			log.Debugf("Deployment status change for %s from %s to %s",
 				deploymentID, currentStatus.String(), status.String())
-			events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
+			events.PublishAndLogDeploymentStatusChange(ctx, deploymentID, strings.ToLower(status.String()))
 		}
 		return nil
 	}
@@ -173,7 +173,7 @@ RETRY:
 	if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), status.String()); err != nil {
 		return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
 	}
-	events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
+	events.PublishAndLogDeploymentStatusChange(ctx, deploymentID, strings.ToLower(status.String()))
 	return nil
 }
 
@@ -191,7 +191,7 @@ func TagDeploymentAsPurged(ctx context.Context, cc *api.Client, deploymentID str
 	// Just Publish an event that the deployment is successfully
 	// This event will stay into consul even if the deployment is actually purged...
 	// To prevent unexpected errors
-	_, err = events.PublishAndLogDeploymentStatusChange(ctx, cc.KV(), deploymentID, strings.ToLower(PURGED.String()))
+	_, err = events.PublishAndLogDeploymentStatusChange(ctx, deploymentID, strings.ToLower(PURGED.String()))
 	return err
 }
 
@@ -206,30 +206,30 @@ func CleanupPurgedDeployments(ctx context.Context, cc *api.Client, evictionTimeo
 	}
 	defer lock.Unlock()
 	// Appending a final "/" here is not necessary as there is no other keys starting with consulutil.PurgedDeploymentKVPrefix prefix
-	kvpList, _, err := cc.KV().List(consulutil.PurgedDeploymentKVPrefix, nil)
+	kvpList, err := consulutil.List(consulutil.PurgedDeploymentKVPrefix)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for _, kvp := range kvpList {
-		if kvp.Key == purgedDeploymentsLock {
+	for k, v := range kvpList {
+		if k == purgedDeploymentsLock {
 			// ignore lock
 			continue
 		}
-		deploymentID := path.Base(kvp.Key)
+		deploymentID := path.Base(k)
 		if collections.ContainsString(extraDeployments, deploymentID) {
-			err = cleanupPurgedDeployment(ctx, cc.KV(), deploymentID)
+			err = cleanupPurgedDeployment(ctx, deploymentID)
 			if err != nil {
 				return err
 			}
 			continue
 		}
-		purgeDate, err := time.Parse(time.RFC3339Nano, string(kvp.Value))
+		purgeDate, err := time.Parse(time.RFC3339Nano, string(v))
 		if err != nil {
-			log.Printf("WARN failed to parse %q for purged timestamp of deployment %q", string(kvp.Value), deploymentID)
+			log.Printf("WARN failed to parse %q for purged timestamp of deployment %q", string(v), deploymentID)
 			continue
 		}
 		if purgeDate.Add(evictionTimeout).Before(time.Now()) {
-			err = cleanupPurgedDeployment(ctx, cc.KV(), deploymentID)
+			err = cleanupPurgedDeployment(ctx, deploymentID)
 			if err != nil {
 				return err
 			}
@@ -239,15 +239,15 @@ func CleanupPurgedDeployments(ctx context.Context, cc *api.Client, evictionTimeo
 	return nil
 }
 
-func cleanupPurgedDeployment(ctx context.Context, kv *api.KV, deploymentID string) error {
+func cleanupPurgedDeployment(ctx context.Context, deploymentID string) error {
 	// Delete events & logs tree corresponding to the deployment
 	// This is useful when redeploying an application that has been previously purged
 	// as it may still have the purged event and log.
-	err := events.PurgeDeploymentEvents(kv, deploymentID)
+	err := events.PurgeDeploymentEvents(deploymentID)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	err = events.PurgeDeploymentLogs(kv, deploymentID)
+	err = events.PurgeDeploymentLogs(deploymentID)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -275,7 +275,7 @@ func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Loc
 }
 
 // DeleteDeployment deletes a given deploymentID from the deployments path
-func DeleteDeployment(kv *api.KV, deploymentID string) error {
+func DeleteDeployment(deploymentID string) error {
 	// Remove from KV this purge tasks
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", true)
 }

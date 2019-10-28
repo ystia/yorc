@@ -40,7 +40,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
-	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	dExits, err := deployments.DoesDeploymentExists(id)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -60,7 +60,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	}
 	// Check that provided node exists
 	nodeName := ccRequest.NodeName
-	nodeExists, err := deployments.DoesNodeExist(s.consulClient.KV(), id, nodeName)
+	nodeExists, err := deployments.DoesNodeExist(id, nodeName)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -73,7 +73,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	var instances []string
 	if ccRequest.Instances == nil {
 		// Apply command on all the instances
-		instances, err = deployments.GetNodeInstancesIds(s.consulClient.KV(), id, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(id, nodeName)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -119,19 +119,18 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) getInputNameFromCustom(deploymentID, nodeName, interfaceName, customCName string) ([]string, error) {
-	kv := s.consulClient.KV()
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, interfaceName+"."+customCName, "", "")
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, interfaceName+"."+customCName, "", "")
 	if err != nil {
 		return nil, err
 	}
-	inputs, err := deployments.GetOperationInputs(kv, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name)
+	inputs, err := deployments.GetOperationInputs(deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	result := inputs[:0]
 	for _, inputName := range inputs {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(kv, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name, inputName)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name, inputName)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +145,7 @@ func (s *Server) getInputNameFromCustom(deploymentID, nodeName, interfaceName, c
 // If a provided instance does not exists, returns false and the inexistent instance name
 func (s *Server) checkInstances(deploymentID, nodeName string, provInstances []string) (bool, string) {
 	// Get known instances for the provided node
-	allInstances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), deploymentID, nodeName)
+	allInstances, err := deployments.GetNodeInstancesIds(deploymentID, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}

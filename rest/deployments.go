@@ -152,7 +152,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		// 	writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", YorcDeploymentIDMaxLength, len(id))))
 		// 	return
 		// }
-		dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+		dExits, err := deployments.DoesDeploymentExists(id)
 		if err != nil {
 			log.Panicf("%v", err)
 		}
@@ -179,7 +179,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panicf("%v", err)
 	}
 
-	if err := deployments.StoreDeploymentDefinition(r.Context(), s.consulClient.KV(), uid, yamlFile); err != nil {
+	if err := deployments.StoreDeploymentDefinition(r.Context(), uid, yamlFile); err != nil {
 		log.Debugf("ERROR: %+v", err)
 		log.Panic(err)
 	}
@@ -205,7 +205,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
-	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	dExits, err := deployments.DoesDeploymentExists(id)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -228,7 +228,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if taskType == tasks.TaskTypeUnDeploy {
-		status, err := deployments.GetDeploymentStatus(s.consulClient.KV(), id)
+		status, err := deployments.GetDeploymentStatus(id)
 		if err != nil {
 			log.Panicf("%v", err)
 		}
@@ -281,8 +281,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
-	kv := s.consulClient.KV()
-	status, err := deployments.GetDeploymentStatus(kv, id)
+	status, err := deployments.GetDeploymentStatus(id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
 			writeError(w, r, errNotFound)
@@ -293,7 +292,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	deployment := Deployment{ID: id, Status: status.String()}
 	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path)}
-	nodes, err := deployments.GetNodes(kv, id)
+	nodes, err := deployments.GetNodes(id)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -301,7 +300,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		links = append(links, newAtomLink(LinkRelNode, path.Join(r.URL.Path, "nodes", node)))
 	}
 
-	tasksList, err := tasks.GetTasksIdsForTarget(kv, id)
+	tasksList, err := tasks.GetTasksIdsForTarget(id)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -330,7 +329,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 	depPrefix := consulutil.DeploymentKVPrefix + "/"
 	for _, depPath := range depPaths {
 		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, depPrefix), "/ ")
-		status, err := deployments.GetDeploymentStatus(kv, deploymentID)
+		status, err := deployments.GetDeploymentStatus(deploymentID)
 		if err != nil {
 			if deployments.IsDeploymentNotFoundError(err) {
 				// Deployment is not found : we force deletion and ignore it

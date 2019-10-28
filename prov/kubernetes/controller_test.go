@@ -126,7 +126,7 @@ func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
 			}
 
 			if tt.nodeName == "node-deploy" {
-				replacedRSpec, err := replaceServiceIPInResourceSpec(ctx, kv, k8s.clientset, "dep-id", tt.nodeName, "", "{}")
+				replacedRSpec, err := replaceServiceIPInResourceSpec(ctx, k8s.clientset, "dep-id", tt.nodeName, "", "{}")
 				// TODO test replaceRSpec value
 				require.Nil(t, err)
 				require.NotNil(t, replacedRSpec)

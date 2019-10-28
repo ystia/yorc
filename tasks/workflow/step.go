@@ -55,7 +55,7 @@ func (s *step) wrapBuilderStep(bs *builder.Step) *step {
 }
 
 func (s *step) setStatus(status tasks.TaskStepStatus) error {
-	return tasks.UpdateTaskStepWithStatus(s.cc.KV(), s.t.taskID, s.Name, status)
+	return tasks.UpdateTaskStepWithStatus(s.t.taskID, s.Name, status)
 }
 
 func (s *step) cancelNextSteps() {
@@ -125,29 +125,29 @@ func (s *step) isRunnable() (bool, error) {
 	if s.t.taskType == tasks.TaskTypeScaleOut || s.t.taskType == tasks.TaskTypeScaleIn || s.t.taskType == tasks.TaskTypeAddNodes || s.t.taskType == tasks.TaskTypeRemoveNodes {
 		// If not a relationship check the actual node
 		if s.TargetRelationship == "" {
-			return tasks.IsTaskRelatedNode(kv, s.t.taskID, s.Target)
+			return tasks.IsTaskRelatedNode(s.t.taskID, s.Target)
 		}
 
 		if isSourceOperationOnTarget(s) {
 			// operation on target but Check if Source is implied on scale
-			return tasks.IsTaskRelatedNode(kv, s.t.taskID, s.Target)
+			return tasks.IsTaskRelatedNode(s.t.taskID, s.Target)
 		}
 
 		if isTargetOperationOnSource(s) || strings.ToUpper(s.OperationHost) == "TARGET" {
 			// Check if Target is implied on scale
-			targetReqIndex, err := deployments.GetRequirementIndexByNameForNode(kv, s.t.targetID, s.Target, s.TargetRelationship)
+			targetReqIndex, err := deployments.GetRequirementIndexByNameForNode(s.t.targetID, s.Target, s.TargetRelationship)
 			if err != nil {
 				return false, err
 			}
-			targetNodeName, err := deployments.GetTargetNodeForRequirement(kv, s.t.targetID, s.Target, targetReqIndex)
+			targetNodeName, err := deployments.GetTargetNodeForRequirement(s.t.targetID, s.Target, targetReqIndex)
 			if err != nil {
 				return false, err
 			}
-			return tasks.IsTaskRelatedNode(kv, s.t.taskID, targetNodeName)
+			return tasks.IsTaskRelatedNode(s.t.taskID, targetNodeName)
 		}
 
 		// otherwise check the actual node is implied
-		return tasks.IsTaskRelatedNode(kv, s.t.taskID, s.Target)
+		return tasks.IsTaskRelatedNode(s.t.taskID, s.Target)
 
 	}
 
@@ -209,7 +209,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 			}()
 			err := s.runActivity(ctx, kv, cfg, deploymentID, workflowName, bypassErrors, w, activity)
 			if err != nil {
-				setNodeStatus(ctx, kv, s.t.taskID, deploymentID, s.Target, tosca.NodeStateError.String())
+				setNodeStatus(ctx, s.t.taskID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.Name, err)
 				// Set step in error but continue if needed
 				s.setStatus(tasks.TaskStepStatusERROR)
@@ -238,7 +238,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 
 func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, workflowName string, bypassErrors bool, w *worker, activity builder.Activity) error {
 	// Get activity related instances
-	instances, err := tasks.GetInstances(kv, s.t.taskID, deploymentID, s.Target)
+	instances, err := tasks.GetInstances(s.t.taskID, deploymentID, s.Target)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
 	switch activity.Type() {
 	case builder.ActivityTypeDelegate:
-		nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
+		nodeType, err := deployments.GetNodeType(deploymentID, s.Target)
 		if err != nil {
 			return err
 		}
@@ -278,9 +278,9 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 		}
 	case builder.ActivityTypeSetState:
-		setNodeStatus(wfCtx, kv, s.t.taskID, deploymentID, s.Target, activity.Value())
+		setNodeStatus(wfCtx, s.t.taskID, deploymentID, s.Target, activity.Value())
 	case builder.ActivityTypeCallOperation:
-		op, err := operations.GetOperation(wfCtx, kv, s.t.targetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
+		op, err := operations.GetOperation(wfCtx, s.t.targetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
 		if err != nil {
 			if deployments.IsOperationNotImplemented(err) {
 				// Operation not implemented just skip it
@@ -294,7 +294,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			return err
 		}
-		nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
+		nodeType, err := deployments.GetNodeType(deploymentID, s.Target)
 		if err != nil {
 			return err
 		}
@@ -380,7 +380,7 @@ func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) 
 func (s *step) checkIfPreviousOfNextStepAreDone(ctx context.Context, nextStep *step, workflowName string) (bool, error) {
 	cpt := 0
 	for _, step := range nextStep.Previous {
-		stepStatus, err := tasks.GetTaskStepStatus(s.cc.KV(), s.t.taskID, step.Name)
+		stepStatus, err := tasks.GetTaskStepStatus(s.t.taskID, step.Name)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to retrieve step status with TaskID:%q, step:%q", s.t.taskID, step.Name)
 		}
@@ -464,7 +464,7 @@ func (s *step) publishInstanceRelatedEvents(ctx context.Context, kv *api.KV, dep
 	eventInfo.InstanceName = instanceName
 	instanceTaskExecutionID := fmt.Sprintf("%s-%s", s.t.id, instanceName)
 	for _, status := range statuses {
-		events.PublishAndLogWorkflowStepStatusChange(ctx, kv, deploymentID, s.t.taskID, eventInfo, status.String())
-		events.PublishAndLogAlienTaskStatusChange(ctx, kv, deploymentID, s.t.taskID, instanceTaskExecutionID, eventInfo, status.String())
+		events.PublishAndLogWorkflowStepStatusChange(ctx, deploymentID, s.t.taskID, eventInfo, status.String())
+		events.PublishAndLogAlienTaskStatusChange(ctx, deploymentID, s.t.taskID, instanceTaskExecutionID, eventInfo, status.String())
 	}
 }

@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/deployments/internal"
@@ -33,7 +32,7 @@ const (
 )
 
 // GetWorkflows returns the list of workflows names for a given deployment
-func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
+func GetWorkflows(deploymentID string) ([]string, error) {
 	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix)
 	keys, err := consulutil.GetKeys(workflowsPath)
 	if err != nil {
@@ -47,7 +46,7 @@ func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
 }
 
 // ReadWorkflow reads a workflow definition from Consul and built its TOSCA representation
-func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error) {
+func ReadWorkflow(deploymentID, workflowName string) (tosca.Workflow, error) {
 	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix, workflowName)
 	steps, err := consulutil.GetKeys(workflowPath + "/steps")
 	wf := tosca.Workflow{}
@@ -179,13 +178,13 @@ func readWfStep(stepKey string, stepName string, wfName string) (*tosca.Step, er
 }
 
 // DeleteWorkflow deletes the given workflow from the Consul store
-func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
+func DeleteWorkflow(deploymentID, workflowName string) error {
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
 		workflowsPrefix, workflowName)+"/", true)
 }
 
-func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {
-	wf, err := ReadWorkflow(kv, deploymentID, "run")
+func enhanceWorkflows(consulStore consulutil.ConsulStore, deploymentID string) error {
+	wf, err := ReadWorkflow(deploymentID, "run")
 	if err != nil {
 		return err
 	}
@@ -201,7 +200,7 @@ func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deployment
 		if isCancellable && len(s.OnCancel) == 0 {
 			// Cancellable and on-cancel not defined
 			// Check if there is an cancel op
-			hasCancelOp, err := IsOperationImplemented(kv, deploymentID, s.Target, tosca.RunnableCancelOperationName)
+			hasCancelOp, err := IsOperationImplemented(deploymentID, s.Target, tosca.RunnableCancelOperationName)
 			if err != nil {
 				return err
 			}

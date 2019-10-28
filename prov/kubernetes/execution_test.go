@@ -313,7 +313,7 @@ func Test_execution_scale_resources(t *testing.T) {
 	k8s := newTestK8s()
 	ctx := context.Background()
 	operationType := k8sScaleOperation
-	tasks.SetTaskData(e.kv, e.taskID, "inputs/EXPECTED_INSTANCES", strconv.Itoa(int(3)))
+	tasks.SetTaskData(e.taskID, "inputs/EXPECTED_INSTANCES", strconv.Itoa(int(3)))
 
 	resources := getScalableResourceAndJSON()
 
@@ -633,7 +633,7 @@ func Test_execution_getExpectedInstances(t *testing.T) {
 				deploymentID: tt.fields.deploymentID,
 				taskID:       tt.fields.taskID,
 			}
-			tasks.SetTaskData(e.kv, e.taskID, "inputs/EXPECTED_INSTANCES", tt.data)
+			tasks.SetTaskData(e.taskID, "inputs/EXPECTED_INSTANCES", tt.data)
 			got, err := e.getExpectedInstances()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("execution.getExpectedInstances() error = %v, wantErr %v", err, tt.wantErr)
@@ -662,7 +662,7 @@ func Test_execution_manageNamespaceDeletion(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/nodes/testNode/type":       []byte("fakeType"),
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/fakeType/.existFlag": []byte(""),
 	})
-	deployments.SetNodeProperty(kv, deploymentID, "testNode", "volumeDeletable", "true")
+	deployments.SetNodeProperty(deploymentID, "testNode", "volumeDeletable", "true")
 	//Setup
 	// One ns "default", 0 controler
 	k8s := newTestSimpleK8s()

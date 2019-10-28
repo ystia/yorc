@@ -40,7 +40,7 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 			testConsulPubSubNewEventsWithIndex(t, kv)
 		})
 		t.Run("TestConsulPubSubNewNodeEvents", func(t *testing.T) {
-			testConsulPubSubNewNodeEvents(t, kv)
+			testConsulPubSubNewNodeEvents(t)
 		})
 		t.Run("TestDeploymentStatusChange", func(t *testing.T) {
 			testconsulDeploymentStatusChange(t, kv)

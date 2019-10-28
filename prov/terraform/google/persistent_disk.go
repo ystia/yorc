@@ -20,7 +20,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -31,12 +30,9 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
-	infrastructure *commons.Infrastructure,
-	outputs map[string]string) error {
+func (g *googleGenerator) generatePersistentDisk(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -65,7 +61,7 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return err
 		}
@@ -79,7 +75,7 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		}
 	}
 
-	persistentDisk.Labels, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "labels")
+	persistentDisk.Labels, err = deployments.GetKeyValuePairsNodeProperty(deploymentID, nodeName, "labels")
 	if err != nil {
 		return err
 	}
@@ -95,20 +91,20 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 	}
 
 	// Get Encryption key if set
-	persistentDisk.DiskEncryptionKey, err = handleEncryptionKey(kv, deploymentID, nodeName, "disk_encryption_key")
+	persistentDisk.DiskEncryptionKey, err = handleEncryptionKey(deploymentID, nodeName, "disk_encryption_key")
 	if err != nil {
 		return err
 	}
 	// Get Source snapshot encryption key if source snapshot is filled
 	if persistentDisk.SourceSnapshot != "" {
-		persistentDisk.SourceSnapshotEncryptionKey, err = handleEncryptionKey(kv, deploymentID, nodeName, "snapshot_encryption_key")
+		persistentDisk.SourceSnapshotEncryptionKey, err = handleEncryptionKey(deploymentID, nodeName, "snapshot_encryption_key")
 		if err != nil {
 			return err
 		}
 	}
 	// Get Source image encryption key if source image is filled
 	if persistentDisk.SourceImage != "" {
-		persistentDisk.SourceImageEncryptionKey, err = handleEncryptionKey(kv, deploymentID, nodeName, "image_encryption_key")
+		persistentDisk.SourceImageEncryptionKey, err = handleEncryptionKey(deploymentID, nodeName, "image_encryption_key")
 		if err != nil {
 			return err
 		}
@@ -130,13 +126,13 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 	return nil
 }
 
-func handleEncryptionKey(kv *api.KV, deploymentID, nodeName, prop string) (*EncryptionKey, error) {
-	val, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, prop, "raw_key")
+func handleEncryptionKey(deploymentID, nodeName, prop string) (*EncryptionKey, error) {
+	val, err := deployments.GetNodePropertyValue(deploymentID, nodeName, prop, "raw_key")
 	if err != nil {
 		return nil, err
 	}
 	if val.RawString() != "" {
-		hashValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, prop, "sha256")
+		hashValue, err := deployments.GetNodePropertyValue(deploymentID, nodeName, prop, "sha256")
 		if err != nil {
 			return nil, err
 		}

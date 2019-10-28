@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/deployments/internal"
@@ -32,27 +31,27 @@ import (
 
 // SetInstanceStateStringWithContextualLogs stores the state of a given node instance and publishes a status change event
 // context is used to carry contextual information for logging (see events package)
-func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
+func SetInstanceStateStringWithContextualLogs(ctx context.Context, deploymentID, nodeName, instanceName, state string) error {
 	err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"), state)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = events.PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instanceName, state)
+	_, err = events.PublishAndLogInstanceStatusChange(ctx, deploymentID, nodeName, instanceName, state)
 	if err != nil {
 		return err
 	}
-	return notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, "state", state)
+	return notifyAndPublishAttributeValueChange(deploymentID, nodeName, instanceName, "state", state)
 }
 
 // SetInstanceStateWithContextualLogs stores the state of a given node instance and publishes a status change event
 // context is used to carry contextual information for logging (see events package)
-func SetInstanceStateWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName string, state tosca.NodeState) error {
-	return SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName, instanceName, state.String())
+func SetInstanceStateWithContextualLogs(ctx context.Context, deploymentID, nodeName, instanceName string, state tosca.NodeState) error {
+	return SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName, state.String())
 }
 
 // GetInstanceState retrieves the state of a given node instance
-func GetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string) (tosca.NodeState, error) {
-	stringStateValue, err := GetInstanceStateString(kv, deploymentID, nodeName, instanceName)
+func GetInstanceState(deploymentID, nodeName, instanceName string) (tosca.NodeState, error) {
+	stringStateValue, err := GetInstanceStateString(deploymentID, nodeName, instanceName)
 	if err != nil {
 		return tosca.NodeStateError, err
 	}
@@ -64,7 +63,7 @@ func GetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string) (
 }
 
 // GetInstanceStateString retrieves the string value of the state attribute of a given node instance
-func GetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName string) (string, error) {
+func GetInstanceStateString(deploymentID, nodeName, instanceName string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -76,22 +75,22 @@ func GetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName str
 }
 
 // DeleteInstance deletes the given instance of the given node from the Consul store
-func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) error {
+func DeleteInstance(deploymentID, nodeName, instanceName string) error {
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName)+"/", true)
 }
 
 // DeleteAllInstances deletes all instances of the given node from the Consul store
-func DeleteAllInstances(kv *api.KV, deploymentID, nodeName string) error {
+func DeleteAllInstances(deploymentID, nodeName string) error {
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)+"/", true)
 }
 
 // LookupInstanceAttributeValue executes a lookup to retrieve instance attribute value when attribute can be long to retrieve
-func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, attribute string, nestedKeys ...string) (string, error) {
+func LookupInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, attribute string, nestedKeys ...string) (string, error) {
 	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
 	res := make(chan string, 1)
 	go func() {
 		for {
-			if attr, _ := GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute, nestedKeys...); attr != nil && attr.RawString() != "" {
+			if attr, _ := GetInstanceAttributeValue(deploymentID, nodeName, instanceName, attribute, nestedKeys...); attr != nil && attr.RawString() != "" {
 				if attr != nil && attr.RawString() != "" {
 					res <- attr.RawString()
 					return
@@ -116,8 +115,8 @@ func LookupInstanceAttributeValue(ctx context.Context, kv *api.KV, deploymentID,
 
 // updateInstanceAttributeValue allows to update instance attribute value if possible
 // it resolves instance attribute value skipping existing one
-func updateInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) error {
-	value, err := getInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attributeName, true, nestedKeys...)
+func updateInstanceAttributeValue(deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) error {
+	value, err := getInstanceAttributeValue(deploymentID, nodeName, instanceName, attributeName, true, nestedKeys...)
 	if err != nil {
 		return nil
 	}
@@ -133,11 +132,11 @@ func updateInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceNa
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If the attribute is still not found then it will explore the HostedOn hierarchy.
 // If still not found then it will check node properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
-	return getInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attributeName, false, nestedKeys...)
+func GetInstanceAttributeValue(deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+	return getInstanceAttributeValue(deploymentID, nodeName, instanceName, attributeName, false, nestedKeys...)
 }
 
-func getInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, skipInstanceLevel bool, nestedKeys ...string) (*TOSCAValue, error) {
+func getInstanceAttributeValue(deploymentID, nodeName, instanceName, attributeName string, skipInstanceLevel bool, nestedKeys ...string) (*TOSCAValue, error) {
 
 	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
 	if err != nil {
@@ -155,25 +154,25 @@ func getInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName,
 		// - in the case of a substitutable node, the attribute is available in
 		//   the node attributes (managed in a later block in this function)
 		if !substitutionInstance {
-			result, err := getSubstitutionMappingAttribute(kv, deploymentID, nodeName, instanceName, attributeName, nestedKeys...)
+			result, err := getSubstitutionMappingAttribute(deploymentID, nodeName, instanceName, attributeName, nestedKeys...)
 			if err != nil || result != nil {
 				return result, err
 			}
 		}
 	}
 
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
 	var attrDataType string
-	hasAttr, err := TypeHasAttribute(kv, deploymentID, nodeType, attributeName, true)
+	hasAttr, err := TypeHasAttribute(deploymentID, nodeType, attributeName, true)
 	if err != nil {
 		return nil, err
 	}
 	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, nodeType, attributeName)
+		attrDataType, err = GetTypeAttributeDataType(deploymentID, nodeType, attributeName)
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +188,7 @@ func getInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName,
 				return &TOSCAValue{Value: result}, nil
 			}
 		} else {
-			result, err := getValueAssignmentWithDataType(kv, deploymentID,
+			result, err := getValueAssignmentWithDataType(deploymentID,
 				path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
 				nodeName, instanceName, "", attrDataType, nestedKeys...)
 			if err != nil || result != nil {
@@ -200,13 +199,13 @@ func getInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName,
 	}
 
 	// Then look at global node level (not instance-scoped)
-	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
 	}
 
 	// Not found look at node type
-	defaultValue, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName, nestedKeys...)
+	defaultValue, isFunction, err := getTypeDefaultAttribute(deploymentID, nodeType, attributeName, nestedKeys...)
 	if err != nil {
 		return nil, err
 	}
@@ -214,25 +213,25 @@ func getInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName,
 		if !isFunction {
 			return defaultValue, nil
 		}
-		return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, "", defaultValue, nestedKeys...)
+		return resolveValueAssignment(deploymentID, nodeName, instanceName, "", defaultValue, nestedKeys...)
 	}
 
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	var host string
-	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
+	host, err = GetHostedOnNode(deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	if host != "" {
-		hostValue, err := GetInstanceAttributeValue(kv, deploymentID, host, instanceName, attributeName, nestedKeys...)
+		hostValue, err := GetInstanceAttributeValue(deploymentID, host, instanceName, attributeName, nestedKeys...)
 		if hostValue != nil || err != nil {
 			return hostValue, err
 		}
 	}
 
 	// Now check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	return GetNodePropertyValue(kv, deploymentID, nodeName, attributeName, nestedKeys...)
+	return GetNodePropertyValue(deploymentID, nodeName, attributeName, nestedKeys...)
 }
 
 // SetInstanceAttribute sets an instance attribute
@@ -253,7 +252,7 @@ func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attribute
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	internal.StoreComplexType(store, attrPath, attributeValue)
-	err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	err := notifyAndPublishAttributeValueChange(deploymentID, nodeName, instanceName, attributeName, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -270,7 +269,7 @@ func SetInstanceListAttributesComplex(attributes []*AttributeData) error {
 		internal.StoreComplexType(store, attrPath, attribute.Value)
 	}
 	for _, attribute := range attributes {
-		err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), attribute.DeploymentID, attribute.NodeName, attribute.InstanceName, attribute.Name, attribute.Value)
+		err := notifyAndPublishAttributeValueChange(attribute.DeploymentID, attribute.NodeName, attribute.InstanceName, attribute.Name, attribute.Value)
 		if err != nil {
 			return err
 		}
@@ -282,23 +281,23 @@ func SetInstanceListAttributesComplex(attributes []*AttributeData) error {
 //
 // It does the same thing than iterating over instances ids and calling SetInstanceAttribute but use
 // a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
-func SetAttributeForAllInstances(kv *api.KV, deploymentID, nodeName, attributeName, attributeValue string) error {
-	return SetAttributeComplexForAllInstances(kv, deploymentID, nodeName, attributeName, attributeValue)
+func SetAttributeForAllInstances(deploymentID, nodeName, attributeName, attributeValue string) error {
+	return SetAttributeComplexForAllInstances(deploymentID, nodeName, attributeName, attributeValue)
 }
 
 // SetAttributeComplexForAllInstances sets the same attribute value to all instances of a given node.
 //
 // It does the same thing than iterating over instances ids and calling SetInstanceAttributeComplex but use
 // a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
-func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attributeName string, attributeValue interface{}) error {
-	ids, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+func SetAttributeComplexForAllInstances(deploymentID, nodeName, attributeName string, attributeValue interface{}) error {
+	ids, err := GetNodeInstancesIds(deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		internal.StoreComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
-		err = notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName, attributeValue)
+		err = notifyAndPublishAttributeValueChange(deploymentID, nodeName, instanceName, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
@@ -306,7 +305,7 @@ func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attr
 	return errGrp.Wait()
 }
 
-func notifyAndPublishAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
+func notifyAndPublishAttributeValueChange(deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	// First, Publish event
 	sValue, ok := attributeValue.(string)
 	if ok {
@@ -322,5 +321,5 @@ func notifyAndPublishAttributeValueChange(kv *api.KV, deploymentID, nodeName, in
 		InstanceName:  instanceName,
 		AttributeName: attributeName,
 	}
-	return an.NotifyValueChange(kv, deploymentID)
+	return an.NotifyValueChange(deploymentID)
 }

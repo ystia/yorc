@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
-	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
@@ -93,13 +92,13 @@ func getSSHClient(credentials *datatypes.Credential, locationProps config.Dynami
 
 // getUserCredentials returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
-func getUserCredentials(kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
+func getUserCredentials(locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
 	var err error
 	var credentialsValue *deployments.TOSCAValue
 	if capabilityName != "" {
-		credentialsValue, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, "credentials")
+		credentialsValue, err = deployments.GetCapabilityPropertyValue(deploymentID, nodeName, capabilityName, "credentials")
 	} else {
-		credentialsValue, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "credentials")
+		credentialsValue, err = deployments.GetNodePropertyValue(deploymentID, nodeName, "credentials")
 	}
 	if err != nil {
 		return nil, err

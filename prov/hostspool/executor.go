@@ -89,7 +89,7 @@ func (e *defaultExecutor) getLocationForNode(cc *api.Client, deploymentID, nodeN
 	}
 
 	// Get the location name in node template metadata
-	found, locationName, err := deployments.GetNodeMetadata(cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
+	found, locationName, err := deployments.GetNodeMetadata(deploymentID, nodeName, tosca.MetadataLocationNameKey)
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +107,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 	ctx context.Context, cc *api.Client, cfg config.Configuration,
 	op operationParameters) error {
 
-	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
+	instances, err := tasks.GetInstances(op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
@@ -120,36 +120,29 @@ func (e *defaultExecutor) execDelegateHostsPool(
 
 	switch strings.ToLower(op.delegateOperation) {
 	case "install":
-		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateCreating)
+		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateCreating)
 		err = e.hostsPoolCreate(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
-		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateStarted)
+		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateStarted)
 	case "uninstall":
-		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateDeleting)
+		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateDeleting)
 		err = e.hostsPoolDelete(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
-		setInstancesStateWithContextualLogs(ctx, cc, op, instances, tosca.NodeStateDeleted)
+		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateDeleted)
 	default:
 		return errors.Errorf("operation %q not supported", op.delegateOperation)
 	}
 	return nil
 }
 
-func setInstancesStateWithContextualLogs(
-	ctx context.Context,
-	cc *api.Client,
-	op operationParameters,
-	instances []string,
-	state tosca.NodeState) {
+func setInstancesStateWithContextualLogs(ctx context.Context, op operationParameters, instances []string, state tosca.NodeState) {
 
 	for _, instance := range instances {
-		deployments.SetInstanceStateWithContextualLogs(
-			events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}),
-			cc.KV(), op.deploymentID, op.nodeName, instance, state)
+		deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), op.deploymentID, op.nodeName, instance, state)
 	}
 }
 
@@ -157,7 +150,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 	cc *api.Client, cfg config.Configuration,
 	op operationParameters, allocatedResources map[string]string) error {
 
-	jsonProp, err := deployments.GetNodePropertyValue(cc.KV(), op.deploymentID, op.nodeName, "filters")
+	jsonProp, err := deployments.GetNodePropertyValue(op.deploymentID, op.nodeName, "filters")
 	if err != nil {
 		return err
 	}
@@ -181,7 +174,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 	}
 
 	shareable := false
-	if s, err := deployments.GetNodePropertyValue(cc.KV(), op.deploymentID, op.nodeName, "shareable"); err != nil {
+	if s, err := deployments.GetNodePropertyValue(op.deploymentID, op.nodeName, "shareable"); err != nil {
 		return err
 	} else if s != nil && s.RawString() != "" {
 		shareable, err = strconv.ParseBool(s.RawString())
@@ -190,7 +183,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 		}
 	}
 
-	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
+	instances, err := tasks.GetInstances(op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
@@ -359,7 +352,7 @@ func setInstanceAttributesFromLabels(op operationParameters, instance string, la
 
 func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
 	res := make(map[string]string, 0)
-	p, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "num_cpus")
+	p, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +360,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, 
 		res["host.num_cpus"] = p.RawString()
 	}
 
-	p, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "mem_size")
+	p, err = deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "mem_size")
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +368,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, 
 		res["host.mem_size"] = p.RawString()
 	}
 
-	p, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "disk_size")
+	p, err = deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "disk_size")
 	if err != nil {
 		return nil, err
 	}
@@ -385,14 +378,13 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, 
 	return res, nil
 }
 
-func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
-	p, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capName, propName)
+func appendCapabilityFilter(deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
+	p, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, capName, propName)
 	if err != nil {
 		return filters, err
 	}
 
-	hasProp, propDataType, err := deployments.GetCapabilityPropertyType(kv, deploymentID,
-		nodeName, capName, propName)
+	hasProp, propDataType, err := deployments.GetCapabilityPropertyType(deploymentID, nodeName, capName, propName)
 	if err != nil {
 		return filters, err
 	}
@@ -427,35 +419,35 @@ func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propNam
 func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName string) ([]labelsutil.Filter, error) {
 	var err error
 	filters := make([]labelsutil.Filter, 0)
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "num_cpus", ">=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "num_cpus", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "cpu_frequency", ">=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "cpu_frequency", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "disk_size", ">=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "disk_size", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "mem_size", ">=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "mem_size", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "architecture", "=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "architecture", "=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "type", "=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "type", "=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "distribution", "=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "distribution", "=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "version", "=", filters)
+	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "version", "=", filters)
 	if err != nil {
 		return nil, err
 	}
@@ -464,15 +456,14 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 
 func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client,
 	cfg config.Configuration, op operationParameters, allocatedResources map[string]string) error {
-	instances, err := tasks.GetInstances(cc.KV(), op.taskID, op.deploymentID, op.nodeName)
+	instances, err := tasks.GetInstances(op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
-		hostname, err := deployments.GetInstanceAttributeValue(
-			cc.KV(), op.deploymentID, op.nodeName, instance, "hostname")
+		hostname, err := deployments.GetInstanceAttributeValue(op.deploymentID, op.nodeName, instance, "hostname")
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}

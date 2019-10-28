@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ystia/yorc/v4/config"
@@ -30,7 +29,7 @@ const (
 	workDirTest = "test"
 )
 
-func testGetOverlayPath(t *testing.T, kv *api.KV) {
+func testGetOverlayPath(t *testing.T) {
 
 	cfg := config.Configuration{
 		WorkingDirectory: workDirTest,
@@ -52,7 +51,7 @@ func testGetOverlayPath(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path, err := GetOverlayPath(kv, cfg, tt.taskID, deploymentID)
+			path, err := GetOverlayPath(cfg, tt.taskID, deploymentID)
 			if tt.wantErr && err == nil {
 				t.Errorf("%s: Expected an error getting overlay path for task %s", tt.name, tt.taskID)
 			} else if !tt.wantErr && err != nil {

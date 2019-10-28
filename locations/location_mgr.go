@@ -178,8 +178,7 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 func (mgr *locationManager) GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
 
 	// Get the location name in node template metadata
-	found, locationName, err := deployments.GetNodeMetadata(
-		mgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
+	found, locationName, err := deployments.GetNodeMetadata(deploymentID, nodeName, tosca.MetadataLocationNameKey)
 	if err != nil {
 		return nil, err
 	}

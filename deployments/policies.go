@@ -18,14 +18,13 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // GetPoliciesForType retrieves all policies with or derived from policyTypeName
-func GetPoliciesForType(kv *api.KV, deploymentID, policyTypeName string) ([]string, error) {
+func GetPoliciesForType(deploymentID, policyTypeName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies")
 	keys, err := consulutil.GetKeys(p)
 	if err != nil {
@@ -43,7 +42,7 @@ func GetPoliciesForType(kv *api.KV, deploymentID, policyTypeName string) ([]stri
 			return nil, errors.Errorf("Missing mandatory attribute \"type\" for policy %q", path.Base(key))
 		}
 		// Check policy type
-		isType, err := IsTypeDerivedFrom(kv, deploymentID, policyType, policyTypeName)
+		isType, err := IsTypeDerivedFrom(deploymentID, policyType, policyTypeName)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -56,14 +55,14 @@ func GetPoliciesForType(kv *api.KV, deploymentID, policyTypeName string) ([]stri
 }
 
 // GetPoliciesForTypeAndNode retrieves all policies with or derived from policyTypeName and with nodeName as target
-func GetPoliciesForTypeAndNode(kv *api.KV, deploymentID, policyTypeName, nodeName string) ([]string, error) {
-	policiesForType, err := GetPoliciesForType(kv, deploymentID, policyTypeName)
+func GetPoliciesForTypeAndNode(deploymentID, policyTypeName, nodeName string) ([]string, error) {
+	policiesForType, err := GetPoliciesForType(deploymentID, policyTypeName)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	policies := make([]string, 0)
 	for _, policy := range policiesForType {
-		is, err := IsTargetForPolicy(kv, deploymentID, policy, nodeName, false)
+		is, err := IsTargetForPolicy(deploymentID, policy, nodeName, false)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -78,30 +77,30 @@ func GetPoliciesForTypeAndNode(kv *api.KV, deploymentID, policyTypeName, nodeNam
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the policy then the type hierarchy is explored to find a default value.
-func GetPolicyPropertyValue(kv *api.KV, deploymentID, policyName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	policyType, err := GetPolicyType(kv, deploymentID, policyName)
+func GetPolicyPropertyValue(deploymentID, policyName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
+	policyType, err := GetPolicyType(deploymentID, policyName)
 	if err != nil {
 		return nil, err
 	}
 	var propDataType string
-	hasProp, err := TypeHasProperty(kv, deploymentID, policyType, propertyName, true)
+	hasProp, err := TypeHasProperty(deploymentID, policyType, propertyName, true)
 	if err != nil {
 		return nil, err
 	}
 	if hasProp {
-		propDataType, err = GetTypePropertyDataType(kv, deploymentID, policyType, propertyName)
+		propDataType, err = GetTypePropertyDataType(deploymentID, policyType, propertyName)
 		if err != nil {
 			return nil, err
 		}
 	}
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName)
 
-	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(p, "properties", propertyName), policyName, "", "", propDataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(deploymentID, path.Join(p, "properties", propertyName), policyName, "", "", propDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get property %q for policy %q", propertyName, policyName)
 	}
 	// Not found look at policy type
-	value, isFunction, err := getTypeDefaultProperty(kv, deploymentID, policyType, propertyName, nestedKeys...)
+	value, isFunction, err := getTypeDefaultProperty(deploymentID, policyType, propertyName, nestedKeys...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,14 +108,14 @@ func GetPolicyPropertyValue(kv *api.KV, deploymentID, policyName, propertyName s
 		if !isFunction {
 			return value, nil
 		}
-		return resolveValueAssignment(kv, deploymentID, policyName, "", "", value, nestedKeys...)
+		return resolveValueAssignment(deploymentID, policyName, "", "", value, nestedKeys...)
 	}
 	// Not found anywhere
 	return nil, nil
 }
 
 // GetPolicyType returns the type of the policy
-func GetPolicyType(kv *api.KV, deploymentID, policyName string) (string, error) {
+func GetPolicyType(deploymentID, policyName string) (string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName)
 	exist, value, err := consulutil.GetStringValue(path.Join(p, "type"))
 	if err != nil {
@@ -129,8 +128,8 @@ func GetPolicyType(kv *api.KV, deploymentID, policyName string) (string, error) 
 }
 
 // IsTargetForPolicy returns true if the node name is a policy target
-func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string, recursive bool) (bool, error) {
-	targets, err := GetPolicyTargets(kv, deploymentID, policyName)
+func IsTargetForPolicy(deploymentID, policyName, nodeName string, recursive bool) (bool, error) {
+	targets, err := GetPolicyTargets(deploymentID, policyName)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -138,21 +137,21 @@ func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string, re
 		return collections.ContainsString(targets, nodeName), nil
 	}
 
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	policyType, err := GetPolicyType(kv, deploymentID, policyName)
+	policyType, err := GetPolicyType(deploymentID, policyName)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	targets, err = GetPolicyTargetsForType(kv, deploymentID, policyType)
+	targets, err = GetPolicyTargetsForType(deploymentID, policyType)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, target := range targets {
-		is, err := IsTypeDerivedFrom(kv, deploymentID, nodeType, target)
+		is, err := IsTypeDerivedFrom(deploymentID, nodeType, target)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -165,7 +164,7 @@ func IsTargetForPolicy(kv *api.KV, deploymentID, policyName, nodeName string, re
 
 // GetPolicyTargets retrieves the policy template targets
 // these targets are node names
-func GetPolicyTargets(kv *api.KV, deploymentID, policyName string) ([]string, error) {
+func GetPolicyTargets(deploymentID, policyName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName, "targets")
 	exist, value, err := consulutil.GetStringValue(p)
 	if err != nil {
@@ -179,7 +178,7 @@ func GetPolicyTargets(kv *api.KV, deploymentID, policyName string) ([]string, er
 
 // GetPolicyTargetsForType retrieves the policy type targets
 // this targets are node types
-func GetPolicyTargetsForType(kv *api.KV, deploymentID, policyType string) ([]string, error) {
+func GetPolicyTargetsForType(deploymentID, policyType string) ([]string, error) {
 	typePath, err := locateTypePath(deploymentID, policyType)
 	if err != nil {
 		return nil, err
@@ -200,5 +199,5 @@ func GetPolicyTargetsForType(kv *api.KV, deploymentID, policyType string) ([]str
 	if parentType == "" {
 		return nil, nil
 	}
-	return GetPolicyTargetsForType(kv, deploymentID, parentType)
+	return GetPolicyTargetsForType(deploymentID, parentType)
 }

@@ -17,7 +17,6 @@ package deployments
 import (
 	"path"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -30,7 +29,7 @@ const DockerHubURL = "https://hub.docker.com/"
 const SingularityHubURL = "https://singularity-hub.org/"
 
 // GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
-func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (string, error) {
+func GetRepositoryURLFromName(deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "url"))
 	if err != nil {
@@ -43,7 +42,7 @@ func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (string
 }
 
 // GetRepositoryTokenTypeFromName retrieves the token_type of credential for a given repoName
-func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (string, error) {
+func GetRepositoryTokenTypeFromName(deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token_type"))
 	if err != nil {
@@ -58,7 +57,7 @@ func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (
 }
 
 // GetRepositoryTokenUserFromName This function get the credentials (user/token) for a given repoName
-func GetRepositoryTokenUserFromName(kv *api.KV, deploymentID, repoName string) (string, string, error) {
+func GetRepositoryTokenUserFromName(deploymentID, repoName string) (string, string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	existToken, token, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token"))
 	if err != nil {

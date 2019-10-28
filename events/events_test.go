@@ -56,7 +56,7 @@ func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 
 	ids := make([]string, 0)
 	for _, tc := range testData {
-		id, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, tc.node, tc.instance, tc.status)
+		id, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
@@ -95,7 +95,7 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 	ready := make(chan struct{})
 
 	go func() {
-		i, err := GetStatusEventsIndex(kv, deploymentID)
+		i, err := GetStatusEventsIndex(deploymentID)
 		require.Nil(t, err)
 		ready <- struct{}{}
 		events, _, err := StatusEvents(kv, deploymentID, i, 5*time.Minute)
@@ -108,7 +108,7 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 		assert.Equal(t, event[EInstanceID.String()], instance)
 	}()
 	<-ready
-	_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instance, nodeStatus)
+	_, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 }
 
@@ -143,7 +143,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	}
 
 	for _, tc := range testData {
-		_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, tc.node, tc.instance, tc.status)
+		_, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
@@ -168,7 +168,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	}
 
 	for _, tc := range testData {
-		_, err = PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, tc.node, tc.instance, tc.status)
+		_, err = PublishAndLogInstanceStatusChange(ctx, deploymentID, tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
@@ -185,7 +185,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
+func testConsulPubSubNewNodeEvents(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
@@ -194,7 +194,7 @@ func testConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
 	instance := "0"
 	nodeStatus := "error"
 
-	_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instance, nodeStatus)
+	_, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 
 }
@@ -219,7 +219,7 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogDeploymentStatusChange(ctx, tt.args.kv, deploymentID, tt.args.status)
+			got, err := PublishAndLogDeploymentStatusChange(ctx, deploymentID, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeploymentStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -268,7 +268,7 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogCustomCommandStatusChange(ctx, tt.args.kv, deploymentID, tt.args.taskID, tt.args.status)
+			got, err := PublishAndLogCustomCommandStatusChange(ctx, deploymentID, tt.args.taskID, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CustomCommandStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -318,7 +318,7 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogScalingStatusChange(ctx, tt.args.kv, deploymentID, tt.args.taskID, tt.args.status)
+			got, err := PublishAndLogScalingStatusChange(ctx, deploymentID, tt.args.taskID, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ScalingStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -369,7 +369,7 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogWorkflowStatusChange(ctx, tt.args.kv, deploymentID, tt.args.taskID, tt.args.workflowName, tt.args.status)
+			got, err := PublishAndLogWorkflowStatusChange(ctx, deploymentID, tt.args.taskID, tt.args.workflowName, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WorkflowStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -419,7 +419,7 @@ func testconsulWorkflowStepStatusChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogWorkflowStepStatusChange(context.Background(), tt.args.kv, deploymentID, tt.args.taskID, tt.args.wfInfo, tt.args.status)
+			got, err := PublishAndLogWorkflowStepStatusChange(context.Background(), deploymentID, tt.args.taskID, tt.args.wfInfo, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WorkflowStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -473,7 +473,7 @@ func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogAlienTaskStatusChange(context.Background(), tt.args.kv, deploymentID, tt.args.taskID, tt.args.taskExecutionID, tt.args.wfInfo, tt.args.status)
+			got, err := PublishAndLogAlienTaskStatusChange(context.Background(), deploymentID, tt.args.taskID, tt.args.taskExecutionID, tt.args.wfInfo, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WorkflowStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -556,19 +556,19 @@ func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	ids := make([]string, 5)
-	id, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, "node1", "1", "started")
+	id, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, "node1", "1", "started")
 	require.Nil(t, err)
 	ids[0] = id
-	id, err = PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, "deployed")
+	id, err = PublishAndLogDeploymentStatusChange(ctx, deploymentID, "deployed")
 	require.Nil(t, err)
 	ids[1] = id
-	id, err = PublishAndLogScalingStatusChange(ctx, kv, deploymentID, "t2", "failed")
+	id, err = PublishAndLogScalingStatusChange(ctx, deploymentID, "t2", "failed")
 	require.Nil(t, err)
 	ids[2] = id
-	id, err = PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, "t3", "running")
+	id, err = PublishAndLogCustomCommandStatusChange(ctx, deploymentID, "t3", "running")
 	require.Nil(t, err)
 	ids[3] = id
-	id, err = PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, "t4", "install", "done")
+	id, err = PublishAndLogWorkflowStatusChange(ctx, deploymentID, "t4", "install", "done")
 	require.Nil(t, err)
 	ids[4] = id
 
@@ -622,25 +622,25 @@ func testconsulGetLogs(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	myErr := errors.New("MyError")
 	deploymentID := testutil.BuildDeploymentID(t)
-	prevIndex, err := GetLogsEventsIndex(kv, deploymentID)
+	prevIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	SimpleLogEntry(LogLevelERROR, deploymentID).RegisterAsString(myErr.Error())
-	newIndex, err := GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message1")
-	newIndex, err = GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message2")
-	newIndex, err = GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message3")
-	newIndex, err = GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
@@ -659,8 +659,8 @@ func testPurgeDeploymentEvents(t *testing.T, kv *api.KV) {
 	ctx := context.Background()
 	deployment1ID := "testPurgeDeploymentEventsA"
 	deployment2ID := "testPurgeDeploymentEventsAA"
-	PublishAndLogInstanceStatusChange(ctx, kv, deployment1ID, "somenode", "someinstance", "somestatus")
-	PublishAndLogInstanceStatusChange(ctx, kv, deployment2ID, "someothernode", "someotherinstance", "someotherstatus")
+	PublishAndLogInstanceStatusChange(ctx, deployment1ID, "somenode", "someinstance", "somestatus")
+	PublishAndLogInstanceStatusChange(ctx, deployment2ID, "someothernode", "someotherinstance", "someotherstatus")
 	rawEvents, _, err := StatusEvents(kv, deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
@@ -668,7 +668,7 @@ func testPurgeDeploymentEvents(t *testing.T, kv *api.KV) {
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentEvents(kv, deployment1ID)
+	err = PurgeDeploymentEvents(deployment1ID)
 	require.NoError(t, err)
 
 	rawEvents, _, err = StatusEvents(kv, deployment1ID, 0, 5*time.Minute)
@@ -692,7 +692,7 @@ func testPurgeDeploymentLogs(t *testing.T, kv *api.KV) {
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentLogs(kv, deployment1ID)
+	err = PurgeDeploymentLogs(deployment1ID)
 	require.NoError(t, err)
 
 	rawEvents, _, err = LogsEvents(kv, deployment1ID, 0, 5*time.Minute)
