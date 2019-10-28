@@ -61,20 +61,16 @@ WSPb8a8DvmtjA0/IyWLtRhiKDPo0ultXa3DHINOC2+sZ5qJpsycNaqV4ObcmCJCc
 h5pSY3nqKgmTiTW5EGnhLxUnEmS0MMvVT59ldx2pZhzgDyxYWO09
 -----END RSA PRIVATE KEY-----`
 
-type mockSSHClient struct {
-	config *ssh.ClientConfig
-}
-
-func (m *mockSSHClient) RunCommand(string) (string, error) {
-	if m.config != nil && m.config.User == "fail" {
-		return "", errors.Errorf("Failed to connect")
-	}
-
-	return "ok", nil
-}
-
 var mockSSHClientFactory = func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
-	return &mockSSHClient{config}
+	return &sshutil.MockSSHClient{
+		MockRunCommand: func(string) (string, error) {
+			if config != nil && config.User == "fail" {
+				return "", errors.Errorf("Failed to connect")
+			}
+
+			return "ok", nil
+		},
+	}
 }
 
 func cleanupHostsPool(t *testing.T, cc *api.Client) {

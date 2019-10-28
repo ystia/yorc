@@ -69,6 +69,8 @@ data_types:
         entry_schema:
           type: string
 
+# This type is backed by tosca.datatypes.SlurmExecutionOptions if modifying something here it should be reported
+# to tosca.datatypes.SlurmExecutionOptions.
   yorc.datatypes.slurm.ExecutionOptions:
     derived_from: tosca.datatypes.Root
     properties:
@@ -87,6 +89,14 @@ data_types:
       env_vars:
         type: list
         description: Environment variables to pass to the job execution.
+        required: false
+        entry_schema:
+          type: string
+      in_script_options:
+        type: list
+        description: |
+          List of options to be passed to sbatch as inline batch script options.
+          To be valid each element should start with a dash '#' character.
         required: false
         entry_schema:
           type: string
@@ -160,6 +170,12 @@ node_types:
           Time interval duration used for job monitoring as "5s" or "300ms"
           Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
         required: false
+      environment_file:
+        type: string
+        required: false
+        description: >
+          If specified and present on the client node the given file will be sourced before submitting the job.
+          This is useful when user-specific variables are required.
       credentials:
         type: tosca.datatypes.Credential
         description: >

@@ -27,7 +27,7 @@ function help () {
 
         -e: Yorc Engine PR number, defaults to develop if not provided
 
-        -p: Yorc a4c Plugin PR number, defaults to develop if not provided
+        -a: alternative Alien4Cloud download url
 
         -v: a Yorc bootstrap values file (see https://yorc.readthedocs.io/en/latest/bootstrap.html#bootstrapping-the-setup-using-a-configuration-file)
 
@@ -70,17 +70,13 @@ function getYorcURLFromPart () {
     getURLFromPart "$1" 'yorc-[0-9].*?.tgz'
 }
 
-function getYorcPluginURLFromPart () {
-    getURLFromPart "$1" 'alien4cloud-yorc-plugin-[0-9].*?.zip'
-}
-
 while getopts ":yv:e:p:" opt; do
   case $opt in
     v)
       VALUES_FILE=(--values "${OPTARG}")
       ;;
-    p)
-      PLUGIN_PR=${OPTARG}
+    a)
+      A4C_URL=${OPTARG}
       ;;
     e)
       ENGINE_PR=${OPTARG}
@@ -115,20 +111,17 @@ fi
 export YORC_DOWNLOAD_URL
 
 
-if [[ -n "${PLUGIN_PR}" ]] ; then
-    YORC_PLUGIN_DOWNLOAD_URL=$(getYorcPluginURLFromPart "https://ystia.jfrog.io/ystia/yorc-a4c-plugin-bin-dev-local/ystia/yorc-a4c-plugin/dist/PR-${PLUGIN_PR}")
+if [[ -n "${A4C_URL}" ]] ; then
+    YORC_ALIEN4CLOUD_DOWNLOAD_URL="${A4C_URL}"
+    extra_args="--alien4cloud_download_url=${YORC_ALIEN4CLOUD_DOWNLOAD_URL}"
 fi
 
-if [[ -z "${YORC_PLUGIN_DOWNLOAD_URL}" ]] ; then
-    confirmOrExit "PR number not provided or not found on on Artifactory for Yorc A4C Plugin, would you like to use develop"
-    YORC_PLUGIN_DOWNLOAD_URL=$(getYorcPluginURLFromPart "https://ystia.jfrog.io/ystia/yorc-a4c-plugin-bin-dev-local/ystia/yorc-a4c-plugin/dist/develop")
-fi
+export YORC_ALIEN4CLOUD_DOWNLOAD_URL
 
-export YORC_PLUGIN_DOWNLOAD_URL
 
 echo "Downloading ${YORC_DOWNLOAD_URL} please be patient..."
 curl "${YORC_DOWNLOAD_URL}" -o work/yorc.tgz
 
 tar xzvf work/yorc.tgz -C work
 
-./work/yorc bootstrap "${VALUES_FILE[@]}" --yorc_download_url "${YORC_DOWNLOAD_URL}" --yorc_plugin_download_url "${YORC_PLUGIN_DOWNLOAD_URL}"
+./work/yorc bootstrap "${VALUES_FILE[@]}" --yorc_download_url "${YORC_DOWNLOAD_URL}" "${extra_args}"

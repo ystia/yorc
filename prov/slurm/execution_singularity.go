@@ -101,8 +101,8 @@ func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Contex
 		debug = "-d -v"
 	}
 	cmdOpts := strings.Join(e.commandOptions, " ")
-	if e.jobInfo.Command != "" {
-		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, cmdOpts, e.imageURI, e.jobInfo.Command, quoteArgs(e.jobInfo.Args))
+	if e.jobInfo.ExecutionOptions.Command != "" {
+		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, cmdOpts, e.imageURI, e.jobInfo.ExecutionOptions.Command, quoteArgs(e.jobInfo.ExecutionOptions.Args))
 	} else {
 		inner = fmt.Sprintf("srun singularity %s run %s %s", debug, cmdOpts, e.imageURI)
 	}

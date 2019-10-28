@@ -35,7 +35,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
-const reSbatch = `^Submitted batch job (\d+)`
+const reSbatch = `Submitted batch job (\d+)`
 
 const invalidJob = "Invalid job id specified"
 
@@ -308,7 +308,7 @@ func parseJobID(str string, regexp *regexp.Regexp) (string, error) {
 	return "", errors.Errorf("Unable to parse std:%q for retrieving jobID", str)
 }
 
-func cancelJobID(jobID string, client *sshutil.SSHClient) error {
+func cancelJobID(jobID string, client sshutil.Client) error {
 	scancelCmd := fmt.Sprintf("scancel %s", jobID)
 	sCancelOutput, err := client.RunCommand(scancelCmd)
 	if err != nil {
