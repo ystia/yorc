@@ -27,7 +27,7 @@ import (
 // GetPoliciesForType retrieves all policies with or derived from policyTypeName
 func GetPoliciesForType(kv *api.KV, deploymentID, policyTypeName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies")
-	keys, _, err := kv.Keys(p+"/", "/", nil)
+	keys, err := consulutil.GetKeys(p)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

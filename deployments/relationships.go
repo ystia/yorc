@@ -239,7 +239,7 @@ func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV,
 	return nil
 }
 
-func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeName, instanceName string, add bool) error {
+func addOrRemoveInstanceFromTargetRelationship(deploymentID, nodeName, instanceName string, add bool) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
 	// Appending a final "/" here is not necessary has there is no other keys starting with "relationship_instances" prefix
 	relInstKVPairs, err := consulutil.List(relInstancePath)
@@ -284,19 +284,19 @@ func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeNam
 func DeleteRelationshipInstance(kv *api.KV, deploymentID, nodeName, instanceName string) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
 	nodeRelInstancePath := path.Join(relInstancePath, nodeName)
-	reqIndices, _, err := kv.Keys(nodeRelInstancePath+"/", "/", nil)
+	reqIndices, err := consulutil.GetKeys(nodeRelInstancePath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, reqindex := range reqIndices {
-		_, err := kv.DeleteTree(path.Join(reqindex, instanceName)+"/", nil)
+		err = consulutil.Delete(path.Join(reqindex, instanceName)+"/", true)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 	}
 
 	// now delete from targets in relationships instances
-	addOrRemoveInstanceFromTargetRelationship(kv, deploymentID, nodeName, instanceName, false)
+	addOrRemoveInstanceFromTargetRelationship(deploymentID, nodeName, instanceName, false)
 
 	return nil
 }

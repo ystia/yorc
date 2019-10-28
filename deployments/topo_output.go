@@ -44,7 +44,7 @@ func GetTopologyOutputValue(kv *api.KV, deploymentID, outputName string, nestedK
 
 // GetTopologyOutputsNames returns the list of outputs for the deployment
 func GetTopologyOutputsNames(kv *api.KV, deploymentID string) ([]string, error) {
-	optPaths, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/outputs")+"/", "/", nil)
+	optPaths, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/outputs"))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

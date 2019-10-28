@@ -48,7 +48,7 @@ const (
 
 // isSubstitutableNode returns true if a node contains an Orchestrator directive
 // that it is substitutable
-func isSubstitutableNode(kv *api.KV, deploymentID, nodeName string) (bool, error) {
+func isSubstitutableNode(deploymentID, nodeName string) (bool, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "directives"))
 	if err != nil {
 		return false, errors.Wrapf(err, "Can't get directives for node %q", nodeName)
@@ -110,15 +110,14 @@ func getSubstitutionMappingFromStore(kv *api.KV, prefix string) (tosca.Substitut
 		return substitutionMapping, err
 	}
 
-	substitutionMapping.Interfaces, err = getInterfaceMappingFromStore(
-		kv, path.Join(substitutionPrefix, "interfaces"))
+	substitutionMapping.Interfaces, err = getInterfaceMappingFromStore(path.Join(substitutionPrefix, "interfaces"))
 
 	return substitutionMapping, err
 }
 
 func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapReqMapping, error) {
 
-	capabilityPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	capabilityPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +161,7 @@ func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapR
 }
 
 func getPropertiesOrAttributesFromStore(kv *api.KV, prefix string) (map[string]*tosca.ValueAssignment, error) {
-	propPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	propPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +187,7 @@ func getPropertiesOrAttributesFromStore(kv *api.KV, prefix string) (map[string]*
 
 func getPropAttrMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.PropAttrMapping, error) {
 
-	propPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	propPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -222,20 +221,16 @@ func getPropAttrMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.Pr
 }
 
 func getValueAssignmentFromStore(kv *api.KV, valPath string) (*tosca.ValueAssignment, error) {
-	kvp, _, err := kv.Get(valPath, nil)
+	exist, value, meta, err := consulutil.GetValueWithMetadata(valPath)
 	if err != nil {
 		return nil, err
 	}
 	var val tosca.ValueAssignment
-	if kvp != nil {
-		val.Type = tosca.ValueAssignmentType(kvp.Flags)
-		if err != nil {
-			return nil, err
-		}
-
+	if exist {
+		val.Type = tosca.ValueAssignmentType(meta.Flag)
 		switch val.Type {
 		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
-			val.Value = kvp.Value
+			val.Value = value
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			val.Value, err = readComplexVA(kv, val.Type, "", valPath, "")
 			if err != nil {
@@ -247,9 +242,9 @@ func getValueAssignmentFromStore(kv *api.KV, valPath string) (*tosca.ValueAssign
 	return &val, nil
 }
 
-func getInterfaceMappingFromStore(kv *api.KV, prefix string) (map[string]string, error) {
+func getInterfaceMappingFromStore(prefix string) (map[string]string, error) {
 
-	opPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	opPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -371,22 +366,22 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 
 // getSubstitutionNodeInstancesIds returns for a substitutable node, a fake
 // instance ID, all necessary infos are stored and retrieved at the node level.
-func getSubstitutionNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+func getSubstitutionNodeInstancesIds(deploymentID, nodeName string) ([]string, error) {
 
 	var names []string
-	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
 	if err == nil && substitutable {
 		names = []string{substitutableNodeInstance}
 	}
 	return names, err
 }
 
-func isSubstitutionNodeInstance(kv *api.KV, deploymentID, nodeName, nodeInstance string) (bool, error) {
+func isSubstitutionNodeInstance(deploymentID, nodeName, nodeInstance string) (bool, error) {
 	if nodeInstance != substitutableNodeInstance {
 		return false, nil
 	}
 
-	return isSubstitutableNode(kv, deploymentID, nodeName)
+	return isSubstitutableNode(deploymentID, nodeName)
 }
 
 // getSubstitutableNodeType returns the node type of a substitutable node.
@@ -412,7 +407,7 @@ func getSubstitutableNodeType(kv *api.KV, deploymentID, nodeName, nodeType strin
 	// The real node type has to be found in subsitution mappings of an imported
 	// file whose metadata template name is the nodeType here.
 	importsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/imports")
-	imports, _, err := kv.Keys(importsPath+"/", "/", nil)
+	imports, err := consulutil.GetKeys(importsPath)
 	if err != nil {
 		return "", errors.Wrap(err, "Consul communication error")
 	}

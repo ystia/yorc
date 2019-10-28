@@ -120,7 +120,7 @@ func getScalablePropertyForNode(kv *api.KV, deploymentID, nodeName, propertyName
 // GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentID.
 func GetNbInstancesForNode(kv *api.KV, deploymentID, nodeName string) (uint32, error) {
 	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
-	keys, _, err := kv.Keys(instancesPath+"/", "/", nil)
+	keys, err := consulutil.GetKeys(instancesPath)
 	if err != nil {
 		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -133,7 +133,7 @@ func GetNbInstancesForNode(kv *api.KV, deploymentID, nodeName string) (uint32, e
 func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
 	names := make([]string, 0)
 	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
-	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
+	instances, err := consulutil.GetKeys(instancesPath)
 	if err != nil {
 		return names, errors.Wrap(err, "Consul communication error")
 	}
@@ -144,13 +144,13 @@ func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, e
 
 	if len(names) == 0 {
 		// Check if this is a node to substitute
-		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+		substitutable, err := isSubstitutableNode(deploymentID, nodeName)
 		if err != nil {
 			return names, err
 		}
 		if substitutable {
 			log.Debugf("Found no instance for %s %s, getting substitutable node instance", deploymentID, nodeName)
-			names, err = getSubstitutionNodeInstancesIds(kv, deploymentID, nodeName)
+			names, err = getSubstitutionNodeInstancesIds(deploymentID, nodeName)
 			if err != nil {
 				return names, err
 			}
@@ -169,7 +169,7 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
-	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
+	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -208,7 +208,7 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 func GetHostedOnNodeInstance(kv *api.KV, deploymentID, nodeName, instanceName string) (string, string, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	// Going through requirements to find hosted on relationships
-	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
+	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
 	if err != nil {
 		return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -495,7 +495,7 @@ func GetStringNodePropertyValue(kv *api.KV, deploymentID, nodeName, propertyName
 func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
 	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes")
-	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
+	nodes, err := consulutil.GetKeys(nodesPath)
 	if err != nil {
 		return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -516,7 +516,7 @@ func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
 	}
 
 	// If the corresponding node is substitutable, get its real node type
-	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -554,14 +554,14 @@ func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string
 	}
 	nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	for _, instance := range instances {
-		err = storeSubKeysInSet(kv, path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
+		err = storeSubKeysInSet(path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Look at not instance-scoped attribute
-	err = storeSubKeysInSet(kv, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "attributes"), attributesSet)
+	err = storeSubKeysInSet(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "attributes"), attributesSet)
 	if err != nil {
 		return nil, err
 	}
@@ -611,7 +611,7 @@ func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string
 		return nil, err
 	}
 
-	err = storeSubKeysInSet(kv, path.Join(typePath, "attributes"), attributesSet)
+	err = storeSubKeysInSet(path.Join(typePath, "attributes"), attributesSet)
 	if err != nil {
 		return nil, err
 	}
@@ -626,12 +626,12 @@ func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string
 }
 
 // storeSubKeysInSet store Consul keys directly living under parentPath into the given set.
-func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) error {
+func storeSubKeysInSet(parentPath string, set map[string]struct{}) error {
 	parentPath = strings.TrimSpace(parentPath)
 	if !strings.HasSuffix(parentPath, "/") {
 		parentPath += "/"
 	}
-	keys, _, err := kv.Keys(parentPath+"/", "/", nil)
+	keys, err := consulutil.GetKeys(parentPath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -771,7 +771,7 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 			} else {
 				nodesMap[stackNode] = id
 			}
-			addOrRemoveInstanceFromTargetRelationship(kv, deploymentID, stackNode, id, true)
+			addOrRemoveInstanceFromTargetRelationship(deploymentID, stackNode, id, true)
 		}
 	}
 	// Wait for instances to be created
@@ -814,7 +814,7 @@ func createNodeInstance(kv *api.KV, consulStore consulutil.ConsulStore, deployme
 
 // DoesNodeExist checks if a given node exist in a deployment
 func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-	keys, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", "/", nil)
+	keys, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -860,7 +860,6 @@ func NodeHasProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ex
 }
 
 // DeleteNode deletes the given node from the Consul store
-func DeleteNode(kv *api.KV, deploymentID, nodeName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+func DeleteNode(deploymentID, nodeName string) error {
+	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", true)
 }

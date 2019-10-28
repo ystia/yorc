@@ -151,39 +151,85 @@ func GetValue(key string) (bool, []byte, error) {
 	return true, kvp.Value, nil
 }
 
+// GetValueWithMetadata retrieves the value for the specified key in bytes array and the related metadata
+// If the key doesn't exist, it returns false
+func GetValueWithMetadata(key string) (bool, []byte, *KeyMetadata, error) {
+	kvp, meta, err := GetKV().Get(key, nil)
+	if err != nil {
+		return false, nil, nil, err
+	}
+	if kvp == nil {
+		return false, nil, nil, nil
+	}
+	return true, kvp.Value, &KeyMetadata{LastIndex: meta.LastIndex, Flag: kvp.Flags}, nil
+}
+
+// KeyMetadata represents metadata related to key
+// lastIndex is index used for last modification
+// Flag is specific flag attached to the key
+type KeyMetadata struct {
+	LastIndex uint64
+	Flag      uint64
+}
+
+// CheckAndSet allows to execute a check on modify index before setting a key value
+// If modify index is not up, it returns false
+// If Check and set operations are ok, it returns true
+func CheckAndSet(key string, value []byte, lastIndex uint64) (bool, error) {
+	kvp := &api.KVPair{
+		Key:         key,
+		Value:       value,
+		ModifyIndex: lastIndex,
+	}
+	ok, _, err := GetKV().CAS(kvp, nil)
+	return ok, err
+}
+
 // GetStringValue retrieves the value for the specified key in string type
 // If the key doesn't exist, it returns false
 func GetStringValue(key string) (bool, string, error) {
 	exist, value, err := GetValue(key)
 	if err != nil || !exist {
-		return false, "", err
+		return false, "", errors.Wrap(err, ConsulGenericErrMsg)
 	}
 	return true, string(value), nil
 }
 
 // GetKeys returns the sub-keys list from a specified key
 func GetKeys(key string) ([]string, error) {
-	kv := GetKV()
-	subKeys, _, err := kv.Keys(key+"/", "/", nil)
+	subKeys, _, err := GetKV().Keys(key+"/", "/", nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, ConsulGenericErrMsg)
 	}
 	return subKeys, nil
 }
 
 // List returns the key-value map of all sub-keys from a specified key
 func List(key string) (map[string][]byte, error) {
-	kv := GetKV()
-	kvps, _, err := kv.List(key, nil)
+	kvps, _, err := GetKV().List(key, nil)
 	kvs := make(map[string][]byte, 0)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, ConsulGenericErrMsg)
 	}
 	for _, kvp := range kvps {
 		kvs[kvp.Key] = kvp.Value
 	}
 
 	return kvs, nil
+}
+
+// Delete delete the key-value from the store
+// If recurse is true, it delete all sub keys too.
+func Delete(key string, recursive bool) error {
+	var err error
+	kv := GetKV()
+	if recursive {
+		_, err = kv.DeleteTree(key, nil)
+	} else {
+		_, err = kv.Delete(key, nil)
+	}
+
+	return errors.Wrap(err, ConsulGenericErrMsg)
 }
 
 // StoreConsulKeyWithFlags stores a Consul key without the use of a ConsulStore you should avoid to use it when storing several keys that could be

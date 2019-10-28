@@ -67,7 +67,7 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/GetOPOutputsNode/0/outputs/standard/configure/MY_OUTPUT"), Value: []byte("MY_RESULT")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/GetOPOutputsNode/0/outputs/standard/configure/MY_OUTPUT"), "MY_RESULT")
 	require.Nil(t, err)
 	r := resolver(kv, deploymentID)
 
@@ -76,7 +76,7 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	require.NotNil(t, result)
 	require.Equal(t, "MY_RESULT", result.RawString())
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part1")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part1")
 	require.Nil(t, err)
 	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
@@ -88,14 +88,14 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	require.NotNil(t, result)
 	require.Equal(t, "part1", result.RawString())
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part2")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part2")
 	require.Nil(t, err)
 	result, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part2", result.RawString())
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/1/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part3")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/1/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part3")
 	require.Nil(t, err)
 	result, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
@@ -112,7 +112,7 @@ func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
 
 	r := resolver(kv, deploymentID)
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), Value: []byte("/mypath")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), "/mypath")
 	require.Nil(t, err)
 
 	result, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`).GetFunction())

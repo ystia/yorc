@@ -100,12 +100,12 @@ func testSubstitutionClientDirective(t *testing.T, kv *api.KV) {
 	require.NoError(t, err, "Failed to store test topology service deployment definition")
 
 	serviceName := "AppAService"
-	substitutable, err := isSubstitutableNode(kv, deploymentID, serviceName)
+	substitutable, err := isSubstitutableNode(deploymentID, serviceName)
 	require.NoError(t, err, "Failed to check substitutability of %s", serviceName)
 	assert.True(t, substitutable, "Node template %s should be substitutable", serviceName)
 
 	clientName := "AppBInstance"
-	substitutable, err = isSubstitutableNode(kv, deploymentID, clientName)
+	substitutable, err = isSubstitutableNode(deploymentID, clientName)
 	require.NoError(t, err, "Failed to check substitutability of %s", clientName)
 	assert.False(t, substitutable, "Node template %s should not be substitutable", clientName)
 }
@@ -121,12 +121,12 @@ func testSubstitutionClientServiceInstance(t *testing.T, kv *api.KV) {
 	require.NoError(t, err, "Failed to store test topology service deployment definition")
 
 	serviceName := "AppAService"
-	substitutable, err := isSubstitutableNode(kv, deploymentID, serviceName)
+	substitutable, err := isSubstitutableNode(deploymentID, serviceName)
 	require.NoError(t, err, "Failed to check substitutability of %s", serviceName)
 	assert.True(t, substitutable, "Node template %s should be substitutable", serviceName)
 
 	clientName := "AppBInstance"
-	substitutable, err = isSubstitutableNode(kv, deploymentID, clientName)
+	substitutable, err = isSubstitutableNode(deploymentID, clientName)
 	require.NoError(t, err, "Failed to check substitutability of %s", clientName)
 	assert.False(t, substitutable, "Node template %s should not be substitutable", clientName)
 
@@ -144,7 +144,7 @@ func testSubstitutionClientServiceInstance(t *testing.T, kv *api.KV) {
 
 	assert.Equal(t, substitutableNodeInstance, instances[0], "Unexpected instance for service %s", serviceName)
 
-	substitionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, serviceName, instances[0])
+	substitionInstance, err := isSubstitutionNodeInstance(deploymentID, serviceName, instances[0])
 	assert.True(t, substitionInstance, "Expected %s %s %s to be a substitutin instance",
 		deploymentID, serviceName, instances[0])
 

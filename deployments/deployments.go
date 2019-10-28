@@ -138,25 +138,24 @@ RETRY:
 	default:
 	}
 
-	kvp, meta, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
+	key := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status")
+	exist, value, meta, err := consulutil.GetValueWithMetadata(key)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	if status != INITIAL {
-		if kvp == nil || len(kvp.Value) == 0 || meta == nil {
+		if !exist || len(value) == 0 || meta == nil {
 			return errors.WithStack(&deploymentNotFound{deploymentID})
 		}
 
-		currentStatus, err := DeploymentStatusFromString(string(kvp.Value), true)
+		currentStatus, err := DeploymentStatusFromString(string(value), true)
 		if err != nil {
 			return err
 		}
 
 		if status != currentStatus {
-			kvp.Value = []byte(status.String())
-			kvp.ModifyIndex = meta.LastIndex
-			ok, _, err := kv.CAS(kvp, nil)
+			ok, err := consulutil.CheckAndSet(key, value, meta.LastIndex)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
 			}
@@ -252,8 +251,7 @@ func cleanupPurgedDeployment(ctx context.Context, kv *api.KV, deploymentID strin
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = kv.Delete(path.Join(consulutil.PurgedDeploymentKVPrefix, deploymentID), nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return consulutil.Delete(path.Join(consulutil.PurgedDeploymentKVPrefix, deploymentID), false)
 }
 
 func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Lock, <-chan struct{}, error) {
@@ -279,7 +277,5 @@ func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Loc
 // DeleteDeployment deletes a given deploymentID from the deployments path
 func DeleteDeployment(kv *api.KV, deploymentID string) error {
 	// Remove from KV this purge tasks
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
+	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", true)
 }

@@ -272,7 +272,7 @@ func addSubstitutionMappingAttributeNotification(kv *api.KV, deploymentID, nodeN
 // This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
 // This allows too to publish initial state for default attribute value
 func addAttributeNotifications(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
-	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
 	if err != nil {
 		return err
 	}
@@ -500,7 +500,7 @@ func (notifiedAttr *notifiedAttribute) saveNotification(kv *api.KV, notifier Not
 		return errors.Errorf("Unexpected type %T for saving notifications", n)
 	}
 
-	notifs, _, err := kv.Keys(notificationsPath+"/", "/", nil)
+	notifs, err := consulutil.GetKeys(notificationsPath)
 	if err != nil {
 		return err
 	}

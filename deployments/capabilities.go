@@ -53,7 +53,7 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 	if err != nil {
 		return capabilities, err
 	}
-	capabilitiesKeys, _, err := kv.Keys(typePath+"/capabilities/", "/", nil)
+	capabilitiesKeys, err := consulutil.GetKeys(path.Join(typePath, "capabilities"))
 	if err != nil {
 		return capabilities, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -240,7 +240,7 @@ func GetInstanceCapabilityAttributeValue(kv *api.KV, deploymentID, nodeName, ins
 
 	// Capability attributes of a Service referencing an application in another
 	// deployment are actually available as attributes of the node template
-	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
 	if err != nil {
 		return nil, err
 	}

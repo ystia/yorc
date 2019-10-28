@@ -53,7 +53,7 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	err = updateArtifactsFromPath(kv, artifacts, artifactsPath, importPath)
+	err = updateArtifactsFromPath(artifacts, artifactsPath, importPath)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for type: %q", typeName)
 }
 
@@ -73,18 +73,18 @@ func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]
 	}
 	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "artifacts")
 	// No importPath for node templates as they will be CSAR root relative
-	err = updateArtifactsFromPath(kv, artifacts, artifactsPath, "")
+	err = updateArtifactsFromPath(artifacts, artifactsPath, "")
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for node: %q", nodeName)
 }
 
 // updateArtifactsFromPath returns a map of artifact name / artifact file for the given node or type denoted by the given artifactsPath.
-func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsPath, importPath string) error {
-	kvps, _, err := kv.Keys(artifactsPath+"/", "/", nil)
+func updateArtifactsFromPath(artifacts map[string]string, artifactsPath, importPath string) error {
+	keys, err := consulutil.GetKeys(artifactsPath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	for _, artifactPath := range kvps {
+	for _, artifactPath := range keys {
 		artifactName := path.Base(artifactPath)
 		exist, value, err := consulutil.GetStringValue(path.Join(artifactPath, "file"))
 		if err != nil {

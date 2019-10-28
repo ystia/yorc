@@ -563,7 +563,7 @@ func testDeleteNode(t *testing.T, kv *api.KV) {
 
 	deploymentID := "testDeleteNode"
 	nodeName := "Compute1"
-	err := DeleteNode(kv, deploymentID, nodeName)
+	err := DeleteNode(deploymentID, nodeName)
 	require.NoError(t, err, "Unexpected error deleting node %s", nodeName)
 
 	instancesValues, err := GetNodeAttributesValues(kv, deploymentID, nodeName, "type")

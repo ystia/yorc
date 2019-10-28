@@ -32,11 +32,8 @@ import (
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/registry"
 	"github.com/ystia/yorc/v4/tosca"
 )
-
-var reg = registry.GetRegistry()
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
@@ -149,7 +146,7 @@ func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID s
 			}
 			for _, ext := range extensions {
 				ext = strings.ToLower(ext)
-				check, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+				check, err := GetImplementationArtifactForExtension(deploymentID, ext)
 				if err != nil {
 					return err
 				}
@@ -223,7 +220,7 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 		return isCompute, err
 	}
 
-	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
@@ -251,18 +248,18 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 			return err
 		}
 		interfacesPrefix := path.Join(typePath, "interfaces")
-		interfacesNamesPaths, _, err := kv.Keys(interfacesPrefix+"/", "/", nil)
+		interfacesNamesPaths, err := consulutil.GetKeys(interfacesPrefix)
 		if err != nil {
 			return err
 		}
 		for _, interfaceNamePath := range interfacesNamesPaths {
-			operationsPaths, _, err := kv.Keys(interfaceNamePath+"/", "/", nil)
+			operationsPaths, err := consulutil.GetKeys(interfaceNamePath)
 			if err != nil {
 				return err
 			}
 			for _, operationPath := range operationsPaths {
 				outputsPrefix := path.Join(operationPath, "outputs", "HOST")
-				outputsNamesPaths, _, err := kv.Keys(outputsPrefix+"/", "/", nil)
+				outputsNamesPaths, err := consulutil.GetKeys(outputsPrefix)
 				if err != nil {
 					return err
 				}
@@ -298,7 +295,7 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 // Ex: To get an variable from a past operation or a future operation
 func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
-	reqName, _, err := kv.Keys(reqPath+"/", "/", nil)
+	reqName, err := consulutil.GetKeys(reqPath)
 	if err != nil {
 		return err
 	}
@@ -315,22 +312,22 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 			return err
 		}
 		relationshipPrefix := path.Join(relTypePath, "interfaces")
-		interfaceNamesPaths, _, err := kv.Keys(relationshipPrefix+"/", "/", nil)
+		interfaceNamesPaths, err := consulutil.GetKeys(relationshipPrefix)
 		if err != nil {
 			return err
 		}
 		for _, interfaceNamePath := range interfaceNamesPaths {
-			operationsNamesPaths, _, err := kv.Keys(interfaceNamePath+"/", "/", nil)
+			operationsNamesPaths, err := consulutil.GetKeys(interfaceNamePath + "/")
 			if err != nil {
 				return err
 			}
 			for _, operationNamePath := range operationsNamesPaths {
-				modEntityNamesPaths, _, err := kv.Keys(operationNamePath+"/outputs/", "/", nil)
+				modEntityNamesPaths, err := consulutil.GetKeys(operationNamePath + "/outputs")
 				if err != nil {
 					return err
 				}
 				for _, modEntityNamePath := range modEntityNamesPaths {
-					outputsNamesPaths, _, _ := kv.Keys(modEntityNamePath+"/", "/", nil)
+					outputsNamesPaths, err := consulutil.GetKeys(modEntityNamePath)
 					if err != nil {
 						return err
 					}

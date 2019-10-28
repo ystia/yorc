@@ -58,27 +58,27 @@ func testImplementationArtifacts(t *testing.T, kv *api.KV) {
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
 
-	impl, err := GetImplementationArtifactForExtension(kv, deploymentID, "sh")
+	impl, err := GetImplementationArtifactForExtension(deploymentID, "sh")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Bash", impl)
 
-	impl, err = GetImplementationArtifactForExtension(kv, deploymentID, "SH")
+	impl, err = GetImplementationArtifactForExtension(deploymentID, "SH")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Bash", impl)
 
-	impl, err = GetImplementationArtifactForExtension(kv, deploymentID, "py")
+	impl, err = GetImplementationArtifactForExtension(deploymentID, "py")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Python", impl)
 
-	impl, err = GetImplementationArtifactForExtension(kv, deploymentID, "Py")
+	impl, err = GetImplementationArtifactForExtension(deploymentID, "Py")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Python", impl)
 
-	impl, err = GetImplementationArtifactForExtension(kv, deploymentID, "yaml")
+	impl, err = GetImplementationArtifactForExtension(deploymentID, "yaml")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Ansible", impl)
 
-	impl, err = GetImplementationArtifactForExtension(kv, deploymentID, "yml")
+	impl, err = GetImplementationArtifactForExtension(deploymentID, "yml")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Ansible", impl)
 
