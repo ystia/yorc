@@ -409,6 +409,7 @@ func deployTestResources(ctx context.Context, e *execution, k8s *k8s, resources 
 }
 
 func Test_execution_create_resource(t *testing.T) {
+	t.Skip()
 	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	deploymentID := "Dep-ID"
