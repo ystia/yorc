@@ -445,7 +445,10 @@ func (e *executionCommon) resolveHostsOnCompute(ctx context.Context, nodeName st
 					ipAddressStr := config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress.RawString()).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := &hostConnection{host: ipAddressStr, instanceID: instance}
-					hostConn.bastion, err = provutil.GetInstanceBastionHost(ctx, e.deploymentID, host)
+					hostConn.bastion, err = provutil.GetInstanceBastionHost(e.ctx, e.deploymentID, host)
+					if err != nil {
+						return err
+					}
 					err = e.setHostConnection(ctx, host, instance, capType, hostConn)
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
