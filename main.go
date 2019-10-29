@@ -21,6 +21,7 @@ import (
 	_ "github.com/ystia/yorc/v4/commands/deployments/tasks"
 	_ "github.com/ystia/yorc/v4/commands/deployments/workflows"
 	_ "github.com/ystia/yorc/v4/commands/hostspool"
+	_ "github.com/ystia/yorc/v4/commands/locations"
 	"github.com/ystia/yorc/v4/log"
 )
 

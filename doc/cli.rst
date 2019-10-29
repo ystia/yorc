@@ -294,6 +294,29 @@ Flags:
   * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
   * ``--horizontal``: Draw graph with an horizontal layout. (layout is vertical by default)
 
+.. _yorc_cli_locations_section:
+
+CLI Commands related to locations
+---------------------------------
+
+All locations related commands are sub-commands of a command named ``locations``.
+In practice that means that the commands starts with
+
+.. code-block:: bash
+
+    yorc locations
+
+For brevity ``locations`` supports the following aliases: ``locs``, ``loc`` and ``l``.
+
+List locations
+~~~~~~~~~~~~~~
+
+This command allows to list all the locations with their complete definition: type and properties.
+
+.. code-block:: bash
+
+     yorc locations list
+
 .. _yorc_cli_hostspool_section:
 
 CLI Commands related to hosts pool
