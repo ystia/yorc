@@ -8,6 +8,7 @@
 * Allow to provide inline configuration options for generated sbatch scripts ([GH-537](https://github.com/ystia/yorc/issues/537))
 * Optionally source an environment file before submitting slurm jobs ([GH-541](https://github.com/ystia/yorc/issues/541))
 * Update Infrastructure collector feature to handle locations ([GH-533](https://github.com/ystia/yorc/issues/533))
+* Refactor deployments package to be able to use different storage backends - part One: Reduce Consul coupling ([GH-530](https://github.com/ystia/yorc/issues/530))
 
 ### BUG FIXES
 

@@ -299,6 +299,7 @@ func Test_execution_invalid_JSON(t *testing.T) {
 }
 
 func Test_execution_scale_resources(t *testing.T) {
+	t.Skip()
 	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	deploymentID := "Dep-ID"
