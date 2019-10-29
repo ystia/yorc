@@ -16,7 +16,6 @@ package monitoring
 
 import (
 	"context"
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -46,12 +45,6 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 	// Monitoring check are added after (post-hook):
 	// - Delegate activity and install operation
 	// - SetState activity and node state "Started"
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
-		return
-	}
-	kv := cc.KV()
 	switch {
 	case activity.Type() == builder.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
 		activity.Type() == builder.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
@@ -67,7 +60,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 			return
 		}
 
-		err = addMonitoringPolicyForTarget(kv, taskID, deploymentID, target, policyName)
+		err = addMonitoringPolicyForTarget(taskID, deploymentID, target, policyName)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to add monitoring policy for node name:%q due to: %v", target, err)
@@ -126,7 +119,7 @@ func checkExistingMonitoringPolicy(deploymentID, target string) (bool, string, e
 	return true, policies[0], nil
 }
 
-func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, policyName string) error {
+func addMonitoringPolicyForTarget(taskID, deploymentID, target, policyName string) error {
 	log.Debugf("Add monitoring policy:%q for deploymentID:%q, node name:%q", policyName, deploymentID, target)
 	policyType, err := deployments.GetPolicyType(deploymentID, policyName)
 	if err != nil {
@@ -158,15 +151,15 @@ func addMonitoringPolicyForTarget(kv *api.KV, taskID, deploymentID, target, poli
 
 	switch policyType {
 	case httpMonitoring:
-		return applyHTTPMonitoringPolicy(kv, policyName, deploymentID, target, timeInterval, port, instances)
+		return applyHTTPMonitoringPolicy(policyName, deploymentID, target, timeInterval, port, instances)
 	case tcpMonitoring:
-		return applyTCPMonitoringPolicy(kv, deploymentID, target, timeInterval, port, instances)
+		return applyTCPMonitoringPolicy(deploymentID, target, timeInterval, port, instances)
 	default:
 		return errors.Errorf("Unsupported policy type:%q for policy:%q", policyType, policyName)
 	}
 }
 
-func applyTCPMonitoringPolicy(kv *api.KV, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
+func applyTCPMonitoringPolicy(deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
 		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
 		if err != nil {
@@ -179,7 +172,7 @@ func applyTCPMonitoringPolicy(kv *api.KV, deploymentID, target string, timeInter
 	return nil
 }
 
-func applyHTTPMonitoringPolicy(kv *api.KV, policyName, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
+func applyHTTPMonitoringPolicy(policyName, deploymentID, target string, timeInterval time.Duration, port int, instances []string) error {
 	for _, instance := range instances {
 		ipAddress, err := retrieveIPAddress(deploymentID, target, instance)
 		if err != nil {

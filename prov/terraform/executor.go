@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -50,12 +49,6 @@ func NewExecutor(generator commons.Generator, preDestroyCheck commons.PreDestroy
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-	consulClient, err := cfg.GetConsulClient()
-	if err != nil {
-		return err
-	}
-	kv := consulClient.KV()
-
 	instances, err := tasks.GetInstances(taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -77,16 +70,16 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	op := strings.ToLower(delegateOperation)
 	switch {
 	case op == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath, instances)
+		err = e.installNode(ctx, cfg, deploymentID, nodeName, infrastructurePath, instances)
 	case op == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath, instances)
+		err = e.uninstallNode(ctx, cfg, deploymentID, nodeName, infrastructurePath, instances)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, instances []string) error {
+func (e *defaultExecutor) installNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, instances []string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
@@ -138,7 +131,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	return nil
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, instances []string) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, instances []string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {

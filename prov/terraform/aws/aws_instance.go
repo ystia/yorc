@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -32,7 +31,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
+func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
 	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
 	if err != nil {
 		return err

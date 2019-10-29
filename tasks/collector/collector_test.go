@@ -42,7 +42,6 @@ func testResumeTask(t *testing.T, client *api.Client) {
 	kv := client.KV()
 	testCollector := NewCollector(client)
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -50,7 +49,7 @@ func testResumeTask(t *testing.T, client *api.Client) {
 		args    args
 		wantErr bool
 	}{
-		{"ResumeTask", args{kv, "t12"}, false},
+		{"ResumeTask", args{"t12"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

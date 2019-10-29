@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -37,7 +36,6 @@ const (
 )
 
 type osInstanceOptions struct {
-	kv             *api.KV
 	cfg            config.Configuration
 	infrastructure *commons.Infrastructure
 	locationProps  config.DynamicMap

@@ -111,8 +111,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 	if err != nil {
 		return err
 	}
-	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(cc.KV(),
-		op.deploymentID, op.nodeName)
+	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(op.deploymentID, op.nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q",
 			op.nodeName, op.deploymentID)
@@ -161,7 +160,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, op.nodeName, jsonProp.String())
 		}
 	}
-	filters, err := createFiltersFromComputeCapabilities(cc.KV(), op.deploymentID, op.nodeName)
+	filters, err := createFiltersFromComputeCapabilities(op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
@@ -350,7 +349,7 @@ func setInstanceAttributesFromLabels(op operationParameters, instance string, la
 	return nil
 }
 
-func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
+func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(deploymentID, nodeName string) (map[string]string, error) {
 	res := make(map[string]string, 0)
 	p, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
@@ -416,7 +415,7 @@ func appendCapabilityFilter(deploymentID, nodeName, capName, propName, op string
 	return filters, nil
 }
 
-func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName string) ([]labelsutil.Filter, error) {
+func createFiltersFromComputeCapabilities(deploymentID, nodeName string) ([]labelsutil.Filter, error) {
 	var err error
 	filters := make([]labelsutil.Filter, 0)
 	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "num_cpus", ">=", filters)

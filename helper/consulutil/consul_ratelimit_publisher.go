@@ -159,7 +159,10 @@ func GetValueWithMetadata(key string) (bool, []byte, *KeyMetadata, error) {
 		return false, nil, nil, err
 	}
 	if kvp == nil {
-		return false, nil, nil, nil
+		if meta == nil {
+			return false, nil, nil, err
+		}
+		return false, nil, &KeyMetadata{LastIndex: meta.LastIndex}, nil
 	}
 	return true, kvp.Value, &KeyMetadata{LastIndex: meta.LastIndex, Flag: kvp.Flags}, nil
 }
@@ -283,7 +286,7 @@ func (cs *consulStore) StoreConsulKeyWithFlags(key string, value []byte, flags u
 // In the case where the transaction has to be split, and a pre-operation and
 // post-operation are provided, this function will add the pre and post operations
 // to the operations, else if will execute the operations within a single transaction.
-func ExecuteSplittableTransaction(kv *api.KV, ops api.KVTxnOps, preOpSplit, postOpSplit *api.KVTxnOp) error {
+func ExecuteSplittableTransaction(ops api.KVTxnOps, preOpSplit, postOpSplit *api.KVTxnOp) error {
 
 	var newOps api.KVTxnOps
 	if len(ops) > maxNbTransactionOps {
@@ -301,7 +304,7 @@ func ExecuteSplittableTransaction(kv *api.KV, ops api.KVTxnOps, preOpSplit, post
 			end = opsLength
 		}
 
-		ok, response, _, err := kv.Txn(newOps[begin:end], nil)
+		ok, response, _, err := GetKV().Txn(newOps[begin:end], nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to execute transaction")
 		}

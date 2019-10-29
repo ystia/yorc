@@ -54,11 +54,11 @@ func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *a
 	return dispatcher
 }
 
-func getNbAndMaxTasksWaitTimeMs(kv *api.KV) (float32, float64, error) {
+func getNbAndMaxTasksWaitTimeMs() (float32, float64, error) {
 	now := time.Now()
 	var max float64
 	var nb float32
-	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
 	if err != nil {
 		return nb, max, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -84,13 +84,12 @@ func (d *Dispatcher) emitTasksMetrics() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		kv := d.client.KV()
 		lastWarn := time.Now().Add(-6 * time.Minute)
 		for {
 			select {
 			case <-time.After(time.Second):
 				metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
-				nb, maxWait, err := getNbAndMaxTasksWaitTimeMs(kv)
+				nb, maxWait, err := getNbAndMaxTasksWaitTimeMs()
 				if err != nil {
 					now := time.Now()
 					if now.Sub(lastWarn) > 5*time.Minute {
@@ -109,16 +108,16 @@ func (d *Dispatcher) emitTasksMetrics() {
 	}()
 }
 
-func getExecutionKeyValue(kv *api.KV, execID, execKey string) (string, error) {
+func getExecutionKeyValue(execID, execKey string) (string, error) {
 	execPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
-	kvPairContent, _, err := kv.Get(path.Join(execPath, execKey), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(execPath, execKey))
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to get value for key %q due to error: %+v", path.Join(execPath, execKey), err)
 	}
-	if kvPairContent == nil {
+	if !exist {
 		return "", errors.Errorf("No key:%q", path.Join(execPath, execKey))
 	}
-	return string(kvPairContent.Value), nil
+	return value, nil
 }
 
 func (d *Dispatcher) deleteExecutionTree(execID string) {
@@ -200,7 +199,7 @@ func (d *Dispatcher) Run() {
 
 			log.Debugf("Got processing lock for Task Execution %s", execKey)
 
-			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
+			taskID, err := getExecutionKeyValue(execID, "taskID")
 			if err != nil {
 				log.Debugf("Ignore execution with ID:%q due to error:%v", execID, err)
 				d.deleteExecutionTree(execID)

@@ -22,64 +22,63 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulEventsPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	t.Run("groupEvents", func(t *testing.T) {
 		t.Run("TestConsulPubSubStatusChange", func(t *testing.T) {
-			testConsulPubSubStatusChange(t, kv)
+			testConsulPubSubStatusChange(t)
 		})
 		t.Run("TestConsulPubSubNewEvents", func(t *testing.T) {
-			testConsulPubSubNewEvents(t, kv)
+			testConsulPubSubNewEvents(t)
 		})
 		t.Run("TestConsulPubSubNewEventsTimeout", func(t *testing.T) {
-			testConsulPubSubNewEventsTimeout(t, kv)
+			testConsulPubSubNewEventsTimeout(t)
 		})
 		t.Run("TestConsulPubSubNewEventsWithIndex", func(t *testing.T) {
-			testConsulPubSubNewEventsWithIndex(t, kv)
+			testConsulPubSubNewEventsWithIndex(t)
 		})
 		t.Run("TestConsulPubSubNewNodeEvents", func(t *testing.T) {
 			testConsulPubSubNewNodeEvents(t)
 		})
 		t.Run("TestDeploymentStatusChange", func(t *testing.T) {
-			testconsulDeploymentStatusChange(t, kv)
+			testconsulDeploymentStatusChange(t)
 		})
 		t.Run("TestCustomCommandStatusChange", func(t *testing.T) {
-			testconsulCustomCommandStatusChange(t, kv)
+			testconsulCustomCommandStatusChange(t)
 		})
 		t.Run("TestScalingStatusChange", func(t *testing.T) {
-			testconsulScalingStatusChange(t, kv)
+			testconsulScalingStatusChange(t)
 		})
 		t.Run("TestWorkflowStatusChange", func(t *testing.T) {
-			testconsulWorkflowStatusChange(t, kv)
+			testconsulWorkflowStatusChange(t)
 		})
 		t.Run("TestWorkflowStepStatusChange", func(t *testing.T) {
-			testconsulWorkflowStepStatusChange(t, kv)
+			testconsulWorkflowStepStatusChange(t)
 		})
 		t.Run("testAlienTaskStatusChange", func(t *testing.T) {
-			testconsulAlienTaskStatusChange(t, kv)
+			testconsulAlienTaskStatusChange(t)
 		})
 		t.Run("TestGetStatusEvents", func(t *testing.T) {
-			testconsulGetStatusEvents(t, kv)
+			testconsulGetStatusEvents(t)
 		})
 		t.Run("TestGetLogs", func(t *testing.T) {
-			testconsulGetLogs(t, kv)
+			testconsulGetLogs(t)
 		})
 		t.Run("TestRegisterLogsInConsul", func(t *testing.T) {
-			testRegisterLogsInConsul(t, kv)
+			testRegisterLogsInConsul(t)
 		})
 		t.Run("TestLogsSortedByTimestamp", func(t *testing.T) {
-			testLogsSortedByTimestamp(t, kv)
+			testLogsSortedByTimestamp(t)
 		})
 		t.Run("TestAttributeValueChange", func(t *testing.T) {
-			testconsulAttributeValueChange(t, kv)
+			testconsulAttributeValueChange(t)
 		})
 		t.Run("TestPurgeDeploymentEvents", func(t *testing.T) {
-			testPurgeDeploymentEvents(t, kv)
+			testPurgeDeploymentEvents(t)
 		})
 		t.Run("TestPurgeDeploymentLogs", func(t *testing.T) {
-			testPurgeDeploymentLogs(t, kv)
+			testPurgeDeploymentLogs(t)
 		})
 	})
 }

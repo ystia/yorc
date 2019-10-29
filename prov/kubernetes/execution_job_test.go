@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +33,7 @@ func jobRuntimeObject(id, namespace string) *batchv1.Job {
 	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: id, Namespace: namespace}}
 }
 
-func testExecutionCancelJob(t *testing.T, kv *api.KV) {
+func testExecutionCancelJob(t *testing.T) {
 
 	deploymentID := testutil.BuildDeploymentID(t)
 	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/JobCompute.yml")
@@ -67,7 +66,6 @@ func testExecutionCancelJob(t *testing.T, kv *api.KV) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClientSet := fake.NewSimpleClientset(tt.initialElements...)
 			e := &execution{
-				kv:           kv,
 				deploymentID: deploymentID,
 				taskID:       tt.fields.taskID,
 				nodeName:     tt.fields.nodeName,

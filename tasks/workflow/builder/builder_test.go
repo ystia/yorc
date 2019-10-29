@@ -18,12 +18,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 )
 
-func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 
 	t.Log("Registering Key")
@@ -41,7 +40,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	srv1.PopulateKV(t, data)
 
-	wfSteps, err := BuildWorkFlow(kv, deploymentID, wfName)
+	wfSteps, err := BuildWorkFlow(deploymentID, wfName)
 	require.Nil(t, err)
 	step := wfSteps["stepName"]
 	require.NotNil(t, step)
@@ -60,7 +59,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	require.Contains(t, step.Activities, inlineActivity{inline: "my_custom_wf"})
 }
 
-func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 
 	t.Log("Registering Key")
@@ -78,7 +77,7 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) 
 
 	srv1.PopulateKV(t, data)
 
-	wfSteps, err := BuildWorkFlow(kv, deploymentID, wfName)
+	wfSteps, err := BuildWorkFlow(deploymentID, wfName)
 	require.Nil(t, err)
 	step := wfSteps["stepName"]
 	require.NotNil(t, step)
@@ -89,7 +88,7 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) 
 
 }
 
-func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 
 	t.Log("Registering Key")
@@ -104,13 +103,13 @@ func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServe
 
 	srv1.PopulateKV(t, data)
 
-	wfSteps, err := BuildWorkFlow(kv, deploymentID, wfName)
+	wfSteps, err := BuildWorkFlow(deploymentID, wfName)
 	require.Errorf(t, err, "non-existent step should raise an error")
 	require.EqualError(t, err, "Referenced step with name:\"nonexistent\" doesn't exist in the workflow:\"wf_testBuildStepWithNonExistentNextStep\"")
 	require.Nil(t, wfSteps)
 }
 
-func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	t.Log("Registering Keys")
 
@@ -143,7 +142,7 @@ func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	srv1.PopulateKV(t, data)
 
-	steps, err := BuildWorkFlow(kv, deploymentID, wfName)
+	steps, err := BuildWorkFlow(deploymentID, wfName)
 	require.Nil(t, err, "oups")
 	require.Len(t, steps, 6)
 }

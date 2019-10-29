@@ -36,7 +36,7 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 	srv.PopulateKV(t, testData(deploymentID))
 }
 
-func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *api.Client) {
+func testRunPurge(t *testing.T, srv *testutil.TestServer, client *api.Client) {
 	myWorker := &worker{
 		consulClient: client,
 		cfg: config.Configuration{
@@ -56,13 +56,13 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *ap
 	}
 	// Test that KV contains expected resultData
 	// No more deployments
-	kvp, _, err := kv.Get(consulutil.DeploymentKVPrefix, nil)
+	kvp, _, err := consulutil.GetKV().Get(consulutil.DeploymentKVPrefix, nil)
 	require.Nil(t, kvp)
 	// No more tasks
-	kvp, _, err = kv.Get(consulutil.TasksPrefix, nil)
+	kvp, _, err = consulutil.GetKV().Get(consulutil.TasksPrefix, nil)
 	require.Nil(t, kvp)
 	// One event with value containing "deploymentId":"Test-Env","status":"purged"
-	kvps, _, err := kv.List(consulutil.EventsPrefix+"/"+deploymentID, nil)
+	kvps, _, err := consulutil.GetKV().List(consulutil.EventsPrefix+"/"+deploymentID, nil)
 	require.True(t, len(kvps) == 1)
 	var eventData map[string]string
 	err = json.Unmarshal([]byte(string(kvps[0].Value)), &eventData)
@@ -71,10 +71,10 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, kv *api.KV, client *ap
 	assert.Equal(t, eventData["status"], "purged")
 
 	// One log with value containing "content":"Status for deployment \"Test-Env\" changed to \"purged\"
-	kvps, _, err = kv.List(consulutil.LogsPrefix+"/"+deploymentID, nil)
+	kvps, _, err = consulutil.GetKV().List(consulutil.LogsPrefix+"/"+deploymentID, nil)
 	require.True(t, len(kvps) == 1)
 	// One purge
-	kvps, _, err = kv.List(consulutil.PurgedDeploymentKVPrefix+"/"+deploymentID, nil)
+	kvps, _, err = consulutil.GetKV().List(consulutil.PurgedDeploymentKVPrefix+"/"+deploymentID, nil)
 	require.True(t, len(kvps) == 1)
 }
 

@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -196,7 +195,7 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	assert.Equal(t, "Region2", bsv.Region)
 }
 
-func testComputeBootVolumeWrongSize(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testComputeBootVolumeWrongSize(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
@@ -209,7 +208,7 @@ func testComputeBootVolumeWrongSize(t *testing.T, srv1 *testutil.TestServer, kv 
 	require.Error(t, err, "Expected a failure to parse %s boot volume definition", yamlName)
 }
 
-func testComputeBootVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testComputeBootVolumeWrongType(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 

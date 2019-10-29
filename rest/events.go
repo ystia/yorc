@@ -30,7 +30,6 @@ import (
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	kv := s.consulClient.KV()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
@@ -64,7 +63,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If id parameter not set (id == ""), StatusEvents returns events for all the deployments
-	evts, lastIdx, err := events.StatusEvents(kv, id, waitIndex, timeout)
+	evts, lastIdx, err := events.StatusEvents(id, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
@@ -77,7 +76,6 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	kv := s.consulClient.KV()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
@@ -113,7 +111,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var lastIdx uint64
 
 	// If id parameter not set (id == ""), LogsEvents returns logs for all the deployments
-	logs, idx, err := events.LogsEvents(kv, id, waitIndex, timeout)
+	logs, idx, err := events.LogsEvents(id, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}

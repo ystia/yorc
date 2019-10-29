@@ -26,63 +26,62 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	populateKV(t, srv)
 
 	t.Run("groupTasks", func(t *testing.T) {
 		t.Run("TestGetTasksIdsForTarget", func(t *testing.T) {
-			testGetTasksIdsForTarget(t, kv)
+			testGetTasksIdsForTarget(t)
 		})
 		t.Run("TestGetTaskStatus", func(t *testing.T) {
-			testGetTaskStatus(t, kv)
+			testGetTaskStatus(t)
 		})
 		t.Run("TestGetTaskType", func(t *testing.T) {
-			testGetTaskType(t, kv)
+			testGetTaskType(t)
 		})
 		t.Run("TestGetTaskTarget", func(t *testing.T) {
-			testGetTaskTarget(t, kv)
+			testGetTaskTarget(t)
 		})
 		t.Run("TestTaskExists", func(t *testing.T) {
-			testTaskExists(t, kv)
+			testTaskExists(t)
 		})
 		t.Run("TestCancelTask", func(t *testing.T) {
-			testCancelTask(t, kv)
+			testCancelTask(t)
 		})
 		t.Run("TestTargetHasLivingTasks", func(t *testing.T) {
-			testTargetHasLivingTasks(t, kv)
+			testTargetHasLivingTasks(t)
 		})
 		t.Run("TestGetTaskInput", func(t *testing.T) {
-			testGetTaskInput(t, kv)
+			testGetTaskInput(t)
 		})
 		t.Run("TestGetInstances", func(t *testing.T) {
-			testGetInstances(t, kv)
+			testGetInstances(t)
 		})
 		t.Run("TestGetTaskRelatedNodes", func(t *testing.T) {
-			testGetTaskRelatedNodes(t, kv)
+			testGetTaskRelatedNodes(t)
 		})
 		t.Run("TestIsTaskRelatedNode", func(t *testing.T) {
-			testIsTaskRelatedNode(t, kv)
+			testIsTaskRelatedNode(t)
 		})
 		t.Run("testGetTaskRelatedWFSteps", func(t *testing.T) {
-			testGetTaskRelatedWFSteps(t, kv)
+			testGetTaskRelatedWFSteps(t)
 		})
 		t.Run("testUpdateTaskStepStatus", func(t *testing.T) {
-			testUpdateTaskStepStatus(t, kv)
+			testUpdateTaskStepStatus(t)
 		})
 		t.Run("testTaskStepExists", func(t *testing.T) {
-			testTaskStepExists(t, kv)
+			testTaskStepExists(t)
 		})
 		t.Run("testGetTaskResultSet", func(t *testing.T) {
-			testGetTaskResultSet(t, kv)
+			testGetTaskResultSet(t)
 		})
 		t.Run("testDeleteTask", func(t *testing.T) {
-			testDeleteTask(t, kv)
+			testDeleteTask(t)
 		})
 		t.Run("testGetQueryTaskIDs", func(t *testing.T) {
-			testGetQueryTaskIDs(t, kv)
+			testGetQueryTaskIDs(t)
 		})
 		t.Run("TestIsStepRegistrationInProgress", func(t *testing.T) {
 			testIsStepRegistrationInProgress(t)

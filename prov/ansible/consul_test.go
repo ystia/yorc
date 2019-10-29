@@ -23,20 +23,19 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulAnsiblePackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	log.SetDebug(true)
 	t.Run("TestExecution", func(t *testing.T) {
 		testExecution(t, srv)
 	})
 	t.Run("TestLogAnsibleOutputInConsul", func(t *testing.T) {
-		testLogAnsibleOutputInConsul(t, kv)
+		testLogAnsibleOutputInConsul(t)
 	})
 	t.Run("TestLogAnsibleOutputInConsulFromScript", func(t *testing.T) {
-		testLogAnsibleOutputInConsulFromScript(t, kv)
+		testLogAnsibleOutputInConsulFromScript(t)
 	})
 	t.Run("TestLogAnsibleOutputInConsulFromScriptFailure", func(t *testing.T) {
-		testLogAnsibleOutputInConsulFromScriptFailure(t, kv)
+		testLogAnsibleOutputInConsulFromScriptFailure(t)
 	})
 }

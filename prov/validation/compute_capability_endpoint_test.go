@@ -47,7 +47,7 @@ func (m *mockActivity) Value() string {
 	return m.v
 }
 
-func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testPostComputeCreationHook(t *testing.T, cfg config.Configuration) {
 	ctx := context.Background()
 
 	target := "Compute"
@@ -145,7 +145,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 			taskID := uuid.NewV4().String()
 
 			p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(tt.args.taskStatus)))}
-			_, err = kv.Put(p, nil)
+			_, err = consulutil.GetKV().Put(p, nil)
 			require.NoError(t, err)
 
 			activity := &mockActivity{

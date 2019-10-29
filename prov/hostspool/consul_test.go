@@ -31,7 +31,6 @@ import (
 func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
-	kv := client.KV()
 	log.SetDebug(true)
 
 	// Populate hosts for this test location
@@ -110,15 +109,15 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testConsulManagerAddLabelsWithAllocation(t, client)
 	})
 	t.Run("testCreateFiltersFromComputeCapabilities", func(t *testing.T) {
-		testCreateFiltersFromComputeCapabilities(t, kv, deploymentID)
+		testCreateFiltersFromComputeCapabilities(t, deploymentID)
 	})
 	t.Run("testConcurrentExecDelegateShareableHost", func(t *testing.T) {
-		testConcurrentExecDelegateShareableHost(t, srv, client, kv, deploymentID, location)
+		testConcurrentExecDelegateShareableHost(t, srv, client, deploymentID, location)
 	})
 	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
-		testFailureExecDelegateShareableHost(t, srv, client, kv, deploymentID, location)
+		testFailureExecDelegateShareableHost(t, srv, client, deploymentID, location)
 	})
 	t.Run("testExecDelegateFailure", func(t *testing.T) {
-		testExecDelegateFailure(t, srv, client, kv, deploymentID, location)
+		testExecDelegateFailure(t, srv, client, deploymentID, location)
 	})
 }

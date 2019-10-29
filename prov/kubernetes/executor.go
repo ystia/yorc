@@ -42,13 +42,7 @@ type defaultExecutor struct {
 }
 
 func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
-	consulClient, err := conf.GetConsulClient()
-	if err != nil {
-		return nil, err
-	}
-
-	kv := consulClient.KV()
-	return newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	return newExecution(conf, taskID, deploymentID, nodeName, operation)
 }
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {

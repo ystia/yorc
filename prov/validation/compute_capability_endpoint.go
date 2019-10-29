@@ -17,8 +17,6 @@ package validation
 import (
 	"context"
 
-	"github.com/hashicorp/consul/api"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
@@ -32,13 +30,6 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 	if activity.Type() != builder.ActivityTypeDelegate && activity.Type() != builder.ActivityTypeCallOperation {
 		return
 	}
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-			Registerf("Failed to retrieve consul client when ensuring that a compute will have it's endpoint ip set. Next operations will likely fail: %v", err)
-		return
-	}
-	kv := cc.KV()
 	status, err := tasks.GetTaskStatus(taskID)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
@@ -64,10 +55,10 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 			Registerf("Failed to retrieve node instances for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
 		return
 	}
-	checkAllInstances(ctx, kv, deploymentID, target, instances)
+	checkAllInstances(ctx, deploymentID, target, instances)
 }
 
-func checkAllInstances(ctx context.Context, kv *api.KV, deploymentID, target string, instances []string) {
+func checkAllInstances(ctx context.Context, deploymentID, target string, instances []string) {
 	for _, instance := range instances {
 		ipAddress, err := deployments.GetInstanceCapabilityAttributeValue(deploymentID, target, instance, "endpoint", "ip_address")
 		if err != nil {

@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 
@@ -44,7 +43,6 @@ const (
 )
 
 type execution struct {
-	kv           *api.KV
 	cfg          config.Configuration
 	deploymentID string
 	taskID       string
@@ -58,7 +56,7 @@ const namespaceCreatedMessage string = "K8's Namespace %s created"
 const namespaceDeletionFailedMessage string = "Cannot delete K8's Namespace %s"
 const unsupportedOperationOnK8sResource string = "Unsupported operation on k8s resource"
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
+func newExecution(cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
 	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return nil, err
@@ -70,7 +68,6 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 
 	return &execution{
-		kv:           kv,
 		cfg:          cfg,
 		deploymentID: deploymentID,
 		nodeName:     nodeName,
@@ -88,7 +85,7 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	}
 
 	// TODO is there any reason for recreating a new generator for each execution?
-	generator := newGenerator(e.kv, e.cfg)
+	generator := newGenerator(e.cfg)
 
 	// Create Yorc representation of the K8S object
 	K8sObj, err := e.getYorcK8sObject(ctx, clientset)

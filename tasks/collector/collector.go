@@ -219,7 +219,7 @@ func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tas
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
 	if workflowName != "" {
-		stepOps, err := builder.BuildInitExecutionOperations(c.consulClient.KV(), targetID, taskID, workflowName, registerWorkflow)
+		stepOps, err := builder.BuildInitExecutionOperations(targetID, taskID, workflowName, registerWorkflow)
 		if err != nil {
 			return err
 		}
@@ -235,7 +235,7 @@ func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tas
 		})
 	}
 
-	err := tasks.StoreOperations(c.consulClient.KV(), taskID, operations)
+	err := tasks.StoreOperations(taskID, operations)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error %s",
 			targetID, taskType.String(), err.Error())

@@ -242,7 +242,7 @@ func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client 
 
 	require.Equal(t, checkCpt, 3, "unexpected number of checks done")
 
-	logs, _, err := events.LogsEvents(client.KV(), deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 	require.Equal(t, true, len(logs) > 0, "expected at least one logged event")
 

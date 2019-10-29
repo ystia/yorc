@@ -240,7 +240,7 @@ func IsStepRegistrationInProgress(taskID string) (bool, error) {
 // StoreOperations stores operations related to a task through a transaction
 // splitting this transaction if needed, in which case it will create a key
 // notifying a registration is in progress
-func StoreOperations(kv *api.KV, taskID string, operations api.KVTxnOps) error {
+func StoreOperations(taskID string, operations api.KVTxnOps) error {
 
 	registrationStatusKeyPath := path.Join(consulutil.TasksPrefix, taskID, stepRegistrationInProgressKey)
 	preOpSplit := &api.KVTxnOp{
@@ -252,7 +252,7 @@ func StoreOperations(kv *api.KV, taskID string, operations api.KVTxnOps) error {
 		Verb: api.KVDelete,
 		Key:  registrationStatusKeyPath,
 	}
-	return consulutil.ExecuteSplittableTransaction(kv, operations, preOpSplit, postOpSplit)
+	return consulutil.ExecuteSplittableTransaction(operations, preOpSplit, postOpSplit)
 }
 
 // CancelTask marks a task as Canceled
@@ -533,19 +533,19 @@ func NotifyErrorOnTask(taskID string) error {
 //
 // If so and if the given f function is not nil then f is called and the routine stop itself.
 // To stop this routine the given context should be cancelled.
-func MonitorTaskCancellation(ctx context.Context, kv *api.KV, taskID string, f func()) {
-	monitorTaskFlag(ctx, kv, taskID, ".canceledFlag", []byte("true"), f)
+func MonitorTaskCancellation(ctx context.Context, taskID string, f func()) {
+	monitorTaskFlag(ctx, taskID, ".canceledFlag", []byte("true"), f)
 }
 
 // MonitorTaskFailure runs a routine that will constantly check if a given task is tagged as failed.
 //
 // If so and if the given f function is not nil then f is called and the routine stop itself.
 // To stop this routine the given context should be cancelled.
-func MonitorTaskFailure(ctx context.Context, kv *api.KV, taskID string, f func()) {
-	monitorTaskFlag(ctx, kv, taskID, ".errorFlag", []byte("true"), f)
+func MonitorTaskFailure(ctx context.Context, taskID string, f func()) {
+	monitorTaskFlag(ctx, taskID, ".errorFlag", []byte("true"), f)
 }
 
-func monitorTaskFlag(ctx context.Context, kv *api.KV, taskID, flag string, value []byte, f func()) {
+func monitorTaskFlag(ctx context.Context, taskID, flag string, value []byte, f func()) {
 	go func() {
 		var lastIndex uint64
 		for {
@@ -556,7 +556,7 @@ func monitorTaskFlag(ctx context.Context, kv *api.KV, taskID, flag string, value
 			default:
 			}
 
-			kvp, qMeta, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, flag), &api.QueryOptions{WaitIndex: lastIndex})
+			kvp, qMeta, err := consulutil.GetKV().Get(path.Join(consulutil.TasksPrefix, taskID, flag), &api.QueryOptions{WaitIndex: lastIndex})
 
 			select {
 			case <-ctx.Done():

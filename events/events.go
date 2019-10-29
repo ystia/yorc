@@ -225,7 +225,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, deploymentID, taskID
 	return id, nil
 }
 
-func getEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration, eventsPrefix string) ([]json.RawMessage, uint64, error) {
+func getEvents(deploymentID string, waitIndex uint64, timeout time.Duration, eventsPrefix string) ([]json.RawMessage, uint64, error) {
 	events := make([]json.RawMessage, 0)
 	eventsPrefix = path.Clean(eventsPrefix)
 	if deploymentID != "" {
@@ -234,7 +234,7 @@ func getEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.D
 	}
 	eventsPrefix = eventsPrefix + "/"
 
-	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	kvps, qm, err := consulutil.GetKV().List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return events, 0, err
 	}
@@ -250,13 +250,13 @@ func getEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.D
 }
 
 // StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
-func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	return getEvents(kv, deploymentID, waitIndex, timeout, consulutil.EventsPrefix)
+func StatusEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	return getEvents(deploymentID, waitIndex, timeout, consulutil.EventsPrefix)
 }
 
 // LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
-func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	return getEvents(kv, deploymentID, waitIndex, timeout, consulutil.LogsPrefix)
+func LogsEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	return getEvents(deploymentID, waitIndex, timeout, consulutil.LogsPrefix)
 }
 
 func getEventsIndex(deploymentID string, eventsPrefix string) (uint64, error) {

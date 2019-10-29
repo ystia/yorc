@@ -155,7 +155,7 @@ func (s *step) isRunnable() (bool, error) {
 }
 
 // run allows to execute a workflow step
-func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, bypassErrors bool, workflowName string, w *worker) error {
+func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID string, bypassErrors bool, workflowName string, w *worker) error {
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target, events.TaskExecutionID: s.t.id})
 	// First: we check if Step is runnable
@@ -172,7 +172,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	ctx, cancelWf := context.WithCancel(ctx)
 	defer cancelWf()
 	if !s.IsOnCancelPath {
-		tasks.MonitorTaskCancellation(ctx, kv, s.t.taskID, func() {
+		tasks.MonitorTaskCancellation(ctx, s.t.taskID, func() {
 			s.setStatus(tasks.TaskStepStatusCANCELED)
 			cancelWf()
 			err := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnCancel)
@@ -183,7 +183,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	}
 
 	if !s.IsOnFailurePath {
-		tasks.MonitorTaskFailure(ctx, kv, s.t.taskID, func() {
+		tasks.MonitorTaskFailure(ctx, s.t.taskID, func() {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
 			select {
 			case <-time.After(cfg.WfStepGracefulTerminationTimeout):
@@ -207,7 +207,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 					hook(ctx, cfg, s.t.taskID, deploymentID, s.Target, activity)
 				}
 			}()
-			err := s.runActivity(ctx, kv, cfg, deploymentID, workflowName, bypassErrors, w, activity)
+			err := s.runActivity(ctx, cfg, deploymentID, workflowName, bypassErrors, w, activity)
 			if err != nil {
 				setNodeStatus(ctx, s.t.taskID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.Name, err)
@@ -236,7 +236,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	return nil
 }
 
-func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, workflowName string, bypassErrors bool, w *worker, activity builder.Activity) error {
+func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, deploymentID, workflowName string, bypassErrors bool, w *worker, activity builder.Activity) error {
 	// Get activity related instances
 	instances, err := tasks.GetInstances(s.t.taskID, deploymentID, s.Target)
 	if err != nil {
@@ -259,7 +259,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		for _, instanceName := range instances {
 			eventInfo.OperationName = fmt.Sprintf("delegate.%s", delegateOp)
 			// Need to publish INITIAL status before RUNNING one with operationName set
-			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
+			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
@@ -269,13 +269,13 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 			for _, instanceName := range instances {
-				s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
+				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 		for _, instanceName := range instances {
-			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
+			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 		}
 	case builder.ActivityTypeSetState:
 		setNodeStatus(wfCtx, s.t.taskID, deploymentID, s.Target, activity.Value())
@@ -306,7 +306,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 				eventInfo.TargetNodeID = op.RelOp.TargetNodeName
 			}
 			// Need to publish INITIAL status before RUNNING one with operationName set
-			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
+			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
 		// In function of the operation, the execution is sync or async
 		if s.Async {
@@ -346,14 +346,14 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
 			for _, instanceName := range instances {
-				s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
+				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
 		if !s.Async {
 			for _, instanceName := range instances {
-				s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
+				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 			}
 		}
 	case builder.ActivityTypeInline:
@@ -365,11 +365,11 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 
 func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
-	wfOps, err := builder.BuildInitExecutionOperations(s.t.cc.KV(), s.t.targetID, s.t.taskID, workflowName, true)
+	wfOps, err := builder.BuildInitExecutionOperations(s.t.targetID, s.t.taskID, workflowName, true)
 	if err != nil {
 		return err
 	}
-	err = tasks.StoreOperations(s.t.cc.KV(), s.t.taskID, wfOps)
+	err = tasks.StoreOperations(s.t.taskID, wfOps)
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register workflow init operations with workflow:%q, targetID:%q, taskID:%q", workflowName, s.t.targetID, s.t.taskID)
 	}
@@ -428,7 +428,7 @@ func (s *step) registerNextSteps(ctx context.Context, workflowName string) error
 	}
 	defer l.Unlock()
 	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
-	err = tasks.StoreOperations(s.t.cc.KV(), s.t.taskID, ops)
+	err = tasks.StoreOperations(s.t.taskID, ops)
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
 	}
@@ -452,14 +452,14 @@ func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName 
 	}
 	defer l.Unlock()
 	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
-	err = tasks.StoreOperations(s.t.cc.KV(), s.t.taskID, ops)
+	err = tasks.StoreOperations(s.t.taskID, ops)
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
 	}
 	return err
 }
 
-func (s *step) publishInstanceRelatedEvents(ctx context.Context, kv *api.KV, deploymentID, instanceName string, eventInfo *events.WorkflowStepInfo, statuses ...tasks.TaskStepStatus) {
+func (s *step) publishInstanceRelatedEvents(ctx context.Context, deploymentID, instanceName string, eventInfo *events.WorkflowStepInfo, statuses ...tasks.TaskStepStatus) {
 	// taskExecutionID has to be unique for each instance, so we concat it to instanceName
 	eventInfo.InstanceName = instanceName
 	instanceTaskExecutionID := fmt.Sprintf("%s-%s", s.t.id, instanceName)

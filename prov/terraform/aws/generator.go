@@ -40,13 +40,8 @@ type awsGenerator struct {
 
 func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
-	cClient, err := cfg.GetConsulClient()
-	if err != nil {
-		return false, nil, nil, nil, err
-	}
-	kv := cClient.KV()
-	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 
+	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 	infrastructure := commons.Infrastructure{}
 
 	var locationProps config.DynamicMap
@@ -101,7 +96,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 				// Do not generate something for this node instance (will be deleted if exists)
 				continue
 			}
-			err = g.generateAWSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs, &cmdEnv)
+			err = g.generateAWSInstance(ctx, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

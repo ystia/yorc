@@ -56,12 +56,12 @@ func loadTestYaml(t *testing.T, deploymentID string) {
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 }
 
-func cleanTest(kv *api.KV, deploymentID, taskID string) {
+func cleanTest(deploymentID, taskID string) {
 	if taskID != "" {
-		kv.DeleteTree(path.Join(consulutil.TasksPrefix, taskID), nil)
+		consulutil.Delete(path.Join(consulutil.TasksPrefix, taskID), true)
 	}
 	if deploymentID != "" {
-		kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID), nil)
+		consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID), true)
 	}
 }
 
@@ -133,7 +133,7 @@ func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.C
 				require.Nil(t, err, "unexpected error parsing bool continueOnError")
 				require.Equal(t, tt.want.continueOnError, continueOnError, "unexpected continueOnError value")
 
-				cleanTest(client.KV(), deploymentID, taskID)
+				cleanTest(deploymentID, taskID)
 			}
 		})
 	}
@@ -197,7 +197,7 @@ func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client,
 				require.Nil(t, err, "unexpected error getting task type")
 				require.Equal(t, tt.want.taskType, taskType, "unexpected task type")
 
-				cleanTest(client.KV(), deploymentID, taskID)
+				cleanTest(deploymentID, taskID)
 			}
 		})
 	}
@@ -252,7 +252,7 @@ func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.Te
 					t.Errorf("deployment = %v, want %v", body, *tt.want.deployment)
 				}
 			}
-			cleanTest(client.KV(), tt.deploymentID, "")
+			cleanTest(tt.deploymentID, "")
 		})
 	}
 }
@@ -305,7 +305,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 					t.Errorf("deployment = %v, want %v", depFound, *tt.want.deployments)
 				}
 			}
-			cleanTest(client.KV(), tt.name, "")
+			cleanTest(tt.name, "")
 		})
 	}
 }

@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -235,7 +234,7 @@ type k8sJob struct {
 	namespaceProvided bool
 }
 
-func getJob(ctx context.Context, kv *api.KV, clientset kubernetes.Interface, deploymentID, nodeName string) (*k8sJob, error) {
+func getJob(ctx context.Context, clientset kubernetes.Interface, deploymentID, nodeName string) (*k8sJob, error) {
 	rSpec, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "resource_spec")
 	if err != nil {
 		return nil, err

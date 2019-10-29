@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/events"
@@ -35,7 +34,6 @@ import (
 
 type scheduledAction struct {
 	prov.Action
-	kv                   *api.KV
 	deploymentID         string
 	timeInterval         time.Duration
 	latestDataIndex      uint64
@@ -141,14 +139,14 @@ func (sca *scheduledAction) registerNewTask() error {
 
 func (sca *scheduledAction) updateData() error {
 	dataPath := path.Join(consulutil.SchedulingKVPrefix, "actions", sca.ID, "data")
-	_, meta, err := sca.kv.Get(dataPath, nil)
+	_, meta, err := consulutil.GetKV().Get(dataPath, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if meta.LastIndex > sca.latestDataIndex {
 		// re-read data
 		// Appending a final "/" here is not necessary as there is no other keys starting with "data" prefix
-		kvps, _, err := sca.kv.List(dataPath, nil)
+		kvps, _, err := consulutil.GetKV().List(dataPath, nil)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}

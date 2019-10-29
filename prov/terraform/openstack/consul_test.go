@@ -26,8 +26,7 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulOpenstackPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	cfg := config.Configuration{
@@ -41,16 +40,16 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 
 	t.Run("groupOpenstack", func(t *testing.T) {
 		t.Run("simpleOSInstance", func(t *testing.T) {
-			testSimpleOSInstance(t, kv)
+			testSimpleOSInstance(t)
 		})
 		t.Run("OSInstanceWithBootVolume", func(t *testing.T) {
-			testOSInstanceWithBootVolume(t, kv)
+			testOSInstanceWithBootVolume(t)
 		})
 		t.Run("fipOSInstance", func(t *testing.T) {
-			testFipOSInstance(t, kv, srv)
+			testFipOSInstance(t, srv)
 		})
 		t.Run("fipOSInstanceNotAllowed", func(t *testing.T) {
-			testFipOSInstanceNotAllowed(t, kv, srv)
+			testFipOSInstanceNotAllowed(t, srv)
 		})
 		t.Run("TestGenerateOSBSVolumeSizeConvert", func(t *testing.T) {
 			testGenerateOSBSVolumeSizeConvert(t, srv)
@@ -77,19 +76,19 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 			testGenerateMultipleIP(t, srv)
 		})
 		t.Run("simpleServerGroup", func(t *testing.T) {
-			testSimpleServerGroup(t, kv)
+			testSimpleServerGroup(t)
 		})
 		t.Run("OSInstanceWithServerGroup", func(t *testing.T) {
-			testOSInstanceWithServerGroup(t, kv, srv)
+			testOSInstanceWithServerGroup(t, srv)
 		})
 		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
-			testGenerateTerraformInfo(t, srv, kv, locationMgr)
+			testGenerateTerraformInfo(t, srv, locationMgr)
 		})
 		t.Run("TestComputeBootVolumeWrongSize", func(t *testing.T) {
-			testComputeBootVolumeWrongSize(t, srv, kv)
+			testComputeBootVolumeWrongSize(t, srv)
 		})
 		t.Run("TestComputeBootVolumeWrongType", func(t *testing.T) {
-			testComputeBootVolumeWrongType(t, srv, kv)
+			testComputeBootVolumeWrongType(t, srv)
 		})
 	})
 }

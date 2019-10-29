@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -65,7 +64,7 @@ func TestSimpleLogEntry(t *testing.T) {
 	require.Equal(t, &LogEntry{level: LogLevelINFO, deploymentID: "my_deploymentID"}, logEntry)
 }
 
-func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
+func testRegisterLogsInConsul(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
 	tests := []struct {
@@ -86,7 +85,7 @@ func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
 	}
 
 	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
-	kvps, _, err := kv.List(logsPrefix, nil)
+	kvps, _, err := consulutil.GetKV().List(logsPrefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -110,7 +109,7 @@ func getLogEntryExceptTimestamp(t *testing.T, log string) string {
 }
 
 // Check sorting by timestamp preserves the order of log entries stored in Consul
-func testLogsSortedByTimestamp(t *testing.T, kv *api.KV) {
+func testLogsSortedByTimestamp(t *testing.T) {
 	t.Parallel()
 
 	// Register log entries in Consul
@@ -125,7 +124,7 @@ func testLogsSortedByTimestamp(t *testing.T, kv *api.KV) {
 	// Retrieve key/value pairs stored in Consul
 	logEntries := make([]map[string]string, NumberOfLogs)
 	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
-	kvps, _, err := kv.List(logsPrefix, nil)
+	kvps, _, err := consulutil.GetKV().List(logsPrefix, nil)
 	require.NoError(t, err, "Failure getting log entries from consul")
 	require.Len(t, kvps, NumberOfLogs, "Got unexpected number of log entries from Consul")
 	for i, kvp := range kvps {

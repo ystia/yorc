@@ -22,7 +22,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,8 +57,7 @@ func Test_addOutput(t *testing.T) {
 	}
 }
 
-func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.KV,
-	locationMgr locations.Manager) {
+func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, locationMgr locations.Manager) {
 	t.Parallel()
 	log.SetDebug(true)
 
@@ -128,8 +126,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 		{"Network_2", map[string]string{}},
 	}
 	for _, tt := range testData {
-		res, outputs, _, _, err := g.generateTerraformInfraForNode(
-			context.Background(), kv, cfg, depID, tt.nodeName, tempdir)
+		res, outputs, _, _, err := g.generateTerraformInfraForNode(context.Background(), cfg, depID, tt.nodeName, tempdir)
 		require.NoError(t, err, "Unexpected error generating %s terraform info", tt.nodeName)
 		assert.Equal(t, true, res, "Unexpected result for node name %s", tt.nodeName)
 
@@ -163,8 +160,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, kv *api.
 	srv1.PopulateKV(t, map[string][]byte{
 		path.Join(nodePrefix, "FIPCompute/properties/ip"): []byte("1.2.3.4"),
 	})
-	_, outputs, _, _, err = g.generateTerraformInfraForNode(
-		context.Background(), kv, cfg, depID, "FIPCompute", tempdir)
+	_, outputs, _, _, err = g.generateTerraformInfraForNode(context.Background(), cfg, depID, "FIPCompute", tempdir)
 	require.NoError(t, err, "Unexpected error generating FIPCompute terraform info")
 
 }

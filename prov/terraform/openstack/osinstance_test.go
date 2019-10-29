@@ -19,7 +19,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +39,7 @@ func loadTestYaml(t *testing.T) string {
 }
 
 // initTestInfra loads a deployment topology and creates resources
-func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []string, map[string]string, error) {
+func initTestInfra(t *testing.T) (string, commons.Infrastructure, []string, map[string]string, error) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 
@@ -59,7 +58,6 @@ func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
-			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
 			locationProps:  locationProps,
@@ -72,8 +70,8 @@ func initTestInfra(t *testing.T, kv *api.KV) (string, commons.Infrastructure, []
 	return deploymentID, infrastructure, env, outputs, err
 }
 
-func testSimpleOSInstance(t *testing.T, kv *api.KV) {
-	deploymentID, infrastructure, env, outputs, err := initTestInfra(t, kv)
+func testSimpleOSInstance(t *testing.T) {
+	deploymentID, infrastructure, env, outputs, err := initTestInfra(t)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -119,8 +117,8 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 }
 
-func testOSInstanceWithBootVolume(t *testing.T, kv *api.KV) {
-	_, infrastructure, _, _, err := initTestInfra(t, kv)
+func testOSInstanceWithBootVolume(t *testing.T) {
+	_, infrastructure, _, _, err := initTestInfra(t)
 	require.NoError(t, err, "Failed to create an OS instance with boot volume")
 
 	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
@@ -149,7 +147,7 @@ func testOSInstanceWithBootVolume(t *testing.T, kv *api.KV) {
 	assert.Contains(t, compute.SecurityGroups, "openbar")
 }
 
-func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+func testFipOSInstance(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 
@@ -171,7 +169,6 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
-			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
 			locationProps:  locationProps,
@@ -231,7 +228,7 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 
 }
 
-func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+func testFipOSInstanceNotAllowed(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 
@@ -253,7 +250,6 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
-			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
 			locationProps:  locationProps,
@@ -306,7 +302,7 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }
 
-func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+func testOSInstanceWithServerGroup(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 
@@ -329,7 +325,6 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 	err := g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
-			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
 			locationProps:  locationProps,
@@ -354,7 +349,7 @@ func testOSInstanceWithServerGroup(t *testing.T, kv *api.KV, srv *testutil.TestS
 	require.Equal(t, "my_sg_id", compute.SchedulerHints.Group)
 }
 
-func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+func testComputeNetworkAttributes(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 
@@ -367,7 +362,6 @@ func testComputeNetworkAttributes(t *testing.T, kv *api.KV, srv *testutil.TestSe
 	outputs := make(map[string]string, 0)
 	resourceTypes := getOpenstackResourceTypes(locationProps)
 	opts := osInstanceOptions{
-		kv:             kv,
 		cfg:            cfg,
 		infrastructure: &infrastructure,
 		locationProps:  locationProps,
