@@ -46,7 +46,7 @@ func testExecutionCancelJob(t *testing.T) {
 	err = tasks.SetTaskData("t1", nodeName+"-jobId", taskJobID)
 	require.NoError(t, err)
 
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, "0", "job_id", instanceJobID)
+	err = deployments.SetInstanceAttribute(context.Background(), deploymentID, nodeName, "0", "job_id", instanceJobID)
 	require.NoError(t, err, "Failed to set job_id attribute")
 	type fields struct {
 		taskID   string

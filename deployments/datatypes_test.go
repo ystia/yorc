@@ -44,7 +44,7 @@ func testGetTypePropertyDataType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTypePropertyDataType(deploymentID, tt.args.typeName, tt.args.propertyName)
+			got, err := GetTypePropertyDataType(context.Background(), deploymentID, tt.args.typeName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTypePropertyDataType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -85,7 +85,7 @@ func testGetNestedDataType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetNestedDataType(deploymentID, tt.args.baseType, tt.args.nestedKeys...)
+			got, err := GetNestedDataType(context.Background(), deploymentID, tt.args.baseType, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetNestedDataType() error = %v, wantErr %v", err, tt.wantErr)
 				return

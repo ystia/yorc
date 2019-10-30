@@ -49,7 +49,7 @@ func NewExecutor(generator commons.Generator, preDestroyCheck commons.PreDestroy
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-	instances, err := tasks.GetInstances(taskID, deploymentID, nodeName)
+	instances, err := tasks.GetInstances(ctx, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -241,31 +241,31 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, infraPath string,
 		}
 	}
 
-	err = e.storeOutputs(store, workOutputs)
+	err = e.storeOutputs(ctx, store, workOutputs)
 	if err != nil {
 		return err
 	}
 	return errGrp.Wait()
 }
 
-func (e *defaultExecutor) storeOutputs(store consulutil.ConsulStore, outputs map[string]string) error {
+func (e *defaultExecutor) storeOutputs(ctx context.Context, store consulutil.ConsulStore, outputs map[string]string) error {
 	// instance attributes values are stored by block
 	attributesBlock := make([]*deployments.AttributeData, 0)
 	for outputPath, outputValue := range outputs {
 		log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
 		if strings.Contains(outputPath, "/attributes/") {
-			attr, err := deployments.BuildAttributeDataFromPath(outputPath)
+			attr, err := deployments.BuildAttributeDataFromPath(ctx, outputPath)
 			if err != nil {
 				return err
 			}
 			attr.Value = outputValue
 			if attr.CapabilityName != "" {
-				err = deployments.SetInstanceCapabilityAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.CapabilityName, attr.Name, attr.Value)
+				err = deployments.SetInstanceCapabilityAttribute(ctx, attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.CapabilityName, attr.Name, attr.Value)
 				if err != nil {
 					return err
 				}
 			} else if attr.RequirementIndex != "" {
-				err = deployments.SetInstanceRelationshipAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.RequirementIndex, attr.Name, attr.Value)
+				err = deployments.SetInstanceRelationshipAttribute(ctx, attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.RequirementIndex, attr.Name, attr.Value)
 				if err != nil {
 					return err
 				}
@@ -277,7 +277,7 @@ func (e *defaultExecutor) storeOutputs(store consulutil.ConsulStore, outputs map
 			store.StoreConsulKeyAsString(outputPath, outputValue)
 		}
 	}
-	return deployments.SetInstanceListAttributes(attributesBlock)
+	return deployments.SetInstanceListAttributes(ctx, attributesBlock)
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, outputs map[string]string, env []string) error {

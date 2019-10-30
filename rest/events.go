@@ -33,7 +33,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
@@ -79,7 +79,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
@@ -128,7 +128,7 @@ func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
@@ -149,7 +149,7 @@ func (s *Server) headLogsEventsIndex(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)

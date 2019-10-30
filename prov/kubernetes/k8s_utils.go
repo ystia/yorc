@@ -235,7 +235,7 @@ type k8sJob struct {
 }
 
 func getJob(ctx context.Context, clientset kubernetes.Interface, deploymentID, nodeName string) (*k8sJob, error) {
-	rSpec, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "resource_spec")
+	rSpec, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "resource_spec")
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func replaceServiceDepLookups(ctx context.Context, clientset kubernetes.Interfac
 }
 
 func replaceServiceIPInResourceSpec(ctx context.Context, clientset kubernetes.Interface, deploymentID, nodeName, namespace, rSpec string) (string, error) {
-	serviceDepsLookups, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "service_dependency_lookups")
+	serviceDepsLookups, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "service_dependency_lookups")
 	if err != nil || serviceDepsLookups == nil || serviceDepsLookups.RawString() == "" {
 		return rSpec, err
 	}

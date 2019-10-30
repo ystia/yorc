@@ -38,7 +38,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	deploymentID := params.ByName("id")
 	workflowName := params.ByName("workflowName")
 
-	dExits, err := deployments.DoesDeploymentExists(deploymentID)
+	dExits, err := deployments.DoesDeploymentExists(ctx, deploymentID)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -47,7 +47,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deploymentStatus, err := deployments.GetDeploymentStatus(deploymentID)
+	deploymentStatus, err := deployments.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -56,7 +56,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workflows, err := deployments.GetWorkflows(deploymentID)
+	workflows, err := deployments.GetWorkflows(ctx, deploymentID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -88,7 +88,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		for _, nodeInstances := range wfRequest.NodesInstances {
 			nodeName := nodeInstances.NodeName
 			// Check that provided node exists
-			nodeExists, err := deployments.DoesNodeExist(deploymentID, nodeName)
+			nodeExists, err := deployments.DoesNodeExist(ctx, deploymentID, nodeName)
 			if err != nil {
 				log.Panicf("%v", err)
 			}
@@ -97,7 +97,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Check that provided instances exist
-			checked, inexistent := s.checkInstances(deploymentID, nodeName, nodeInstances.Instances)
+			checked, inexistent := s.checkInstances(ctx, deploymentID, nodeName, nodeInstances.Instances)
 			if !checked {
 				writeError(w, r, newBadRequestParameter("instance", errors.Errorf("Instance %q must exist", inexistent)))
 				return
@@ -127,7 +127,7 @@ func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 
-	dExits, err := deployments.DoesDeploymentExists(deploymentID)
+	dExits, err := deployments.DoesDeploymentExists(ctx, deploymentID)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -136,7 +136,7 @@ func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workflows, err := deployments.GetWorkflows(deploymentID)
+	workflows, err := deployments.GetWorkflows(ctx, deploymentID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -155,7 +155,7 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	deploymentID := params.ByName("id")
 	workflowName := params.ByName("workflowName")
 
-	dExits, err := deployments.DoesDeploymentExists(deploymentID)
+	dExits, err := deployments.DoesDeploymentExists(ctx, deploymentID)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -164,7 +164,7 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workflows, err := deployments.GetWorkflows(deploymentID)
+	workflows, err := deployments.GetWorkflows(ctx, deploymentID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -173,7 +173,7 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, errNotFound)
 		return
 	}
-	wfSteps, err := deployments.ReadWorkflow(deploymentID, workflowName)
+	wfSteps, err := deployments.ReadWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		log.Panic(err)
 	}

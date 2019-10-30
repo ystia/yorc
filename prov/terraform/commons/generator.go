@@ -49,18 +49,18 @@ type PreDestroyInfraCallback func(ctx context.Context, cfg config.Configuration,
 // PreDestroyStorageInfraCallback is a callback of type PreDestroyInfraCallback
 // checking if a block storage node is deletable on undeployment.
 func PreDestroyStorageInfraCallback(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error) {
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, err
 	}
-	isBlockStorage, err := deployments.IsTypeDerivedFrom(deploymentID, nodeType, "tosca.nodes.BlockStorage")
+	isBlockStorage, err := deployments.IsTypeDerivedFrom(ctx, deploymentID, nodeType, "tosca.nodes.BlockStorage")
 	if err != nil {
 		return false, err
 	}
 
 	if isBlockStorage {
 
-		deletable, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "deletable")
+		deletable, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "deletable")
 		if err != nil {
 			return false, err
 		}

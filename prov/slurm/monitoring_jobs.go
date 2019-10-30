@@ -105,13 +105,13 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return true, err
 	}
 
-	credentials, err := getUserCredentials(locationProps, deploymentID, nodeName, "")
+	credentials, err := getUserCredentials(ctx, locationProps, deploymentID, nodeName, "")
 	if err != nil {
 		return true, err
 	}
@@ -156,7 +156,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
-	previousJobState, err := deployments.GetInstanceStateString(deploymentID, nodeName, "0")
+	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, "0")
 	if err != nil {
 		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
 	}

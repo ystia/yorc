@@ -32,7 +32,7 @@ import (
 
 func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
@@ -54,7 +54,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
@@ -73,7 +73,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 	privateNetwork.Name = strings.Replace(name, "_", "-", -1)
 
 	var autoCreateSubNets bool
-	s, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "auto_create_subnetworks")
+	s, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "auto_create_subnetworks")
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
@@ -125,7 +125,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 		{&subnet.Project, "project", false},
 	}
 	for _, param := range strParams {
-		*param.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName, param.propertyName, param.mandatory)
+		*param.pAttr, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, param.propertyName, param.mandatory)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
@@ -138,7 +138,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 		{&subnet.PrivateIPGoogleAccess, "private_ip_google_access"},
 	}
 	for _, param := range boolParams {
-		*param.pAttr, err = deployments.GetBooleanNodeProperty(deploymentID, nodeName, param.propertyName)
+		*param.pAttr, err = deployments.GetBooleanNodeProperty(ctx, deploymentID, nodeName, param.propertyName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
@@ -146,7 +146,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 
 	// Network is either set by user or retrieved via dependency relationship with network node
 	if subnet.Network == "" {
-		hasDep, networkNode, err := deployments.HasAnyRequirementFromNodeType(deploymentID, nodeName, "dependency", "yorc.nodes.google.PrivateNetwork")
+		hasDep, networkNode, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "dependency", "yorc.nodes.google.PrivateNetwork")
 		if err != nil {
 			return err
 		}
@@ -168,7 +168,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 
 	// Handle secondary IP ranges
 	var secondarySourceRange []string
-	secondaryIPRangesRaws, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "secondary_ip_ranges")
+	secondaryIPRangesRaws, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "secondary_ip_ranges")
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	} else if secondaryIPRangesRaws != nil && secondaryIPRangesRaws.RawString() != "" {
@@ -179,7 +179,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 
 		ipRanges := make([]IPRange, 0)
 		for i := range list {
-			ipRange, err := buildIPRange(deploymentID, nodeName, i)
+			ipRange, err := buildIPRange(ctx, deploymentID, nodeName, i)
 			if err != nil {
 				return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 			}
@@ -220,11 +220,11 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 	return nil
 }
 
-func buildIPRange(deploymentID, nodeName string, ipRangeIndex int) (*IPRange, error) {
+func buildIPRange(ctx context.Context, deploymentID, nodeName string, ipRangeIndex int) (*IPRange, error) {
 	ind := strconv.Itoa(ipRangeIndex)
 	ipRange := &IPRange{}
 	// Name is a mandatory property
-	nameRaw, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "secondary_ip_ranges", ind, "name")
+	nameRaw, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "secondary_ip_ranges", ind, "name")
 	if err != nil {
 		return nil, err
 	} else if nameRaw == nil || nameRaw.RawString() == "" {
@@ -233,7 +233,7 @@ func buildIPRange(deploymentID, nodeName string, ipRangeIndex int) (*IPRange, er
 	ipRange.Name = strings.Replace(strings.ToLower(nameRaw.RawString()), "_", "-", -1)
 
 	// IPCIDRRange is a mandatory property
-	cidrRaw, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "secondary_ip_ranges", ind, "ip_cidr_range")
+	cidrRaw, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "secondary_ip_ranges", ind, "ip_cidr_range")
 	if err != nil {
 		return nil, err
 	} else if cidrRaw == nil || cidrRaw.RawString() == "" {

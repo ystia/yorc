@@ -33,12 +33,12 @@ import (
 // IsNodeDerivedFrom check if the node's type is derived from another type.
 //
 // Basically this function is a shorthand for GetNodeType and IsNodeTypeDerivedFrom.
-func IsNodeDerivedFrom(deploymentID, nodeName, derives string) (bool, error) {
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+func IsNodeDerivedFrom(ctx context.Context, deploymentID, nodeName, derives string) (bool, error) {
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, err
 	}
-	return IsTypeDerivedFrom(deploymentID, nodeType, derives)
+	return IsTypeDerivedFrom(ctx, deploymentID, nodeType, derives)
 }
 
 // GetDefaultNbInstancesForNode retrieves the default number of instances for a given node nodeName in deployment deploymentId.
@@ -47,8 +47,8 @@ func IsNodeDerivedFrom(deploymentID, nodeName, derives string) (bool, error) {
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
 // the process. If a scalable node is finally found it returns the instances number.
 // If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance
-func GetDefaultNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
-	return getScalablePropertyForNode(deploymentID, nodeName, "default_instances")
+func GetDefaultNbInstancesForNode(ctx context.Context, deploymentID, nodeName string) (uint32, error) {
+	return getScalablePropertyForNode(ctx, deploymentID, nodeName, "default_instances")
 }
 
 // GetMaxNbInstancesForNode retrieves the maximum number of instances for a given node nodeName in deployment deploymentId.
@@ -57,8 +57,8 @@ func GetDefaultNbInstancesForNode(deploymentID, nodeName string) (uint32, error)
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
 // the process. If a scalable node is finally found it returns the instances number.
 // If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance$
-func GetMaxNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
-	return getScalablePropertyForNode(deploymentID, nodeName, "max_instances")
+func GetMaxNbInstancesForNode(ctx context.Context, deploymentID, nodeName string) (uint32, error) {
+	return getScalablePropertyForNode(ctx, deploymentID, nodeName, "max_instances")
 }
 
 // GetMinNbInstancesForNode retrieves the minimum number of instances for a given node nodeName in deployment deploymentId.
@@ -67,8 +67,8 @@ func GetMaxNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
 // the process. If a scalable node is finally found it returns the instances number.œ
 // If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance
-func GetMinNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
-	return getScalablePropertyForNode(deploymentID, nodeName, "min_instances")
+func GetMinNbInstancesForNode(ctx context.Context, deploymentID, nodeName string) (uint32, error) {
+	return getScalablePropertyForNode(ctx, deploymentID, nodeName, "min_instances")
 }
 
 // getScalablePropertyForNode retrieves one of the scalable property on number of instances.
@@ -77,20 +77,20 @@ func GetMinNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
 // the process. If a scalable node is finally found it returns the instances number.
 // If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance
-func getScalablePropertyForNode(deploymentID, nodeName, propertyName string) (uint32, error) {
+func getScalablePropertyForNode(ctx context.Context, deploymentID, nodeName, propertyName string) (uint32, error) {
 
 	// TODO: Large part of GetDefaultNbInstancesForNode GetMaxNbInstancesForNode GetMinNbInstancesForNode could be factorized
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return 0, err
 	}
-	capabilities, err := GetCapabilitiesOfType(deploymentID, nodeType, "tosca.capabilities.Scalable")
+	capabilities, err := GetCapabilitiesOfType(ctx, deploymentID, nodeType, "tosca.capabilities.Scalable")
 	if err != nil {
 		return 0, err
 	}
 	if len(capabilities) > 0 {
 		for _, capability := range capabilities {
-			nbInst, err := GetCapabilityPropertyValue(deploymentID, nodeName, capability, propertyName)
+			nbInst, err := GetCapabilityPropertyValue(ctx, deploymentID, nodeName, capability, propertyName)
 			if err != nil {
 				return 0, err
 			}
@@ -106,18 +106,18 @@ func getScalablePropertyForNode(deploymentID, nodeName, propertyName string) (ui
 	}
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
-	hostNode, err := GetHostedOnNode(deploymentID, nodeName)
+	hostNode, err := GetHostedOnNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return 0, err
 	} else if hostNode != "" {
-		return getScalablePropertyForNode(deploymentID, hostNode, propertyName)
+		return getScalablePropertyForNode(ctx, deploymentID, hostNode, propertyName)
 	}
 	// Not hosted on a node having the Scalable capability lets assume one instance
 	return 1, nil
 }
 
 // GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentID.
-func GetNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
+func GetNbInstancesForNode(ctx context.Context, deploymentID, nodeName string) (uint32, error) {
 	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	keys, err := consulutil.GetKeys(instancesPath)
 	if err != nil {
@@ -129,7 +129,7 @@ func GetNbInstancesForNode(deploymentID, nodeName string) (uint32, error) {
 // GetNodeInstancesIds returns the names of the different instances for a given node.
 //
 // It may be an empty array if the given node is not HostedOn a scalable node.
-func GetNodeInstancesIds(deploymentID, nodeName string) ([]string, error) {
+func GetNodeInstancesIds(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
 	names := make([]string, 0)
 	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
 	instances, err := consulutil.GetKeys(instancesPath)
@@ -164,7 +164,7 @@ func GetNodeInstancesIds(deploymentID, nodeName string) ([]string, error) {
 // GetHostedOnNode returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
-func GetHostedOnNode(deploymentID, nodeName string) (string, error) {
+func GetHostedOnNode(ctx context.Context, deploymentID, nodeName string) (string, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
@@ -182,7 +182,7 @@ func GetHostedOnNode(deploymentID, nodeName string) (string, error) {
 		}
 		// Is this "HostedOn" relationship ?
 		if exist && value != "" {
-			if ok, err := IsTypeDerivedFrom(deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
+			if ok, err := IsTypeDerivedFrom(ctx, deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
 				return "", err
 			} else if ok {
 				// An HostedOn! Great! let inspect the target node.
@@ -204,7 +204,7 @@ func GetHostedOnNode(deploymentID, nodeName string) (string, error) {
 // defined in the first found relationship derived from "tosca.relationships.HostedOn"
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
-func GetHostedOnNodeInstance(deploymentID, nodeName, instanceName string) (string, string, error) {
+func GetHostedOnNodeInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	// Going through requirements to find hosted on relationships
 	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
@@ -221,7 +221,7 @@ func GetHostedOnNodeInstance(deploymentID, nodeName, instanceName string) (strin
 		}
 		// Is this "HostedOn" relationship ?
 		if exist && value != "" {
-			if ok, err := IsTypeDerivedFrom(deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
+			if ok, err := IsTypeDerivedFrom(ctx, deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
 				return "", "", err
 			} else if ok {
 				// An HostedOn! Great! let inspect the target node.
@@ -233,7 +233,7 @@ func GetHostedOnNodeInstance(deploymentID, nodeName, instanceName string) (strin
 					return "", "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
 				}
 				// Get the corresponding target instances
-				hostNodeName, hostInstances, err := GetTargetInstanceForRequirement(deploymentID, nodeName, path.Base(reqKey), instanceName)
+				hostNodeName, hostInstances, err := GetTargetInstanceForRequirement(ctx, deploymentID, nodeName, path.Base(reqKey), instanceName)
 				if err != nil {
 					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
@@ -247,29 +247,29 @@ func GetHostedOnNodeInstance(deploymentID, nodeName, instanceName string) (strin
 }
 
 // IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy
-func IsHostedOn(deploymentID, nodeName, hostedOn string) (bool, error) {
-	if host, err := GetHostedOnNode(deploymentID, nodeName); err != nil {
+func IsHostedOn(ctx context.Context, deploymentID, nodeName, hostedOn string) (bool, error) {
+	if host, err := GetHostedOnNode(ctx, deploymentID, nodeName); err != nil {
 		return false, err
 	} else if host == "" {
 		return false, nil
 	} else if host != hostedOn {
-		return IsHostedOn(deploymentID, host, hostedOn)
+		return IsHostedOn(ctx, deploymentID, host, hostedOn)
 	}
 	return true, nil
 
 }
 
 // GetNodesHostedOn returns the list of nodes that are hosted on a given node
-func GetNodesHostedOn(deploymentID, hostNode string) ([]string, error) {
+func GetNodesHostedOn(ctx context.Context, deploymentID, hostNode string) ([]string, error) {
 	// Thinking: maybe we can store at parsing time for each node the list of nodes on which it is hosted on and/or the opposite rather than re-scan the whole node list
-	nodesList, err := GetNodes(deploymentID)
+	nodesList, err := GetNodes(ctx, deploymentID)
 	if err != nil {
 		return nil, err
 	}
 	stackNodes := nodesList[:0]
 	for _, node := range nodesList {
 		var hostedOn bool
-		hostedOn, err = IsHostedOn(deploymentID, node, hostNode)
+		hostedOn, err = IsHostedOn(ctx, deploymentID, node, hostNode)
 		if err != nil {
 			return nil, err
 		}
@@ -286,30 +286,30 @@ func GetNodesHostedOn(deploymentID, hostNode string) ([]string, error) {
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy
-func GetNodePropertyValue(deploymentID, nodeName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	var propDataType string
-	hasProp, err := TypeHasProperty(deploymentID, nodeType, propertyName, true)
+	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
 	if err != nil {
 		return nil, err
 	}
 	if hasProp {
-		propDataType, err = GetTypePropertyDataType(deploymentID, nodeType, propertyName)
+		propDataType, err = GetTypePropertyDataType(ctx, deploymentID, nodeType, propertyName)
 		if err != nil {
 			return nil, err
 		}
 	}
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
-	result, err := getValueAssignmentWithDataType(deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(ctx, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get property %q for node %q", propertyName, nodeName)
 	}
 	// Not found look at node type
-	value, isFunction, err := getTypeDefaultProperty(deploymentID, nodeType, propertyName, nestedKeys...)
+	value, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, nodeType, propertyName, nestedKeys...)
 	if err != nil {
 		return nil, err
 	}
@@ -317,23 +317,23 @@ func GetNodePropertyValue(deploymentID, nodeName, propertyName string, nestedKey
 		if !isFunction {
 			return value, nil
 		}
-		return resolveValueAssignment(deploymentID, nodeName, "", "", value, nestedKeys...)
+		return resolveValueAssignment(ctx, deploymentID, nodeName, "", "", value, nestedKeys...)
 	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
-	host, err := GetHostedOnNode(deploymentID, nodeName)
+	host, err := GetHostedOnNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	if host != "" {
-		value, err := GetNodePropertyValue(deploymentID, host, propertyName, nestedKeys...)
+		value, err := GetNodePropertyValue(ctx, deploymentID, host, propertyName, nestedKeys...)
 		if err != nil || value != nil {
 			return value, err
 		}
 	}
 	if hasProp {
 		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(deploymentID, nodeType, propertyName)
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, nodeType, propertyName)
 		if err != nil {
 			return nil, err
 		}
@@ -345,11 +345,11 @@ func GetNodePropertyValue(deploymentID, nodeName, propertyName string, nestedKey
 
 		if len(nestedKeys) > 1 && propDataType != "" {
 			// Check if nested type is optional
-			nestedKeyType, err := GetNestedDataType(deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			nestedKeyType, err := GetNestedDataType(ctx, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
 			if err != nil {
 				return nil, err
 			}
-			isRequired, err = IsTypePropertyRequired(deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
 				return nil, err
 			}
@@ -365,15 +365,15 @@ func GetNodePropertyValue(deploymentID, nodeName, propertyName string, nestedKey
 }
 
 // SetNodeProperty sets a node property
-func SetNodeProperty(deploymentID, nodeName, propertyName, propertyValue string) error {
+func SetNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName, propertyValue string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "properties", propertyName), propertyValue)
 }
 
 // GetStringNodeProperty returns the string value of a property.
 // If this value is empty and the argument mandatory is true, an error is returned
-func GetStringNodeProperty(deploymentID, nodeName, propertyName string, mandatory bool) (string, error) {
+func GetStringNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string, mandatory bool) (string, error) {
 
-	result, err := GetNodePropertyValue(deploymentID, nodeName, propertyName)
+	result, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return "", err
 	}
@@ -389,9 +389,9 @@ func GetStringNodeProperty(deploymentID, nodeName, propertyName string, mandator
 }
 
 // GetBooleanNodeProperty returns the boolean value of a property (default: false)
-func GetBooleanNodeProperty(deploymentID, nodeName, propertyName string) (bool, error) {
+func GetBooleanNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) (bool, error) {
 	var result bool
-	strValue, err := GetNodePropertyValue(deploymentID, nodeName, propertyName)
+	strValue, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return result, err
 	}
@@ -408,9 +408,9 @@ func GetBooleanNodeProperty(deploymentID, nodeName, propertyName string) (bool, 
 
 // GetStringArrayNodeProperty returns the string Array value of a node property (default: false)
 // This function returns a nil array for an empty string property value
-func GetStringArrayNodeProperty(deploymentID, nodeName, propertyName string) ([]string, error) {
+func GetStringArrayNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) ([]string, error) {
 	var result []string
-	strValue, err := GetNodePropertyValue(deploymentID, nodeName, propertyName)
+	strValue, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return nil, err
 	}
@@ -426,9 +426,9 @@ func GetStringArrayNodeProperty(deploymentID, nodeName, propertyName string) ([]
 }
 
 // GetKeyValuePairsNodeProperty returns a key/value string map value of a node property (default: false)
-func GetKeyValuePairsNodeProperty(deploymentID, nodeName, propertyName string) (map[string]string, error) {
+func GetKeyValuePairsNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) (map[string]string, error) {
 	var result map[string]string
-	strValue, err := GetNodePropertyValue(deploymentID, nodeName, propertyName)
+	strValue, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return nil, err
 	}
@@ -456,15 +456,15 @@ func GetKeyValuePairsNodeProperty(deploymentID, nodeName, propertyName string) (
 //
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeAttributesValues(deploymentID, nodeName, attributeName string, nestedKeys ...string) (map[string]*TOSCAValue, error) {
-	instances, err := GetNodeInstancesIds(deploymentID, nodeName)
+func GetNodeAttributesValues(ctx context.Context, deploymentID, nodeName, attributeName string, nestedKeys ...string) (map[string]*TOSCAValue, error) {
+	instances, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
 	attributes := make(map[string]*TOSCAValue)
 	for _, instance := range instances {
-		result, err := GetInstanceAttributeValue(deploymentID, nodeName, instance, attributeName, nestedKeys...)
+		result, err := GetInstanceAttributeValue(ctx, deploymentID, nodeName, instance, attributeName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
@@ -475,10 +475,10 @@ func GetNodeAttributesValues(deploymentID, nodeName, attributeName string, neste
 
 // GetStringNodePropertyValue returns the string value of a property.
 // If there is no such property defined, an empty string is returned
-func GetStringNodePropertyValue(deploymentID, nodeName, propertyName string, nestedKeys ...string) (string, error) {
+func GetStringNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyName string, nestedKeys ...string) (string, error) {
 
 	var result string
-	propVal, err := GetNodePropertyValue(deploymentID, nodeName, propertyName, nestedKeys...)
+	propVal, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName, nestedKeys...)
 	if err != nil {
 		return "", err
 	}
@@ -490,7 +490,7 @@ func GetStringNodePropertyValue(deploymentID, nodeName, propertyName string, nes
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.
-func GetNodes(deploymentID string) ([]string, error) {
+func GetNodes(ctx context.Context, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
 	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes")
 	nodes, err := consulutil.GetKeys(nodesPath)
@@ -504,7 +504,7 @@ func GetNodes(deploymentID string) ([]string, error) {
 }
 
 // GetNodeType returns the type of a given node identified by its name
-func GetNodeType(deploymentID, nodeName string) (string, error) {
+func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, error) {
 	exist, nodeType, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"))
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
@@ -519,7 +519,7 @@ func GetNodeType(deploymentID, nodeName string) (string, error) {
 		return "", err
 	}
 	if substitutable {
-		nodeType, err = getSubstitutableNodeType(deploymentID, nodeName, nodeType)
+		nodeType, err = getSubstitutableNodeType(ctx, deploymentID, nodeName, nodeType)
 		if err != nil {
 			return "", err
 		}
@@ -528,16 +528,16 @@ func GetNodeType(deploymentID, nodeName string) (string, error) {
 }
 
 // GetNodeAttributesNames retrieves the list of existing attributes for a given node.
-func GetNodeAttributesNames(deploymentID, nodeName string) ([]string, error) {
+func GetNodeAttributesNames(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
 	attributesSet := make(map[string]struct{})
 
 	// Look at node type
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	typeAttrs, err := GetTypeAttributesNames(deploymentID, nodeType)
+	typeAttrs, err := GetTypeAttributesNames(ctx, deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +546,7 @@ func GetNodeAttributesNames(deploymentID, nodeName string) ([]string, error) {
 	}
 
 	// Look at instances attributes
-	instances, err := GetNodeInstancesIds(deploymentID, nodeName)
+	instances, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +567,7 @@ func GetNodeAttributesNames(deploymentID, nodeName string) ([]string, error) {
 	// Alien4Cloud did not yet implement the management of capability attributes
 	// in substitution mappings. It expects for now to read these capability
 	// attributes as node attributes
-	err = storeSubstitutionMappingAttributeNamesInSet(deploymentID, nodeName, attributesSet)
+	err = storeSubstitutionMappingAttributeNamesInSet(ctx, deploymentID, nodeName, attributesSet)
 	if err != nil {
 		return nil, err
 	}
@@ -585,16 +585,16 @@ func GetNodeAttributesNames(deploymentID, nodeName string) ([]string, error) {
 }
 
 // GetTypeAttributesNames returns the list of attributes names found in the type hierarchy
-func GetTypeAttributesNames(deploymentID, typeName string) ([]string, error) {
+func GetTypeAttributesNames(ctx context.Context, deploymentID, typeName string) ([]string, error) {
 	attributesSet := make(map[string]struct{})
 
-	parentType, err := GetParentType(deploymentID, typeName)
+	parentType, err := GetParentType(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 	if parentType != "" {
 		var parentAttrs []string
-		parentAttrs, err = GetTypeAttributesNames(deploymentID, parentType)
+		parentAttrs, err = GetTypeAttributesNames(ctx, deploymentID, parentType)
 		if err != nil {
 			return nil, err
 		}
@@ -642,8 +642,8 @@ func storeSubKeysInSet(parentPath string, set map[string]struct{}) error {
 	return nil
 }
 
-func getInstancesDependentLinkedNodes(deploymentID, nodeName string) ([]string, error) {
-	localStorageReqs, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "local_storage")
+func getInstancesDependentLinkedNodes(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
+	localStorageReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
@@ -659,11 +659,11 @@ func getInstancesDependentLinkedNodes(deploymentID, nodeName string) ([]string, 
 		}
 		nodesList = append(nodesList, value)
 	}
-	networkReqs, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "network")
+	networkReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "network")
 	if err != nil {
 		return nil, err
 	}
-	assignmentReqs, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "assignment")
+	assignmentReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "assignment")
 	if err != nil {
 		return nil, err
 	}
@@ -694,20 +694,20 @@ func getInstancesDependentLinkedNodes(deploymentID, nodeName string) ([]string, 
 // SelectNodeStackInstances selects a given number of instances of the given node, all the nodes hosted on this one and all nodes linked to it.
 //
 // For each node it returns a coma separated list of selected instances
-func SelectNodeStackInstances(deploymentID, nodeName string, instancesDelta int) (map[string]string, error) {
-	nodesStack, err := GetNodesHostedOn(deploymentID, nodeName)
+func SelectNodeStackInstances(ctx context.Context, deploymentID, nodeName string, instancesDelta int) (map[string]string, error) {
+	nodesStack, err := GetNodesHostedOn(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	nodesStack = append(nodesStack, nodeName)
-	linkedNodes, err := getInstancesDependentLinkedNodes(deploymentID, nodeName)
+	linkedNodes, err := getInstancesDependentLinkedNodes(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	nodesStack = append(nodesStack, linkedNodes...)
 
 	// TODO: Improve the way we relate node instances names to dependent (linked nodes) or hosted on instances names
-	instances, err := GetNodeInstancesIds(deploymentID, nodeName)
+	instances, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -722,12 +722,11 @@ func SelectNodeStackInstances(deploymentID, nodeName string, instancesDelta int)
 // CreateNewNodeStackInstances create the given number of new instances of the given node and all other nodes hosted on this one and all linked nodes
 //
 // CreateNewNodeStackInstances returns a map of newly created instances IDs indexed by node name
-func CreateNewNodeStackInstances(deploymentID, nodeName string, instances int) (map[string]string, error) {
+func CreateNewNodeStackInstances(ctx context.Context, deploymentID, nodeName string, instances int) (map[string]string, error) {
 	nodesMap := make(map[string]string)
-	ctx := context.Background()
 	_, errGroup, consulStore := consulutil.WithContext(ctx)
 
-	nodes, err := GetNodes(deploymentID)
+	nodes, err := GetNodes(ctx, deploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -737,7 +736,7 @@ func CreateNewNodeStackInstances(deploymentID, nodeName string, instances int) (
 			stackNodes = append(stackNodes, node)
 		} else {
 			var hostedOnNode bool
-			if hostedOnNode, err = IsHostedOn(deploymentID, node, nodeName); err != nil {
+			if hostedOnNode, err = IsHostedOn(ctx, deploymentID, node, nodeName); err != nil {
 				return nil, err
 			} else if hostedOnNode {
 				stackNodes = append(stackNodes, node)
@@ -745,14 +744,14 @@ func CreateNewNodeStackInstances(deploymentID, nodeName string, instances int) (
 		}
 	}
 
-	linkedNodes, err := getInstancesDependentLinkedNodes(deploymentID, nodeName)
+	linkedNodes, err := getInstancesDependentLinkedNodes(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	stackNodes = append(stackNodes, linkedNodes...)
 
 	// Now get existing nodes instances ids to have the
-	existingIds, err := GetNodeInstancesIds(deploymentID, nodeName)
+	existingIds, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -769,7 +768,7 @@ func CreateNewNodeStackInstances(deploymentID, nodeName string, instances int) (
 			} else {
 				nodesMap[stackNode] = id
 			}
-			addOrRemoveInstanceFromTargetRelationship(deploymentID, stackNode, id, true)
+			addOrRemoveInstanceFromTargetRelationship(ctx, deploymentID, stackNode, id, true)
 		}
 	}
 	// Wait for instances to be created
@@ -780,7 +779,7 @@ func CreateNewNodeStackInstances(deploymentID, nodeName string, instances int) (
 	// Then create relationship instances
 	_, errGroup, consulStore = consulutil.WithContext(ctx)
 	for node := range nodesMap {
-		createRelationshipInstances(consulStore, deploymentID, node)
+		createRelationshipInstances(ctx, consulStore, deploymentID, node)
 	}
 	return nodesMap, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
 
@@ -811,7 +810,7 @@ func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeNa
 }
 
 // DoesNodeExist checks if a given node exist in a deployment
-func DoesNodeExist(deploymentID, nodeName string) (bool, error) {
+func DoesNodeExist(ctx context.Context, deploymentID, nodeName string) (bool, error) {
 	keys, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName))
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -820,7 +819,7 @@ func DoesNodeExist(deploymentID, nodeName string) (bool, error) {
 }
 
 // GetNodeMetadata retrieves the related node metadata key if exists
-func GetNodeMetadata(deploymentID, nodeName, key string) (bool, string, error) {
+func GetNodeMetadata(ctx context.Context, deploymentID, nodeName, key string) (bool, string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "metadata", key))
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Can't get metadata for node %q", nodeName)
@@ -836,12 +835,12 @@ func GetNodeMetadata(deploymentID, nodeName, key string) (bool, string, error) {
 // exploreParents switch enable attribute check on parent types
 //
 // This is basically a shorthand for GetNodeType then TypeHasAttribute
-func NodeHasAttribute(deploymentID, nodeName, attributeName string, exploreParents bool) (bool, error) {
-	typeName, err := GetNodeType(deploymentID, nodeName)
+func NodeHasAttribute(ctx context.Context, deploymentID, nodeName, attributeName string, exploreParents bool) (bool, error) {
+	typeName, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, err
 	}
-	return TypeHasAttribute(deploymentID, typeName, attributeName, exploreParents)
+	return TypeHasAttribute(ctx, deploymentID, typeName, attributeName, exploreParents)
 }
 
 // NodeHasProperty returns true if the node type has a property named propertyName defined
@@ -849,15 +848,15 @@ func NodeHasAttribute(deploymentID, nodeName, attributeName string, exploreParen
 // exploreParents switch enable property check on parent types
 //
 // This is basically a shorthand for GetNodeType then TypeHasProperty
-func NodeHasProperty(deploymentID, nodeName, propertyName string, exploreParents bool) (bool, error) {
-	typeName, err := GetNodeType(deploymentID, nodeName)
+func NodeHasProperty(ctx context.Context, deploymentID, nodeName, propertyName string, exploreParents bool) (bool, error) {
+	typeName, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, err
 	}
-	return TypeHasProperty(deploymentID, typeName, propertyName, exploreParents)
+	return TypeHasProperty(ctx, deploymentID, typeName, propertyName, exploreParents)
 }
 
 // DeleteNode deletes the given node from the Consul store
-func DeleteNode(deploymentID, nodeName string) error {
+func DeleteNode(ctx context.Context, deploymentID, nodeName string) error {
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", true)
 }

@@ -88,7 +88,7 @@ func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interfac
 	}
 
 	// Set job id to the instance attribute
-	err = deployments.SetAttributeForAllInstances(e.deploymentID, e.nodeName, "job_id", job.jobRepr.Name)
+	err = deployments.SetAttributeForAllInstances(ctx, e.deploymentID, e.nodeName, "job_id", job.jobRepr.Name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
 	}
@@ -103,7 +103,7 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 			return err
 		}
 		// Not cancelling within the same task try to get jobID from attribute
-		jobIDValue, err := deployments.GetInstanceAttributeValue(e.deploymentID, e.nodeName, "0", "job_id")
+		jobIDValue, err := deployments.GetInstanceAttributeValue(ctx, e.deploymentID, e.nodeName, "0", "job_id")
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
 		}

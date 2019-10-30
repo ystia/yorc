@@ -86,7 +86,7 @@ func testHasScalableCapability(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := HasScalableCapability(deploymentID, tt.args.nodeName)
+			got, err := HasScalableCapability(context.Background(), deploymentID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("HasScalableCapability() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -118,7 +118,7 @@ func testGetCapabilitiesOfType(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilitiesOfType(deploymentID, tt.args.typeName, tt.args.capabilityTypeName)
+			got, err := GetCapabilitiesOfType(context.Background(), deploymentID, tt.args.typeName, tt.args.capabilityTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilitiesOfType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -151,7 +151,7 @@ func testGetCapabilityProperty(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilityPropertyValue(deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
+			got, err := GetCapabilityPropertyValue(context.Background(), deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilityProperty() %q error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return
@@ -194,7 +194,7 @@ func testGetCapabilityPropertyType(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			propFound, propTypeValue, err := GetCapabilityPropertyType(deploymentID,
+			propFound, propTypeValue, err := GetCapabilityPropertyType(context.Background(), deploymentID,
 				tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilityPropertyType() %q error %v, wantErr %v",
@@ -248,7 +248,7 @@ func testGetInstanceCapabilityAttribute(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstanceCapabilityAttributeValue(deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetInstanceCapabilityAttributeValue(context.Background(), deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -284,7 +284,7 @@ func testGetNodeCapabilityType(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetNodeCapabilityType(deploymentID, tt.args.nodeName, tt.args.capabilityName)
+			got, err := GetNodeCapabilityType(context.Background(), deploymentID, tt.args.nodeName, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetNodeCapabilityType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -299,17 +299,18 @@ func testGetNodeCapabilityType(t *testing.T, deploymentID string) {
 func testGetCapabilityProperties(t *testing.T) {
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	ctx := context.Background()
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/capabilities_properties.yaml")
 	require.Nil(t, err)
-	value, err := GetCapabilityPropertyValue(deploymentID, "Tomcat", "data_endpoint", "port")
+	value, err := GetCapabilityPropertyValue(ctx, deploymentID, "Tomcat", "data_endpoint", "port")
 	require.NotNil(t, value)
 	require.Equal(t, "8088", value.RawString())
 
-	value, err = GetCapabilityPropertyValue(deploymentID, "Tomcat", "data_endpoint", "protocol")
+	value, err = GetCapabilityPropertyValue(ctx, deploymentID, "Tomcat", "data_endpoint", "protocol")
 	require.NotNil(t, value)
 	require.Equal(t, "http", value.RawString())
 
-	value, err = GetCapabilityPropertyValue(deploymentID, "Tomcat", "data_endpoint", "network_name")
+	value, err = GetCapabilityPropertyValue(ctx, deploymentID, "Tomcat", "data_endpoint", "network_name")
 	require.NotNil(t, value)
 	require.Equal(t, "PRIVATE", value.RawString())
 }
@@ -340,7 +341,7 @@ func testGetIPAddressFromHost(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getIPAddressFromHost(deploymentID, tt.args.hostName, tt.args.hostInstance, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName)
+			got, err := getIPAddressFromHost(context.Background(), deploymentID, tt.args.hostName, tt.args.hostInstance, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getIPAddressFromHost() error = %v, wantErr %v", err, tt.wantErr)
 				return

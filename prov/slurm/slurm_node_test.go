@@ -81,7 +81,7 @@ func testMultipleSlurmNodeAllocation(t *testing.T, cfg config.Configuration) {
 	deploymentID := loadTestYaml(t)
 	infrastructure := infrastructure{}
 
-	nb, err := deployments.GetDefaultNbInstancesForNode(deploymentID, "Compute")
+	nb, err := deployments.GetDefaultNbInstancesForNode(context.Background(), deploymentID, "Compute")
 	require.Nil(t, err)
 	require.Equal(t, uint32(4), nb)
 

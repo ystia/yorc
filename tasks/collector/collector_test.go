@@ -53,7 +53,7 @@ func testResumeTask(t *testing.T, client *api.Client) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := testCollector.ResumeTask(tt.args.taskID); (err != nil) != tt.wantErr {
+			if err := testCollector.ResumeTask(context.Background(), tt.args.taskID); (err != nil) != tt.wantErr {
 				t.Errorf("ResumeTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

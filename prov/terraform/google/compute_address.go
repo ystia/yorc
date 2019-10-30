@@ -30,7 +30,7 @@ import (
 
 func (g *googleGenerator) generateComputeAddress(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName, instanceName string, instanceID int, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -60,13 +60,13 @@ func (g *googleGenerator) generateComputeAddress(ctx context.Context, cfg config
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return err
 		}
 	}
 
-	computeAddress.Labels, err = deployments.GetKeyValuePairsNodeProperty(deploymentID, nodeName, "labels")
+	computeAddress.Labels, err = deployments.GetKeyValuePairsNodeProperty(ctx, deploymentID, nodeName, "labels")
 	if err != nil {
 		return err
 	}

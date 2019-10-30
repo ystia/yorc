@@ -152,7 +152,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		// 	writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", YorcDeploymentIDMaxLength, len(id))))
 		// 	return
 		// }
-		dExits, err := deployments.DoesDeploymentExists(id)
+		dExits, err := deployments.DoesDeploymentExists(ctx, id)
 		if err != nil {
 			log.Panicf("%v", err)
 		}
@@ -205,7 +205,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
-	dExits, err := deployments.DoesDeploymentExists(id)
+	dExits, err := deployments.DoesDeploymentExists(ctx, id)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -228,7 +228,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if taskType == tasks.TaskTypeUnDeploy {
-		status, err := deployments.GetDeploymentStatus(id)
+		status, err := deployments.GetDeploymentStatus(ctx, id)
 		if err != nil {
 			log.Panicf("%v", err)
 		}
@@ -281,7 +281,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
-	status, err := deployments.GetDeploymentStatus(id)
+	status, err := deployments.GetDeploymentStatus(ctx, id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
 			writeError(w, r, errNotFound)
@@ -292,7 +292,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	deployment := Deployment{ID: id, Status: status.String()}
 	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path)}
-	nodes, err := deployments.GetNodes(id)
+	nodes, err := deployments.GetNodes(ctx, id)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -308,7 +308,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		links = append(links, newAtomLink(LinkRelTask, path.Join(r.URL.Path, "tasks", task)))
 	}
 
-	links = append(links, s.listOutputsLinks(id)...)
+	links = append(links, s.listOutputsLinks(ctx, id)...)
 
 	deployment.Links = links
 	encodeJSONResponse(w, r, deployment)
@@ -316,6 +316,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	kv := s.consulClient.KV()
+	ctx := r.Context()
 	depPaths, _, err := kv.Keys(consulutil.DeploymentKVPrefix+"/", "/", nil)
 	if err != nil {
 		log.Panic(err)
@@ -329,7 +330,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 	depPrefix := consulutil.DeploymentKVPrefix + "/"
 	for _, depPath := range depPaths {
 		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, depPrefix), "/ ")
-		status, err := deployments.GetDeploymentStatus(deploymentID)
+		status, err := deployments.GetDeploymentStatus(ctx, deploymentID)
 		if err != nil {
 			if deployments.IsDeploymentNotFoundError(err) {
 				// Deployment is not found : we force deletion and ignore it

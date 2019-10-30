@@ -26,7 +26,7 @@ import (
 )
 
 func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 	node := &nodeAllocation{instanceName: instanceName}
 
 	// Set the node CPU and memory property from Tosca Compute 'host' capability property
-	cpu, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "num_cpus")
+	cpu, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 		node.cpu = cpu.RawString()
 	}
 
-	memory, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "mem_size")
+	memory, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "mem_size")
 	if err != nil {
 		return err
 	}
@@ -55,14 +55,14 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 	}
 
 	// Get user credentials from capability endpoint credentials property, if values are provided
-	node.credentials, err = getUserCredentials(locationProps, deploymentID, nodeName, "endpoint")
+	node.credentials, err = getUserCredentials(ctx, locationProps, deploymentID, nodeName, "endpoint")
 	if err != nil {
 		return err
 	}
 
 	// Set the job name property
 	// first: with the prop
-	jobName, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "job_name")
+	jobName, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "job_name")
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 	}
 
 	// Set the node gres property from Tosca slurm.Compute property
-	gres, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "gres")
+	gres, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "gres")
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 		node.gres = gres.RawString()
 	}
 	// Set the node constraint property from Tosca slurm.Compute property
-	constraint, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "constraint")
+	constraint, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "constraint")
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 		node.constraint = constraint.RawString()
 	}
 	// Set the node partition property from Tosca slurm.Compute property
-	partition, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "partition")
+	partition, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "partition")
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 	// Check that is userName provided, then password or privateKey provided also
 	// Otherwise, raise error, event ...
 
-	reservation, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "reservation")
+	reservation, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "reservation")
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func generateNodeAllocation(ctx context.Context, locationProps config.DynamicMap
 		node.reservation = reservation.RawString()
 	}
 
-	account, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "account")
+	account, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "account")
 	if err != nil {
 		return err
 	}

@@ -134,7 +134,7 @@ type sshCredentials struct {
 }
 
 type execution interface {
-	resolveExecution() error
+	resolveExecution(ctx context.Context) error
 	execute(ctx context.Context, retry bool) error
 }
 
@@ -206,22 +206,22 @@ func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploym
 		cli:                     cli,
 		vaultToken:              uuid.NewV4().String(),
 	}
-	if err := execCommon.resolveOperation(); err != nil {
+	if err := execCommon.resolveOperation(ctx); err != nil {
 		return nil, err
 	}
-	isBash, err := deployments.IsTypeDerivedFrom(deploymentID, operation.ImplementationArtifact, implementationArtifactBash)
+	isBash, err := deployments.IsTypeDerivedFrom(ctx, deploymentID, operation.ImplementationArtifact, implementationArtifactBash)
 	if err != nil {
 		return nil, err
 	}
-	isPython, err := deployments.IsTypeDerivedFrom(deploymentID, operation.ImplementationArtifact, implementationArtifactPython)
+	isPython, err := deployments.IsTypeDerivedFrom(ctx, deploymentID, operation.ImplementationArtifact, implementationArtifactPython)
 	if err != nil {
 		return nil, err
 	}
-	isAnsible, err := deployments.IsTypeDerivedFrom(deploymentID, operation.ImplementationArtifact, implementationArtifactAnsible)
+	isAnsible, err := deployments.IsTypeDerivedFrom(ctx, deploymentID, operation.ImplementationArtifact, implementationArtifactAnsible)
 	if err != nil {
 		return nil, err
 	}
-	isAlienAnsible, err := deployments.IsTypeDerivedFrom(deploymentID, operation.ImplementationArtifact, "org.alien4cloud.artifacts.AnsiblePlaybook")
+	isAlienAnsible, err := deployments.IsTypeDerivedFrom(ctx, deploymentID, operation.ImplementationArtifact, "org.alien4cloud.artifacts.AnsiblePlaybook")
 	if err != nil {
 		return nil, err
 	}
@@ -238,21 +238,21 @@ func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploym
 		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %s, primary implementation: %q", nodeName, operation.Name, execCommon.Primary)
 	}
 
-	return exec, exec.resolveExecution()
+	return exec, exec.resolveExecution(ctx)
 }
 
-func (e *executionCommon) resolveOperation() error {
+func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	var err error
-	e.NodeType, err = deployments.GetNodeType(e.deploymentID, e.NodeName)
+	e.NodeType, err = deployments.GetNodeType(ctx, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
 	}
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.relationshipType, err = deployments.GetRelationshipForRequirement(e.deploymentID, e.NodeName, e.operation.RelOp.RequirementIndex)
+		e.relationshipType, err = deployments.GetRelationshipForRequirement(ctx, e.deploymentID, e.NodeName, e.operation.RelOp.RequirementIndex)
 		if err != nil {
 			return err
 		}
-		err = e.resolveIsPerInstanceOperation(e.operation.Name)
+		err = e.resolveIsPerInstanceOperation(ctx, e.operation.Name)
 		if err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func (e *executionCommon) resolveOperation() error {
 	if e.operation.RelOp.IsRelationshipOperation {
 		operationNodeType = e.relationshipType
 	}
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
+	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
@@ -299,41 +299,41 @@ func (e *executionCommon) resolveOperation() error {
 
 	e.isOrchestratorOperation = operations.IsOrchestratorHostOperation(e.operation)
 	e.isRelationshipTargetNode = operations.IsRelationshipTargetNodeOperation(e.operation)
-	return e.resolveInstances()
+	return e.resolveInstances(ctx)
 }
 
-func (e *executionCommon) resolveInstances() error {
+func (e *executionCommon) resolveInstances(ctx context.Context) error {
 	var err error
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.targetNodeInstances, err = tasks.GetInstances(e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
+		e.targetNodeInstances, err = tasks.GetInstances(ctx, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
 		if err != nil {
 			return err
 		}
 	}
-	e.sourceNodeInstances, err = tasks.GetInstances(e.taskID, e.deploymentID, e.NodeName)
+	e.sourceNodeInstances, err = tasks.GetInstances(ctx, e.taskID, e.deploymentID, e.NodeName)
 
 	return err
 }
 
-func (e *executionCommon) resolveArtifacts() error {
+func (e *executionCommon) resolveArtifacts(ctx context.Context) error {
 	log.Debugf("Resolving artifacts")
 	var err error
 	if e.operation.RelOp.IsRelationshipOperation {
 		// First get linked node artifacts
 		if e.isRelationshipTargetNode {
-			e.Artifacts, err = deployments.GetArtifactsForNode(e.deploymentID, e.operation.RelOp.TargetNodeName)
+			e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.operation.RelOp.TargetNodeName)
 			if err != nil {
 				return err
 			}
 		} else {
-			e.Artifacts, err = deployments.GetArtifactsForNode(e.deploymentID, e.NodeName)
+			e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.NodeName)
 			if err != nil {
 				return err
 			}
 		}
 		// Then get relationship type artifacts
 		var arts map[string]string
-		arts, err = deployments.GetArtifactsForType(e.deploymentID, e.relationshipType)
+		arts, err = deployments.GetArtifactsForType(ctx, e.deploymentID, e.relationshipType)
 		if err != nil {
 			return err
 		}
@@ -341,7 +341,7 @@ func (e *executionCommon) resolveArtifacts() error {
 			e.Artifacts[artName] = art
 		}
 	} else {
-		e.Artifacts, err = deployments.GetArtifactsForNode(e.deploymentID, e.NodeName)
+		e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.NodeName)
 		if err != nil {
 			return err
 		}
@@ -350,13 +350,13 @@ func (e *executionCommon) resolveArtifacts() error {
 	return nil
 }
 
-func (e *executionCommon) setHostConnection(host, instanceID, capType string, conn *hostConnection) error {
-	hasEndpoint, err := deployments.IsTypeDerivedFrom(e.deploymentID, capType, "yorc.capabilities.Endpoint.ProvisioningAdmin")
+func (e *executionCommon) setHostConnection(ctx context.Context, host, instanceID, capType string, conn *hostConnection) error {
+	hasEndpoint, err := deployments.IsTypeDerivedFrom(ctx, e.deploymentID, capType, "yorc.capabilities.Endpoint.ProvisioningAdmin")
 	if err != nil {
 		return err
 	}
 	if hasEndpoint {
-		credentialValue, err := deployments.GetInstanceCapabilityAttributeValue(e.deploymentID, host, instanceID, "endpoint", "credentials")
+		credentialValue, err := deployments.GetInstanceCapabilityAttributeValue(ctx, e.deploymentID, host, instanceID, "endpoint", "credentials")
 		if err != nil {
 			return err
 		}
@@ -383,7 +383,7 @@ func (e *executionCommon) setHostConnection(host, instanceID, capType string, co
 			return err
 		}
 
-		port, err := deployments.GetInstanceCapabilityAttributeValue(e.deploymentID, host, instanceID, "endpoint", "port")
+		port, err := deployments.GetInstanceCapabilityAttributeValue(ctx, e.deploymentID, host, instanceID, "endpoint", "port")
 		if err != nil {
 			return err
 		}
@@ -406,16 +406,16 @@ func (e *executionCommon) resolveHostsOrchestratorLocal(nodeName string, instanc
 	return nil
 }
 
-func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []string) error {
+func (e *executionCommon) resolveHostsOnCompute(ctx context.Context, nodeName string, instances []string) error {
 	hostedOnList := make([]string, 0)
 	hostedOnList = append(hostedOnList, nodeName)
-	parentHost, err := deployments.GetHostedOnNode(e.deploymentID, nodeName)
+	parentHost, err := deployments.GetHostedOnNode(ctx, e.deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	for parentHost != "" {
 		hostedOnList = append(hostedOnList, parentHost)
-		parentHost, err = deployments.GetHostedOnNode(e.deploymentID, parentHost)
+		parentHost, err = deployments.GetHostedOnNode(ctx, e.deploymentID, parentHost)
 		if err != nil {
 			return err
 		}
@@ -425,18 +425,18 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 	var found bool
 	for i := len(hostedOnList) - 1; i >= 0 && !found; i-- {
 		host := hostedOnList[i]
-		capType, err := deployments.GetNodeCapabilityType(e.deploymentID, host, "endpoint")
+		capType, err := deployments.GetNodeCapabilityType(ctx, e.deploymentID, host, "endpoint")
 		if err != nil {
 			return err
 		}
 
-		hasEndpoint, err := deployments.IsTypeDerivedFrom(e.deploymentID, capType, "tosca.capabilities.Endpoint")
+		hasEndpoint, err := deployments.IsTypeDerivedFrom(ctx, e.deploymentID, capType, "tosca.capabilities.Endpoint")
 		if err != nil {
 			return err
 		}
 		if hasEndpoint {
 			for _, instance := range instances {
-				ipAddress, err := deployments.GetInstanceCapabilityAttributeValue(e.deploymentID, host, instance, "endpoint", "ip_address")
+				ipAddress, err := deployments.GetInstanceCapabilityAttributeValue(ctx, e.deploymentID, host, instance, "endpoint", "ip_address")
 				if err != nil {
 					return err
 				}
@@ -444,7 +444,7 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 					ipAddressStr := config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress.RawString()).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := &hostConnection{host: ipAddressStr, instanceID: instance}
-					err = e.setHostConnection(host, instance, capType, hostConn)
+					err = e.setHostConnection(ctx, host, instance, capType, hostConn)
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
 						log.Debug(mess)
@@ -465,7 +465,7 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 	return nil
 }
 
-func (e *executionCommon) resolveHosts(nodeName string) error {
+func (e *executionCommon) resolveHosts(ctx context.Context, nodeName string) error {
 	// Resolve hosts from the hostedOn hierarchy from bottom to top by finding the first node having a capability
 	// named endpoint and derived from "tosca.capabilities.Endpoint"
 
@@ -479,10 +479,10 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 	if e.isOrchestratorOperation {
 		return e.resolveHostsOrchestratorLocal(nodeName, instances)
 	}
-	return e.resolveHostsOnCompute(nodeName, instances)
+	return e.resolveHostsOnCompute(ctx, nodeName, instances)
 }
 
-func (e *executionCommon) resolveContext() error {
+func (e *executionCommon) resolveContext(ctx context.Context) error {
 	execContext := make(map[string]string)
 
 	newNode := provutil.SanitizeForShell(e.NodeName)
@@ -504,19 +504,19 @@ func (e *executionCommon) resolveContext() error {
 	if !e.operation.RelOp.IsRelationshipOperation {
 		e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
 		execContext["INSTANCES"] = strings.Join(names, ",")
-		if host, err := deployments.GetHostedOnNode(e.deploymentID, e.NodeName); err != nil {
+		if host, err := deployments.GetHostedOnNode(ctx, e.deploymentID, e.NodeName); err != nil {
 			return err
 		} else if host != "" {
 			execContext["HOST"] = host
 		}
 	} else {
 
-		if host, err := deployments.GetHostedOnNode(e.deploymentID, e.NodeName); err != nil {
+		if host, err := deployments.GetHostedOnNode(ctx, e.deploymentID, e.NodeName); err != nil {
 			return err
 		} else if host != "" {
 			execContext["SOURCE_HOST"] = host
 		}
-		if host, err := deployments.GetHostedOnNode(e.deploymentID, e.operation.RelOp.TargetNodeName); err != nil {
+		if host, err := deployments.GetHostedOnNode(ctx, e.deploymentID, e.operation.RelOp.TargetNodeName); err != nil {
 			return err
 		} else if host != "" {
 			execContext["TARGET_HOST"] = host
@@ -689,11 +689,11 @@ func (e *executionCommon) addRunnablesSpecificInputsAndOutputs() error {
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
 //	add_target, remove_target, add_source, remove_source, target_changed
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
-func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) error {
+func (e *executionCommon) resolveIsPerInstanceOperation(ctx context.Context, operationName string) error {
 	op := strings.ToLower(operationName)
 	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") || strings.Contains(op, "remove_source") {
 		// Do not call the call the operation several time for a "HostedOn" relationship (makes no sense till we scale at compute level)
-		if hostedOn, err := deployments.IsTypeDerivedFrom(e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
+		if hostedOn, err := deployments.IsTypeDerivedFrom(ctx, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
 			e.isPerInstanceOperation = false
 			return err
 		}
@@ -704,13 +704,13 @@ func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) er
 	return nil
 }
 
-func (e *executionCommon) resolveInputs() error {
+func (e *executionCommon) resolveInputs(ctx context.Context) error {
 	var err error
-	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputsWithInstances(e.deploymentID, e.NodeName, e.taskID, e.operation, e.sourceNodeInstances, e.targetNodeInstances)
+	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputsWithInstances(ctx, e.deploymentID, e.NodeName, e.taskID, e.operation, e.sourceNodeInstances, e.targetNodeInstances)
 	return err
 }
 
-func (e *executionCommon) resolveExecution() error {
+func (e *executionCommon) resolveExecution(ctx context.Context) error {
 	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
 	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
 	if err != nil {
@@ -718,17 +718,17 @@ func (e *executionCommon) resolveExecution() error {
 	}
 	e.OverlayPath = ovPath
 
-	if err = e.resolveInputs(); err != nil {
+	if err = e.resolveInputs(ctx); err != nil {
 		return err
 	}
 
-	if err = e.resolveArtifacts(); err != nil {
+	if err = e.resolveArtifacts(ctx); err != nil {
 		return err
 	}
 	if e.isRelationshipTargetNode {
-		err = e.resolveHosts(e.operation.RelOp.TargetNodeName)
+		err = e.resolveHosts(ctx, e.operation.RelOp.TargetNodeName)
 	} else {
-		err = e.resolveHosts(e.NodeName)
+		err = e.resolveHosts(ctx, e.NodeName)
 	}
 	if err != nil {
 		return err
@@ -739,7 +739,7 @@ func (e *executionCommon) resolveExecution() error {
 	if err = e.addRunnablesSpecificInputsAndOutputs(); err != nil {
 		return err
 	}
-	return e.resolveContext()
+	return e.resolveContext(ctx)
 
 }
 
@@ -963,7 +963,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				}
 				if e.operation.RelOp.IsRelationshipOperation {
 					var hostedOn bool
-					hostedOn, err = deployments.IsTypeDerivedFrom(e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn")
+					hostedOn, err = deployments.IsTypeDerivedFrom(ctx, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn")
 					if err != nil {
 						return err
 					} else if hostedOn {
@@ -1115,7 +1115,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 								OperationName: data[1],
 								OutputName:    data[2],
 							}
-							err = notifier.NotifyValueChange(e.deploymentID)
+							err = notifier.NotifyValueChange(ctx, e.deploymentID)
 							if err != nil {
 								return err
 							}

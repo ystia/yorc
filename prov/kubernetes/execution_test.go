@@ -651,7 +651,7 @@ func Test_execution_manageNamespaceDeletion(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/nodes/testNode/type":       []byte("fakeType"),
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/fakeType/.existFlag": []byte(""),
 	})
-	deployments.SetNodeProperty(deploymentID, "testNode", "volumeDeletable", "true")
+	deployments.SetNodeProperty(context.Background(), deploymentID, "testNode", "volumeDeletable", "true")
 	//Setup
 	// One ns "default", 0 controler
 	k8s := newTestSimpleK8s()

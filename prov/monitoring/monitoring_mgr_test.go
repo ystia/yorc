@@ -83,7 +83,7 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 			require.Equal(t, CheckStatusCRITICAL, checkReports[0].Status, "unexpected status")
 
 			// Check the instance state has been updated
-			state, err := deployments.GetInstanceState(tt.args.deploymentID, tt.args.nodeName, "0")
+			state, err := deployments.GetInstanceState(context.Background(), tt.args.deploymentID, tt.args.nodeName, "0")
 			require.Nil(t, err, "Unexpected error while node state")
 			require.Equal(t, tosca.NodeStateError, state)
 
@@ -108,14 +108,14 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 
 func testIsMonitoringRequiredWithNoPolicy(t *testing.T, client *api.Client) {
 	t.Parallel()
-	is, _, err := checkExistingMonitoringPolicy("monitoring2", "Compute1")
+	is, _, err := checkExistingMonitoringPolicy(context.Background(), "monitoring2", "Compute1")
 	require.Nil(t, err, "Unexpected error during isMonitoringRequired function")
 	require.Equal(t, false, is, "unexpected monitoring required")
 }
 
 func testIsMonitoringRequiredWithNoPolicyForTarget(t *testing.T, client *api.Client) {
 	t.Parallel()
-	is, _, err := checkExistingMonitoringPolicy("monitoring3", "Compute1")
+	is, _, err := checkExistingMonitoringPolicy(context.Background(), "monitoring3", "Compute1")
 	require.Nil(t, err, "Unexpected error during isMonitoringRequired function")
 	require.Equal(t, false, is, "unexpected monitoring required")
 }
@@ -150,7 +150,7 @@ func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 	require.Equal(t, CheckStatusCRITICAL, checkReports[0].Status, "unexpected status")
 
 	// Check the instance state has been updated
-	state, err := deployments.GetInstanceState("monitoring5", "Compute1", "0")
+	state, err := deployments.GetInstanceState(context.Background(), "monitoring5", "Compute1", "0")
 	require.Nil(t, err, "Unexpected error while node state")
 	require.Equal(t, tosca.NodeStateError, state)
 

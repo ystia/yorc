@@ -45,21 +45,21 @@ type allocationResponse struct {
 const reSallocPending = `^salloc: Pending job allocation (\d+)`
 const reSallocGranted = `^salloc: Granted job allocation (\d+)`
 
-func getJobExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (execution, error) {
-	isJob, err := deployments.IsNodeDerivedFrom(deploymentID, nodeName, "yorc.nodes.slurm.Job")
+func getJobExecution(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (execution, error) {
+	isJob, err := deployments.IsNodeDerivedFrom(ctx, deploymentID, nodeName, "yorc.nodes.slurm.Job")
 	if err != nil {
 		return nil, err
 	}
 	if !isJob {
 		return nil, errors.Errorf("operation %q supported only for nodes derived from %q", operation.Name, "yorc.nodes.slurm.Job")
 	}
-	return newExecution(conf, taskID, deploymentID, nodeName, stepName, operation)
+	return newExecution(ctx, conf, taskID, deploymentID, nodeName, stepName, operation)
 }
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
 	log.Debugf("Slurm defaultExecutor: Execute the operation async: %+v", operation)
 
-	exec, err := getJobExecution(conf, taskID, deploymentID, nodeName, operation, stepName)
+	exec, err := getJobExecution(ctx, conf, taskID, deploymentID, nodeName, operation, stepName)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -69,7 +69,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Debugf("Slurm defaultExecutor: Execute the operation: %+v", operation)
 
-	exec, err := getJobExecution(conf, taskID, deploymentID, nodeName, operation, "")
+	exec, err := getJobExecution(ctx, conf, taskID, deploymentID, nodeName, operation, "")
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-	instances, err := tasks.GetInstances(taskID, deploymentID, nodeName)
+	instances, err := tasks.GetInstances(ctx, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return err
@@ -233,7 +233,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, locationProp
 		select {
 		case allocResponse = <-chAllocResp:
 			var mes string
-			deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", allocResponse.jobID)
+			deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "job_id", allocResponse.jobID)
 			if allocResponse.granted {
 				mes = fmt.Sprintf("salloc command returned a GRANTED job allocation notification with job ID:%q", allocResponse.jobID)
 			} else {
@@ -266,7 +266,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, locationProp
 					return
 				}
 				// Drain the related jobID compute attribute
-				deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", "")
+				deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "job_id", "")
 				// Cancel salloc comand
 				cancelAlloc()
 			}
@@ -296,19 +296,19 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, locationProp
 		return err
 	}
 
-	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", nodeAndPartitionAttrs[0])
+	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", nodeAndPartitionAttrs[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "ip_address", nodeAndPartitionAttrs[0])
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "ip_address", nodeAndPartitionAttrs[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (ip_address) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "node_name", nodeAndPartitionAttrs[0])
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "node_name", nodeAndPartitionAttrs[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (node_name) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "partition", nodeAndPartitionAttrs[1])
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "partition", nodeAndPartitionAttrs[1])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (partition) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
@@ -322,7 +322,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, locationProp
 		cudaVisibleDevice = cudaVisibleDeviceAttrs[0]
 	}
 
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "cuda_visible_devices", cudaVisibleDevice)
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "cuda_visible_devices", cudaVisibleDevice)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (cuda_visible_devices) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
@@ -347,7 +347,7 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, locationPro
 	}
 
 	// scancel cmd
-	jobID, err := deployments.GetInstanceAttributeValue(deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
+	jobID, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}

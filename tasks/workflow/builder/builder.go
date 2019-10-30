@@ -31,8 +31,8 @@ import (
 )
 
 // BuildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
-func BuildWorkFlow(deploymentID, wfName string) (map[string]*Step, error) {
-	wf, err := deployments.ReadWorkflow(deploymentID, wfName)
+func BuildWorkFlow(ctx context.Context, deploymentID, wfName string) (map[string]*Step, error) {
+	wf, err := deployments.ReadWorkflow(ctx, deploymentID, wfName)
 	if err != nil {
 		log.Print(err)
 		return nil, err
@@ -141,7 +141,7 @@ func buildStepFromWFStep(deploymentID, wfName, stepName string, wfSteps map[stri
 
 func buildStepActivities(s *Step, wfStep *tosca.Step) (bool, error) {
 	var targetIsMandatory bool
-	for _, wfActivity := range wfStep.Activities {
+	for i, wfActivity := range wfStep.Activities {
 		if wfActivity.Delegate != "" {
 			targetIsMandatory = true
 			s.Activities = append(s.Activities, delegateActivity{delegate: wfActivity.Delegate})
@@ -157,7 +157,7 @@ func buildStepActivities(s *Step, wfStep *tosca.Step) (bool, error) {
 		} else if wfActivity.Inline != "" {
 			s.Activities = append(s.Activities, inlineActivity{inline: wfActivity.Inline})
 		} else {
-			return false, errors.Errorf("Unsupported activity type for step: %q", s.Name)
+			return false, errors.Errorf("Unsupported activity type for step: %q, activity nb: %d", s.Name, i)
 		}
 	}
 
@@ -186,9 +186,9 @@ func buildStepsFromList(deploymentID, wfName, stepName string, currentStep *Step
 }
 
 // BuildInitExecutionOperations returns Consul transactional KV operations for initiating workflow execution
-func BuildInitExecutionOperations(deploymentID, taskID, workflowName string, registerWorkflow bool) (api.KVTxnOps, error) {
+func BuildInitExecutionOperations(ctx context.Context, deploymentID, taskID, workflowName string, registerWorkflow bool) (api.KVTxnOps, error) {
 	ops := make(api.KVTxnOps, 0)
-	steps, err := BuildWorkFlow(deploymentID, workflowName)
+	steps, err := BuildWorkFlow(ctx, deploymentID, workflowName)
 	if err != nil {
 		return nil, err
 	}

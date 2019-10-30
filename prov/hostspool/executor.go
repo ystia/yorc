@@ -60,7 +60,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	locationName, err := e.getLocationForNode(cc, deploymentID, nodeName)
+	locationName, err := e.getLocationForNode(ctx, cc, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	return e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
 }
 
-func (e *defaultExecutor) getLocationForNode(cc *api.Client, deploymentID, nodeName string) (string, error) {
+func (e *defaultExecutor) getLocationForNode(ctx context.Context, cc *api.Client, deploymentID, nodeName string) (string, error) {
 
 	// Get current locations
 	hpManager := NewManager(cc)
@@ -89,7 +89,7 @@ func (e *defaultExecutor) getLocationForNode(cc *api.Client, deploymentID, nodeN
 	}
 
 	// Get the location name in node template metadata
-	found, locationName, err := deployments.GetNodeMetadata(deploymentID, nodeName, tosca.MetadataLocationNameKey)
+	found, locationName, err := deployments.GetNodeMetadata(ctx, deploymentID, nodeName, tosca.MetadataLocationNameKey)
 	if err != nil {
 		return "", err
 	}
@@ -107,11 +107,11 @@ func (e *defaultExecutor) execDelegateHostsPool(
 	ctx context.Context, cc *api.Client, cfg config.Configuration,
 	op operationParameters) error {
 
-	instances, err := tasks.GetInstances(op.taskID, op.deploymentID, op.nodeName)
+	instances, err := tasks.GetInstances(ctx, op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
-	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(op.deploymentID, op.nodeName)
+	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(ctx, op.deploymentID, op.nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q",
 			op.nodeName, op.deploymentID)
@@ -149,7 +149,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 	cc *api.Client, cfg config.Configuration,
 	op operationParameters, allocatedResources map[string]string) error {
 
-	jsonProp, err := deployments.GetNodePropertyValue(op.deploymentID, op.nodeName, "filters")
+	jsonProp, err := deployments.GetNodePropertyValue(ctx, op.deploymentID, op.nodeName, "filters")
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, op.nodeName, jsonProp.String())
 		}
 	}
-	filters, err := createFiltersFromComputeCapabilities(op.deploymentID, op.nodeName)
+	filters, err := createFiltersFromComputeCapabilities(ctx, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 	}
 
 	shareable := false
-	if s, err := deployments.GetNodePropertyValue(op.deploymentID, op.nodeName, "shareable"); err != nil {
+	if s, err := deployments.GetNodePropertyValue(ctx, op.deploymentID, op.nodeName, "shareable"); err != nil {
 		return err
 	} else if s != nil && s.RawString() != "" {
 		shareable, err = strconv.ParseBool(s.RawString())
@@ -182,7 +182,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 		}
 	}
 
-	instances, err := tasks.GetInstances(op.taskID, op.deploymentID, op.nodeName)
+	instances, err := tasks.GetInstances(ctx, op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		if err != nil {
 			return err
 		}
-		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance, "hostname", hostname)
+		err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, "hostname", hostname)
 		if err != nil {
 			return err
 		}
@@ -246,7 +246,7 @@ func (e *defaultExecutor) allocateHostsToInstances(
 func (e *defaultExecutor) updateConnectionSettings(
 	ctx context.Context, op operationParameters, host Host, hostname, instance string) error {
 
-	err := deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
+	err := deployments.SetInstanceCapabilityAttribute(ctx, op.deploymentID, op.nodeName,
 		instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityIPAddressAttribute,
 		host.Connection.Host)
 	if err != nil {
@@ -267,7 +267,7 @@ func (e *defaultExecutor) updateConnectionSettings(
 		return err
 	}
 
-	err = deployments.SetInstanceCapabilityAttributeComplex(op.deploymentID,
+	err = deployments.SetInstanceCapabilityAttributeComplex(ctx, op.deploymentID,
 		op.nodeName, instance, tosca.ComputeNodeEndpointCapabilityName, "credentials", credentialsMap)
 	if err != nil {
 		return err
@@ -281,7 +281,7 @@ func (e *defaultExecutor) updateConnectionSettings(
 			`no "%q label for host %q, will use the address from the connection section`,
 			tosca.ComputeNodePrivateAddressAttributeName, hostname)
 	}
-	err = setInstanceAttributesValue(op, instance, privateAddress,
+	err = setInstanceAttributesValue(ctx, op, instance, privateAddress,
 		[]string{tosca.EndpointCapabilityIPAddressAttribute, tosca.ComputeNodePrivateAddressAttributeName})
 	if err != nil {
 		return err
@@ -290,13 +290,13 @@ func (e *defaultExecutor) updateConnectionSettings(
 	if publicAddress, ok := host.Labels[tosca.ComputeNodePublicAddressAttributeName]; ok {
 		// For compatibility with components referencing a host public_ip_address,
 		// defining an attribute public_ip_address as well
-		err = setInstanceAttributesValue(op, instance, privateAddress,
+		err = setInstanceAttributesValue(ctx, op, instance, privateAddress,
 			[]string{tosca.ComputeNodePublicAddressAttributeName, "public_ip_address"})
 		if err != nil {
 			return err
 		}
 
-		err = deployments.SetInstanceAttribute(op.deploymentID, op.nodeName,
+		err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName,
 			instance, tosca.ComputeNodePublicAddressAttributeName, publicAddress)
 		if err != nil {
 			return err
@@ -304,7 +304,7 @@ func (e *defaultExecutor) updateConnectionSettings(
 	}
 
 	if host.Connection.Port != 0 {
-		err = deployments.SetInstanceCapabilityAttribute(op.deploymentID, op.nodeName,
+		err = deployments.SetInstanceCapabilityAttribute(ctx, op.deploymentID, op.nodeName,
 			instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityPortProperty,
 			strconv.FormatUint(host.Connection.Port, 10))
 		if err != nil {
@@ -312,12 +312,12 @@ func (e *defaultExecutor) updateConnectionSettings(
 		}
 	}
 
-	return setInstanceAttributesFromLabels(op, instance, host.Labels)
+	return setInstanceAttributesFromLabels(ctx, op, instance, host.Labels)
 }
 
-func setInstanceAttributesValue(op operationParameters, instance, value string, attributes []string) error {
+func setInstanceAttributesValue(ctx context.Context, op operationParameters, instance, value string, attributes []string) error {
 	for _, attr := range attributes {
-		err := deployments.SetInstanceAttribute(op.deploymentID, op.nodeName, instance,
+		err := deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance,
 			attr, value)
 		if err != nil {
 			return err
@@ -326,20 +326,20 @@ func setInstanceAttributesValue(op operationParameters, instance, value string, 
 	return nil
 }
 
-func setInstanceAttributesFromLabels(op operationParameters, instance string, labels map[string]string) error {
+func setInstanceAttributesFromLabels(ctx context.Context, op operationParameters, instance string, labels map[string]string) error {
 	for label, value := range labels {
-		err := setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+		err := setAttributeFromLabel(ctx, op.deploymentID, op.nodeName, instance,
 			label, value, tosca.ComputeNodeNetworksAttributeName, tosca.NetworkNameProperty)
 		if err != nil {
 			return err
 		}
-		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+		err = setAttributeFromLabel(ctx, op.deploymentID, op.nodeName, instance,
 			label, value, tosca.ComputeNodeNetworksAttributeName, tosca.NetworkIDProperty)
 		if err != nil {
 			return err
 		}
 		// This is bad as we split value even if we are not sure that it matches
-		err = setAttributeFromLabel(op.deploymentID, op.nodeName, instance,
+		err = setAttributeFromLabel(ctx, op.deploymentID, op.nodeName, instance,
 			label, strings.Split(value, ","), tosca.ComputeNodeNetworksAttributeName,
 			tosca.NetworkAddressesProperty)
 		if err != nil {
@@ -349,9 +349,9 @@ func setInstanceAttributesFromLabels(op operationParameters, instance string, la
 	return nil
 }
 
-func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(deploymentID, nodeName string) (map[string]string, error) {
+func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(ctx context.Context, deploymentID, nodeName string) (map[string]string, error) {
 	res := make(map[string]string, 0)
-	p, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "num_cpus")
+	p, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +359,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(deploymentID
 		res["host.num_cpus"] = p.RawString()
 	}
 
-	p, err = deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "mem_size")
+	p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "mem_size")
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(deploymentID
 		res["host.mem_size"] = p.RawString()
 	}
 
-	p, err = deployments.GetCapabilityPropertyValue(deploymentID, nodeName, "host", "disk_size")
+	p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "disk_size")
 	if err != nil {
 		return nil, err
 	}
@@ -377,13 +377,13 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(deploymentID
 	return res, nil
 }
 
-func appendCapabilityFilter(deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
-	p, err := deployments.GetCapabilityPropertyValue(deploymentID, nodeName, capName, propName)
+func appendCapabilityFilter(ctx context.Context, deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
+	p, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, capName, propName)
 	if err != nil {
 		return filters, err
 	}
 
-	hasProp, propDataType, err := deployments.GetCapabilityPropertyType(deploymentID, nodeName, capName, propName)
+	hasProp, propDataType, err := deployments.GetCapabilityPropertyType(ctx, deploymentID, nodeName, capName, propName)
 	if err != nil {
 		return filters, err
 	}
@@ -415,38 +415,38 @@ func appendCapabilityFilter(deploymentID, nodeName, capName, propName, op string
 	return filters, nil
 }
 
-func createFiltersFromComputeCapabilities(deploymentID, nodeName string) ([]labelsutil.Filter, error) {
+func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nodeName string) ([]labelsutil.Filter, error) {
 	var err error
 	filters := make([]labelsutil.Filter, 0)
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "num_cpus", ">=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "num_cpus", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "cpu_frequency", ">=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "cpu_frequency", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "disk_size", ">=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "disk_size", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "host", "mem_size", ">=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "mem_size", ">=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "architecture", "=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "architecture", "=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "type", "=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "type", "=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "distribution", "=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "distribution", "=", filters)
 	if err != nil {
 		return nil, err
 	}
-	filters, err = appendCapabilityFilter(deploymentID, nodeName, "os", "version", "=", filters)
+	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "version", "=", filters)
 	if err != nil {
 		return nil, err
 	}
@@ -455,14 +455,14 @@ func createFiltersFromComputeCapabilities(deploymentID, nodeName string) ([]labe
 
 func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client,
 	cfg config.Configuration, op operationParameters, allocatedResources map[string]string) error {
-	instances, err := tasks.GetInstances(op.taskID, op.deploymentID, op.nodeName)
+	instances, err := tasks.GetInstances(originalCtx, op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
-		hostname, err := deployments.GetInstanceAttributeValue(op.deploymentID, op.nodeName, instance, "hostname")
+		hostname, err := deployments.GetInstanceAttributeValue(originalCtx, op.deploymentID, op.nodeName, instance, "hostname")
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -483,10 +483,10 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
 }
 
-func setAttributeFromLabel(deploymentID, nodeName, instance, label string, value interface{}, prefix, suffix string) error {
+func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance, label string, value interface{}, prefix, suffix string) error {
 	if strings.HasPrefix(label, prefix+".") && strings.HasSuffix(label, "."+suffix) {
 		attrName := strings.Replace(strings.Replace(label, prefix+".", prefix+"/", -1), "."+suffix, "/"+suffix, -1)
-		err := deployments.SetInstanceAttributeComplex(deploymentID, nodeName, instance, attrName, value)
+		err := deployments.SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instance, attrName, value)
 		if err != nil {
 			return err
 		}

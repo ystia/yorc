@@ -43,33 +43,33 @@ func testDeleteRelationshipInstance(t *testing.T) {
 	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeBName, "11", "created")
 	require.NoError(t, err)
 
-	err = createRelationshipInstances(consulStore, deploymentID, nodeAName)
+	err = createRelationshipInstances(ctx, consulStore, deploymentID, nodeAName)
 	require.NoError(t, err)
 	err = errGrp.Wait()
 	require.NoError(t, err)
 
 	attributeName := "someAttr"
 	attributeValue := "someValue"
-	err = SetRelationshipAttributeForAllInstances(deploymentID, nodeAName, "0", attributeName, attributeValue)
+	err = SetRelationshipAttributeForAllInstances(ctx, deploymentID, nodeAName, "0", attributeName, attributeValue)
 	require.NoError(t, err)
 
-	actualValue, err := GetRelationshipAttributeValueFromRequirement(deploymentID, nodeAName, "1", "0", attributeName)
+	actualValue, err := GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "1", "0", attributeName)
 	require.NoError(t, err)
 	require.NotNil(t, actualValue)
 	require.Equal(t, attributeValue, actualValue.RawString())
-	actualValue, err = GetRelationshipAttributeValueFromRequirement(deploymentID, nodeAName, "11", "0", attributeName)
+	actualValue, err = GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "11", "0", attributeName)
 	require.NoError(t, err)
 	require.NotNil(t, actualValue)
 	require.Equal(t, attributeValue, actualValue.RawString())
 
 	// Now we test
-	err = DeleteRelationshipInstance(deploymentID, nodeAName, "1")
+	err = DeleteRelationshipInstance(ctx, deploymentID, nodeAName, "1")
 	require.NoError(t, err)
 
-	actualValue, err = GetRelationshipAttributeValueFromRequirement(deploymentID, nodeAName, "1", "0", attributeName)
+	actualValue, err = GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "1", "0", attributeName)
 	require.NoError(t, err)
 	require.Nil(t, actualValue)
-	actualValue, err = GetRelationshipAttributeValueFromRequirement(deploymentID, nodeAName, "11", "0", attributeName)
+	actualValue, err = GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "11", "0", attributeName)
 	require.NoError(t, err)
 	require.NotNil(t, actualValue)
 	require.Equal(t, attributeValue, actualValue.RawString())

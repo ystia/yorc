@@ -15,6 +15,7 @@
 package openstack
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -26,10 +27,10 @@ import (
 
 const openstackNetworkType = "yorc.nodes.openstack.Network"
 
-func (g *osGenerator) generateNetwork(cfg config.Configuration, locationProps config.DynamicMap,
+func (g *osGenerator) generateNetwork(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap,
 	deploymentID, nodeName string) (Network, error) {
 
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return Network{}, err
 	}
@@ -39,7 +40,7 @@ func (g *osGenerator) generateNetwork(cfg config.Configuration, locationProps co
 
 	network := Network{Name: cfg.ResourcesPrefix + nodeName + "Net"}
 
-	if netName, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "network_name"); err != nil {
+	if netName, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "network_name"); err != nil {
 		return Network{}, err
 	} else if netName != nil && netName.RawString() != "" {
 		network.Name = cfg.ResourcesPrefix + netName.RawString()
@@ -51,10 +52,10 @@ func (g *osGenerator) generateNetwork(cfg config.Configuration, locationProps co
 
 }
 
-func (g *osGenerator) generateSubnet(cfg config.Configuration, locationProps config.DynamicMap,
+func (g *osGenerator) generateSubnet(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap,
 	deploymentID, nodeName, resourceType string) (Subnet, error) {
 
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
 	}
@@ -64,40 +65,40 @@ func (g *osGenerator) generateSubnet(cfg config.Configuration, locationProps con
 
 	subnet := Subnet{}
 
-	subnet.Name, err = getSubnetName(cfg, deploymentID, nodeName)
+	subnet.Name, err = getSubnetName(ctx, cfg, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	subnet.IPVersion, err = getSubnetIPVersion(deploymentID, nodeName)
+	subnet.IPVersion, err = getSubnetIPVersion(ctx, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	subnet.NetworkID, err = getSubnetNetworkID(deploymentID, nodeName, resourceType)
+	subnet.NetworkID, err = getSubnetNetworkID(ctx, deploymentID, nodeName, resourceType)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	subnet.CIDR, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
+	subnet.CIDR, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 		"cidr", false)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	subnet.GatewayIP, err = deployments.GetStringNodeProperty(deploymentID, nodeName,
+	subnet.GatewayIP, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 		"gateway_ip", false)
 	if err != nil {
 		return Subnet{}, err
 	}
 
-	startIP, err := deployments.GetStringNodeProperty(deploymentID, nodeName,
+	startIP, err := deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 		"start_ip", false)
 	if err != nil {
 		return Subnet{}, err
 	}
 	if startIP != "" {
-		endIP, err := deployments.GetStringNodeProperty(deploymentID, nodeName,
+		endIP, err := deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 			"end_ip", false)
 		if err != nil {
 			return Subnet{}, err
@@ -108,7 +109,7 @@ func (g *osGenerator) generateSubnet(cfg config.Configuration, locationProps con
 		subnet.AllocationPools = &AllocationPool{Start: startIP, End: endIP}
 	}
 
-	subnet.EnableDHCP, err = isDHCPEnabled(deploymentID, nodeName)
+	subnet.EnableDHCP, err = isDHCPEnabled(ctx, deploymentID, nodeName)
 	if err != nil {
 		return Subnet{}, err
 	}
@@ -118,10 +119,10 @@ func (g *osGenerator) generateSubnet(cfg config.Configuration, locationProps con
 	return subnet, nil
 }
 
-func getSubnetName(cfg config.Configuration, deploymentID, nodeName string) (string, error) {
+func getSubnetName(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (string, error) {
 
 	var subnetName string
-	netName, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "network_name")
+	netName, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "network_name")
 	if err != nil {
 		return "", err
 	}
@@ -133,10 +134,10 @@ func getSubnetName(cfg config.Configuration, deploymentID, nodeName string) (str
 	return subnetName, err
 }
 
-func getSubnetIPVersion(deploymentID, nodeName string) (int, error) {
+func getSubnetIPVersion(ctx context.Context, deploymentID, nodeName string) (int, error) {
 
 	ipVersion := 4
-	ipVersionProp, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "ip_version")
+	ipVersionProp, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "ip_version")
 	if err != nil {
 		return ipVersion, err
 	}
@@ -147,10 +148,10 @@ func getSubnetIPVersion(deploymentID, nodeName string) (int, error) {
 	return ipVersion, err
 }
 
-func getSubnetNetworkID(deploymentID, nodeName, resourceType string) (string, error) {
+func getSubnetNetworkID(ctx context.Context, deploymentID, nodeName, resourceType string) (string, error) {
 
 	var networkID string
-	nodeID, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "network_id")
+	nodeID, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "network_id")
 	if err != nil {
 		return networkID, err
 	}
@@ -162,10 +163,10 @@ func getSubnetNetworkID(deploymentID, nodeName, resourceType string) (string, er
 	return networkID, err
 }
 
-func isDHCPEnabled(deploymentID, nodeName string) (bool, error) {
+func isDHCPEnabled(ctx context.Context, deploymentID, nodeName string) (bool, error) {
 
 	dhcpEnabled := true
-	dhcpVal, err := deployments.GetStringNodeProperty(deploymentID, nodeName,
+	dhcpVal, err := deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 		"dhcp_enabled", false)
 	if err != nil {
 		return dhcpEnabled, err

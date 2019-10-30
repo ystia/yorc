@@ -50,7 +50,7 @@ func testReadComplexVA(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readComplexVA(tt.args.vaType, deploymentID, tt.args.keyPath, tt.args.vaDatatype, tt.args.nestedKeys...)
+			got, err := readComplexVA(context.Background(), tt.args.vaType, deploymentID, tt.args.keyPath, tt.args.vaDatatype, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("readComplexVA() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -40,7 +40,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
-	dExits, err := deployments.DoesDeploymentExists(id)
+	dExits, err := deployments.DoesDeploymentExists(ctx, id)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -60,7 +60,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	}
 	// Check that provided node exists
 	nodeName := ccRequest.NodeName
-	nodeExists, err := deployments.DoesNodeExist(id, nodeName)
+	nodeExists, err := deployments.DoesNodeExist(ctx, id, nodeName)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -73,12 +73,12 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	var instances []string
 	if ccRequest.Instances == nil {
 		// Apply command on all the instances
-		instances, err = deployments.GetNodeInstancesIds(id, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(ctx, id, nodeName)
 		if err != nil {
 			log.Panic(err)
 		}
 	} else {
-		checked, inexistent := s.checkInstances(id, nodeName, ccRequest.Instances)
+		checked, inexistent := s.checkInstances(ctx, id, nodeName, ccRequest.Instances)
 		if checked {
 			instances = ccRequest.Instances
 		} else {
@@ -88,7 +88,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	ccRequest.InterfaceName = strings.ToLower(ccRequest.InterfaceName)
-	inputsName, err := s.getInputNameFromCustom(id, nodeName, ccRequest.InterfaceName, ccRequest.CustomCommandName)
+	inputsName, err := s.getInputNameFromCustom(ctx, id, nodeName, ccRequest.InterfaceName, ccRequest.CustomCommandName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -118,19 +118,19 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *Server) getInputNameFromCustom(deploymentID, nodeName, interfaceName, customCName string) ([]string, error) {
+func (s *Server) getInputNameFromCustom(ctx context.Context, deploymentID, nodeName, interfaceName, customCName string) ([]string, error) {
 	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, interfaceName+"."+customCName, "", "")
 	if err != nil {
 		return nil, err
 	}
-	inputs, err := deployments.GetOperationInputs(deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name)
+	inputs, err := deployments.GetOperationInputs(ctx, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	result := inputs[:0]
 	for _, inputName := range inputs {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name, inputName)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name, inputName)
 		if err != nil {
 			return nil, err
 		}
@@ -143,9 +143,9 @@ func (s *Server) getInputNameFromCustom(deploymentID, nodeName, interfaceName, c
 
 // checkInstances checks if provided instances exist and returns true in this case.
 // If a provided instance does not exists, returns false and the inexistent instance name
-func (s *Server) checkInstances(deploymentID, nodeName string, provInstances []string) (bool, string) {
+func (s *Server) checkInstances(ctx context.Context, deploymentID, nodeName string, provInstances []string) (bool, string) {
 	// Get known instances for the provided node
-	allInstances, err := deployments.GetNodeInstancesIds(deploymentID, nodeName)
+	allInstances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}

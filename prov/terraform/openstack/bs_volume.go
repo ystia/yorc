@@ -15,6 +15,7 @@
 package openstack
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -25,11 +26,11 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func (g *osGenerator) generateOSBSVolume(cfg config.Configuration, locationProps config.DynamicMap,
+func (g *osGenerator) generateOSBSVolume(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap,
 	deploymentID, nodeName, instanceName string) (BlockStorageVolume, error) {
 
 	volume := BlockStorageVolume{}
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return volume, err
 	}
@@ -38,7 +39,7 @@ func (g *osGenerator) generateOSBSVolume(cfg config.Configuration, locationProps
 	}
 	volume.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	size, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "size")
+	size, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "size")
 	if err != nil {
 		return volume, err
 	}
@@ -53,7 +54,7 @@ func (g *osGenerator) generateOSBSVolume(cfg config.Configuration, locationProps
 	}
 	log.Debugf("Computed size rounded in GB: %d", volume.Size)
 
-	region, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "region")
+	region, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "region")
 	if err != nil {
 		return volume, err
 	} else if region != nil && region.RawString() != "" {
@@ -61,7 +62,7 @@ func (g *osGenerator) generateOSBSVolume(cfg config.Configuration, locationProps
 	} else {
 		volume.Region = locationProps.GetStringOrDefault("region", defaultOSRegion)
 	}
-	az, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "availability_zone")
+	az, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return volume, err
 	}
@@ -73,11 +74,11 @@ func (g *osGenerator) generateOSBSVolume(cfg config.Configuration, locationProps
 
 // computeBootVolume gets value of a boot volume if any is defined
 // If none, nil is returned
-func computeBootVolume(deploymentID, nodeName string) (*BootVolume, error) {
+func computeBootVolume(ctx context.Context, deploymentID, nodeName string) (*BootVolume, error) {
 	var vol BootVolume
 	var err error
 	// If a boot volume is defined, its source definition is mandatory
-	vol.Source, err = deployments.GetStringNodePropertyValue(deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
+	vol.Source, err = deployments.GetStringNodePropertyValue(ctx, deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
 	if err != nil || vol.Source == "" {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func computeBootVolume(deploymentID, nodeName string) (*BootVolume, error) {
 	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, deleteOnTerminationTOSCAKey}
 	strValues := make(map[string]string, len(keys))
 	for _, key := range keys {
-		strValues[key], err = deployments.GetStringNodePropertyValue(deploymentID, nodeName, bootVolumeTOSCAAttr, key)
+		strValues[key], err = deployments.GetStringNodePropertyValue(ctx, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
 		if err != nil {
 			return nil, err
 		}

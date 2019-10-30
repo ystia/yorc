@@ -36,41 +36,41 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
 	if requirementName != "" {
-		key, err := deployments.GetRequirementKeyByNameForNode(deploymentID, nodeName, requirementName)
+		key, err := deployments.GetRequirementKeyByNameForNode(ctx, deploymentID, nodeName, requirementName)
 		if err != nil {
 			return prov.Operation{}, err
 		}
 		if key == "" {
 			return prov.Operation{}, errors.Errorf("Unable to found requirement key for requirement name:%q", requirementName)
 		}
-		requirementIndex = deployments.GetRequirementIndexFromRequirementKey(key)
+		requirementIndex = deployments.GetRequirementIndexFromRequirementKey(ctx, key)
 	}
 	if isRelationshipOp {
-		implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(deploymentID, nodeName, operationName, requirementIndex)
+		implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName, requirementIndex)
 	} else {
-		isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(deploymentID, nodeName, operationName)
+		isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
 		if err != nil {
 			return prov.Operation{}, err
 		}
 		if isNodeImplOpe {
 			implementingNode = nodeName
 		} else {
-			implementingType, err = deployments.GetNodeTypeImplementingAnOperation(deploymentID, nodeName, operationName)
+			implementingType, err = deployments.GetNodeTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName)
 		}
 	}
 	if err != nil {
 		return prov.Operation{}, err
 	}
-	implArt, err := deployments.GetImplementationArtifactForOperation(deploymentID, nodeName, operationName, isNodeImplOpe, isRelationshipOp, requirementIndex)
+	implArt, err := deployments.GetImplementationArtifactForOperation(ctx, deploymentID, nodeName, operationName, isNodeImplOpe, isRelationshipOp, requirementIndex)
 	if err != nil {
 		return prov.Operation{}, err
 	}
-	targetNodeName, err := deployments.GetTargetNodeForRequirement(deploymentID, nodeName, requirementIndex)
+	targetNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 	if err != nil {
 		return prov.Operation{}, err
 	}
 
-	implemOperationHost, err := deployments.GetOperationHostFromTypeOperationByName(deploymentID, implementingType, operationName)
+	implemOperationHost, err := deployments.GetOperationHostFromTypeOperationByName(ctx, deploymentID, implementingType, operationName)
 	if operationHost != "" && implemOperationHost != "" && operationHost != implemOperationHost {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("operation host defined in the implementation of operation %q (%q) is different from the one defined in the workflow step (%q). We will use the one from the workflow.", implemOperationHost, operationName, operationHost)
 	} else if operationHost == "" && implemOperationHost != "" {

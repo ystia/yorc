@@ -35,7 +35,7 @@ func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupO
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -44,11 +44,11 @@ func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupO
 	}
 
 	serverGroup := &ServerGroup{}
-	serverGroup.Name, err = deployments.GetStringNodeProperty(deploymentID, nodeName, "name", true)
+	serverGroup.Name, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "name", true)
 	if err != nil {
 		return err
 	}
-	policy, err := deployments.GetStringNodeProperty(deploymentID, nodeName, "policy", true)
+	policy, err := deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "policy", true)
 	if err != nil {
 		return err
 	}

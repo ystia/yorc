@@ -53,31 +53,32 @@ func testDefinitionStore(t *testing.T) {
 
 func testImplementationArtifacts(t *testing.T) {
 	// t.Parallel()
+	ctx := context.Background()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
 
-	impl, err := GetImplementationArtifactForExtension(deploymentID, "sh")
+	impl, err := GetImplementationArtifactForExtension(ctx, deploymentID, "sh")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Bash", impl)
 
-	impl, err = GetImplementationArtifactForExtension(deploymentID, "SH")
+	impl, err = GetImplementationArtifactForExtension(ctx, deploymentID, "SH")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Bash", impl)
 
-	impl, err = GetImplementationArtifactForExtension(deploymentID, "py")
+	impl, err = GetImplementationArtifactForExtension(ctx, deploymentID, "py")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Python", impl)
 
-	impl, err = GetImplementationArtifactForExtension(deploymentID, "Py")
+	impl, err = GetImplementationArtifactForExtension(ctx, deploymentID, "Py")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Python", impl)
 
-	impl, err = GetImplementationArtifactForExtension(deploymentID, "yaml")
+	impl, err = GetImplementationArtifactForExtension(ctx, deploymentID, "yaml")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Ansible", impl)
 
-	impl, err = GetImplementationArtifactForExtension(deploymentID, "yml")
+	impl, err = GetImplementationArtifactForExtension(ctx, deploymentID, "yml")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Ansible", impl)
 
@@ -92,6 +93,7 @@ func testImplementationArtifactsDuplicates(t *testing.T) {
 }
 
 func testValueAssignments(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
@@ -169,7 +171,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range nodePropTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetNodePropertyValue(deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.nestedKeys...)
+			got, err := GetNodePropertyValue(ctx, deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetNodeProperty() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -184,15 +186,15 @@ func testValueAssignments(t *testing.T) {
 	}
 
 	// Then test node attributes
-	err = SetInstanceAttribute(deploymentID, "VANode1", "0", "lit", "myLiteral")
+	err = SetInstanceAttribute(ctx, deploymentID, "VANode1", "0", "lit", "myLiteral")
 	require.NoError(t, err)
-	err = SetInstanceAttributeComplex(deploymentID, "VANode1", "0", "listAttr", []int{42, 43, 44})
+	err = SetInstanceAttributeComplex(ctx, deploymentID, "VANode1", "0", "listAttr", []int{42, 43, 44})
 	require.NoError(t, err)
-	err = SetInstanceAttributeComplex(deploymentID, "VANode1", "0", "mapAttr", map[string]interface{}{"map1": "v1", "map2": "v2", "map3": "v3"})
+	err = SetInstanceAttributeComplex(ctx, deploymentID, "VANode1", "0", "mapAttr", map[string]interface{}{"map1": "v1", "map2": "v2", "map3": "v3"})
 	require.NoError(t, err)
-	err = SetInstanceAttributeComplex(deploymentID, "VANode1", "0", "complexAttr", map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"})
+	err = SetInstanceAttributeComplex(ctx, deploymentID, "VANode1", "0", "complexAttr", map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"})
 	require.NoError(t, err)
-	err = SetInstanceAttributeComplex(deploymentID, "VANode2", "0", "baseComplexAttr", map[string]interface{}{
+	err = SetInstanceAttributeComplex(ctx, deploymentID, "VANode2", "0", "baseComplexAttr", map[string]interface{}{
 		"nestedType": map[string]interface{}{
 			"listofstring":  []string{"VANode2L1", "VANode2L2"},
 			"subcomplex":    map[string]interface{}{"literal": 2},
@@ -254,7 +256,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range nodeAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstanceAttributeValue(deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetInstanceAttributeValue(ctx, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInstanceAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -326,7 +328,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range relPropTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRelationshipPropertyValueFromRequirement(deploymentID, tt.args.nodeName, tt.args.reqIndex, tt.args.propertyName, tt.args.nestedKeys...)
+			got, err := GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, tt.args.nodeName, tt.args.reqIndex, tt.args.propertyName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRelationshipPropertyFromRequirement() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -341,15 +343,15 @@ func testValueAssignments(t *testing.T) {
 	}
 
 	// Then test relationship attributes value assignment
-	err = SetInstanceRelationshipAttribute(deploymentID, "VANode2", "0", "0", "literalAttr", "user rel literal attr")
+	err = SetInstanceRelationshipAttribute(ctx, deploymentID, "VANode2", "0", "0", "literalAttr", "user rel literal attr")
 	require.NoError(t, err)
-	err = SetInstanceRelationshipAttributeComplex(deploymentID, "VANode2", "0", "0", "mapAttr", map[interface{}]string{"U1": "V1", "U2": "V2"})
+	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "mapAttr", map[interface{}]string{"U1": "V1", "U2": "V2"})
 	require.NoError(t, err)
-	err = SetInstanceRelationshipAttributeComplex(deploymentID, "VANode2", "0", "0", "listAttr", []interface{}{"UV1", "UV2", "UV3"})
+	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "listAttr", []interface{}{"UV1", "UV2", "UV3"})
 	require.NoError(t, err)
-	err = SetInstanceRelationshipAttributeComplex(deploymentID, "VANode2", "0", "0", "complexAttr", map[string]interface{}{"literal": 5, "literalDefault": "VANode2ToVANode1"})
+	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "complexAttr", map[string]interface{}{"literal": 5, "literalDefault": "VANode2ToVANode1"})
 	require.NoError(t, err)
-	err = SetInstanceRelationshipAttributeComplex(deploymentID, "VANode2", "0", "0", "baseComplexAttr", map[string]interface{}{
+	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "baseComplexAttr", map[string]interface{}{
 		"nestedType": map[string]interface{}{
 			"listofstring":  []string{"VANode2ToVANode1L1", "VANode2ToVANode1L2"},
 			"subcomplex":    map[string]interface{}{"literal": 2},
@@ -423,7 +425,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range relAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRelationshipAttributeValueFromRequirement(deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.reqIndex, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.reqIndex, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRelationshipAttributeFromRequirement() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -508,7 +510,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range capPropTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetCapabilityPropertyValue(deploymentID, tt.args.nodeName, tt.args.capability, tt.args.propertyName, tt.args.nestedKeys...)
+			got, err := GetCapabilityPropertyValue(ctx, deploymentID, tt.args.nodeName, tt.args.capability, tt.args.propertyName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetCapabilityProperty() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -523,15 +525,15 @@ func testValueAssignments(t *testing.T) {
 	}
 
 	// Then test capabilities attributes value assignment
-	err = SetInstanceCapabilityAttribute(deploymentID, "VANode1", "0", "host", "literalAttr", "user cap literal attr")
+	err = SetInstanceCapabilityAttribute(ctx, deploymentID, "VANode1", "0", "host", "literalAttr", "user cap literal attr")
 	require.NoError(t, err)
-	err = SetInstanceCapabilityAttributeComplex(deploymentID, "VANode1", "0", "host", "mapAttr", map[interface{}]string{"U1": "V1", "U2": "V2"})
+	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "mapAttr", map[interface{}]string{"U1": "V1", "U2": "V2"})
 	require.NoError(t, err)
-	err = SetInstanceCapabilityAttributeComplex(deploymentID, "VANode1", "0", "host", "listAttr", []interface{}{"UV1", "UV2", "UV3"})
+	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "listAttr", []interface{}{"UV1", "UV2", "UV3"})
 	require.NoError(t, err)
-	err = SetInstanceCapabilityAttributeComplex(deploymentID, "VANode1", "0", "host", "complexAttr", map[string]interface{}{"literal": 5, "literalDefault": "CapNode1"})
+	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "complexAttr", map[string]interface{}{"literal": 5, "literalDefault": "CapNode1"})
 	require.NoError(t, err)
-	err = SetInstanceCapabilityAttributeComplex(deploymentID, "VANode1", "0", "host", "baseComplexAttr", map[string]interface{}{
+	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "baseComplexAttr", map[string]interface{}{
 		"nestedType": map[string]interface{}{
 			"listofstring":  []string{"CapNode1L1", "CapNode1L2"},
 			"subcomplex":    map[string]interface{}{"literal": 2},
@@ -623,7 +625,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range capAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstanceCapabilityAttributeValue(deploymentID,
+			got, err := GetInstanceCapabilityAttributeValue(ctx, deploymentID,
 				tt.args.nodeName, tt.args.instanceName, tt.args.capability,
 				tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
@@ -682,7 +684,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range topoInputTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInputValue(deploymentID, tt.args.inputName, tt.args.nestedKeys...)
+			got, err := GetInputValue(ctx, deploymentID, tt.args.inputName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInputValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -737,7 +739,7 @@ func testValueAssignments(t *testing.T) {
 	}
 	for _, tt := range topoOutputTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTopologyOutputValue(deploymentID, tt.args.OutputName, tt.args.nestedKeys...)
+			got, err := GetTopologyOutputValue(ctx, deploymentID, tt.args.OutputName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTopologyOutput() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -756,7 +758,7 @@ func testValueAssignments(t *testing.T) {
 }
 
 func checkTopologyOutputs(t *testing.T, deploymentID string) {
-	got, err := GetTopologyOutputsNames(deploymentID)
+	got, err := GetTopologyOutputsNames(context.Background(), deploymentID)
 	if err != nil {
 		t.Errorf("GetTopologyOutputsNames() error = %v", err)
 		return
@@ -782,7 +784,7 @@ func testIssueGetEmptyPropRel(t *testing.T) {
 	require.Nil(t, err)
 	// First test operation outputs detection
 
-	results, err := GetOperationInput(deploymentID, "ValueAssignmentNode2", prov.Operation{
+	results, err := GetOperationInput(context.Background(), deploymentID, "ValueAssignmentNode2", prov.Operation{
 		Name:                   "configure.pre_configure_target",
 		ImplementedInType:      "yorc.tests.relationships.ValueAssignmentConnectsTo",
 		ImplementationArtifact: "",
@@ -797,13 +799,14 @@ func testIssueGetEmptyPropRel(t *testing.T) {
 }
 
 func testIssueGetEmptyPropOnRelationship(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/issue_get_empty_prop_rel.yaml")
+	err := StoreDeploymentDefinition(ctx, deploymentID, "testdata/issue_get_empty_prop_rel.yaml")
 	require.Nil(t, err)
 	// First test operation outputs detection
 
-	results, err := GetOperationInput(deploymentID, "ValueAssignmentNode2", prov.Operation{
+	results, err := GetOperationInput(ctx, deploymentID, "ValueAssignmentNode2", prov.Operation{
 		Name:                   "configure.pre_configure_source",
 		ImplementedInType:      "yorc.tests.relationships.ValueAssignmentConnectsTo",
 		ImplementationArtifact: "",
@@ -819,15 +822,16 @@ func testIssueGetEmptyPropOnRelationship(t *testing.T) {
 
 func testRelationshipWorkflow(t *testing.T) {
 	// t.Parallel()
+	ctx := context.Background()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/relationship_workflow.yaml")
 	require.Nil(t, err)
 
-	workflows, err := GetWorkflows(deploymentID)
+	workflows, err := GetWorkflows(ctx, deploymentID)
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 4)
 
-	wfInstall, err := ReadWorkflow(deploymentID, "install")
+	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInstall.Steps), 14)
 
@@ -840,6 +844,7 @@ func testRelationshipWorkflow(t *testing.T) {
 
 func testGlobalInputs(t *testing.T) {
 	// t.Parallel()
+	ctx := context.Background()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/global_interfaces_inputs.yaml")
 	require.Nil(t, err)
@@ -848,32 +853,32 @@ func testGlobalInputs(t *testing.T) {
 	giType := "yorc.tests.nodes.GlobalInputs"
 	operationName := "standard.create"
 
-	err = SetInstanceAttribute(deploymentID, nodeName, "0", "state", "initial")
+	err = SetInstanceAttribute(ctx, deploymentID, nodeName, "0", "state", "initial")
 	require.Nil(t, err)
-	err = SetInstanceAttribute(deploymentID, nodeName, "1", "state", "initial")
+	err = SetInstanceAttribute(ctx, deploymentID, nodeName, "1", "state", "initial")
 	require.Nil(t, err)
 
-	inputs, err := GetOperationInputs(deploymentID, "", giType, operationName)
+	inputs, err := GetOperationInputs(ctx, deploymentID, "", giType, operationName)
 	require.Nil(t, err)
 	require.Len(t, inputs, 5)
 	require.Equal(t, []string{"L1", "L2", "G1", "G2", "G3"}, inputs)
 
-	isPropDef, err := IsOperationInputAPropertyDefinition(deploymentID, "", giType, operationName, "L1")
+	isPropDef, err := IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "L1")
 	require.Nil(t, err)
 	require.False(t, isPropDef)
-	isPropDef, err = IsOperationInputAPropertyDefinition(deploymentID, "", giType, operationName, "L2")
+	isPropDef, err = IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "L2")
 	require.Nil(t, err)
 	require.False(t, isPropDef)
-	isPropDef, err = IsOperationInputAPropertyDefinition(deploymentID, "", giType, operationName, "G1")
+	isPropDef, err = IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "G1")
 	require.Nil(t, err)
 	require.False(t, isPropDef)
-	isPropDef, err = IsOperationInputAPropertyDefinition(deploymentID, "", giType, operationName, "G2")
+	isPropDef, err = IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "G2")
 	require.Nil(t, err)
 	require.False(t, isPropDef)
-	isPropDef, err = IsOperationInputAPropertyDefinition(deploymentID, "", giType, operationName, "G3")
+	isPropDef, err = IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "G3")
 	require.Nil(t, err)
 	require.True(t, isPropDef)
-	isPropDef, err = IsOperationInputAPropertyDefinition(deploymentID, "", giType, operationName, "G4")
+	isPropDef, err = IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "G4")
 	require.Error(t, err)
 
 	operation := prov.Operation{
@@ -884,36 +889,36 @@ func testGlobalInputs(t *testing.T) {
 		RelOp:                  prov.RelationshipOperation{},
 	}
 
-	inputResults, err := GetOperationInput(deploymentID, nodeName, operation, "L1")
+	inputResults, err := GetOperationInput(ctx, deploymentID, nodeName, operation, "L1")
 	require.Nil(t, err)
 	require.Len(t, inputResults, 2)
 	for _, res := range inputResults {
 		require.Equal(t, "1", res.Value)
 	}
-	inputResults, err = GetOperationInput(deploymentID, nodeName, operation, "L2")
+	inputResults, err = GetOperationInput(ctx, deploymentID, nodeName, operation, "L2")
 	require.Nil(t, err)
 	require.Len(t, inputResults, 2)
 	for _, res := range inputResults {
 		require.Equal(t, "Value1", res.Value)
 	}
-	inputResults, err = GetOperationInput(deploymentID, nodeName, operation, "G1")
+	inputResults, err = GetOperationInput(ctx, deploymentID, nodeName, operation, "G1")
 	require.Nil(t, err)
 	require.Len(t, inputResults, 2)
 	for _, res := range inputResults {
 		require.Equal(t, "myLitteral", res.Value)
 	}
-	inputResults, err = GetOperationInput(deploymentID, nodeName, operation, "G2")
+	inputResults, err = GetOperationInput(ctx, deploymentID, nodeName, operation, "G2")
 	require.Nil(t, err)
 	require.Len(t, inputResults, 2)
 	for _, res := range inputResults {
 		require.Equal(t, "Value1", res.Value)
 	}
-	inputResults, err = GetOperationInput(deploymentID, nodeName, operation, "G3")
+	inputResults, err = GetOperationInput(ctx, deploymentID, nodeName, operation, "G3")
 	require.Error(t, err)
 
-	inputResults, err = GetOperationInputPropertyDefinitionDefault(deploymentID, nodeName, operation, "G1")
+	inputResults, err = GetOperationInputPropertyDefinitionDefault(ctx, deploymentID, nodeName, operation, "G1")
 	require.Error(t, err)
-	inputResults, err = GetOperationInputPropertyDefinitionDefault(deploymentID, nodeName, operation, "G3")
+	inputResults, err = GetOperationInputPropertyDefinitionDefault(ctx, deploymentID, nodeName, operation, "G3")
 	require.Nil(t, err)
 	require.Len(t, inputResults, 2)
 	for _, res := range inputResults {
@@ -923,15 +928,16 @@ func testGlobalInputs(t *testing.T) {
 
 func testInlineWorkflow(t *testing.T) {
 	// t.Parallel()
+	ctx := context.Background()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/inline_workflow.yaml")
 	require.Nil(t, err)
 
-	workflows, err := GetWorkflows(deploymentID)
+	workflows, err := GetWorkflows(ctx, deploymentID)
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 3)
 
-	wfInstall, err := ReadWorkflow(deploymentID, "install")
+	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInstall.Steps), 4)
 
@@ -945,25 +951,26 @@ func testInlineWorkflow(t *testing.T) {
 	require.Equal(t, len(step.Activities), 1)
 	require.Equal(t, step.Activities[0].Inline, "inception")
 
-	wfInception, err := ReadWorkflow(deploymentID, "inception")
+	wfInception, err := ReadWorkflow(ctx, deploymentID, "inception")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInception.Steps), 1)
 }
 
 func testDeleteWorkflow(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/inline_workflow.yaml")
 	require.Nil(t, err)
 
-	workflows, err := GetWorkflows(deploymentID)
+	workflows, err := GetWorkflows(ctx, deploymentID)
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 3)
 
-	err = DeleteWorkflow(deploymentID, "install")
+	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
 
-	wfInstall, err := ReadWorkflow(deploymentID, "install")
+	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
 	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
 
@@ -1050,7 +1057,7 @@ func testRunnableWorkflowsAutoCancel(t *testing.T) {
 		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
 	}
 
-	wf, err := ReadWorkflow(deploymentID, "run")
+	wf, err := ReadWorkflow(context.Background(), deploymentID, "run")
 	require.NoError(t, err)
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_submit")
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_run")
@@ -1089,7 +1096,7 @@ func testNotifyAttributeOnValueChange(t *testing.T, deploymentID string) {
 	}
 
 	for _, p := range notifPaths {
-		err := notifyAttributeOnValueChange(p, deploymentID)
+		err := notifyAttributeOnValueChange(context.Background(), p, deploymentID)
 		require.NoError(t, err, "Error notifying attribute on value change for path %s", p)
 	}
 }

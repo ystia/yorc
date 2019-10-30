@@ -246,8 +246,8 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, cfg config.Configu
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
-
-	nb, err := deployments.GetDefaultNbInstancesForNode(deploymentID, "ComputeAWS")
+	ctx := context.Background()
+	nb, err := deployments.GetDefaultNbInstancesForNode(ctx, deploymentID, "ComputeAWS")
 	require.Nil(t, err)
 	require.Equal(t, uint32(4), nb)
 
@@ -290,11 +290,12 @@ func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, cfg config.Configuratio
 func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
+	ctx := context.Background()
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	nb, err := deployments.GetDefaultNbInstancesForNode(deploymentID, "ComputeAWS")
+	nb, err := deployments.GetDefaultNbInstancesForNode(ctx, deploymentID, "ComputeAWS")
 	require.Nil(t, err)
 	require.Equal(t, uint32(5), nb)
 

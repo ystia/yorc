@@ -81,7 +81,7 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, deploymentID string)
 	// - 1 CPU
 	// - 20 GB of disk
 	// - a linux OS
-	filters, err := createFiltersFromComputeCapabilities(deploymentID, "Compute")
+	filters, err := createFiltersFromComputeCapabilities(context.Background(), deploymentID, "Compute")
 	require.NoError(t, err, "Unexpected error creating filters for Compute node")
 
 	// Creating Host labels declaring more resources than required,
@@ -257,7 +257,7 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 	// shareable host.
 	// Building a Hosts Pool without enough resources for the last compute node
 	cleanupHostsPool(t, cc)
-
+	ctx := context.Background()
 	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 	initialLabels := map[string]string{
 		"host.num_cpus":           "3",
@@ -281,13 +281,13 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 	// Getting now nodes for which to call the install delegate operation install
 	// which will allocate resources in the Hosts Pool
 
-	allNodes, err := deployments.GetNodes(deploymentID)
+	allNodes, err := deployments.GetNodes(ctx, deploymentID)
 	require.NoError(t, err, "Unexpected error getting nodes for deployment %s",
 		deploymentID)
 
 	var nodeNames []string
 	for _, nodeName := range allNodes {
-		nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+		nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 		require.NoError(t, err, "Unexpected error getting type for node %s in deployment %s",
 			nodeName, deploymentID)
 		if nodeType == "yorc.nodes.hostspool.Compute" {
@@ -296,7 +296,6 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 	}
 
 	testExecutor := &defaultExecutor{}
-	ctx := context.Background()
 	cfg := config.Configuration{
 		Consul: config.Consul{
 			Address:        srv.HTTPAddr,

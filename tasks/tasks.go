@@ -350,13 +350,13 @@ func SetTaskDataList(taskID string, data map[string]string) error {
 //
 // Basically it checks if a list of instances is defined for this task for example in case of scaling.
 // If not found it will returns the result of deployments.GetNodeInstancesIds(kv, deploymentID, nodeName).
-func GetInstances(taskID, deploymentID, nodeName string) ([]string, error) {
+func GetInstances(ctx context.Context, taskID, deploymentID, nodeName string) ([]string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "data/nodes", nodeName))
 	if err != nil {
 		return nil, err
 	}
 	if !exist || value == "" {
-		return deployments.GetNodeInstancesIds(deploymentID, nodeName)
+		return deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	}
 	return strings.Split(value, ","), nil
 }

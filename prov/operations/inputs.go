@@ -46,37 +46,37 @@ func (ei EnvInput) String() string {
 }
 
 // ResolveInputs allows to resolve inputs for an operation
-func ResolveInputs(deploymentID, nodeName, taskID string, operation prov.Operation) ([]*EnvInput, []string, error) {
-	sourceInstances, err := tasks.GetInstances(taskID, deploymentID, nodeName)
+func ResolveInputs(ctx context.Context, deploymentID, nodeName, taskID string, operation prov.Operation) ([]*EnvInput, []string, error) {
+	sourceInstances, err := tasks.GetInstances(ctx, taskID, deploymentID, nodeName)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var targetInstances []string
 	if operation.RelOp.IsRelationshipOperation {
-		targetInstances, err = tasks.GetInstances(taskID, deploymentID, operation.RelOp.TargetNodeName)
+		targetInstances, err = tasks.GetInstances(ctx, taskID, deploymentID, operation.RelOp.TargetNodeName)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	return ResolveInputsWithInstances(deploymentID, nodeName, taskID, operation, sourceInstances, targetInstances)
+	return ResolveInputsWithInstances(ctx, deploymentID, nodeName, taskID, operation, sourceInstances, targetInstances)
 }
 
 // ResolveInputsWithInstances used to resolve inputs for an operation
-func ResolveInputsWithInstances(deploymentID, nodeName, taskID string, operation prov.Operation, sourceNodeInstances, targetNodeInstances []string) ([]*EnvInput, []string, error) {
+func ResolveInputsWithInstances(ctx context.Context, deploymentID, nodeName, taskID string, operation prov.Operation, sourceNodeInstances, targetNodeInstances []string) ([]*EnvInput, []string, error) {
 
 	log.Debug("resolving inputs")
 
 	envInputs := make([]*EnvInput, 0)
 	varInputsNames := make([]string, 0)
 
-	inputKeys, err := deployments.GetOperationInputs(deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
+	inputKeys, err := deployments.GetOperationInputs(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	for _, input := range inputKeys {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name, input)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name, input)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -87,7 +87,7 @@ func ResolveInputsWithInstances(deploymentID, nodeName, taskID string, operation
 				if !tasks.IsTaskDataNotFoundError(err) {
 					return nil, nil, err
 				}
-				defaultInputValues, err := deployments.GetOperationInputPropertyDefinitionDefault(deploymentID, nodeName, operation, input)
+				defaultInputValues, err := deployments.GetOperationInputPropertyDefinitionDefault(ctx, deploymentID, nodeName, operation, input)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -99,7 +99,7 @@ func ResolveInputsWithInstances(deploymentID, nodeName, taskID string, operation
 				}
 				continue
 			}
-			instances, err := deployments.GetNodeInstancesIds(deploymentID, nodeName)
+			instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -110,7 +110,7 @@ func ResolveInputsWithInstances(deploymentID, nodeName, taskID string, operation
 				}
 			}
 		} else {
-			inputValues, err := deployments.GetOperationInput(deploymentID, nodeName, operation, input)
+			inputValues, err := deployments.GetOperationInput(ctx, deploymentID, nodeName, operation, input)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -144,24 +144,24 @@ func GetTargetCapabilityPropertiesAndAttributesValues(ctx context.Context, deplo
 
 	props := make(map[string]*deployments.TOSCAValue)
 
-	capabilityType, err := deployments.GetCapabilityForRequirement(deploymentID, nodeName, op.RelOp.RequirementIndex)
+	capabilityType, err := deployments.GetCapabilityForRequirement(ctx, deploymentID, nodeName, op.RelOp.RequirementIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	targetNodeType, err := deployments.GetNodeType(deploymentID, op.RelOp.TargetNodeName)
+	targetNodeType, err := deployments.GetNodeType(ctx, deploymentID, op.RelOp.TargetNodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	targetInstances, err := deployments.GetNodeInstancesIds(deploymentID, op.RelOp.TargetNodeName)
+	targetInstances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, op.RelOp.TargetNodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	capabilities, err := deployments.GetCapabilitiesOfType(deploymentID, targetNodeType, capabilityType)
+	capabilities, err := deployments.GetCapabilitiesOfType(ctx, deploymentID, targetNodeType, capabilityType)
 	for i, capabilityName := range capabilities {
-		capabilityType, err := deployments.GetNodeTypeCapabilityType(deploymentID, targetNodeType, capabilityName)
+		capabilityType, err := deployments.GetNodeTypeCapabilityType(ctx, deploymentID, targetNodeType, capabilityName)
 		if err != nil {
 			return nil, err
 		}
@@ -185,12 +185,12 @@ func GetTargetCapabilityPropertiesAndAttributesValues(ctx context.Context, deplo
 }
 
 func setCapabilityProperties(ctx context.Context, deploymentID, capabilityName, capabilityType string, op prov.Operation, isFirst bool, props map[string]*deployments.TOSCAValue) error {
-	capProps, err := deployments.GetTypeProperties(deploymentID, capabilityType, true)
+	capProps, err := deployments.GetTypeProperties(ctx, deploymentID, capabilityType, true)
 	if err != nil {
 		return err
 	}
 	for _, capProp := range capProps {
-		value, err := deployments.GetCapabilityPropertyValue(deploymentID, op.RelOp.TargetNodeName, capabilityName, capProp)
+		value, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, op.RelOp.TargetNodeName, capabilityName, capProp)
 		if err != nil {
 			return err
 		}
@@ -207,13 +207,13 @@ func setCapabilityProperties(ctx context.Context, deploymentID, capabilityName, 
 }
 
 func setCapabilityAttributes(ctx context.Context, deploymentID, capabilityName, capabilityType string, op prov.Operation, targetInstances []string, isFirst bool, props map[string]*deployments.TOSCAValue) error {
-	capAttrs, err := deployments.GetTypeAttributes(deploymentID, capabilityType, true)
+	capAttrs, err := deployments.GetTypeAttributes(ctx, deploymentID, capabilityType, true)
 	if err != nil {
 		return err
 	}
 	for _, capAttr := range capAttrs {
 		for _, instanceID := range targetInstances {
-			value, err := deployments.GetInstanceCapabilityAttributeValue(deploymentID, op.RelOp.TargetNodeName, instanceID, capabilityName, capAttr)
+			value, err := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, op.RelOp.TargetNodeName, instanceID, capabilityName, capAttr)
 			if err != nil {
 				return err
 			}

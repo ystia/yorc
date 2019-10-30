@@ -15,6 +15,7 @@
 package deployments
 
 import (
+	"context"
 	"path"
 
 	"strings"
@@ -28,14 +29,14 @@ import (
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
-func GetArtifactsForType(deploymentID, typeName string) (map[string]string, error) {
-	parentType, err := GetParentType(deploymentID, typeName)
+func GetArtifactsForType(ctx context.Context, deploymentID, typeName string) (map[string]string, error) {
+	parentType, err := GetParentType(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 	var artifacts map[string]string
 	if parentType != "" {
-		artifacts, err = GetArtifactsForType(deploymentID, parentType)
+		artifacts, err = GetArtifactsForType(ctx, deploymentID, parentType)
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +49,7 @@ func GetArtifactsForType(deploymentID, typeName string) (map[string]string, erro
 	}
 
 	artifactsPath := path.Join(typePath, "artifacts")
-	importPath, err := GetTypeImportPath(deploymentID, typeName)
+	importPath, err := GetTypeImportPath(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +62,12 @@ func GetArtifactsForType(deploymentID, typeName string) (map[string]string, erro
 // The returned artifacts paths are relative to root of the deployment archive.
 // It will first fetch artifacts from it node type and its parents and fetch artifacts for the node template itself.
 // This way artifacts from a parent type may be overridden by child types and artifacts from node type may be overridden by the node template
-func GetArtifactsForNode(deploymentID, nodeName string) (map[string]string, error) {
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+func GetArtifactsForNode(ctx context.Context, deploymentID, nodeName string) (map[string]string, error) {
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
-	artifacts, err := GetArtifactsForType(deploymentID, nodeType)
+	artifacts, err := GetArtifactsForType(ctx, deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +101,7 @@ func updateArtifactsFromPath(artifacts map[string]string, artifactsPath, importP
 
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.
 // If the artifact doesn't define any extension then a nil slice is returned
-func GetArtifactTypeExtensions(deploymentID, artifactType string) ([]string, error) {
+func GetArtifactTypeExtensions(ctx context.Context, deploymentID, artifactType string) ([]string, error) {
 	typePath, err := locateTypePath(deploymentID, artifactType)
 	if err != nil {
 		return nil, err

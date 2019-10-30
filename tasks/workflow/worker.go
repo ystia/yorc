@@ -92,7 +92,7 @@ func (w *worker) Start() {
 }
 
 func setNodeStatus(ctx context.Context, taskID, deploymentID, nodeName, status string) error {
-	instancesIDs, err := tasks.GetInstances(taskID, deploymentID, nodeName)
+	instancesIDs, err := tasks.GetInstances(ctx, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func setNodeStatus(ctx context.Context, taskID, deploymentID, nodeName, status s
 	return nil
 }
 
-func getOperationExecutor(deploymentID, artifact string) (prov.OperationExecutor, error) {
+func getOperationExecutor(ctx context.Context, deploymentID, artifact string) (prov.OperationExecutor, error) {
 	reg := registry.GetRegistry()
 
 	exec, originalErr := reg.GetOperationExecutor(artifact)
@@ -115,12 +115,12 @@ func getOperationExecutor(deploymentID, artifact string) (prov.OperationExecutor
 		return exec, nil
 	}
 	// Try to get an executor for artifact parent type but return the original error if we do not found any executors
-	parentArt, err := deployments.GetParentType(deploymentID, artifact)
+	parentArt, err := deployments.GetParentType(ctx, deploymentID, artifact)
 	if err != nil {
 		return nil, err
 	}
 	if parentArt != "" {
-		exec, err := getOperationExecutor(deploymentID, parentArt)
+		exec, err := getOperationExecutor(ctx, deploymentID, parentArt)
 		if err == nil {
 			return exec, nil
 		}
@@ -129,23 +129,23 @@ func getOperationExecutor(deploymentID, artifact string) (prov.OperationExecutor
 }
 
 // cleanupScaledDownNodes removes nodes instances from Consul
-func (w *worker) cleanupScaledDownNodes(t *taskExecution) error {
+func (w *worker) cleanupScaledDownNodes(ctx context.Context, t *taskExecution) error {
 	nodes, err := tasks.GetTaskRelatedNodes(t.taskID)
 	if err != nil {
 		return err
 	}
 	for _, node := range nodes {
 		var instances []string
-		instances, err = tasks.GetInstances(t.taskID, t.targetID, node)
+		instances, err = tasks.GetInstances(ctx, t.taskID, t.targetID, node)
 		if err != nil {
 			return err
 		}
 		for _, instance := range instances {
-			err = deployments.DeleteInstance(t.targetID, node, instance)
+			err = deployments.DeleteInstance(ctx, t.targetID, node, instance)
 			if err != nil {
 				return err
 			}
-			err = deployments.DeleteRelationshipInstance(t.targetID, node, instance)
+			err = deployments.DeleteRelationshipInstance(ctx, t.targetID, node, instance)
 			if err != nil {
 				return err
 			}
@@ -290,7 +290,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 		return ctx, errors.Wrapf(err, "expecting custom command to be related to \"1\" node while it is actually related to \"%d\" nodes", len(nodes))
 	}
 	nodeName := nodes[0]
-	nodeType, err := deployments.GetNodeType(t.targetID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, t.targetID, nodeName)
 	if err != nil {
 		return ctx, err
 	}
@@ -302,7 +302,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 		}
 		return ctx, errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
 	}
-	exec, err := getOperationExecutor(t.targetID, op.ImplementationArtifact)
+	exec, err := getOperationExecutor(ctx, t.targetID, op.ImplementationArtifact)
 	if err != nil {
 		err = setNodeStatus(ctx, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err != nil {
@@ -345,7 +345,7 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 	}()
 
 	// Rebuild the original workflow step
-	steps, err := builder.BuildWorkFlow(action.AsyncOperation.DeploymentID, action.AsyncOperation.WorkflowName)
+	steps, err := builder.BuildWorkFlow(ctx, action.AsyncOperation.DeploymentID, action.AsyncOperation.WorkflowName)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
 		log.Debugf("%+v", err)
@@ -400,7 +400,7 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		log.Debugf("%+v", err)
 	}
 
-	instances, err := tasks.GetInstances(action.AsyncOperation.TaskID, action.AsyncOperation.DeploymentID, action.AsyncOperation.NodeName)
+	instances, err := tasks.GetInstances(ctx, action.AsyncOperation.TaskID, action.AsyncOperation.DeploymentID, action.AsyncOperation.NodeName)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
 		log.Debugf("%+v", err)
@@ -555,7 +555,7 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
-	status, err := deployments.GetDeploymentStatus(t.targetID)
+	status, err := deployments.GetDeploymentStatus(ctx, t.targetID)
 	if err != nil {
 		return err
 	}
@@ -628,7 +628,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		return errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
 	}
 	// Remove from KV this purge tasks
-	err = deployments.DeleteDeployment(t.targetID)
+	err = deployments.DeleteDeployment(ctx, t.targetID)
 	if err != nil {
 		return err
 	}
@@ -642,7 +642,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
-	status, err := deployments.GetDeploymentStatus(t.targetID)
+	status, err := deployments.GetDeploymentStatus(ctx, t.targetID)
 	if err != nil {
 		return err
 	}
@@ -662,7 +662,7 @@ func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
 		}
 
 		// Create and store related node instances for scaling
-		instancesByNodes, err := deployments.CreateNewNodeStackInstances(t.targetID, nodeName, instancesDelta)
+		instancesByNodes, err := deployments.CreateNewNodeStackInstances(ctx, t.targetID, nodeName, instancesDelta)
 		if err != nil {
 			return errors.Wrap(err, "failed to create new nodes instances in topology")
 		}
@@ -693,7 +693,7 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
 
 	classicFinalFn := w.makeWorkflowFinalFunction(ctx, t.targetID, t.taskID, "uninstall", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
 	t.finalFunction = func() error {
-		err := w.cleanupScaledDownNodes(t)
+		err := w.cleanupScaledDownNodes(ctx, t)
 		if err != nil {
 			return err
 		}
@@ -734,7 +734,7 @@ func (w *worker) checkByPassErrors(t *taskExecution, wfName string) (bool, error
 // bool return indicates if the workflow is done
 func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflowName string, continueOnError bool) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("Start processing workflow step %s:%s", workflowName, t.step))
-	wfSteps, err := builder.BuildWorkFlow(t.targetID, workflowName)
+	wfSteps, err := builder.BuildWorkFlow(ctx, t.targetID, workflowName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}

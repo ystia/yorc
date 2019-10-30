@@ -48,7 +48,7 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer) {
 }
 
 func testGetArtifactsForType(t *testing.T, deploymentID string) {
-	artifacts, err := GetArtifactsForType(deploymentID, "yorc.types.A")
+	artifacts, err := GetArtifactsForType(context.Background(), deploymentID, "yorc.types.A")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 5)
@@ -63,7 +63,7 @@ func testGetArtifactsForType(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetArtifactsForType(deploymentID, "yorc.types.ParentA")
+	artifacts, err = GetArtifactsForType(context.Background(), deploymentID, "yorc.types.ParentA")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 3)
@@ -74,14 +74,14 @@ func testGetArtifactsForType(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetArtifactsForType(deploymentID, "root")
+	artifacts, err = GetArtifactsForType(context.Background(), deploymentID, "root")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)
 
 }
 func testGetArtifactsForNode(t *testing.T, deploymentID string) {
-	artifacts, err := GetArtifactsForNode(deploymentID, "NodeA")
+	artifacts, err := GetArtifactsForNode(context.Background(), deploymentID, "NodeA")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 6)
@@ -99,7 +99,7 @@ func testGetArtifactsForNode(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art6")
 	require.Equal(t, "path/to/typeA/TypeA", artifacts["art6"])
 
-	artifacts, err = GetArtifactsForNode(deploymentID, "NodeB")
+	artifacts, err = GetArtifactsForNode(context.Background(), deploymentID, "NodeB")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)

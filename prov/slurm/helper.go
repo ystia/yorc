@@ -16,6 +16,7 @@ package slurm
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"regexp"
@@ -92,13 +93,13 @@ func getSSHClient(credentials *datatypes.Credential, locationProps config.Dynami
 
 // getUserCredentials returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
-func getUserCredentials(locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
+func getUserCredentials(ctx context.Context, locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
 	var err error
 	var credentialsValue *deployments.TOSCAValue
 	if capabilityName != "" {
-		credentialsValue, err = deployments.GetCapabilityPropertyValue(deploymentID, nodeName, capabilityName, "credentials")
+		credentialsValue, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, capabilityName, "credentials")
 	} else {
-		credentialsValue, err = deployments.GetNodePropertyValue(deploymentID, nodeName, "credentials")
+		credentialsValue, err = deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "credentials")
 	}
 	if err != nil {
 		return nil, err

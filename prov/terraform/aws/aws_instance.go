@@ -32,7 +32,7 @@ import (
 )
 
 func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	instance.Tags.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
 	// image_id is mandatory
-	image, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "image_id")
+	image, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "image_id")
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	instance.ImageID = image.RawString()
 
 	// instance_type is mandatory
-	instanceType, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "instance_type")
+	instanceType, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "instance_type")
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	instance.InstanceType = instanceType.RawString()
 
 	// key_name is mandatory
-	keyName, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "key_name")
+	keyName, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "key_name")
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	instance.KeyName = keyName.RawString()
 
 	// security_groups needs to contain a least one occurrence
-	secGroups, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "security_groups")
+	secGroups, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	}
 
 	// Check optional provided Elastic IPs
-	eips, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "elastic_ips")
+	eips, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "elastic_ips")
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 
 	// Check if the root block device must be deleted on termination
 	deleteVolumeOnTermination := true // Default is deleting root block device on compute termination
-	s, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "delete_volume_on_termination")
+	s, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "delete_volume_on_termination")
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: deleteVolumeOnTermination}
 
 	// Optional property to select availability zone of the compute instance
-	availabilityZone, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "availability_zone")
+	availabilityZone, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	}
 
 	// Optional property to add the compute to a logical grouping of instances
-	placementGroup, err := deployments.GetNodePropertyValue(deploymentID, nodeName, "placement_group")
+	placementGroup, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "placement_group")
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	// Check existing network requirement otherwise
 	var isElasticIP = len(instance.ElasticIps) > 0
 	if !isElasticIP {
-		isElasticIP, _, err = deployments.HasAnyRequirementFromNodeType(deploymentID, nodeName, "network", "yorc.nodes.aws.PublicNetwork")
+		isElasticIP, _, err = deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.PublicNetwork")
 		if err != nil {
 			return err
 		}

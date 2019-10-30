@@ -124,7 +124,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 			mockExecutor.delegateCalled = false
 			mockExecutor.errorsDelegate = tt.args.errorsDelegate
 
-			wfSteps, err := builder.BuildWorkFlow(deploymentID, tt.args.workflowName)
+			wfSteps, err := builder.BuildWorkFlow(context.Background(), deploymentID, tt.args.workflowName)
 			require.Nil(t, err)
 			bs := wfSteps[tt.args.stepName]
 			require.NotNil(t, bs)
@@ -190,7 +190,7 @@ func testRegisterInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api
 	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, topologyPath)
 	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
 
-	_, err = builder.BuildWorkFlow(deploymentID, "install")
+	_, err = builder.BuildWorkFlow(context.Background(), deploymentID, "install")
 	require.NoError(t, err, "Unexpected error building workflow for %s", topologyPath)
 
 }

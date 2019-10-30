@@ -154,18 +154,18 @@ func testPostComputeCreationHook(t *testing.T, cfg config.Configuration) {
 			}
 
 			for i, eip := range tt.args.endpointIPs {
-				err = deployments.SetInstanceCapabilityAttribute(deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address", eip)
+				err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address", eip)
 			}
 			for i, attrs := range tt.args.attributes {
 				for k, v := range attrs {
-					err = deployments.SetInstanceAttribute(deploymentID, target, fmt.Sprint(i), k, v)
+					err = deployments.SetInstanceAttribute(ctx, deploymentID, target, fmt.Sprint(i), k, v)
 					require.NoError(t, err)
 				}
 			}
 			postComputeCreationHook(ctx, cfg, taskID, deploymentID, target, activity)
 
 			for i, check := range tt.checks {
-				actualIP, err := deployments.GetInstanceCapabilityAttributeValue(deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address")
+				actualIP, err := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address")
 				require.NoError(t, err)
 				if check != "" {
 					require.NotNil(t, actualIP, "postComputeCreationHook: expecting a value for endpoint.ip_address attribute")

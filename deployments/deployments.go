@@ -90,7 +90,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 //  		// Do something in case of deployment not found
 //  	}
 //  }
-func GetDeploymentStatus(deploymentID string) (DeploymentStatus, error) {
+func GetDeploymentStatus(ctx context.Context, deploymentID string) (DeploymentStatus, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"))
 	if err != nil {
 		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -102,7 +102,7 @@ func GetDeploymentStatus(deploymentID string) (DeploymentStatus, error) {
 }
 
 //GetDeploymentTemplateName only return the name of the template used during the deployment
-func GetDeploymentTemplateName(deploymentID string) (string, error) {
+func GetDeploymentTemplateName(ctx context.Context, deploymentID string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -114,8 +114,8 @@ func GetDeploymentTemplateName(deploymentID string) (string, error) {
 }
 
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment
-func DoesDeploymentExists(deploymentID string) (bool, error) {
-	if _, err := GetDeploymentStatus(deploymentID); err != nil {
+func DoesDeploymentExists(ctx context.Context, deploymentID string) (bool, error) {
+	if _, err := GetDeploymentStatus(ctx, deploymentID); err != nil {
 		if IsDeploymentNotFoundError(err) {
 			return false, nil
 		}
@@ -275,7 +275,7 @@ func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Loc
 }
 
 // DeleteDeployment deletes a given deploymentID from the deployments path
-func DeleteDeployment(deploymentID string) error {
+func DeleteDeployment(ctx context.Context, deploymentID string) error {
 	// Remove from KV this purge tasks
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", true)
 }

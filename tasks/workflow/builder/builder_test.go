@@ -15,6 +15,7 @@
 package builder
 
 import (
+	"context"
 	"path"
 	"testing"
 
@@ -40,7 +41,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 
 	srv1.PopulateKV(t, data)
 
-	wfSteps, err := BuildWorkFlow(deploymentID, wfName)
+	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err)
 	step := wfSteps["stepName"]
 	require.NotNil(t, step)
@@ -77,7 +78,7 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 
 	srv1.PopulateKV(t, data)
 
-	wfSteps, err := BuildWorkFlow(deploymentID, wfName)
+	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err)
 	step := wfSteps["stepName"]
 	require.NotNil(t, step)
@@ -103,7 +104,7 @@ func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServe
 
 	srv1.PopulateKV(t, data)
 
-	wfSteps, err := BuildWorkFlow(deploymentID, wfName)
+	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Errorf(t, err, "non-existent step should raise an error")
 	require.EqualError(t, err, "Referenced step with name:\"nonexistent\" doesn't exist in the workflow:\"wf_testBuildStepWithNonExistentNextStep\"")
 	require.Nil(t, wfSteps)
@@ -142,7 +143,7 @@ func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer) {
 
 	srv1.PopulateKV(t, data)
 
-	steps, err := BuildWorkFlow(deploymentID, wfName)
+	steps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err, "oups")
 	require.Len(t, steps, 6)
 }

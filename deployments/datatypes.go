@@ -15,6 +15,7 @@
 package deployments
 
 import (
+	"context"
 	"path"
 	"strings"
 
@@ -28,8 +29,8 @@ import (
 // Default value is "string" if not specified.
 // Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
-func GetTypePropertyDataType(deploymentID, typeName, propertyName string) (string, error) {
-	return getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName, true)
+func GetTypePropertyDataType(ctx context.Context, deploymentID, typeName, propertyName string) (string, error) {
+	return getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, true)
 }
 
 // GetTypeAttributeDataType returns the type of a attribute as defined in its attribute definition
@@ -37,11 +38,11 @@ func GetTypePropertyDataType(deploymentID, typeName, propertyName string) (strin
 // Default value is "string" if not specified.
 // Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
-func GetTypeAttributeDataType(deploymentID, typeName, propertyName string) (string, error) {
-	return getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName, false)
+func GetTypeAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string) (string, error) {
+	return getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, false)
 }
 
-func getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName string, isProp bool) (string, error) {
+func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
 	tType := "properties"
 	if !isProp {
 		tType = "attributes"
@@ -57,12 +58,12 @@ func getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName str
 	}
 	if !exist || value == "" {
 		// Check parent
-		parentType, err := GetParentType(deploymentID, typeName)
+		parentType, err := GetParentType(ctx, deploymentID, typeName)
 		if parentType == "" {
 			return "", nil
 			// return "", errors.Errorf("property %q not found in type %q", propertyName, typeName)
 		}
-		result, err := GetTypePropertyDataType(deploymentID, parentType, propertyName)
+		result, err := GetTypePropertyDataType(ctx, deploymentID, parentType, propertyName)
 		return result, errors.Wrapf(err, "property %q not found in type %q", propertyName, typeName)
 	}
 	dataType := value
@@ -83,7 +84,7 @@ func getTypePropertyOrAttributeDataType(deploymentID, typeName, propertyName str
 }
 
 // GetNestedDataType return the type of a nested datatype
-func GetNestedDataType(deploymentID, baseType string, nestedKeys ...string) (string, error) {
+func GetNestedDataType(ctx context.Context, deploymentID, baseType string, nestedKeys ...string) (string, error) {
 	currentType := baseType
 	var err error
 	for i := 0; i < len(nestedKeys); i++ {
@@ -94,7 +95,7 @@ func GetNestedDataType(deploymentID, baseType string, nestedKeys ...string) (str
 			currentType = currentType[4:]
 			continue
 		}
-		currentType, err = GetTypePropertyDataType(deploymentID, currentType, nestedKeys[i])
+		currentType, err = GetTypePropertyDataType(ctx, deploymentID, currentType, nestedKeys[i])
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get type of nested datatype %q.%q", baseType, strings.Join(nestedKeys, "."))
 		}
@@ -108,7 +109,7 @@ func GetNestedDataType(deploymentID, baseType string, nestedKeys ...string) (str
 // As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetTopologyInputType(deploymentID, inputName string) (string, error) {
+func GetTopologyInputType(ctx context.Context, deploymentID, inputName string) (string, error) {
 	return getTopologyInputOrOutputType(deploymentID, inputName, "inputs")
 }
 
@@ -117,7 +118,7 @@ func GetTopologyInputType(deploymentID, inputName string) (string, error) {
 // As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetTopologyOutputType(deploymentID, outputName string) (string, error) {
+func GetTopologyOutputType(ctx context.Context, deploymentID, outputName string) (string, error) {
 	return getTopologyInputOrOutputType(deploymentID, outputName, "outputs")
 }
 

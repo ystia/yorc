@@ -15,6 +15,7 @@
 package locations
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -71,7 +72,7 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	deploymentID string) {
 
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	openStackLocation1 := LocationConfiguration{
 		Name: "myLocation1",
 		Type: "openstack",
@@ -287,12 +288,12 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	assert.Equal(t, "slurmuser2", props["user_name"])
 
 	// testdata/test_topology.yaml defines a location in Compute1 metadata
-	props, err = mgr.GetLocationPropertiesForNode(deploymentID, "Compute1", "openstack")
+	props, err = mgr.GetLocationPropertiesForNode(ctx, deploymentID, "Compute1", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to get location for Compute1")
 	assert.Equal(t, "test2", props["user_name"])
 
 	// testdata/test_topology.yaml defines no location in Compute2 metadata
-	props, err = mgr.GetLocationPropertiesForNode(deploymentID, "Compute2", "openstack")
+	props, err = mgr.GetLocationPropertiesForNode(ctx, deploymentID, "Compute2", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to get location for Compute2")
 	// Check an openstack-specific confiugration value is provided in result
 	assert.Equal(t, "RegionOne", props["region"])

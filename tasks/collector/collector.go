@@ -17,6 +17,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/events"
 	"path"
 	"strconv"
 	"time"
@@ -26,7 +27,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
@@ -67,7 +67,7 @@ func (c *Collector) RegisterTask(targetID string, taskType tasks.TaskType) (stri
 }
 
 // ResumeTask allows to resume a task previously failed
-func (c *Collector) ResumeTask(taskID string) error {
+func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
@@ -104,7 +104,7 @@ func (c *Collector) ResumeTask(taskID string) error {
 	}
 
 	// Get operations to register executions
-	err = c.prepareForRegistration(taskOps, taskType, taskID, targetID, workflowName, false)
+	err = c.prepareForRegistration(ctx, taskOps, taskType, taskID, targetID, workflowName, false)
 	if err != nil {
 		return err
 	}
@@ -188,19 +188,18 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 			return "", errors.Errorf("Workflow name can't be retrieved from data :%v", data)
 		}
 	}
-
-	err = c.prepareForRegistration(taskOps, taskType, taskID, targetID, workflowName, true)
-	if err != nil {
-		return "", err
-	}
-
 	ctx := events.NewContext(context.Background(), events.LogOptionalFields{
 		events.WorkFlowID:  workflowName,
 		events.ExecutionID: taskID,
 	})
 
+	err = c.prepareForRegistration(ctx, taskOps, taskType, taskID, targetID, workflowName, true)
+	if err != nil {
+		return "", err
+	}
+
 	if taskType == tasks.TaskTypeUnDeploy || taskType == tasks.TaskTypePurge {
-		status, err := deployments.GetDeploymentStatus(targetID)
+		status, err := deployments.GetDeploymentStatus(ctx, targetID)
 		if err != nil {
 			return "", err
 		}
@@ -215,11 +214,11 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 	return taskID, nil
 }
 
-func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tasks.TaskType, taskID, targetID, workflowName string, registerWorkflow bool) error {
+func (c *Collector) prepareForRegistration(ctx context.Context, operations api.KVTxnOps, taskType tasks.TaskType, taskID, targetID, workflowName string, registerWorkflow bool) error {
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
 	if workflowName != "" {
-		stepOps, err := builder.BuildInitExecutionOperations(targetID, taskID, workflowName, registerWorkflow)
+		stepOps, err := builder.BuildInitExecutionOperations(ctx, targetID, taskID, workflowName, registerWorkflow)
 		if err != nil {
 			return err
 		}

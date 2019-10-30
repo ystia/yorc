@@ -47,7 +47,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return false, nil, nil, nil, err
@@ -73,7 +73,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	}
 
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
@@ -81,14 +81,14 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	var instances []string
 	switch nodeType {
 	case "yorc.nodes.aws.Compute":
-		instances, err = deployments.GetNodeInstancesIds(deploymentID, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 		if err != nil {
 			return false, nil, nil, nil, err
 		}
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(deploymentID, nodeName, instanceName)
+			instanceState, err = deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

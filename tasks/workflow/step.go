@@ -96,7 +96,7 @@ func isSourceOperationOnTarget(s *step) bool {
 //
 // It first checks if the Step is not already done in this workflow instance
 // And for ScaleOut and ScaleDown it checks if the node or the target node in case of an operation running on the target node is part of the operation
-func (s *step) isRunnable() (bool, error) {
+func (s *step) isRunnable(ctx context.Context) (bool, error) {
 	kv := s.cc.KV()
 	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.taskID, s.Name), nil)
 	if err != nil {
@@ -135,11 +135,11 @@ func (s *step) isRunnable() (bool, error) {
 
 		if isTargetOperationOnSource(s) || strings.ToUpper(s.OperationHost) == "TARGET" {
 			// Check if Target is implied on scale
-			targetReqIndex, err := deployments.GetRequirementIndexByNameForNode(s.t.targetID, s.Target, s.TargetRelationship)
+			targetReqIndex, err := deployments.GetRequirementIndexByNameForNode(ctx, s.t.targetID, s.Target, s.TargetRelationship)
 			if err != nil {
 				return false, err
 			}
-			targetNodeName, err := deployments.GetTargetNodeForRequirement(s.t.targetID, s.Target, targetReqIndex)
+			targetNodeName, err := deployments.GetTargetNodeForRequirement(ctx, s.t.targetID, s.Target, targetReqIndex)
 			if err != nil {
 				return false, err
 			}
@@ -159,7 +159,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target, events.TaskExecutionID: s.t.id})
 	// First: we check if Step is runnable
-	if runnable, err := s.isRunnable(); err != nil {
+	if runnable, err := s.isRunnable(ctx); err != nil {
 		return err
 	} else if !runnable {
 		log.Debugf("Deployment %q: Skipping TaskStep %q", deploymentID, s.Name)
@@ -238,7 +238,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 
 func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, deploymentID, workflowName string, bypassErrors bool, w *worker, activity builder.Activity) error {
 	// Get activity related instances
-	instances, err := tasks.GetInstances(s.t.taskID, deploymentID, s.Target)
+	instances, err := tasks.GetInstances(wfCtx, s.t.taskID, deploymentID, s.Target)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
 	switch activity.Type() {
 	case builder.ActivityTypeDelegate:
-		nodeType, err := deployments.GetNodeType(deploymentID, s.Target)
+		nodeType, err := deployments.GetNodeType(wfCtx, deploymentID, s.Target)
 		if err != nil {
 			return err
 		}
@@ -290,11 +290,11 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			return err
 		}
 
-		exec, err := getOperationExecutor(deploymentID, op.ImplementationArtifact)
+		exec, err := getOperationExecutor(wfCtx, deploymentID, op.ImplementationArtifact)
 		if err != nil {
 			return err
 		}
-		nodeType, err := deployments.GetNodeType(deploymentID, s.Target)
+		nodeType, err := deployments.GetNodeType(wfCtx, deploymentID, s.Target)
 		if err != nil {
 			return err
 		}
@@ -365,7 +365,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 
 func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
-	wfOps, err := builder.BuildInitExecutionOperations(s.t.targetID, s.t.taskID, workflowName, true)
+	wfOps, err := builder.BuildInitExecutionOperations(ctx, s.t.targetID, s.t.taskID, workflowName, true)
 	if err != nil {
 		return err
 	}

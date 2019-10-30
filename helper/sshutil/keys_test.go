@@ -37,7 +37,7 @@ func init() {
 
 func testGetKeysFromCredentialsAttribute(t *testing.T) {
 	deploymentID := loadTestYaml(t, "ComputeWithCredentials.yaml")
-
+	ctx := context.Background()
 	err := deployments.SetInstanceStateStringWithContextualLogs(context.Background(), deploymentID, "Compute", "0", "started")
 	require.NoError(t, err, "Failed to setup instance state")
 	err = deployments.SetInstanceStateStringWithContextualLogs(context.Background(), deploymentID, "ComputeMultiKeys", "0", "started")
@@ -58,7 +58,7 @@ func testGetKeysFromCredentialsAttribute(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetKeysFromCredentialsAttribute(deploymentID, tt.args.nodeName, tt.args.instanceID, tt.args.capabilityName)
+			got, err := GetKeysFromCredentialsAttribute(ctx, deploymentID, tt.args.nodeName, tt.args.instanceID, tt.args.capabilityName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetKeysFromCredentialsAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return

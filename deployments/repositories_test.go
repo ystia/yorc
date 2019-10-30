@@ -52,7 +52,7 @@ func testGetRepositoryURLFromName(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotURL, err := GetRepositoryURLFromName(deploymentID, tt.repoName)
+			gotURL, err := GetRepositoryURLFromName(context.Background(), deploymentID, tt.repoName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRepositoryURLFromName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -77,7 +77,7 @@ func testGetRepositoryTokenTypeFromName(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRepositoryTokenTypeFromName(deploymentID, tt.repoName)
+			got, err := GetRepositoryTokenTypeFromName(context.Background(), deploymentID, tt.repoName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRepositoryTokenTypeFromName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -103,7 +103,7 @@ func testGetRepositoryTokenUserFromName(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotToken, gotUser, err := GetRepositoryTokenUserFromName(deploymentID, tt.repoName)
+			gotToken, gotUser, err := GetRepositoryTokenUserFromName(context.Background(), deploymentID, tt.repoName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRepositoryTokenUserFromName() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -45,7 +45,7 @@ type AttributeData struct {
 
 // Notifier represents the action of notify it's value change
 type Notifier interface {
-	NotifyValueChange(deploymentID string) error
+	NotifyValueChange(ctx context.Context, deploymentID string) error
 }
 
 // AttributeNotifier is an attribute notifying its value changes
@@ -77,7 +77,7 @@ type notifiedAttribute struct {
 // - instance attribute:     _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
 // - capability attribute:   _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/capabilities/(/*)*/attributes/<ATTRIBUTE_NAME>
 // - relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
-func BuildAttributeDataFromPath(aPath string) (*AttributeData, error) {
+func BuildAttributeDataFromPath(ctx context.Context, aPath string) (*AttributeData, error) {
 	// Find instance attribute path
 	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-_]+)/topology/instances/([0-9a-zA-Z-_]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
 	if match != nil && len(match) == 5 {
@@ -116,14 +116,14 @@ func BuildAttributeDataFromPath(aPath string) (*AttributeData, error) {
 }
 
 // NotifyValueChange allows to notify output value change
-func (oon *OperationOutputNotifier) NotifyValueChange(deploymentID string) error {
+func (oon *OperationOutputNotifier) NotifyValueChange(ctx context.Context, deploymentID string) error {
 	log.Debugf("Received operation output value change notification for [deploymentID:%q, nodeName:%q, instanceName:%q, interfaceName:%q, operationName:%q, outputName:%q", deploymentID, oon.NodeName, oon.InstanceName, oon.InterfaceName, oon.OperationName, oon.OutputName)
 	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", oon.NodeName, oon.InstanceName, "outputs", oon.InterfaceName, oon.OperationName, "attribute_notifications", oon.OutputName)
-	return notifyAttributeOnValueChange(notificationsPath, deploymentID)
+	return notifyAttributeOnValueChange(ctx, notificationsPath, deploymentID)
 }
 
 // NotifyValueChange allows to notify attribute value change
-func (an *AttributeNotifier) NotifyValueChange(deploymentID string) error {
+func (an *AttributeNotifier) NotifyValueChange(ctx context.Context, deploymentID string) error {
 	log.Debugf("Received instance attribute value change notification for [deploymentID:%q, nodeName:%q, instanceName:%q, capabilityName:%q, attributeName:%q", deploymentID, an.NodeName, an.InstanceName, an.CapabilityName, an.AttributeName)
 	var notificationsPath string
 	if an.CapabilityName != "" {
@@ -132,10 +132,10 @@ func (an *AttributeNotifier) NotifyValueChange(deploymentID string) error {
 		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", an.NodeName, an.InstanceName, "attribute_notifications", an.AttributeName)
 	}
 
-	return notifyAttributeOnValueChange(notificationsPath, deploymentID)
+	return notifyAttributeOnValueChange(ctx, notificationsPath, deploymentID)
 }
 
-func notifyAttributeOnValueChange(notificationsPath, deploymentID string) error {
+func notifyAttributeOnValueChange(ctx context.Context, notificationsPath, deploymentID string) error {
 	kvs, err := consulutil.List(notificationsPath + "/")
 	if err != nil {
 		return err
@@ -148,14 +148,14 @@ func notifyAttributeOnValueChange(notificationsPath, deploymentID string) error 
 			return err
 		}
 		if notified.capabilityName != "" {
-			err = updateInstanceAttributeValue(deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName)
+			err = updateInstanceAttributeValue(ctx, deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName)
 			if err != nil {
 				return err
 			}
 			continue
 		}
 
-		err = updateInstanceAttributeValue(deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
+		err = updateInstanceAttributeValue(ctx, deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
 		if err != nil {
 			return err
 		}
@@ -163,19 +163,19 @@ func notifyAttributeOnValueChange(notificationsPath, deploymentID string) error 
 	return nil
 }
 
-func nodeHasAttributeOrCapabilityAttribute(deploymentID, nodeName, capabilityName, attributeName string) (bool, error) {
+func nodeHasAttributeOrCapabilityAttribute(ctx context.Context, deploymentID, nodeName, capabilityName, attributeName string) (bool, error) {
 	if capabilityName != "" {
-		capabilityType, err := GetNodeCapabilityType(deploymentID, nodeName, capabilityName)
+		capabilityType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
 		if err != nil || capabilityType == "" {
 			return false, err
 		}
-		return TypeHasAttribute(deploymentID, capabilityType, attributeName, true)
+		return TypeHasAttribute(ctx, deploymentID, capabilityType, attributeName, true)
 	}
-	return NodeHasAttribute(deploymentID, nodeName, attributeName, true)
+	return NodeHasAttribute(ctx, deploymentID, nodeName, attributeName, true)
 }
 
-func addSubstitutionMappingAttributeHostNotification(deploymentID, nodeName, instanceName, capabilityName, attributeName string, notifiedAttr *notifiedAttribute) error {
-	hasAttribute, err := nodeHasAttributeOrCapabilityAttribute(deploymentID, nodeName, capabilityName, attributeName)
+func addSubstitutionMappingAttributeHostNotification(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, notifiedAttr *notifiedAttribute) error {
+	hasAttribute, err := nodeHasAttributeOrCapabilityAttribute(ctx, deploymentID, nodeName, capabilityName, attributeName)
 	if err != nil {
 		return err
 	}
@@ -193,25 +193,25 @@ func addSubstitutionMappingAttributeHostNotification(deploymentID, nodeName, ins
 			return err
 		}
 	}
-	host, err := GetHostedOnNode(deploymentID, nodeName)
+	host, err := GetHostedOnNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if host != "" {
-		return addSubstitutionMappingAttributeHostNotification(deploymentID, host, instanceName, capabilityName, attributeName, notifiedAttr)
+		return addSubstitutionMappingAttributeHostNotification(ctx, deploymentID, host, instanceName, capabilityName, attributeName, notifiedAttr)
 	}
 	return nil
 }
 
-func getNotifierForIPAddressAttributeOfAnEndpoint(deploymentID, nodeName, instanceName, capabilityName string) (*AttributeNotifier, error) {
+func getNotifierForIPAddressAttributeOfAnEndpoint(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName string) (*AttributeNotifier, error) {
 	// We need to determine if we should look at the private_address or public_address of the host
-	attrName, _, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(deploymentID, nodeName, capabilityName)
+	attrName, _, err := getEndpointCapabilitityHostIPAttributeNameAndNetName(ctx, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Then we retrieve the node name of the host having this attribute
-	node, err := resolveHostNotifier(deploymentID, nodeName, attrName)
+	node, err := resolveHostNotifier(ctx, deploymentID, nodeName, attrName)
 	if err != nil {
 		return nil, err
 	}
@@ -223,18 +223,18 @@ func getNotifierForIPAddressAttributeOfAnEndpoint(deploymentID, nodeName, instan
 	}, nil
 }
 
-func getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(deploymentID, nodeName, instanceName, capabilityName, attributeName string) (*AttributeNotifier, error) {
-	isEndpointCap, err := isNodeCapabilityOfType(deploymentID, nodeName, capabilityName, tosca.EndpointCapability)
+func getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string) (*AttributeNotifier, error) {
+	isEndpointCap, err := isNodeCapabilityOfType(ctx, deploymentID, nodeName, capabilityName, tosca.EndpointCapability)
 	if err != nil {
 		return nil, err
 	}
 	if isEndpointCap && attributeName == tosca.EndpointCapabilityIPAddressAttribute {
-		return getNotifierForIPAddressAttributeOfAnEndpoint(deploymentID, nodeName, instanceName, capabilityName)
+		return getNotifierForIPAddressAttributeOfAnEndpoint(ctx, deploymentID, nodeName, instanceName, capabilityName)
 	}
 	return nil, nil
 }
 
-func addSubstitutionMappingAttributeNotification(deploymentID, nodeName, instanceName, attributeName string) error {
+func addSubstitutionMappingAttributeNotification(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string) error {
 	items := strings.Split(attributeName, ".")
 	capabilityName := items[1]
 	capAttrName := items[2]
@@ -242,7 +242,7 @@ func addSubstitutionMappingAttributeNotification(deploymentID, nodeName, instanc
 	// Check this capability attribute is really exposed before returning its
 	// value
 	attributesSet := make(map[string]struct{})
-	err := storeSubstitutionMappingAttributeNamesInSet(deploymentID, nodeName, attributesSet)
+	err := storeSubstitutionMappingAttributeNamesInSet(ctx, deploymentID, nodeName, attributesSet)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func addSubstitutionMappingAttributeNotification(deploymentID, nodeName, instanc
 			attributeName: attributeName,
 		}
 
-		notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(deploymentID, nodeName, instanceName, capabilityName, capAttrName)
+		notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(ctx, deploymentID, nodeName, instanceName, capabilityName, capAttrName)
 		if err != nil {
 			return err
 		}
@@ -263,14 +263,14 @@ func addSubstitutionMappingAttributeNotification(deploymentID, nodeName, instanc
 			return notifiedAttr.saveNotification(notifier)
 		}
 		// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
-		return addSubstitutionMappingAttributeHostNotification(deploymentID, nodeName, instanceName, capabilityName, capAttrName, notifiedAttr)
+		return addSubstitutionMappingAttributeHostNotification(ctx, deploymentID, nodeName, instanceName, capabilityName, capAttrName, notifiedAttr)
 	}
 	return nil
 }
 
 // This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
 // This allows too to publish initial state for default attribute value
-func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeName string) error {
+func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string) error {
 	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
 	if err != nil {
 		return err
@@ -286,21 +286,21 @@ func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeNa
 	}
 
 	if isSubstitutionMappingAttribute(attributeName) && !substitutionInstance {
-		return addSubstitutionMappingAttributeNotification(deploymentID, nodeName, instanceName, attributeName)
+		return addSubstitutionMappingAttributeNotification(ctx, deploymentID, nodeName, instanceName, attributeName)
 	}
 
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
 	var attrDataType string
-	hasAttr, err := TypeHasAttribute(deploymentID, nodeType, attributeName, true)
+	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, attributeName, true)
 	if err != nil {
 		return err
 	}
 	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(deploymentID, nodeType, attributeName)
+		attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
 		if err != nil {
 			return err
 		}
@@ -308,7 +308,7 @@ func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeNa
 
 	// First look at instance-scoped attributes
 	vaPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	value, isFunction, err := getValueAssignmentWithoutResolve(deploymentID, vaPath, attrDataType)
+	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, attrDataType)
 	if err != nil || (value != nil && !isFunction) {
 		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 	}
@@ -316,7 +316,7 @@ func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeNa
 	// Then look at global node level (not instance-scoped)
 	if value == nil {
 		vaPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName)
-		value, isFunction, err = getValueAssignmentWithoutResolve(deploymentID, vaPath, attrDataType)
+		value, isFunction, err = getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, attrDataType)
 		if err != nil || (value != nil && !isFunction) {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
@@ -324,7 +324,7 @@ func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeNa
 
 	// Not found look at node type
 	if value == nil {
-		value, isFunction, err = getTypeDefaultAttribute(deploymentID, nodeType, attributeName)
+		value, isFunction, err = getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
@@ -339,12 +339,12 @@ func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeNa
 		// No default found in type hierarchy
 		// then traverse HostedOn relationships to find the value
 		var host string
-		host, err = GetHostedOnNode(deploymentID, nodeName)
+		host, err = GetHostedOnNode(ctx, deploymentID, nodeName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
 		if host != "" {
-			addAttributeNotifications(deploymentID, host, instanceName, attributeName)
+			addAttributeNotifications(ctx, deploymentID, host, instanceName, attributeName)
 		}
 	}
 
@@ -356,17 +356,17 @@ func addAttributeNotifications(deploymentID, nodeName, instanceName, attributeNa
 			instanceName:  instanceName,
 			attributeName: attributeName,
 		}
-		err = notifiedAttr.parseFunction(value.RawString())
+		err = notifiedAttr.parseFunction(ctx, value.RawString())
 		if err != nil {
 			return err
 		}
 	}
 	// Check if attribute can be updated
-	return updateInstanceAttributeValue(deploymentID, nodeName, instanceName, attributeName)
+	return updateInstanceAttributeValue(ctx, deploymentID, nodeName, instanceName, attributeName)
 }
 
 // This is looking for Tosca get_attribute and get_operation_output functions
-func (notifiedAttr *notifiedAttribute) parseFunction(rawFunction string) error {
+func (notifiedAttr *notifiedAttribute) parseFunction(ctx context.Context, rawFunction string) error {
 	// Function
 	va := &tosca.ValueAssignment{}
 	err := yaml.Unmarshal([]byte(rawFunction), va)
@@ -384,7 +384,7 @@ func (notifiedAttr *notifiedAttribute) parseFunction(rawFunction string) error {
 		for i, op := range fct.Operands {
 			operands[i] = op.String()
 		}
-		notifier, err := notifiedAttr.findAttributeNotifier(operands)
+		notifier, err := notifiedAttr.findAttributeNotifier(ctx, operands)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, notifiedAttr.nodeName)
 		}
@@ -431,7 +431,7 @@ func (notifiedAttr *notifiedAttribute) findOperationOutputNotifier(operands []st
 	}, nil
 }
 
-func (notifiedAttr *notifiedAttribute) findAttributeNotifier(operands []string) (Notifier, error) {
+func (notifiedAttr *notifiedAttribute) findAttributeNotifier(ctx context.Context, operands []string) (Notifier, error) {
 	funcString := fmt.Sprintf("get_attribute: [%s]", strings.Join(operands, ", "))
 	var node, capName, attrName string
 	var err error
@@ -454,14 +454,14 @@ func (notifiedAttr *notifiedAttribute) findAttributeNotifier(operands []string) 
 		// is it should come from the host (this is the hard way!)
 		if capName != "" {
 			// Is this an endpoint?
-			notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName, attrName)
+			notifier, err := getNotifierForIPAddressAttributeOfACapabilityIfEndpoint(ctx, notifiedAttr.deploymentID, notifiedAttr.nodeName, notifiedAttr.instanceName, capName, attrName)
 			if err != nil || notifier != nil {
 				return notifier, err
 			}
 		}
 
 	case funcKeywordHOST:
-		node, err = resolveHostNotifier(notifiedAttr.deploymentID, notifiedAttr.nodeName, attrName)
+		node, err = resolveHostNotifier(ctx, notifiedAttr.deploymentID, notifiedAttr.nodeName, attrName)
 		if err != nil {
 			return nil, err
 		}
@@ -548,15 +548,15 @@ func getNotifiedAttribute(notification string) (*notifiedAttribute, error) {
 
 // resolveHostNotifier retrieves the node name hosting the provided nodeName having the provided attributeName in the "HostedOn" relationship stack
 // If no host node is found with the related attributeName, root hosting node (compute) is returned as attribute can not be defined in Tosca (as public_ip_address for compatibility)
-func resolveHostNotifier(deploymentID, nodeName, attributeName string) (string, error) {
-	hostNode, err := GetHostedOnNode(deploymentID, nodeName)
+func resolveHostNotifier(ctx context.Context, deploymentID, nodeName, attributeName string) (string, error) {
+	hostNode, err := GetHostedOnNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return "", err
 	}
 	if hostNode == "" {
 		return nodeName, nil
 	}
-	attributes, err := GetNodeAttributesNames(deploymentID, hostNode)
+	attributes, err := GetNodeAttributesNames(ctx, deploymentID, hostNode)
 	if err != nil {
 		return "", err
 	}
@@ -564,5 +564,5 @@ func resolveHostNotifier(deploymentID, nodeName, attributeName string) (string, 
 		return hostNode, nil
 	}
 
-	return resolveHostNotifier(deploymentID, hostNode, attributeName)
+	return resolveHostNotifier(ctx, deploymentID, hostNode, attributeName)
 }

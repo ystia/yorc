@@ -31,7 +31,7 @@ func generateInfrastructure(ctx context.Context, locationProps config.DynamicMap
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	infra := &infrastructure{}
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -39,14 +39,14 @@ func generateInfrastructure(ctx context.Context, locationProps config.DynamicMap
 	switch nodeType {
 	case "yorc.nodes.slurm.Compute":
 		var instances []string
-		instances, err = deployments.GetNodeInstancesIds(deploymentID, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(deploymentID, nodeName, instanceName)
+			instanceState, err = deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
 			if err != nil {
 				return nil, err
 			}

@@ -36,7 +36,7 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	node := Node{Name: nodeName}
 	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path), newAtomLink(LinkRelDeployment, path.Clean(r.URL.Path+"/../.."))}
-	instanceIds, err := deployments.GetNodeInstancesIds(id, nodeName)
+	instanceIds, err := deployments.GetNodeInstancesIds(ctx, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -70,7 +70,7 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 		newAtomLink(LinkRelNode, nodePath),
 		newAtomLink(LinkRelDeployment, path.Clean(r.URL.Path+"/../../../..")),
 	}
-	attributesNames, err := deployments.GetNodeAttributesNames(id, nodeName)
+	attributesNames, err := deployments.GetNodeAttributesNames(ctx, id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
@@ -98,7 +98,7 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	attributesNames, err := deployments.GetNodeAttributesNames(id, nodeName)
+	attributesNames, err := deployments.GetNodeAttributesNames(ctx, id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
@@ -120,7 +120,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	attributeName := params.ByName("attributeName")
 
 	// state should exists if instance exists
-	instances, err := deployments.GetNodeInstancesIds(id, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(ctx, id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
@@ -129,7 +129,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 		writeError(w, r, newContentNotFoundError(fmt.Sprintf("Instance %q for node %q", instanceID, nodeName)))
 		return
 	}
-	instanceAttribute, err := deployments.GetInstanceAttributeValue(id, nodeName, instanceID, attributeName)
+	instanceAttribute, err := deployments.GetInstanceAttributeValue(ctx, id, nodeName, instanceID, attributeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return

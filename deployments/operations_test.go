@@ -39,7 +39,7 @@ func testOperationImplementationArtifact(t *testing.T) {
 }
 
 func testOperationImplementationArtifactPrimary(t *testing.T, deploymentID string) {
-
+	ctx := context.Background()
 	type args struct {
 		typeName  string
 		operation string
@@ -64,10 +64,10 @@ func testOperationImplementationArtifactPrimary(t *testing.T, deploymentID strin
 
 	for _, tt := range oiaTests {
 		t.Run(tt.name, func(t *testing.T) {
-			implType, err := GetOperationImplementationType(deploymentID, "", tt.args.typeName, tt.args.operation)
+			implType, err := GetOperationImplementationType(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.implementationType, implType)
-			_, primary, err := GetOperationPathAndPrimaryImplementation(deploymentID, "", tt.args.typeName, tt.args.operation)
+			_, primary, err := GetOperationPathAndPrimaryImplementation(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.primary, primary)
 		})
@@ -76,6 +76,7 @@ func testOperationImplementationArtifactPrimary(t *testing.T, deploymentID strin
 }
 
 func testGetOperationImplementationFile(t *testing.T, deploymentID string) {
+	ctx := context.Background()
 	type args struct {
 		nodeType      string
 		operationName string
@@ -98,12 +99,12 @@ func testGetOperationImplementationFile(t *testing.T, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOperationImplementationFile(deploymentID, "", tt.args.nodeType, tt.args.operationName)
+			got, err := GetOperationImplementationFile(ctx, deploymentID, "", tt.args.nodeType, tt.args.operationName)
 			require.NoError(t, err, "GetOperationImplementationFile() error = %v", err)
 			if got != tt.want.file {
 				t.Errorf("GetOperationImplementationFile() = %v, want %v", got, tt.want)
 			}
-			got, err = GetOperationImplementationFileWithRelativePath(deploymentID, "", tt.args.nodeType, tt.args.operationName)
+			got, err = GetOperationImplementationFileWithRelativePath(ctx, deploymentID, "", tt.args.nodeType, tt.args.operationName)
 			require.NoError(t, err, "GetOperationImplementationFileWithRelativePath() error = %v", err)
 			if got != tt.want.relativeFile {
 				t.Errorf("GetOperationImplementationFileWithRelativePath() = %v, want %v", got, tt.want)
@@ -144,7 +145,7 @@ func testOperationHost(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOperationHostFromTypeOperation(deploymentID, tt.args.typeName, tt.args.interfaceName, tt.args.operationName)
+			got, err := GetOperationHostFromTypeOperation(context.Background(), deploymentID, tt.args.typeName, tt.args.interfaceName, tt.args.operationName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetOperationHostFromTypeOperation() error = %v, wantErr %v", err, tt.wantErr)
 				return

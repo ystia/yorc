@@ -46,6 +46,7 @@ func NewCheckFromID(checkID string) (*Check, error) {
 
 // Start allows to start running a TCP check
 func (c *Check) Start() {
+	ctx := context.Background()
 	c.stopLock.Lock()
 	defer c.stopLock.Unlock()
 
@@ -63,7 +64,7 @@ func (c *Check) Start() {
 	c.stop = false
 
 	// check if initially the node can be monitored according to its node state
-	if c.isNodeStateOKForMonitoring() {
+	if c.isNodeStateOKForMonitoring(ctx) {
 		c.enable()
 	}
 
@@ -78,7 +79,7 @@ func (c *Check) Start() {
 				c.disable()
 				return
 			case <-ticker.C:
-				if !c.isNodeStateOKForMonitoring() {
+				if !c.isNodeStateOKForMonitoring(ctx) {
 					// Disable check
 					c.disable()
 					continue
@@ -90,8 +91,8 @@ func (c *Check) Start() {
 	}()
 }
 
-func (c *Check) isNodeStateOKForMonitoring() bool {
-	instanceState, err := deployments.GetInstanceState(c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
+func (c *Check) isNodeStateOKForMonitoring(ctx context.Context) bool {
+	instanceState, err := deployments.GetInstanceState(ctx, c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance)
 	if err != nil || instanceState != tosca.NodeStateStarted && instanceState != tosca.NodeStateError {
 		return false
 	}

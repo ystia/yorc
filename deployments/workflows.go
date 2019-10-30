@@ -15,6 +15,7 @@
 package deployments
 
 import (
+	"context"
 	"net/url"
 	"path"
 	"strconv"
@@ -32,7 +33,7 @@ const (
 )
 
 // GetWorkflows returns the list of workflows names for a given deployment
-func GetWorkflows(deploymentID string) ([]string, error) {
+func GetWorkflows(ctx context.Context, deploymentID string) ([]string, error) {
 	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix)
 	keys, err := consulutil.GetKeys(workflowsPath)
 	if err != nil {
@@ -46,7 +47,7 @@ func GetWorkflows(deploymentID string) ([]string, error) {
 }
 
 // ReadWorkflow reads a workflow definition from Consul and built its TOSCA representation
-func ReadWorkflow(deploymentID, workflowName string) (tosca.Workflow, error) {
+func ReadWorkflow(ctx context.Context, deploymentID, workflowName string) (tosca.Workflow, error) {
 	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix, workflowName)
 	steps, err := consulutil.GetKeys(workflowPath + "/steps")
 	wf := tosca.Workflow{}
@@ -178,13 +179,13 @@ func readWfStep(stepKey string, stepName string, wfName string) (*tosca.Step, er
 }
 
 // DeleteWorkflow deletes the given workflow from the Consul store
-func DeleteWorkflow(deploymentID, workflowName string) error {
+func DeleteWorkflow(ctx context.Context, deploymentID, workflowName string) error {
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
 		workflowsPrefix, workflowName)+"/", true)
 }
 
-func enhanceWorkflows(consulStore consulutil.ConsulStore, deploymentID string) error {
-	wf, err := ReadWorkflow(deploymentID, "run")
+func enhanceWorkflows(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string) error {
+	wf, err := ReadWorkflow(ctx, deploymentID, "run")
 	if err != nil {
 		return err
 	}
@@ -200,7 +201,7 @@ func enhanceWorkflows(consulStore consulutil.ConsulStore, deploymentID string) e
 		if isCancellable && len(s.OnCancel) == 0 {
 			// Cancellable and on-cancel not defined
 			// Check if there is an cancel op
-			hasCancelOp, err := IsOperationImplemented(deploymentID, s.Target, tosca.RunnableCancelOperationName)
+			hasCancelOp, err := IsOperationImplemented(ctx, deploymentID, s.Target, tosca.RunnableCancelOperationName)
 			if err != nil {
 				return err
 			}

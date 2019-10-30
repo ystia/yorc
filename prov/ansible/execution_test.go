@@ -148,7 +148,8 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 }
 
 func testExecutionResolveInputsOnNode(t *testing.T, deploymentID, nodeName, nodeTypeName, operation string) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, "", "")
+	ctx := context.Background()
+	op, err := operations.GetOperation(ctx, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
 	execution := &executionCommon{
 		deploymentID:           deploymentID,
@@ -159,10 +160,10 @@ func testExecutionResolveInputsOnNode(t *testing.T, deploymentID, nodeName, node
 		VarInputsNames:         make([]string, 0),
 		EnvInputs:              make([]*operations.EnvInput, 0)}
 
-	err = execution.resolveOperation()
+	err = execution.resolveOperation(ctx)
 	require.Nil(t, err)
 
-	err = execution.resolveInputs()
+	err = execution.resolveInputs(ctx)
 	require.Nil(t, err)
 	require.Len(t, execution.EnvInputs, 24)
 	instanceNames := make(map[string]struct{})
@@ -332,7 +333,8 @@ func testExecutionGenerateOnNode(t *testing.T, deploymentID, nodeName, operation
 }
 
 func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeAName, operation, requirementName, operationHost)
+	ctx := context.Background()
+	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution := &executionCommon{
 		deploymentID:           deploymentID,
@@ -347,7 +349,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, 
 		targetNodeInstances:    []string{"0", "1"},
 	}
 
-	err = execution.resolveInputs()
+	err = execution.resolveInputs(ctx)
 	require.Nil(t, err, "%+v", err)
 	require.Len(t, execution.EnvInputs, 13)
 	instanceNames := make(map[string]struct{})
@@ -477,7 +479,8 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeN
 }
 
 func testExecutionResolveInputOnRelationshipTarget(t *testing.T, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeAName, operation, requirementName, operationHost)
+	ctx := context.Background()
+	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution := &executionCommon{
 		deploymentID:             deploymentID,
@@ -490,10 +493,10 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, deploymentID, n
 		VarInputsNames:           make([]string, 0),
 		EnvInputs:                make([]*operations.EnvInput, 0)}
 
-	err = execution.resolveOperation()
+	err = execution.resolveOperation(ctx)
 	require.Nil(t, err)
 
-	err = execution.resolveInputs()
+	err = execution.resolveInputs(ctx)
 	require.Nil(t, err)
 	require.Len(t, execution.EnvInputs, 12)
 	instanceNames := make(map[string]struct{})

@@ -26,13 +26,13 @@ import (
 // Testing a topology template defining capabilities substitution mappings
 func testSubstitutionServiceCapabilityMappings(t *testing.T) {
 	t.Parallel()
-
+	ctx := context.Background()
 	// Storing the Deployment definition
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology_service.yml")
 	require.NoError(t, err, "Failed to store test topology service deployment definition")
 
-	mapping, err := getDeploymentSubstitutionMapping(deploymentID)
+	mapping, err := getDeploymentSubstitutionMapping(ctx, deploymentID)
 	require.NoError(t, err, "Failed to get substitution mappings")
 
 	assert.Equal(t, "org.ystia.yorc.test.pub.AppAType", mapping.NodeType,
@@ -65,13 +65,13 @@ func testSubstitutionServiceCapabilityMappings(t *testing.T) {
 // Testing a topology template defining reauirements substitution mappings
 func testSubstitutionServiceRequirementMappings(t *testing.T) {
 	t.Parallel()
-
+	ctx := context.Background()
 	// Storing the Deployment definition
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology_service.yml")
 	require.NoError(t, err, "Failed to store test topology service deployment definition")
 
-	mapping, err := getDeploymentSubstitutionMapping(deploymentID)
+	mapping, err := getDeploymentSubstitutionMapping(ctx, deploymentID)
 	require.NoError(t, err, "Failed to get substitution mappings")
 
 	assert.Equal(t, "org.ystia.yorc.test.pub.AppAType", mapping.NodeType,
@@ -109,7 +109,7 @@ func testSubstitutionClientDirective(t *testing.T) {
 // Testing requests on a service instance referenced by a client topology
 func testSubstitutionClientServiceInstance(t *testing.T) {
 	t.Parallel()
-
+	ctx := context.Background()
 	// Storing the Deployment definition
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology_client_service.yml")
@@ -127,12 +127,12 @@ func testSubstitutionClientServiceInstance(t *testing.T) {
 
 	// Get the node type of the service node template
 	// provided in an import generated from the Application Deployment
-	nodeType, err := GetNodeType(deploymentID, serviceName)
+	nodeType, err := GetNodeType(ctx, deploymentID, serviceName)
 	require.NoError(t, err, "Failed to get the node type of service of %s", clientName)
 	assert.Equal(t, "org.ystia.yorc.test.pub.AppAType", nodeType, "Wrong node type for service %s", serviceName)
 
 	// Get instances of the service node template (fake instance)
-	instances, err := GetNodeInstancesIds(deploymentID, serviceName)
+	instances, err := GetNodeInstancesIds(ctx, deploymentID, serviceName)
 	require.NoError(t, err, "Failed to get service nod einstance id for %s", serviceName)
 
 	assert.Equal(t, 1, len(instances), "Expected to get one node instance, go %v", instances)
@@ -146,14 +146,14 @@ func testSubstitutionClientServiceInstance(t *testing.T) {
 	// Get a capability attribute for the capability exposed by this service
 	// here the ip_adress attribute exists as the capability derives from an
 	// endpoint capability
-	value, err := GetInstanceCapabilityAttributeValue(deploymentID, serviceName,
+	value, err := GetInstanceCapabilityAttributeValue(ctx, deploymentID, serviceName,
 		substitutableNodeInstance, "appA_capA", "ip_address")
 	require.NoError(t, err, "Failed to get service capability attribute")
 	require.NotNil(t, value, "Found no ip_address attribute in capability appA_capA exposed by the service")
 	assert.Equal(t, "10.0.0.2", value.RawString(), "Wrong ip_address attribute in capability appA_capA exposed by the service")
 
 	// Get an instance attribute exposed by this service
-	value, err = GetInstanceAttributeValue(deploymentID, serviceName,
+	value, err = GetInstanceAttributeValue(ctx, deploymentID, serviceName,
 		substitutableNodeInstance, "web_ui_url")
 	require.NoError(t, err, "Failed to get service instance attribute")
 	require.NotNil(t, value, "Found no web_ui_url attribute exposed by the service")

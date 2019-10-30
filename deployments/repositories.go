@@ -15,6 +15,7 @@
 package deployments
 
 import (
+	"context"
 	"path"
 
 	"github.com/pkg/errors"
@@ -29,7 +30,7 @@ const DockerHubURL = "https://hub.docker.com/"
 const SingularityHubURL = "https://singularity-hub.org/"
 
 // GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
-func GetRepositoryURLFromName(deploymentID, repoName string) (string, error) {
+func GetRepositoryURLFromName(ctx context.Context, deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "url"))
 	if err != nil {
@@ -42,7 +43,7 @@ func GetRepositoryURLFromName(deploymentID, repoName string) (string, error) {
 }
 
 // GetRepositoryTokenTypeFromName retrieves the token_type of credential for a given repoName
-func GetRepositoryTokenTypeFromName(deploymentID, repoName string) (string, error) {
+func GetRepositoryTokenTypeFromName(ctx context.Context, deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token_type"))
 	if err != nil {
@@ -57,7 +58,7 @@ func GetRepositoryTokenTypeFromName(deploymentID, repoName string) (string, erro
 }
 
 // GetRepositoryTokenUserFromName This function get the credentials (user/token) for a given repoName
-func GetRepositoryTokenUserFromName(deploymentID, repoName string) (string, string, error) {
+func GetRepositoryTokenUserFromName(ctx context.Context, deploymentID, repoName string) (string, string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	existToken, token, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token"))
 	if err != nil {

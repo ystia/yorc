@@ -68,7 +68,7 @@ func StoreDeploymentDefinition(ctx context.Context, deploymentID string, defPath
 	}
 
 	// Enhance nodes
-	nodes, err := GetNodes(deploymentID)
+	nodes, err := GetNodes(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
@@ -84,14 +84,14 @@ func handleDeploymentStatus(ctx context.Context, deploymentID string, err error)
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID, nodeName string) error {
-	nbInstances, err := GetDefaultNbInstancesForNode(deploymentID, nodeName)
+	nbInstances, err := GetDefaultNbInstancesForNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	createNodeInstances(consulStore, nbInstances, deploymentID, nodeName)
 
 	// Check for FIPConnectivity capabilities
-	is, capabilityNodeName, err := HasAnyRequirementCapability(deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
+	is, capabilityNodeName, err := HasAnyRequirementCapability(ctx, deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulSt
 	}
 
 	// Check for Assignable capabilities
-	is, capabilityNodeName, err = HasAnyRequirementCapability(deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+	is, capabilityNodeName, err = HasAnyRequirementCapability(ctx, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulSt
 		createNodeInstances(consulStore, nbInstances, deploymentID, capabilityNodeName)
 	}
 
-	bs, bsNames, err := checkBlockStorage(deploymentID, nodeName)
+	bs, bsNames, err := checkBlockStorage(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -124,12 +124,12 @@ func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulSt
 
 func registerImplementationTypes(ctx context.Context, deploymentID string) error {
 	// We use synchronous communication with consul here to allow to check for duplicates
-	types, err := GetTypes(deploymentID)
+	types, err := GetTypes(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
 	for _, t := range types {
-		isImpl, err := IsTypeDerivedFrom(deploymentID, t, "tosca.artifacts.Implementation")
+		isImpl, err := IsTypeDerivedFrom(ctx, deploymentID, t, "tosca.artifacts.Implementation")
 		if err != nil {
 			if IsTypeMissingError(err) {
 				// Bypassing this error it may happen in case of an used type let's trust Alien
@@ -139,13 +139,13 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 			return err
 		}
 		if isImpl {
-			extensions, err := GetArtifactTypeExtensions(deploymentID, t)
+			extensions, err := GetArtifactTypeExtensions(ctx, deploymentID, t)
 			if err != nil {
 				return err
 			}
 			for _, ext := range extensions {
 				ext = strings.ToLower(ext)
-				check, err := GetImplementationArtifactForExtension(deploymentID, ext)
+				check, err := GetImplementationArtifactForExtension(ctx, deploymentID, ext)
 				if err != nil {
 					return err
 				}
@@ -177,7 +177,7 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 			computes = append(computes, nodeName)
 		}
 	}
-	err := createMissingBlockStorageForNodes(consulStore, deploymentID, computes)
+	err := createMissingBlockStorageForNodes(ctx, consulStore, deploymentID, computes)
 	if err != nil {
 		return err
 	}
@@ -188,18 +188,18 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 
 	_, errGroup, consulStore = consulutil.WithContext(ctx)
 	for _, nodeName := range nodes {
-		err = createRelationshipInstances(consulStore, deploymentID, nodeName)
+		err = createRelationshipInstances(ctx, consulStore, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = enhanceWorkflows(consulStore, deploymentID)
+	err = enhanceWorkflows(ctx, consulStore, deploymentID)
 	if err != nil {
 		return err
 	}
 
-	err = enhanceAttributes(deploymentID, nodes)
+	err = enhanceAttributes(ctx, deploymentID, nodes)
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 		if err != nil {
 			return isCompute, err
 		}
-		isCompute, err = IsNodeDerivedFrom(deploymentID, nodeName, "tosca.nodes.Compute")
+		isCompute, err = IsNodeDerivedFrom(ctx, deploymentID, nodeName, "tosca.nodes.Compute")
 	}
 
 	return isCompute, err
@@ -239,7 +239,7 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 
 // In this function we iterate over all node to know which node need to have a HOST output and search for this HOST and tell him to export this output
 func fixGetOperationOutputForHost(ctx context.Context, deploymentID, nodeName string) error {
-	nodeType, err := GetNodeType(deploymentID, nodeName)
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
 		typePath, err := locateTypePath(deploymentID, nodeType)
 		if err != nil {
@@ -265,13 +265,13 @@ func fixGetOperationOutputForHost(ctx context.Context, deploymentID, nodeName st
 					continue
 				}
 				for _, outputNamePath := range outputsNamesPaths {
-					hostedOn, err := GetHostedOnNode(deploymentID, nodeName)
+					hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
 					if err != nil {
 						return nil
 					} else if hostedOn == "" {
 						return errors.New("Fail to get the hostedOn to fix the output")
 					}
-					if hostedNodeType, err := GetNodeType(deploymentID, hostedOn); hostedNodeType != "" && err == nil {
+					if hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
 						hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
 						if err != nil {
 							return err
@@ -298,7 +298,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 		return err
 	}
 	for _, reqKeyIndex := range reqName {
-		relationshipType, err := GetRelationshipForRequirement(deploymentID, nodeName, path.Base(reqKeyIndex))
+		relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, path.Base(reqKeyIndex))
 		if err != nil {
 			return err
 		}
@@ -335,13 +335,13 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 						}
 						var nodeType string
 						if path.Base(modEntityNamePath) == "SOURCE" {
-							nodeType, _ = GetNodeType(deploymentID, nodeName)
+							nodeType, _ = GetNodeType(ctx, deploymentID, nodeName)
 						} else if path.Base(modEntityNamePath) == "TARGET" {
-							targetNode, err := GetTargetNodeForRequirement(deploymentID, nodeName, reqKeyIndex)
+							targetNode, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqKeyIndex)
 							if err != nil {
 								return err
 							}
-							nodeType, _ = GetNodeType(deploymentID, targetNode)
+							nodeType, _ = GetNodeType(ctx, deploymentID, targetNode)
 						}
 						typePath, err := locateTypePath(deploymentID, nodeType)
 						if err != nil {
@@ -359,12 +359,12 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
 func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) error {
-	isBS, err := IsNodeDerivedFrom(deploymentID, nodeName, "tosca.nodes.BlockStorage")
+	isBS, err := IsNodeDerivedFrom(ctx, deploymentID, nodeName, "tosca.nodes.BlockStorage")
 	if err != nil {
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
@@ -393,7 +393,7 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 			if exist {
 				req.Relationship = value
 			}
-			device, err := GetNodePropertyValue(deploymentID, nodeName, "device")
+			device, err := GetNodePropertyValue(ctx, deploymentID, nodeName, "device")
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
@@ -425,7 +425,7 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 				}
 				req.RelationshipProps[path.Base(key)] = va
 			}
-			newReqID, err := GetNbRequirementsForNode(deploymentID, computeNodeName)
+			newReqID, err := GetNbRequirementsForNode(ctx, deploymentID, computeNodeName)
 			if err != nil {
 				return err
 			}
@@ -462,15 +462,15 @@ func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uin
 
 // createInstancesForNodes checks if the given nodes are hosted on a Scalable node,
 // stores the number of required instances and sets the instance's status to INITIAL
-func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, deploymentID string, nodeNames []string) error {
+func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeNames []string) error {
 
 	for _, nodeName := range nodeNames {
-		requirementsKey, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "local_storage")
+		requirementsKey, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 		if err != nil {
 			return err
 		}
 
-		nbInstances, err := GetNbInstancesForNode(deploymentID, nodeName)
+		nbInstances, err := GetNbInstancesForNode(ctx, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -505,8 +505,8 @@ func createMissingBlockStorageForNodes(consulStore consulutil.ConsulStore, deplo
 /**
 This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
-func checkBlockStorage(deploymentID, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(deploymentID, nodeName, "local_storage")
+func checkBlockStorage(ctx context.Context, deploymentID, nodeName string) (bool, []string, error) {
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
@@ -535,16 +535,16 @@ func checkBlockStorage(deploymentID, nodeName string) (bool, []string, error) {
 
 // enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes notifications
 // to allow resolving any attribute when one is updated
-func enhanceAttributes(deploymentID string, nodes []string) error {
+func enhanceAttributes(ctx context.Context, deploymentID string, nodes []string) error {
 	for _, nodeName := range nodes {
 		// retrieve all node attributes
-		attributes, err := GetNodeAttributesNames(deploymentID, nodeName)
+		attributes, err := GetNodeAttributesNames(ctx, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
 
 		// retrieve all node instances
-		instances, err := GetNodeInstancesIds(deploymentID, nodeName)
+		instances, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -553,7 +553,7 @@ func enhanceAttributes(deploymentID string, nodes []string) error {
 		// 2. Resolve attributes and publish default values when not nil or empty
 		for _, instanceName := range instances {
 			for _, attribute := range attributes {
-				err := addAttributeNotifications(deploymentID, nodeName, instanceName, attribute)
+				err := addAttributeNotifications(ctx, deploymentID, nodeName, instanceName, attribute)
 				if err != nil {
 					return err
 				}

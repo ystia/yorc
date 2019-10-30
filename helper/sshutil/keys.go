@@ -15,6 +15,7 @@
 package sshutil
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 
@@ -151,11 +152,11 @@ func GetKeysFromCredentialsDataType(creds *datatypes.Credential) (map[string]*Pr
 }
 
 // GetKeysFromCredentialsAttribute returns a map of PrivateKey by analysing a given credentials attribute of a given capability
-func GetKeysFromCredentialsAttribute(deploymentID, nodeName, instanceID, capabilityName string) (map[string]*PrivateKey, error) {
+func GetKeysFromCredentialsAttribute(ctx context.Context, deploymentID, nodeName, instanceID, capabilityName string) (map[string]*PrivateKey, error) {
 	if instanceID == "" {
 		instanceID = "0"
 	}
-	credentialsValue, err := deployments.GetInstanceCapabilityAttributeValue(deploymentID, nodeName, instanceID, capabilityName, "credentials")
+	credentialsValue, err := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, nodeName, instanceID, capabilityName, "credentials")
 	if err != nil {
 		return nil, err
 	}

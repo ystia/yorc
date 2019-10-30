@@ -15,6 +15,7 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -386,7 +387,7 @@ func testGetInstances(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstances(tt.args.taskID, tt.args.deploymentID, tt.args.nodeName)
+			got, err := GetInstances(context.Background(), tt.args.taskID, tt.args.deploymentID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInstances() error = %v, wantErr %v", err, tt.wantErr)
 				return

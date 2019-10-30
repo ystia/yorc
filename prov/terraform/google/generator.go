@@ -52,7 +52,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return false, nil, nil, nil, err
@@ -81,18 +81,18 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	}
 
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
 	outputs := make(map[string]string)
-	instances, err := deployments.GetNodeInstancesIds(deploymentID, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
 
 	for instNb, instanceName := range instances {
-		instanceState, err := deployments.GetInstanceState(deploymentID, nodeName, instanceName)
+		instanceState, err := deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
 		if err != nil {
 			return false, nil, nil, nil, err
 		}
@@ -103,7 +103,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 		switch nodeType {
 		case "yorc.nodes.google.Compute":
-			instances, err = deployments.GetNodeInstancesIds(deploymentID, nodeName)
+			instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

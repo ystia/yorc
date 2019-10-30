@@ -15,6 +15,7 @@
 package deployments
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
@@ -65,49 +66,52 @@ func testRequirements(t *testing.T, srv1 *testutil.TestServer) {
 
 func testGetRequirementKeyByNameForNode(t *testing.T) {
 	// t.Parallel()
-	key, err := GetRequirementKeyByNameForNode("t1", "Compute1", "host_1")
+	ctx := context.Background()
+	key, err := GetRequirementKeyByNameForNode(ctx, "t1", "Compute1", "host_1")
 	require.Nil(t, err)
 	require.Equal(t, key, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/3")
 
-	key, err = GetRequirementKeyByNameForNode("t1", "Compute1", "do_not_exits")
+	key, err = GetRequirementKeyByNameForNode(ctx, "t1", "Compute1", "do_not_exits")
 	require.Nil(t, err)
 	require.Equal(t, "", key)
 }
 
 func testGetNbRequirementsForNode(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
-	reqNb, err := GetNbRequirementsForNode("t1", "Compute1")
+	reqNb, err := GetNbRequirementsForNode(ctx, "t1", "Compute1")
 	require.Nil(t, err)
 	require.Equal(t, 7, reqNb)
 
-	reqNb, err = GetNbRequirementsForNode("t1", "do_not_exits")
+	reqNb, err = GetNbRequirementsForNode(ctx, "t1", "do_not_exits")
 	require.Nil(t, err)
 	require.Equal(t, 0, reqNb)
 
 }
 
 func testGetRequirementsKeysByTypeForNode(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
-	keys, err := GetRequirementsKeysByTypeForNode("t1", "Compute1", "network")
+	keys, err := GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "network")
 	require.Nil(t, err)
 	require.Len(t, keys, 3)
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/0")
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/2")
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/4")
 
-	keys, err = GetRequirementsKeysByTypeForNode("t1", "Compute1", "host")
+	keys, err = GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "host")
 	require.Nil(t, err)
 	require.Len(t, keys, 2)
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/1")
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/3")
 
-	keys, err = GetRequirementsKeysByTypeForNode("t1", "Compute1", "storage")
+	keys, err = GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "storage")
 	require.Nil(t, err)
 	require.Len(t, keys, 2)
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/5")
 	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/6")
 
-	keys, err = GetRequirementsKeysByTypeForNode("t1", "Compute1", "dns")
+	keys, err = GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "dns")
 	require.Nil(t, err)
 	require.Len(t, keys, 0)
 
