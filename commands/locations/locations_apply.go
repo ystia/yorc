@@ -14,10 +14,64 @@
 
 package locations
 
-import "github.com/spf13/cobra"
+import (
+	"os"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/ystia/yorc/v4/commands/httputil"
+	"github.com/ystia/yorc/v4/rest"
+)
 
 func init() {
+	var autoApprove bool
+	var applyCmd = &cobra.Command{
+		Use:   "apply <path to locations configuration file>",
+		Short: "Apply a locations configuration file",
+		Long: `Apply a locations configuration provided in the file passed in argument. 
+		This file should contain a YAML or a JSON description.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := httputil.GetClient(ClientConfig)
+			if err != nil {
+				httputil.ErrExit(err)
+			}
+			return applyLocationsConfig(client, args, autoApprove)
+		},
+	}
+	applyCmd.PersistentFlags().BoolVarP(&autoApprove, "auto-approve", "", false,
+		"Skip interactive approval before applying this new locations configuration.")
 	LocationsCmd.AddCommand(applyCmd)
 }
 
-var applyCmd = &cobra.Command{}
+func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove bool) error {
+	//colorize := !noColor
+	if len(args) != 1 {
+		return errors.Errorf("Expecting a path to a file (got %d parameters)", len(args))
+	}
+	fileInfo, err := os.Stat(args[0])
+	if err != nil {
+		return err
+	}
+	if fileInfo.IsDir() {
+		return errors.Errorf("Expecting a path to a file (%s is a directory)", args[0])
+	}
+
+	// Read config file, viper will accept indifferently a yaml or json
+	// format
+	v := viper.New()
+	v.SetConfigFile(args[0])
+	err = v.ReadInConfig()
+	if err != nil {
+		return err
+	}
+
+	var locationsRequest rest.LocationsCollection
+	err = v.Unmarshal(&locationsRequest)
+	if err != nil {
+		return err
+	}
+
+	return errors.Errorf("Got new LocationsCollection with %v locations", len(locationsRequest.Locations))
+	//return nil
+}
