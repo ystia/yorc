@@ -16,11 +16,11 @@ package builder
 
 import (
 	"context"
-	"path"
-	"testing"
-
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"path"
+	"testing"
+	"time"
 )
 
 func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
@@ -40,7 +40,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 	data[prefix+"/steps/Some_other_inline/activities/0/inline"] = []byte("my_custom_wf")
 
 	srv1.PopulateKV(t, data)
-
+	time.Sleep(1 * time.Second)
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err)
 	step := wfSteps["stepName"]
