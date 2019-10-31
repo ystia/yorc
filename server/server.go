@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/ystia/yorc/v4/storage"
 	"os"
 	"os/signal"
 	"sync"
@@ -97,6 +98,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		} else {
 			log.Debugf("Locations already initialized")
 		}
+	}
+
+	// Load stores
+	err = storage.LoadStores()
+	if err != nil {
+		return err
 	}
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
