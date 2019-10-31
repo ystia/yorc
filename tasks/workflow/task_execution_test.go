@@ -27,12 +27,12 @@ func testDeleteTaskExecutionSamePrefix(t *testing.T, client *api.Client) {
 		id: "testDeleteTaskExecutionSamePrefixExec1",
 		cc: client,
 	}
-	createTaskExecutionKVWithKey(t, client.KV(), "testDeleteTaskExecutionSamePrefixExec1", "somekey", "val")
-	createTaskExecutionKVWithKey(t, client.KV(), "testDeleteTaskExecutionSamePrefixExec11", "somekey", "val")
+	createTaskExecutionKVWithKey(t, "testDeleteTaskExecutionSamePrefixExec1", "somekey", "val")
+	createTaskExecutionKVWithKey(t, "testDeleteTaskExecutionSamePrefixExec11", "somekey", "val")
 
 	t1.delete()
 
-	actualValue, err := getExecutionKeyValue(client.KV(), "testDeleteTaskExecutionSamePrefixExec11", "somekey")
+	actualValue, err := getExecutionKeyValue("testDeleteTaskExecutionSamePrefixExec11", "somekey")
 	assert.NoError(t, err)
 	assert.Equal(t, "val", actualValue)
 }

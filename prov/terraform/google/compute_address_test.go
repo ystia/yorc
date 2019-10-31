@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,12 +25,12 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func testSimpleComputeAddress(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleComputeAddress(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateComputeAddress(context.Background(), kv, cfg, testLocationProperties, deploymentID, "ComputeAddress", "0", 0, &infrastructure, make(map[string]string))
+	err := g.generateComputeAddress(context.Background(), cfg, testLocationProperties, deploymentID, "ComputeAddress", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute address for %s", deploymentID)
 
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)

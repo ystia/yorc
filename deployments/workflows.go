@@ -15,12 +15,12 @@
 package deployments
 
 import (
+	"context"
 	"net/url"
 	"path"
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/deployments/internal"
@@ -33,9 +33,9 @@ const (
 )
 
 // GetWorkflows returns the list of workflows names for a given deployment
-func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
+func GetWorkflows(ctx context.Context, deploymentID string) ([]string, error) {
 	workflowsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix)
-	keys, _, err := kv.Keys(workflowsPath+"/", "/", nil)
+	keys, err := consulutil.GetKeys(workflowsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -47,9 +47,9 @@ func GetWorkflows(kv *api.KV, deploymentID string) ([]string, error) {
 }
 
 // ReadWorkflow reads a workflow definition from Consul and built its TOSCA representation
-func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error) {
+func ReadWorkflow(ctx context.Context, deploymentID, workflowName string) (tosca.Workflow, error) {
 	workflowPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, workflowsPrefix, workflowName)
-	steps, _, err := kv.Keys(workflowPath+"/steps/", "/", nil)
+	steps, err := consulutil.GetKeys(workflowPath + "/steps")
 	wf := tosca.Workflow{}
 	if err != nil {
 		return wf, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -60,7 +60,7 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 		if err != nil {
 			return wf, errors.Wrapf(err, "Failed to get back step name from Consul")
 		}
-		step, err := readWfStep(kv, stepKey, stepName, workflowName)
+		step, err := readWfStep(stepKey, stepName, workflowName)
 		if err != nil {
 			return wf, err
 		}
@@ -69,70 +69,69 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 	return wf, nil
 }
 
-func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*tosca.Step, error) {
+func readWfStep(stepKey string, stepName string, wfName string) (*tosca.Step, error) {
 	step := &tosca.Step{}
 	targetIsMandatory := false
 	// Get the step operation's host (not mandatory)
-	kvp, _, err := kv.Get(path.Join(stepKey, "operation_host"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(stepKey, "operation_host"))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		step.OperationHost = string(kvp.Value)
+	if exist && value != "" {
+		step.OperationHost = value
 	}
 	// Get the target relationship (not mandatory)
-	kvp, _, err = kv.Get(path.Join(stepKey, "target_relationship"), nil)
+	exist, value, err = consulutil.GetStringValue(path.Join(stepKey, "target_relationship"))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		step.TargetRelationShip = string(kvp.Value)
+	if exist && value != "" {
+		step.TargetRelationShip = value
 	}
 	// Get the step's activities
 	// Appending a final "/" here is not necessary as there is no other keys starting with "activities" prefix
-	activitiesKeys, _, err := kv.List(stepKey+"/activities", nil)
+	activitiesKeys, err := consulutil.List(stepKey + "/activities")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	step.Activities = make([]tosca.Activity, len(activitiesKeys))
-	if err != nil {
-		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	for i, actKV := range activitiesKeys {
+	var i int
+	for key, value := range activitiesKeys {
 		activity := tosca.Activity{}
-		key := strings.TrimPrefix(actKV.Key, stepKey+"activities/"+strconv.Itoa(i)+"/")
+		key := strings.TrimPrefix(key, stepKey+"activities/"+strconv.Itoa(i)+"/")
 		switch {
 		case key == "delegate":
-			activity.Delegate = string(actKV.Value)
+			activity.Delegate = string(value)
 			step.Activities[i] = activity
 			targetIsMandatory = true
 		case key == "set-state":
-			activity.SetState = string(actKV.Value)
+			activity.SetState = string(value)
 			step.Activities[i] = activity
 			targetIsMandatory = true
 		case key == "call-operation":
-			activity.CallOperation = string(actKV.Value)
+			activity.CallOperation = string(value)
 			step.Activities[i] = activity
 			targetIsMandatory = true
 		case key == "inline":
-			activity.Inline = string(actKV.Value)
+			activity.Inline = string(value)
 			step.Activities[i] = activity
 		}
+		i++
 	}
 	// Get the step's target (mandatory except if all activities are inline)
-	kvp, _, err = kv.Get(path.Join(stepKey, "target"), nil)
+	exist, value, err = consulutil.GetStringValue(path.Join(stepKey, "target"))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if targetIsMandatory && (kvp == nil || len(kvp.Value) == 0) {
+	if targetIsMandatory && (!exist || value == "") {
 		return step, errors.Errorf("Missing mandatory attribute \"target\" for step %q", path.Base(stepKey))
 	}
-	if kvp != nil && len(kvp.Value) > 0 {
-		step.Target = string(kvp.Value)
+	if exist && value != "" {
+		step.Target = value
 	}
 
 	// Get the next steps of the current step and use it to set the OnSuccess filed
-	nextSteps, _, err := kv.Keys(stepKey+"/next/", "/", nil)
+	nextSteps, err := consulutil.GetKeys(stepKey + "/next")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -147,7 +146,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		}
 	}
 	// Get the on cancel steps of the current step and use it to set the OnSuccess filed
-	onCancelSteps, _, err := kv.Keys(stepKey+"/on-cancel/", "/", nil)
+	onCancelSteps, err := consulutil.GetKeys(stepKey + "/on-cancel")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -162,7 +161,7 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 		}
 	}
 	// Get the on cancel steps of the current step and use it to set the OnSuccess filed
-	onFailureSteps, _, err := kv.Keys(stepKey+"/on-failure/", "/", nil)
+	onFailureSteps, err := consulutil.GetKeys(stepKey + "/on-failure")
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -180,14 +179,13 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*to
 }
 
 // DeleteWorkflow deletes the given workflow from the Consul store
-func DeleteWorkflow(kv *api.KV, deploymentID, workflowName string) error {
-	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-		workflowsPrefix, workflowName)+"/", nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+func DeleteWorkflow(ctx context.Context, deploymentID, workflowName string) error {
+	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+		workflowsPrefix, workflowName)+"/", true)
 }
 
-func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {
-	wf, err := ReadWorkflow(kv, deploymentID, "run")
+func enhanceWorkflows(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string) error {
+	wf, err := ReadWorkflow(ctx, deploymentID, "run")
 	if err != nil {
 		return err
 	}
@@ -203,7 +201,7 @@ func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deployment
 		if isCancellable && len(s.OnCancel) == 0 {
 			// Cancellable and on-cancel not defined
 			// Check if there is an cancel op
-			hasCancelOp, err := IsOperationImplemented(kv, deploymentID, s.Target, tosca.RunnableCancelOperationName)
+			hasCancelOp, err := IsOperationImplemented(ctx, deploymentID, s.Target, tosca.RunnableCancelOperationName)
 			if err != nil {
 				return err
 			}

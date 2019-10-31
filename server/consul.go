@@ -107,13 +107,13 @@ func setupConsulDBSchema(client *api.Client) error {
 			return upgradeFromVersion(client, leaderCh, "0.0.0")
 		}
 
-		return setNewVersion(kv)
+		return setNewVersion()
 	}
 
 	return upgradeFromVersion(client, leaderCh, string(kvp.Value))
 }
 
-func setNewVersion(kv *api.KV) error {
+func setNewVersion() error {
 	err := consulutil.StoreConsulKeyAsString(consulutil.YorcSchemaVersionPath, consulutil.YorcSchemaVersion)
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersio
 		return errors.Errorf("this version of Yorc is too old compared to the current DB schema (%s), an upgrade is needed.", vCurrent)
 	}
 
-	return setNewVersion(client.KV())
+	return setNewVersion()
 }
 
 func performUpgrade(client *api.Client, leaderCh <-chan struct{}, vCurrent semver.Version) error {

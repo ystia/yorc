@@ -15,16 +15,15 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"path"
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
@@ -114,9 +113,8 @@ func buildResultset() []byte {
 	return res
 }
 
-func testGetTasksIdsForTarget(t *testing.T, kv *api.KV) {
+func testGetTasksIdsForTarget(t *testing.T) {
 	type args struct {
-		kv       *api.KV
 		targetID string
 	}
 	tests := []struct {
@@ -125,13 +123,13 @@ func testGetTasksIdsForTarget(t *testing.T, kv *api.KV) {
 		want    []string
 		wantErr bool
 	}{
-		{"TestMultiTargets", args{kv, "id1"}, []string{"t1", "t2", "t4"}, false},
-		{"TestSingleTarget", args{kv, "id2"}, []string{"t3"}, false},
-		{"TestNoTarget", args{kv, "idDoesntExist"}, []string{}, false},
+		{"TestMultiTargets", args{"id1"}, []string{"t1", "t2", "t4"}, false},
+		{"TestSingleTarget", args{"id2"}, []string{"t3"}, false},
+		{"TestNoTarget", args{"idDoesntExist"}, []string{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTasksIdsForTarget(tt.args.kv, tt.args.targetID)
+			got, err := GetTasksIdsForTarget(tt.args.targetID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTasksIdsForTarget() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -143,9 +141,8 @@ func testGetTasksIdsForTarget(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskStatus(t *testing.T, kv *api.KV) {
+func testGetTaskStatus(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -154,18 +151,18 @@ func testGetTaskStatus(t *testing.T, kv *api.KV) {
 		want    TaskStatus
 		wantErr bool
 	}{
-		{"StatusINITIAL", args{kv, "t1"}, TaskStatusINITIAL, false},
-		{"StatusRUNNING", args{kv, "t2"}, TaskStatusRUNNING, false},
-		{"StatusDONE", args{kv, "t3"}, TaskStatusDONE, false},
-		{"StatusFAILED", args{kv, "t4"}, TaskStatusFAILED, false},
-		{"StatusCANCELED", args{kv, "t5"}, TaskStatusCANCELED, false},
-		{"StatusDoesntExist", args{kv, "t6"}, TaskStatusFAILED, true},
-		{"StatusNotInt", args{kv, "tNotInt"}, TaskStatusFAILED, true},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, TaskStatusFAILED, true},
+		{"StatusINITIAL", args{"t1"}, TaskStatusINITIAL, false},
+		{"StatusRUNNING", args{"t2"}, TaskStatusRUNNING, false},
+		{"StatusDONE", args{"t3"}, TaskStatusDONE, false},
+		{"StatusFAILED", args{"t4"}, TaskStatusFAILED, false},
+		{"StatusCANCELED", args{"t5"}, TaskStatusCANCELED, false},
+		{"StatusDoesntExist", args{"t6"}, TaskStatusFAILED, true},
+		{"StatusNotInt", args{"tNotInt"}, TaskStatusFAILED, true},
+		{"TaskDoesntExist", args{"TaskDoesntExist"}, TaskStatusFAILED, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskStatus(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskStatus(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -177,9 +174,8 @@ func testGetTaskStatus(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskType(t *testing.T, kv *api.KV) {
+func testGetTaskType(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -188,20 +184,20 @@ func testGetTaskType(t *testing.T, kv *api.KV) {
 		want    TaskType
 		wantErr bool
 	}{
-		{"TypeDeploy", args{kv, "t1"}, TaskTypeDeploy, false},
-		{"TypeUnDeploy", args{kv, "t2"}, TaskTypeUnDeploy, false},
-		{"TypeScaleOut", args{kv, "t3"}, TaskTypeScaleOut, false},
-		{"TypeScaleIn", args{kv, "t4"}, TaskTypeScaleIn, false},
-		{"TypePurge", args{kv, "t5"}, TaskTypePurge, false},
-		{"TypeCustomCommand", args{kv, "t6"}, TaskTypeCustomCommand, false},
-		{"TypeDoesntExist", args{kv, "t7"}, TaskTypeDeploy, true},
-		{"TypeNotInt", args{kv, "tNotInt"}, TaskTypeDeploy, true},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, TaskTypeDeploy, true},
-		{"TypeCustomWorkflow", args{kv, "tCustomWF"}, TaskTypeCustomWorkflow, false},
+		{"TypeDeploy", args{"t1"}, TaskTypeDeploy, false},
+		{"TypeUnDeploy", args{"t2"}, TaskTypeUnDeploy, false},
+		{"TypeScaleOut", args{"t3"}, TaskTypeScaleOut, false},
+		{"TypeScaleIn", args{"t4"}, TaskTypeScaleIn, false},
+		{"TypePurge", args{"t5"}, TaskTypePurge, false},
+		{"TypeCustomCommand", args{"t6"}, TaskTypeCustomCommand, false},
+		{"TypeDoesntExist", args{"t7"}, TaskTypeDeploy, true},
+		{"TypeNotInt", args{"tNotInt"}, TaskTypeDeploy, true},
+		{"TaskDoesntExist", args{"TaskDoesntExist"}, TaskTypeDeploy, true},
+		{"TypeCustomWorkflow", args{"tCustomWF"}, TaskTypeCustomWorkflow, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskType(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskType(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -213,9 +209,8 @@ func testGetTaskType(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskTarget(t *testing.T, kv *api.KV) {
+func testGetTaskTarget(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -224,12 +219,12 @@ func testGetTaskTarget(t *testing.T, kv *api.KV) {
 		want    string
 		wantErr bool
 	}{
-		{"GetTarget", args{kv, "t1"}, "id1", false},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, "", true},
+		{"GetTarget", args{"t1"}, "id1", false},
+		{"TaskDoesntExist", args{"TaskDoesntExist"}, "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskTarget(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskTarget(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskTarget() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -241,9 +236,8 @@ func testGetTaskTarget(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testTaskExists(t *testing.T, kv *api.KV) {
+func testTaskExists(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -252,12 +246,12 @@ func testTaskExists(t *testing.T, kv *api.KV) {
 		want    bool
 		wantErr bool
 	}{
-		{"TaskExist", args{kv, "t1"}, true, false},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, false, false},
+		{"TaskExist", args{"t1"}, true, false},
+		{"TaskDoesntExist", args{"TaskDoesntExist"}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := TaskExists(tt.args.kv, tt.args.taskID)
+			got, err := TaskExists(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TaskExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -269,9 +263,8 @@ func testTaskExists(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testCancelTask(t *testing.T, kv *api.KV) {
+func testCancelTask(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -279,15 +272,15 @@ func testCancelTask(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"CancelTask", args{kv, "t1"}, false},
+		{"CancelTask", args{"t1"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := CancelTask(tt.args.kv, tt.args.taskID); (err != nil) != tt.wantErr {
+			if err := CancelTask(tt.args.taskID); (err != nil) != tt.wantErr {
 				t.Errorf("CancelTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, tt.args.taskID, ".canceledFlag"), nil)
+			kvp, _, err := consulutil.GetKV().Get(path.Join(consulutil.TasksPrefix, tt.args.taskID, ".canceledFlag"), nil)
 			if err != nil {
 				t.Errorf("Unexpected Consul communication error: %v", err)
 				return
@@ -304,9 +297,8 @@ func testCancelTask(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
+func testTargetHasLivingTasks(t *testing.T) {
 	type args struct {
-		kv            *api.KV
 		targetID      string
 		typesToIgnore []TaskType
 	}
@@ -318,16 +310,16 @@ func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 		want2   string
 		wantErr bool
 	}{
-		{"TargetHasRunningTasks", args{kv, "id1", []TaskType{}}, true, "t1", "INITIAL", false},
-		{"TargetHasNoRunningDeployTasks", args{kv, "id1",
+		{"TargetHasRunningTasks", args{"id1", []TaskType{}}, true, "t1", "INITIAL", false},
+		{"TargetHasNoRunningDeployTasks", args{"id1",
 			[]TaskType{TaskTypeDeploy, TaskTypeUnDeploy, TaskTypeScaleIn}}, false, "", "", false},
-		{"TargetHasNoRunningTasks", args{kv, "id2", []TaskType{}}, false, "", "", false},
-		{"TargetDoesntExist", args{kv, "TargetDoesntExist", []TaskType{}}, false, "", "", false},
-		{"TargetNotInt", args{kv, "targetNotInt", []TaskType{}}, false, "", "", true},
+		{"TargetHasNoRunningTasks", args{"id2", []TaskType{}}, false, "", "", false},
+		{"TargetDoesntExist", args{"TargetDoesntExist", []TaskType{}}, false, "", "", false},
+		{"TargetNotInt", args{"targetNotInt", []TaskType{}}, false, "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := TargetHasLivingTasks(tt.args.kv, tt.args.targetID, tt.args.typesToIgnore)
+			got, got1, got2, err := TargetHasLivingTasks(tt.args.targetID, tt.args.typesToIgnore)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TargetHasLivingTasks() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -345,9 +337,8 @@ func testTargetHasLivingTasks(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskInput(t *testing.T, kv *api.KV) {
+func testGetTaskInput(t *testing.T) {
 	type args struct {
-		kv        *api.KV
 		taskID    string
 		inputName string
 	}
@@ -357,14 +348,14 @@ func testGetTaskInput(t *testing.T, kv *api.KV) {
 		want    string
 		wantErr bool
 	}{
-		{"InputExist", args{kv, "t1", "i0"}, "0", false},
-		{"InputDoesnt", args{kv, "t1", "i1"}, "", true},
-		{"InputsDoesnt", args{kv, "t2", "i1"}, "", true},
-		{"TaskDoesntExist", args{kv, "TargetDoesntExist", "i1"}, "", true},
+		{"InputExist", args{"t1", "i0"}, "0", false},
+		{"InputDoesnt", args{"t1", "i1"}, "", true},
+		{"InputsDoesnt", args{"t2", "i1"}, "", true},
+		{"TaskDoesntExist", args{"TargetDoesntExist", "i1"}, "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskInput(tt.args.kv, tt.args.taskID, tt.args.inputName)
+			got, err := GetTaskInput(tt.args.taskID, tt.args.inputName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskInput() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -376,9 +367,8 @@ func testGetTaskInput(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetInstances(t *testing.T, kv *api.KV) {
+func testGetInstances(t *testing.T) {
 	type args struct {
-		kv           *api.KV
 		taskID       string
 		deploymentID string
 		nodeName     string
@@ -389,16 +379,16 @@ func testGetInstances(t *testing.T, kv *api.KV) {
 		want    []string
 		wantErr bool
 	}{
-		{"TaskRelatedNodes", args{kv, "t1", "id1", "node1"}, []string{"0", "1", "2"}, false},
-		{"TaskRelatedNodes", args{kv, "t1", "id1", "node2"}, []string{"0", "1"}, false},
-		{"TaskRelatedNodes", args{kv, "t2", "id1", "node2"}, []string{"0", "1"}, false},
-		{"TaskDoesntExistDeploymentDoes", args{kv, "TaskDoesntExist", "id1", "node2"}, []string{"0", "1"}, false},
-		{"TaskDoesntExistDeploymentDoesInstanceDont", args{kv, "TaskDoesntExist", "id1", "node3"}, []string{}, false},
-		{"TaskDoesntExistDeploymentToo", args{kv, "TaskDoesntExist", "idDoesntExist", "node2"}, []string{}, false},
+		{"TaskRelatedNodes", args{"t1", "id1", "node1"}, []string{"0", "1", "2"}, false},
+		{"TaskRelatedNodes", args{"t1", "id1", "node2"}, []string{"0", "1"}, false},
+		{"TaskRelatedNodes", args{"t2", "id1", "node2"}, []string{"0", "1"}, false},
+		{"TaskDoesntExistDeploymentDoes", args{"TaskDoesntExist", "id1", "node2"}, []string{"0", "1"}, false},
+		{"TaskDoesntExistDeploymentDoesInstanceDont", args{"TaskDoesntExist", "id1", "node3"}, []string{}, false},
+		{"TaskDoesntExistDeploymentToo", args{"TaskDoesntExist", "idDoesntExist", "node2"}, []string{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInstances(tt.args.kv, tt.args.taskID, tt.args.deploymentID, tt.args.nodeName)
+			got, err := GetInstances(context.Background(), tt.args.taskID, tt.args.deploymentID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInstances() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -410,9 +400,8 @@ func testGetInstances(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskRelatedNodes(t *testing.T, kv *api.KV) {
+func testGetTaskRelatedNodes(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -421,14 +410,14 @@ func testGetTaskRelatedNodes(t *testing.T, kv *api.KV) {
 		want    []string
 		wantErr bool
 	}{
-		{"TaskRelNodes", args{kv, "t1"}, []string{"node1"}, false},
-		{"NoTaskRelNodes", args{kv, "t2"}, nil, false},
-		{"NoTaskRelNodes", args{kv, "t3"}, []string{"n1", "n2", "n3"}, false},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, nil, false},
+		{"TaskRelNodes", args{"t1"}, []string{"node1"}, false},
+		{"NoTaskRelNodes", args{"t2"}, nil, false},
+		{"NoTaskRelNodes", args{"t3"}, []string{"n1", "n2", "n3"}, false},
+		{"TaskDoesntExist", args{"TaskDoesntExist"}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskRelatedNodes(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskRelatedNodes(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskRelatedNodes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -440,9 +429,8 @@ func testGetTaskRelatedNodes(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testIsTaskRelatedNode(t *testing.T, kv *api.KV) {
+func testIsTaskRelatedNode(t *testing.T) {
 	type args struct {
-		kv       *api.KV
 		taskID   string
 		nodeName string
 	}
@@ -452,15 +440,15 @@ func testIsTaskRelatedNode(t *testing.T, kv *api.KV) {
 		want    bool
 		wantErr bool
 	}{
-		{"TaskRelNode", args{kv, "t1", "node1"}, true, false},
-		{"NotTaskRelNode", args{kv, "t1", "node2"}, false, false},
-		{"NotTaskRelNode2", args{kv, "t2", "node1"}, false, false},
-		{"NotTaskRelNode3", args{kv, "t2", "node2"}, false, false},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist", "node2"}, false, false},
+		{"TaskRelNode", args{"t1", "node1"}, true, false},
+		{"NotTaskRelNode", args{"t1", "node2"}, false, false},
+		{"NotTaskRelNode2", args{"t2", "node1"}, false, false},
+		{"NotTaskRelNode3", args{"t2", "node2"}, false, false},
+		{"TaskDoesntExist", args{"TaskDoesntExist", "node2"}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IsTaskRelatedNode(tt.args.kv, tt.args.taskID, tt.args.nodeName)
+			got, err := IsTaskRelatedNode(tt.args.taskID, tt.args.nodeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IsTaskRelatedNode() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -472,9 +460,8 @@ func testIsTaskRelatedNode(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskRelatedWFSteps(t *testing.T, kv *api.KV) {
+func testGetTaskRelatedWFSteps(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -483,27 +470,27 @@ func testGetTaskRelatedWFSteps(t *testing.T, kv *api.KV) {
 		want    []TaskStep
 		wantErr bool
 	}{
-		{"TaskWith3Steps", args{kv, "t8"}, []TaskStep{{Name: "step1", Status: "status1"}, {Name: "step2", Status: "status2"}, {Name: "step3", Status: "status3"}}, false},
-		{"TaskWithoutStep", args{kv, "t9"}, []TaskStep{}, false},
-		{"TaskDoesntExist", args{kv, "fake"}, []TaskStep{}, false},
+		{"TaskWith3Steps", args{"t8"}, []TaskStep{{Name: "step1", Status: "status1"}, {Name: "step2", Status: "status2"}, {Name: "step3", Status: "status3"}}, false},
+		{"TaskWithoutStep", args{"t9"}, []TaskStep{}, false},
+		{"TaskDoesntExist", args{"fake"}, []TaskStep{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskRelatedSteps(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskRelatedSteps(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskRelatedSteps() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetTaskRelatedSteps() = %v, want %v", got, tt.want)
+			require.Len(t, got, len(tt.want), "GetTaskRelatedSteps()  %d task steps expected instead of %d", len(tt.want), len(got))
+			for _, wanted := range tt.want {
+				require.Contains(t, got, wanted, "GetTaskRelatedSteps() %v expected", wanted)
 			}
 		})
 	}
 }
 
-func testUpdateTaskStepStatus(t *testing.T, kv *api.KV) {
+func testUpdateTaskStepStatus(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 		step   *TaskStep
 	}
@@ -513,12 +500,12 @@ func testUpdateTaskStepStatus(t *testing.T, kv *api.KV) {
 		want    *TaskStep
 		wantErr bool
 	}{
-		{"TaskStep", args{kv, "t10", &TaskStep{Name: "step1", Status: "done"}}, &TaskStep{Name: "step1", Status: "DONE"}, false},
+		{"TaskStep", args{"t10", &TaskStep{Name: "step1", Status: "done"}}, &TaskStep{Name: "step1", Status: "DONE"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			UpdateTaskStepStatus(tt.args.kv, tt.args.taskID, tt.want)
-			_, found, err := TaskStepExists(tt.args.kv, tt.args.taskID, tt.args.step.Name)
+			UpdateTaskStepStatus(tt.args.taskID, tt.want)
+			_, found, err := TaskStepExists(tt.args.taskID, tt.args.step.Name)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TaskStepExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -560,9 +547,8 @@ func TestCheckTaskStepStatusChange(t *testing.T) {
 	}
 }
 
-func testTaskStepExists(t *testing.T, kv *api.KV) {
+func testTaskStepExists(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 		stepID string
 	}
@@ -576,12 +562,12 @@ func testTaskStepExists(t *testing.T, kv *api.KV) {
 		want    ret
 		wantErr bool
 	}{
-		{"TaskStep", args{kv, "t11", "step1"}, ret{true, &TaskStep{Name: "step1", Status: "status1"}}, false},
-		{"TaskStep", args{kv, "fake", "fakeAgain"}, ret{false, nil}, false},
+		{"TaskStep", args{"t11", "step1"}, ret{true, &TaskStep{Name: "step1", Status: "status1"}}, false},
+		{"TaskStep", args{"fake", "fakeAgain"}, ret{false, nil}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exist, stepFound, err := TaskStepExists(tt.args.kv, tt.args.taskID, tt.args.stepID)
+			exist, stepFound, err := TaskStepExists(tt.args.taskID, tt.args.stepID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("testTaskStepExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -594,9 +580,8 @@ func testTaskStepExists(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetTaskResultSet(t *testing.T, kv *api.KV) {
+func testGetTaskResultSet(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 
@@ -606,13 +591,13 @@ func testGetTaskResultSet(t *testing.T, kv *api.KV) {
 		want    string
 		wantErr bool
 	}{
-		{"taskWithResultSet", args{kv, "t13"}, "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}", false},
-		{"taskWithoutResultSet", args{kv, "t14"}, "", false},
+		{"taskWithResultSet", args{"t13"}, "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}", false},
+		{"taskWithoutResultSet", args{"t14"}, "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskResultSet(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskResultSet(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTaskStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -624,9 +609,8 @@ func testGetTaskResultSet(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testDeleteTask(t *testing.T, kv *api.KV) {
+func testDeleteTask(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 
@@ -636,17 +620,17 @@ func testDeleteTask(t *testing.T, kv *api.KV) {
 		want    bool
 		wantErr bool
 	}{
-		{"taskToDelete", args{kv, "t15"}, false, false},
+		{"taskToDelete", args{"t15"}, false, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := DeleteTask(tt.args.kv, tt.args.taskID)
+			err := DeleteTask(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			got, err := TaskExists(tt.args.kv, tt.args.taskID)
+			got, err := TaskExists(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -658,9 +642,8 @@ func testDeleteTask(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
+func testGetQueryTaskIDs(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 
@@ -670,12 +653,12 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 		want    []string
 		wantErr bool
 	}{
-		{"taskWithTypeQueryAndInfraUsage", args{kv, "t13"}, []string{"t16", "t18"}, false},
+		{"taskWithTypeQueryAndInfraUsage", args{"t13"}, []string{"t16", "t18"}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetQueryTaskIDs(kv, TaskTypeQuery, "infra_usage", "slurm")
+			got, err := GetQueryTaskIDs(TaskTypeQuery, "infra_usage", "slurm")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetQueryTaskIDs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -687,14 +670,8 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
-	cc := api.DefaultConfig()
-	cc.Address = "my.dummy.test.server:8500"
-	badClient, err := api.NewClient(cc)
-	require.NoError(t, err, "Failed to create bad consul client")
-
+func testIsStepRegistrationInProgress(t *testing.T) {
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -703,14 +680,13 @@ func testIsStepRegistrationInProgress(t *testing.T, kv *api.KV) {
 		want    bool
 		wantErr bool
 	}{
-		{"RegistrationInProgress", args{kv, "t1"}, true, false},
-		{"NoRegistrationInProgress", args{kv, "t2"}, false, false},
-		{"ConsulFailure", args{badClient.KV(), "t2"}, false, true},
+		{"RegistrationInProgress", args{"t1"}, true, false},
+		{"NoRegistrationInProgress", args{"t2"}, false, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IsStepRegistrationInProgress(tt.args.kv, tt.args.taskID)
+			got, err := IsStepRegistrationInProgress(tt.args.taskID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("%s error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return

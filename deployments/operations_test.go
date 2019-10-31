@@ -18,29 +18,28 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testOperationImplementationArtifact(t *testing.T, kv *api.KV) {
+func testOperationImplementationArtifact(t *testing.T) {
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/operation_implementation_artifact.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/operation_implementation_artifact.yaml")
 	require.NoError(t, err, "Failed to store test topology deployment definition")
 
 	t.Run("GetPrimaryImplementationForNodeType", func(t *testing.T) {
-		testOperationImplementationArtifactPrimary(t, kv, deploymentID)
+		testOperationImplementationArtifactPrimary(t, deploymentID)
 	})
 
 	t.Run("testGetOperationImplementationFile", func(t *testing.T) {
-		testGetOperationImplementationFile(t, kv, deploymentID)
+		testGetOperationImplementationFile(t, deploymentID)
 	})
 }
 
-func testOperationImplementationArtifactPrimary(t *testing.T, kv *api.KV, deploymentID string) {
-
+func testOperationImplementationArtifactPrimary(t *testing.T, deploymentID string) {
+	ctx := context.Background()
 	type args struct {
 		typeName  string
 		operation string
@@ -65,10 +64,10 @@ func testOperationImplementationArtifactPrimary(t *testing.T, kv *api.KV, deploy
 
 	for _, tt := range oiaTests {
 		t.Run(tt.name, func(t *testing.T) {
-			implType, err := GetOperationImplementationType(kv, deploymentID, "", tt.args.typeName, tt.args.operation)
+			implType, err := GetOperationImplementationType(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.implementationType, implType)
-			_, primary, err := GetOperationPathAndPrimaryImplementation(kv, deploymentID, "", tt.args.typeName, tt.args.operation)
+			_, primary, err := GetOperationPathAndPrimaryImplementation(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.primary, primary)
 		})
@@ -76,7 +75,8 @@ func testOperationImplementationArtifactPrimary(t *testing.T, kv *api.KV, deploy
 
 }
 
-func testGetOperationImplementationFile(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetOperationImplementationFile(t *testing.T, deploymentID string) {
+	ctx := context.Background()
 	type args struct {
 		nodeType      string
 		operationName string
@@ -99,12 +99,12 @@ func testGetOperationImplementationFile(t *testing.T, kv *api.KV, deploymentID s
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOperationImplementationFile(kv, deploymentID, "", tt.args.nodeType, tt.args.operationName)
+			got, err := GetOperationImplementationFile(ctx, deploymentID, "", tt.args.nodeType, tt.args.operationName)
 			require.NoError(t, err, "GetOperationImplementationFile() error = %v", err)
 			if got != tt.want.file {
 				t.Errorf("GetOperationImplementationFile() = %v, want %v", got, tt.want)
 			}
-			got, err = GetOperationImplementationFileWithRelativePath(kv, deploymentID, "", tt.args.nodeType, tt.args.operationName)
+			got, err = GetOperationImplementationFileWithRelativePath(ctx, deploymentID, "", tt.args.nodeType, tt.args.operationName)
 			require.NoError(t, err, "GetOperationImplementationFileWithRelativePath() error = %v", err)
 			if got != tt.want.relativeFile {
 				t.Errorf("GetOperationImplementationFileWithRelativePath() = %v, want %v", got, tt.want)
@@ -113,9 +113,9 @@ func testGetOperationImplementationFile(t *testing.T, kv *api.KV, deploymentID s
 	}
 }
 
-func testOperationHost(t *testing.T, kv *api.KV) {
+func testOperationHost(t *testing.T) {
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/operation_host.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/operation_host.yaml")
 	require.NoError(t, err, "Failed to store test topology deployment definition")
 
 	type args struct {
@@ -145,7 +145,7 @@ func testOperationHost(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOperationHostFromTypeOperation(kv, deploymentID, tt.args.typeName, tt.args.interfaceName, tt.args.operationName)
+			got, err := GetOperationHostFromTypeOperation(context.Background(), deploymentID, tt.args.typeName, tt.args.interfaceName, tt.args.operationName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetOperationHostFromTypeOperation() error = %v, wantErr %v", err, tt.wantErr)
 				return

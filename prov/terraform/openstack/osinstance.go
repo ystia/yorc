@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -37,7 +36,6 @@ const (
 )
 
 type osInstanceOptions struct {
-	kv             *api.KV
 	cfg            config.Configuration
 	infrastructure *commons.Infrastructure
 	locationProps  config.DynamicMap
@@ -48,19 +46,18 @@ type osInstanceOptions struct {
 }
 
 func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOptions, outputs map[string]string, env *[]string) error {
-	kv := opts.kv
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 	instanceName := opts.instanceName
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if nodeType != "yorc.nodes.openstack.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-	instance, err := generateComputeInstance(opts)
+	instance, err := generateComputeInstance(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -71,13 +68,13 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 		return err
 	}
 
-	err = addServerGroupMembership(ctx, kv, deploymentID, nodeName, &instance)
+	err = addServerGroupMembership(ctx, deploymentID, nodeName, &instance)
 	if err != nil {
 		return errors.Wrapf(err, "failed to add serverGroup membership for deploymentID:%q, nodeName:%q, instance:%q",
 			deploymentID, nodeName, instanceName)
 	}
 
-	instance.Networks, err = getComputeInstanceNetworks(opts)
+	instance.Networks, err = getComputeInstanceNetworks(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -86,8 +83,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 	return err
 }
 
-func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nodeName string, compute *ComputeInstance) error {
-	keys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "group")
+func addServerGroupMembership(ctx context.Context, deploymentID, nodeName string, compute *ComputeInstance) error {
+	keys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "group")
 	if err != nil {
 		return err
 	}
@@ -96,13 +93,13 @@ func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nod
 	}
 
 	if len(keys) == 1 {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(keys[0])
-		serverGroup, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, keys[0])
+		serverGroup, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return err
 		}
 
-		id, err := deployments.LookupInstanceAttributeValue(ctx, kv, deploymentID, serverGroup, "0", "id")
+		id, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, serverGroup, "0", "id")
 		if err != nil {
 			return err
 		}
@@ -115,10 +112,10 @@ func addServerGroupMembership(ctx context.Context, kv *api.KV, deploymentID, nod
 
 }
 
-func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
+func generateComputeInstance(ctx context.Context, opts osInstanceOptions) (ComputeInstance, error) {
 
 	instance := ComputeInstance{}
-	nodeType, err := deployments.GetNodeType(opts.kv, opts.deploymentID, opts.nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return instance, err
 	}
@@ -128,30 +125,28 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 
 	instance.Name = opts.cfg.ResourcesPrefix + opts.nodeName + "-" + opts.instanceName
 
-	if instance.BootVolume, err = computeBootVolume(opts.kv, opts.deploymentID, opts.nodeName); err != nil {
+	if instance.BootVolume, err = computeBootVolume(ctx, opts.deploymentID, opts.nodeName); err != nil {
 		return instance, err
 	}
 
 	if instance.BootVolume == nil {
 		// When no boot volume is defined, it is mandatory to define an image
 		// or an image name
-		if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(
-			opts.kv, opts.deploymentID, opts.nodeName, "image", "imageName"); err != nil {
+		if instance.ImageID, instance.ImageName, err = computeInstanceMandatoryAttributeInPair(ctx, opts.deploymentID, opts.nodeName, "image", "imageName"); err != nil {
 			return instance, err
 		}
 	}
 
-	if instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(
-		opts.kv, opts.deploymentID, opts.nodeName, "flavor", "flavorName"); err != nil {
+	if instance.FlavorID, instance.FlavorName, err = computeInstanceMandatoryAttributeInPair(ctx, opts.deploymentID, opts.nodeName, "flavor", "flavorName"); err != nil {
 		return instance, err
 	}
 
-	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID,
+	instance.AvailabilityZone, err = deployments.GetStringNodeProperty(ctx, opts.deploymentID,
 		opts.nodeName, "availability_zone", false)
 	if err != nil {
 		return instance, err
 	}
-	instance.Region, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "region", false)
+	instance.Region, err = deployments.GetStringNodeProperty(ctx, opts.deploymentID, opts.nodeName, "region", false)
 	if err != nil {
 		return instance, err
 	}
@@ -159,13 +154,13 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 		instance.Region = opts.locationProps.GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	instance.KeyPair, err = deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "key_pair", false)
+	instance.KeyPair, err = deployments.GetStringNodeProperty(ctx, opts.deploymentID, opts.nodeName, "key_pair", false)
 	if err != nil {
 		return instance, err
 	}
 
 	instance.SecurityGroups = opts.locationProps.GetStringSlice("default_security_groups")
-	secGroups, err := deployments.GetStringNodeProperty(opts.kv, opts.deploymentID, opts.nodeName, "security_groups", false)
+	secGroups, err := deployments.GetStringNodeProperty(ctx, opts.deploymentID, opts.nodeName, "security_groups", false)
 	if err != nil {
 		return instance, err
 	}
@@ -179,15 +174,14 @@ func generateComputeInstance(opts osInstanceOptions) (ComputeInstance, error) {
 	return instance, err
 }
 
-func computeInstanceMandatoryAttributeInPair(kv *api.KV, deploymentID, nodeName,
-	attr1, attr2 string) (string, string, error) {
+func computeInstanceMandatoryAttributeInPair(ctx context.Context, deploymentID, nodeName, attr1, attr2 string) (string, string, error) {
 	var err error
 	var value1, value2 string
-	value1, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, attr1, false)
+	value1, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, attr1, false)
 	if err != nil {
 		return value1, value2, err
 	}
-	value2, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, attr2, false)
+	value2, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, attr2, false)
 	if err != nil {
 		return value1, value2, err
 	}
@@ -204,28 +198,27 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 	instancesPrefix string, instance ComputeInstance,
 	outputs map[string]string) error {
 
-	kv := opts.kv
 	infrastructure := opts.infrastructure
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 	instanceName := opts.instanceName
 
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
 	}
 	for _, storagePrefix := range storageKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
-		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, storagePrefix)
+		volumeNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return err
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
-			device, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
+			device, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, requirementIndex, "device")
 			if err != nil {
 				return err
 			}
-			volumeID, err := getVolumeID(ctx, kv, deploymentID, volumeNodeName, instanceName)
+			volumeID, err := getVolumeID(ctx, deploymentID, volumeNodeName, instanceName)
 			if err != nil {
 				return err
 			}
@@ -258,12 +251,11 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 	return err
 }
 
-func getVolumeID(ctx context.Context, kv *api.KV,
-	deploymentID, volumeNodeName, instanceName string) (string, error) {
+func getVolumeID(ctx context.Context, deploymentID, volumeNodeName, instanceName string) (string, error) {
 
 	var volumeID string
 	log.Debugf("Looking for volume_id")
-	volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
+	volumeIDValue, err := deployments.GetNodePropertyValue(ctx, deploymentID, volumeNodeName, "volume_id")
 	if err != nil {
 		return volumeID, err
 	}
@@ -272,7 +264,7 @@ func getVolumeID(ctx context.Context, kv *api.KV,
 		go func() {
 			for {
 				// ignore errors and retry
-				volID, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+				volID, _ := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "volume_id")
 				// As volumeID is an optional property GetInstanceAttribute then GetProperty
 				// may return an empty volumeID so keep checking as long as we have it
 				if volID != nil && volID.RawString() != "" {
@@ -300,14 +292,12 @@ func getVolumeID(ctx context.Context, kv *api.KV,
 	return volumeID, err
 }
 
-func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error) {
-	kv := opts.kv
+func getComputeInstanceNetworks(ctx context.Context, opts osInstanceOptions) ([]ComputeNetwork, error) {
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
 	var networkSlice []ComputeNetwork
-	networkName, err := deployments.GetCapabilityPropertyValue(
-		kv, deploymentID, nodeName, "endpoint", "network_name")
+	networkName, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "network_name")
 	if err != nil {
 		return networkSlice, err
 	}
@@ -347,33 +337,31 @@ func getComputeInstanceNetworks(opts osInstanceOptions) ([]ComputeNetwork, error
 
 func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 	instancesPrefix string, instance *ComputeInstance, outputs map[string]string, env *[]string) error {
-
-	kv := opts.kv
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
-	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
+	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "network")
 	if err != nil {
 		return err
 	}
 	var fipAssociateName string
 	instancesKey := path.Join(instancesPrefix, nodeName)
 	for _, networkReqPrefix := range networkKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, networkReqPrefix)
 
-		capability, err := deployments.GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		capability, err := deployments.GetCapabilityForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return err
 		}
 
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		networkNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return err
 		}
 
 		var isFip bool
 		if capability != "" {
-			isFip, err = deployments.IsTypeDerivedFrom(kv, deploymentID, capability, "yorc.capabilities.openstack.FIPConnectivity")
+			isFip, err = deployments.IsTypeDerivedFrom(ctx, deploymentID, capability, "yorc.capabilities.openstack.FIPConnectivity")
 			if err != nil {
 				return err
 			}
@@ -429,7 +417,7 @@ func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName,
 		"/attributes/private_address")] = privateIPKey
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, opts.kv, opts.deploymentID, opts.nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}
@@ -443,7 +431,6 @@ func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
 	fipAssociateName, networkNodeName, instancesKey string,
 	instance *ComputeInstance, outputs map[string]string) error {
 
-	kv := opts.kv
 	deploymentID := opts.deploymentID
 	infrastructure := opts.infrastructure
 	nodeName := opts.nodeName
@@ -454,7 +441,7 @@ func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
 	resultChan := make(chan string, 1)
 	go func() {
 		for {
-			if fip, _ := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
+			if fip, _ := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
 				resultChan <- fip.RawString()
 				return
 			}
@@ -500,8 +487,7 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	resultChan := make(chan string, 1)
 	go func() {
 		for {
-			nID, err := deployments.GetInstanceAttributeValue(
-				opts.kv, opts.deploymentID, networkNodeName, opts.instanceName, "network_id")
+			nID, err := deployments.GetInstanceAttributeValue(ctx, opts.deploymentID, networkNodeName, opts.instanceName, "network_id")
 			if err != nil {
 				log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
 			}

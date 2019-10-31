@@ -17,6 +17,7 @@
 package locations
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/ystia/yorc/v4/locations/adapter"
 	"path"
@@ -48,7 +49,7 @@ type Manager interface {
 	SetLocationConfiguration(lConfig LocationConfiguration) error
 	GetLocations() ([]LocationConfiguration, error)
 	GetLocationProperties(locationName, locationType string) (config.DynamicMap, error)
-	GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error)
+	GetLocationPropertiesForNode(ctx context.Context, deploymentID, nodeName, locationType string) (config.DynamicMap, error)
 	GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error)
 	Cleanup() error
 }
@@ -175,11 +176,10 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 // The corresponding location name should be provided in the node template metadata.
 // If no location name is provided in the node template metadata, the configuration
 // of the first location of the expected type in returned
-func (mgr *locationManager) GetLocationPropertiesForNode(deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetLocationPropertiesForNode(ctx context.Context, deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
 
 	// Get the location name in node template metadata
-	found, locationName, err := deployments.GetNodeMetadata(
-		mgr.cc.KV(), deploymentID, nodeName, tosca.MetadataLocationNameKey)
+	found, locationName, err := deployments.GetNodeMetadata(ctx, deploymentID, nodeName, tosca.MetadataLocationNameKey)
 	if err != nil {
 		return nil, err
 	}

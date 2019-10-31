@@ -32,12 +32,12 @@ func testDeleteExecutionTreeSamePrefix(t *testing.T, client *api.Client) {
 	wg := &sync.WaitGroup{}
 	dispatcher := NewDispatcher(cfg, shutdownCh, client, wg)
 
-	createTaskExecutionKVWithKey(t, client.KV(), "testDeleteExecutionTreeSamePrefixExecID1", "somekey", "val")
-	createTaskExecutionKVWithKey(t, client.KV(), "testDeleteExecutionTreeSamePrefixExecID11", "somekey", "val")
+	createTaskExecutionKVWithKey(t, "testDeleteExecutionTreeSamePrefixExecID1", "somekey", "val")
+	createTaskExecutionKVWithKey(t, "testDeleteExecutionTreeSamePrefixExecID11", "somekey", "val")
 
 	dispatcher.deleteExecutionTree("testDeleteExecutionTreeSamePrefixExecID1")
 
-	actualValue, err := getExecutionKeyValue(client.KV(), "testDeleteExecutionTreeSamePrefixExecID11", "somekey")
+	actualValue, err := getExecutionKeyValue("testDeleteExecutionTreeSamePrefixExecID11", "somekey")
 	assert.NoError(t, err)
 	assert.Equal(t, "val", actualValue)
 

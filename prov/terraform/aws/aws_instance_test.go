@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -59,33 +58,33 @@ PAgZzG5OTZiu+YohUPnC66eFiyS6anLBj0DGNa9VA8j352ecgeNO4A==
 -----END RSA PRIVATE KEY-----
 `
 
-func loadTestYaml(t *testing.T, kv *api.KV) string {
+func loadTestYaml(t *testing.T) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }
 
-func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceFailed(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Error(t, err, "Expecting missing mandatory parameter 'instance_type' error")
 }
 
-func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstance(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, outputs, &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -136,14 +135,14 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 }
 
-func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithPrivateKey(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -170,14 +169,14 @@ func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Co
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
 
-func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -190,14 +189,14 @@ func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.
 	require.Equal(t, false, compute.RootBlockDevice.DeleteOnTermination)
 }
 
-func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithEIP(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Contains(t, infrastructure.Resource, "aws_eip")
@@ -218,14 +217,14 @@ func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV, cfg config.Configura
 
 }
 
-func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip")
@@ -241,20 +240,20 @@ func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV, cfg config.C
 
 }
 
-func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
-
-	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
+	ctx := context.Background()
+	nb, err := deployments.GetDefaultNbInstancesForNode(ctx, deploymentID, "ComputeAWS")
 	require.Nil(t, err)
 	require.Equal(t, uint32(4), nb)
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string), &env)
+		err = g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string), &env)
 		require.Nil(t, err)
 		require.NotContains(t, infrastructure.Resource, "aws_eip")
 		require.Contains(t, infrastructure.Resource, "aws_eip_association")
@@ -277,31 +276,32 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg co
 	}
 }
 
-func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	err := g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Error(t, err, "An error was expected due to malformed provided Elastic IP: 12.12.oups.12")
 }
 
-func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
+	ctx := context.Background()
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
 
-	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
+	nb, err := deployments.GetDefaultNbInstancesForNode(ctx, deploymentID, "ComputeAWS")
 	require.Nil(t, err)
 	require.Equal(t, uint32(5), nb)
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string), &env)
+		err = g.generateAWSInstance(context.Background(), cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string), &env)
 		require.Nil(t, err)
 		// EIP is only created for the last instance (only 4 EIPs are provided for 5 default instances
 		if i < 4 {

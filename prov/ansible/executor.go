@@ -73,13 +73,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-	consulClient, err := conf.GetConsulClient()
-	if err != nil {
-		return err
-	}
-	kv := consulClient.KV()
-
-	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation, e.cli)
+	exec, err := newExecution(ctx, conf, taskID, deploymentID, nodeName, operation, e.cli)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Voluntary bypassing error: %s", err.Error())
@@ -88,7 +82,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
+	instances, err := tasks.GetInstances(ctx, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}

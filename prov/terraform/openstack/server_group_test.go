@@ -19,7 +19,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
@@ -27,9 +26,9 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func testSimpleServerGroup(t *testing.T, kv *api.KV) {
+func testSimpleServerGroup(t *testing.T) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	infrastructure := commons.Infrastructure{}
 	g := osGenerator{}
 	outputs := make(map[string]string, 0)
@@ -38,7 +37,6 @@ func testSimpleServerGroup(t *testing.T, kv *api.KV) {
 	err := g.generateServerGroup(
 		context.Background(),
 		serverGroupOptions{
-			kv:            kv,
 			deploymentID:  deploymentID,
 			nodeName:      "ServerGroupA",
 			resourceTypes: resourceTypes,

@@ -20,27 +20,26 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 )
 
-func loadTestYaml(t *testing.T, kv *api.KV) string {
+func loadTestYaml(t *testing.T) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }
 
-func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleSlurmNodeAllocation(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	infrastructure := infrastructure{}
 
-	err := generateNodeAllocation(context.Background(), kv, slumTestLocationProps, deploymentID, "Compute", "0", &infrastructure)
+	err := generateNodeAllocation(context.Background(), slumTestLocationProps, deploymentID, "Compute", "0", &infrastructure)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.nodes, 1)
@@ -57,12 +56,12 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 	require.Equal(t, "account_test", infrastructure.nodes[0].account)
 }
 
-func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	infrastructure := infrastructure{}
 
-	err := generateNodeAllocation(context.Background(), kv, slumTestLocationProps, deploymentID, "Compute", "0", &infrastructure)
+	err := generateNodeAllocation(context.Background(), slumTestLocationProps, deploymentID, "Compute", "0", &infrastructure)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.nodes, 1)
@@ -77,18 +76,18 @@ func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg con
 	require.Equal(t, "simpleSlurmNodeAllocationWithoutProps", infrastructure.nodes[0].jobName)
 }
 
-func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testMultipleSlurmNodeAllocation(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	infrastructure := infrastructure{}
 
-	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "Compute")
+	nb, err := deployments.GetDefaultNbInstancesForNode(context.Background(), deploymentID, "Compute")
 	require.Nil(t, err)
 	require.Equal(t, uint32(4), nb)
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err := generateNodeAllocation(context.Background(), kv, slumTestLocationProps, deploymentID, "Compute", istr, &infrastructure)
+		err := generateNodeAllocation(context.Background(), slumTestLocationProps, deploymentID, "Compute", istr, &infrastructure)
 		require.Nil(t, err)
 
 		require.Len(t, infrastructure.nodes, i+1)

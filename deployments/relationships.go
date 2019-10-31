@@ -20,7 +20,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/deployments/internal"
@@ -30,8 +29,8 @@ import (
 )
 
 // GetRelationshipPropertyValueFromRequirement returns the value of a relationship's property identified by a requirement index on a node
-func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
+	relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -39,12 +38,12 @@ func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeN
 	var propDataType string
 	var hasProp bool
 	if relationshipType != "" {
-		hasProp, err := TypeHasProperty(kv, deploymentID, relationshipType, propertyName, true)
+		hasProp, err := TypeHasProperty(ctx, deploymentID, relationshipType, propertyName, true)
 		if err != nil {
 			return nil, err
 		}
 		if hasProp {
-			propDataType, err = GetTypePropertyDataType(kv, deploymentID, relationshipType, propertyName)
+			propDataType, err = GetTypePropertyDataType(ctx, deploymentID, relationshipType, propertyName)
 			if err != nil {
 				return nil, err
 			}
@@ -52,14 +51,14 @@ func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeN
 	}
 	reqPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex)
 
-	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(ctx, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
 	}
 
 	// Look at the relationship type to find a default value
 	if relationshipType != "" {
-		result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, relationshipType, propertyName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, relationshipType, propertyName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
@@ -67,13 +66,13 @@ func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeN
 			if !isFunction {
 				return result, nil
 			}
-			return resolveValueAssignment(kv, deploymentID, nodeName, "", requirementIndex, result, nestedKeys...)
+			return resolveValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, result, nestedKeys...)
 		}
 	}
 
 	if hasProp && relationshipType != "" {
 		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(kv, deploymentID, relationshipType, propertyName)
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, relationshipType, propertyName)
 		if err != nil {
 			return nil, err
 		}
@@ -85,11 +84,11 @@ func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeN
 
 		if len(nestedKeys) > 1 && propDataType != "" {
 			// Check if nested type is optional
-			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			nestedKeyType, err := GetNestedDataType(ctx, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
 			if err != nil {
 				return nil, err
 			}
-			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
 				return nil, err
 			}
@@ -108,20 +107,20 @@ func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeN
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetRelationshipAttributeValueFromRequirement(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
-	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+func GetRelationshipAttributeValueFromRequirement(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+	relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 	if err != nil {
 		return nil, err
 	}
 
 	var attrDataType string
 	if relationshipType != "" {
-		hasProp, err := TypeHasAttribute(kv, deploymentID, relationshipType, attributeName, true)
+		hasProp, err := TypeHasAttribute(ctx, deploymentID, relationshipType, attributeName, true)
 		if err != nil {
 			return nil, err
 		}
 		if hasProp {
-			attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, relationshipType, attributeName)
+			attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, relationshipType, attributeName)
 			if err != nil {
 				return nil, err
 			}
@@ -130,14 +129,14 @@ func GetRelationshipAttributeValueFromRequirement(kv *api.KV, deploymentID, node
 
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, attrDataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, attrDataType, nestedKeys...)
 	if err != nil || result != nil {
 		// If there is an error or attribute was found
 		return result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
 	}
 	// Now look at relationship type for default
 	if relationshipType != "" {
-		result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, relationshipType, attributeName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
@@ -145,24 +144,24 @@ func GetRelationshipAttributeValueFromRequirement(kv *api.KV, deploymentID, node
 			if !isFunction {
 				return result, nil
 			}
-			return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
+			return resolveValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
 		}
 	}
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	return GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, attributeName, nestedKeys...)
+	return GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, requirementIndex, attributeName, nestedKeys...)
 }
 
 // SetInstanceRelationshipAttribute sets a relationship attribute for a given node instance
-func SetInstanceRelationshipAttribute(deploymentID, nodeName, instanceName, requirementIndex, attributeName, value string) error {
-	return SetInstanceRelationshipAttributeComplex(deploymentID, nodeName, instanceName, requirementIndex, attributeName, value)
+func SetInstanceRelationshipAttribute(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName, value string) error {
+	return SetInstanceRelationshipAttributeComplex(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, value)
 }
 
 // SetInstanceRelationshipAttributeComplex sets an instance relationship attribute that may be a literal or a complex data type
-func SetInstanceRelationshipAttributeComplex(deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
+func SetInstanceRelationshipAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	internal.StoreComplexType(store, attrPath, attributeValue)
-	err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+	err := publishRelationshipAttributeValueChange(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -174,16 +173,16 @@ func SetInstanceRelationshipAttributeComplex(deploymentID, nodeName, instanceNam
 //
 // It does the same thing than iterating over instances ids and calling SetInstanceRelationshipAttribute but use
 // a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
-func SetRelationshipAttributeForAllInstances(kv *api.KV, deploymentID, nodeName, requirementIndex, attributeName, attributeValue string) error {
-	return SetRelationshipAttributeComplexForAllInstances(kv, deploymentID, nodeName, requirementIndex, attributeName, attributeValue)
+func SetRelationshipAttributeForAllInstances(ctx context.Context, deploymentID, nodeName, requirementIndex, attributeName, attributeValue string) error {
+	return SetRelationshipAttributeComplexForAllInstances(ctx, deploymentID, nodeName, requirementIndex, attributeName, attributeValue)
 }
 
 // SetRelationshipAttributeComplexForAllInstances sets the same relationship attribute value  that may be a literal or a complex data type to all instances of a given node.
 //
 // It does the same thing than iterating over instances ids and calling SetInstanceRelationshipAttributeComplex but use
 // a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
-func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, requirementIndex, attributeName string, attributeValue interface{}) error {
-	ids, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+func SetRelationshipAttributeComplexForAllInstances(ctx context.Context, deploymentID, nodeName, requirementIndex, attributeName string, attributeValue interface{}) error {
+	ids, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -191,7 +190,7 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 		internal.StoreComplexType(store, attrPath, attributeValue)
-		err := publishRelationshipAttributeValueChange(kv, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+		err := publishRelationshipAttributeValueChange(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
@@ -200,18 +199,18 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 }
 
 // This function create an instance of each relationship and reference who is the target and the instanceID of this one
-func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
+func createRelationshipInstances(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID, nodeName string) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
-	reqKeys, err := GetRequirementsIndexes(kv, deploymentID, nodeName)
+	reqKeys, err := GetRequirementsIndexes(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	nodeInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	nodeInstanceIds, err := GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	for _, req := range reqKeys {
-		reqType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, req)
+		reqType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, req)
 		if err != nil {
 			return err
 		}
@@ -220,13 +219,13 @@ func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV,
 			continue
 		}
 
-		targetName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, req)
+		targetName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, req)
 		if err != nil {
 			return err
 		}
 
 		// TODO for now we consider only relationships for every source instances to every target instances
-		targetInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, targetName)
+		targetInstanceIds, err := GetNodeInstancesIds(ctx, deploymentID, targetName)
 		if err != nil {
 			return err
 		}
@@ -239,26 +238,26 @@ func createRelationshipInstances(consulStore consulutil.ConsulStore, kv *api.KV,
 	return nil
 }
 
-func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeName, instanceName string, add bool) error {
+func addOrRemoveInstanceFromTargetRelationship(ctx context.Context, deploymentID, nodeName, instanceName string, add bool) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
 	// Appending a final "/" here is not necessary has there is no other keys starting with "relationship_instances" prefix
-	relInstKVPairs, _, err := kv.List(relInstancePath, nil)
+	relInstKVPairs, err := consulutil.List(relInstancePath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	_, errGrp, store := consulutil.WithContext(context.Background())
-	for _, relInstKVPair := range relInstKVPairs {
-		if strings.HasSuffix(relInstKVPair.Key, "target/name") {
-			if string(relInstKVPair.Value) == nodeName {
-				instPath := path.Join(relInstKVPair.Key, "../instances")
-				kvp, _, err := kv.Get(instPath, nil)
+	for key, value := range relInstKVPairs {
+		if strings.HasSuffix(key, "target/name") {
+			if string(value) == nodeName {
+				instPath := path.Join(key, "../instances")
+				exist, value, err := consulutil.GetStringValue(instPath)
 				if err != nil {
 					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
-				if kvp == nil || len(kvp.Value) == 0 {
+				if !exist || value == "" {
 					return errors.Errorf("Missing key %q", instPath)
 				}
-				instances := strings.Split(string(kvp.Value), ",")
+				instances := strings.Split(value, ",")
 				if add {
 					// TODO for now we consider only relationships for every source instances to every target instances
 					if !collections.ContainsString(instances, instanceName) {
@@ -281,31 +280,31 @@ func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeNam
 }
 
 // DeleteRelationshipInstance deletes the instance from relationship instances stored in consul
-func DeleteRelationshipInstance(kv *api.KV, deploymentID, nodeName, instanceName string) error {
+func DeleteRelationshipInstance(ctx context.Context, deploymentID, nodeName, instanceName string) error {
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances")
 	nodeRelInstancePath := path.Join(relInstancePath, nodeName)
-	reqIndices, _, err := kv.Keys(nodeRelInstancePath+"/", "/", nil)
+	reqIndices, err := consulutil.GetKeys(nodeRelInstancePath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, reqindex := range reqIndices {
-		_, err := kv.DeleteTree(path.Join(reqindex, instanceName)+"/", nil)
+		err = consulutil.Delete(path.Join(reqindex, instanceName)+"/", true)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 	}
 
 	// now delete from targets in relationships instances
-	addOrRemoveInstanceFromTargetRelationship(kv, deploymentID, nodeName, instanceName, false)
+	addOrRemoveInstanceFromTargetRelationship(ctx, deploymentID, nodeName, instanceName, false)
 
 	return nil
 }
 
-func publishRelationshipAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
+func publishRelationshipAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	sValue, ok := attributeValue.(string)
 	if ok {
 		// Publish the relationship attribute with the related requirement name
-		requirementName, err := GetRequirementNameByIndexForNode(kv, deploymentID, nodeName, requirementIndex)
+		requirementName, err := GetRequirementNameByIndexForNode(ctx, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return err
 		}

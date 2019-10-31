@@ -30,11 +30,10 @@ import (
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	kv := s.consulClient.KV()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
@@ -64,7 +63,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If id parameter not set (id == ""), StatusEvents returns events for all the deployments
-	evts, lastIdx, err := events.StatusEvents(kv, id, waitIndex, timeout)
+	evts, lastIdx, err := events.StatusEvents(id, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
@@ -77,11 +76,10 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	kv := s.consulClient.KV()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
@@ -113,7 +111,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var lastIdx uint64
 
 	// If id parameter not set (id == ""), LogsEvents returns logs for all the deployments
-	logs, idx, err := events.LogsEvents(kv, id, waitIndex, timeout)
+	logs, idx, err := events.LogsEvents(id, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
@@ -127,18 +125,17 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	kv := s.consulClient.KV()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
 			return
 		}
 	}
-	lastIdx, err := events.GetStatusEventsIndex(kv, id)
+	lastIdx, err := events.GetStatusEventsIndex(id)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -149,18 +146,17 @@ func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
 func (s *Server) headLogsEventsIndex(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	kv := s.consulClient.KV()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
-		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		if depExist, err := deployments.DoesDeploymentExists(ctx, id); err != nil {
 			log.Panic(err)
 		} else if !depExist {
 			writeError(w, r, errNotFound)
 			return
 		}
 	}
-	lastIdx, err := events.GetLogsEventsIndex(kv, id)
+	lastIdx, err := events.GetLogsEventsIndex(id)
 	if err != nil {
 		log.Panic(err)
 	}

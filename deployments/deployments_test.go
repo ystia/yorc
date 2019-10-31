@@ -76,19 +76,19 @@ func testPurgedDeployments(t *testing.T, cc *api.Client) {
 	initiallyPurgedNb := 15
 	generatePurgedDeployments(ctx, t, cc, deploymentID, initiallyPurgedNb)
 
-	require.Equal(t, initiallyPurgedNb, getPurgedDeploymentsNb(t, cc.KV()))
+	require.Equal(t, initiallyPurgedNb, getPurgedDeploymentsNb(t))
 
 	// Too long timeout no deployments specified
 	err := CleanupPurgedDeployments(ctx, cc, 30*time.Minute)
 	require.NoError(t, err)
 
-	require.Equal(t, initiallyPurgedNb, getPurgedDeploymentsNb(t, cc.KV()))
+	require.Equal(t, initiallyPurgedNb, getPurgedDeploymentsNb(t))
 
 	// Specify some deployments but still use a too long timeout
 	err = CleanupPurgedDeployments(ctx, cc, 30*time.Minute, deploymentID+"-2", deploymentID+"-10", deploymentID+"-8")
 	require.NoError(t, err)
 
-	require.Equal(t, initiallyPurgedNb-3, getPurgedDeploymentsNb(t, cc.KV()))
+	require.Equal(t, initiallyPurgedNb-3, getPurgedDeploymentsNb(t))
 
 	time.Sleep(2 * time.Second)
 	err = TagDeploymentAsPurged(ctx, cc, deploymentID+"-16")
@@ -100,13 +100,13 @@ func testPurgedDeployments(t *testing.T, cc *api.Client) {
 	err = CleanupPurgedDeployments(ctx, cc, 2*time.Second, deploymentID+"-17")
 	require.NoError(t, err)
 
-	require.Equal(t, 1, getPurgedDeploymentsNb(t, cc.KV()))
+	require.Equal(t, 1, getPurgedDeploymentsNb(t))
 
 	// Specify ridiculously short timeout
 	err = CleanupPurgedDeployments(ctx, cc, 30*time.Nanosecond)
 	require.NoError(t, err)
 
-	require.Equal(t, 0, getPurgedDeploymentsNb(t, cc.KV()))
+	require.Equal(t, 0, getPurgedDeploymentsNb(t))
 
 }
 
@@ -117,13 +117,14 @@ func generatePurgedDeployments(ctx context.Context, t *testing.T, cc *api.Client
 	}
 }
 
-func getPurgedDeploymentsNb(t *testing.T, kv *api.KV) int {
-	k, _, err := kv.Keys(consulutil.PurgedDeploymentKVPrefix+"/", "/", nil)
+func getPurgedDeploymentsNb(t *testing.T) int {
+	k, err := consulutil.GetKeys(consulutil.PurgedDeploymentKVPrefix)
 	require.NoError(t, err)
 	return len(k)
 }
 
-func testDeleteDeployment(t *testing.T, kv *api.KV) {
+func testDeleteDeployment(t *testing.T) {
+	ctx := context.Background()
 	deploymentID1 := "testDeleteDeploymentA"
 	deploymentID2 := "testDeleteDeploymentAA"
 	err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID1, "status"), "INITIAL")
@@ -131,20 +132,20 @@ func testDeleteDeployment(t *testing.T, kv *api.KV) {
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID2, "status"), "INITIAL")
 	require.NoError(t, err)
 
-	exists, err := DoesDeploymentExists(kv, deploymentID1)
+	exists, err := DoesDeploymentExists(ctx, deploymentID1)
 	require.NoError(t, err)
 	require.True(t, exists)
-	exists, err = DoesDeploymentExists(kv, deploymentID2)
+	exists, err = DoesDeploymentExists(ctx, deploymentID2)
 	require.NoError(t, err)
 	require.True(t, exists)
 
-	err = DeleteDeployment(kv, deploymentID1)
+	err = DeleteDeployment(ctx, deploymentID1)
 	assert.NoError(t, err)
 
-	exists, err = DoesDeploymentExists(kv, deploymentID1)
+	exists, err = DoesDeploymentExists(ctx, deploymentID1)
 	assert.NoError(t, err)
 	assert.False(t, exists)
-	exists, err = DoesDeploymentExists(kv, deploymentID2)
+	exists, err = DoesDeploymentExists(ctx, deploymentID2)
 	assert.NoError(t, err)
 	assert.True(t, exists)
 

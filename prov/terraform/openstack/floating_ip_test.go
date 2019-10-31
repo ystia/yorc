@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,14 +29,14 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	g := osGenerator{}
@@ -53,19 +52,19 @@ func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	data[nodePrefix+"/properties/floating_network_name"] = []byte("Public_Network")
 
 	srv1.PopulateKV(t, data)
-	gia, err := g.generateFloatingIP(kv, depID, nodeName, "0")
+	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "Public_Network", gia.Pool)
 	assert.False(t, gia.IsIP)
 }
 
-func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	g := osGenerator{}
@@ -80,19 +79,19 @@ func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	data[nodePrefix+"/properties/ip"] = []byte("10.0.0.2")
 
 	srv1.PopulateKV(t, data)
-	gia, err := g.generateFloatingIP(kv, depID, nodeName, "0")
+	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.Pool)
 	assert.True(t, gia.IsIP)
 }
 
-func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, depID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	g := osGenerator{}
@@ -106,7 +105,7 @@ func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV)
 	data[nodePrefix+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
 
 	srv1.PopulateKV(t, data)
-	gia, err := g.generateFloatingIP(kv, depID, nodeName, "0")
+	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.Pool)
 	assert.True(t, gia.IsIP)

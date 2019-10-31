@@ -41,18 +41,12 @@ const infrastructureType = "kubernetes"
 type defaultExecutor struct {
 }
 
-func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
-	consulClient, err := conf.GetConsulClient()
-	if err != nil {
-		return nil, err
-	}
-
-	kv := consulClient.KV()
-	return newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+func getExecution(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
+	return newExecution(ctx, conf, taskID, deploymentID, nodeName, operation)
 }
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
-	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
+	exec, err := getExecution(ctx, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -60,7 +54,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(conf)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return nil, 0, err
@@ -81,7 +75,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
+	exec, err := getExecution(ctx, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
@@ -89,7 +83,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(conf)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return err

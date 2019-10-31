@@ -74,9 +74,8 @@ func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, t
 }
 
 func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
-	kv := cc.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/workflow.yaml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/workflow.yaml")
 	require.Nil(t, err)
 
 	mockExecutor := &mockExecutor{}
@@ -125,7 +124,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 			mockExecutor.delegateCalled = false
 			mockExecutor.errorsDelegate = tt.args.errorsDelegate
 
-			wfSteps, err := builder.BuildWorkFlow(kv, deploymentID, tt.args.workflowName)
+			wfSteps, err := builder.BuildWorkFlow(context.Background(), deploymentID, tt.args.workflowName)
 			require.Nil(t, err)
 			bs := wfSteps[tt.args.stepName]
 			require.NotNil(t, bs)
@@ -135,7 +134,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 			s := wrapBuilderStep(bs, cc, te)
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "WFNode_create"), []byte("initial"))
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "Compute_install"), []byte("initial"))
-			err = s.run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
+			err = s.run(context.Background(), config.Configuration{}, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("step.run() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -186,13 +185,12 @@ func clearActivityHooks() {
 }
 
 func testRegisterInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
-	kv := cc.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	topologyPath := "../../deployments/testdata/inline_workflow.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, topologyPath)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, topologyPath)
 	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
 
-	_, err = builder.BuildWorkFlow(kv, deploymentID, "install")
+	_, err = builder.BuildWorkFlow(context.Background(), deploymentID, "install")
 	require.NoError(t, err, "Unexpected error building workflow for %s", topologyPath)
 
 }

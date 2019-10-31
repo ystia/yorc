@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,7 +30,7 @@ import (
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
+func testLogAnsibleOutputInConsul(t *testing.T) {
 
 	testFileName := "testdata/playbook_yaml_output.txt"
 	file, err := os.Open(testFileName)
@@ -56,7 +55,7 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	ctx := events.NewContext(context.Background(), logOptFields)
 	logAnsibleOutputInConsul(ctx, deploymentID, nodeName, hosts, file)
 
-	logs, _, err := events.LogsEvents(kv, deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 
 	// Check the content of a task output INFO log on instance 1
@@ -122,7 +121,7 @@ func getLogMap(logs []json.RawMessage, logFilters map[string]string, content str
 	return result, nil
 }
 
-func testLogAnsibleOutputInConsulFromScript(t *testing.T, kv *api.KV) {
+func testLogAnsibleOutputInConsulFromScript(t *testing.T) {
 
 	testFileName := "testdata/script_yaml_output.txt"
 	file, err := os.Open(testFileName)
@@ -147,7 +146,7 @@ func testLogAnsibleOutputInConsulFromScript(t *testing.T, kv *api.KV) {
 	ctx := events.NewContext(context.Background(), logOptFields)
 	logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, hosts, file)
 
-	logs, _, err := events.LogsEvents(kv, deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 
 	// Check the content of a task output INFO log on instance 0
@@ -177,7 +176,7 @@ func testLogAnsibleOutputInConsulFromScript(t *testing.T, kv *api.KV) {
 
 }
 
-func testLogAnsibleOutputInConsulFromScriptFailure(t *testing.T, kv *api.KV) {
+func testLogAnsibleOutputInConsulFromScriptFailure(t *testing.T) {
 
 	testFileName := "testdata/script_yaml_output_fatal.txt"
 	file, err := os.Open(testFileName)
@@ -201,7 +200,7 @@ func testLogAnsibleOutputInConsulFromScriptFailure(t *testing.T, kv *api.KV) {
 	ctx := events.NewContext(context.Background(), logOptFields)
 	logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, hosts, file)
 
-	logs, _, err := events.LogsEvents(kv, deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 
 	// Check the content of a task output ERROR log on instance 1

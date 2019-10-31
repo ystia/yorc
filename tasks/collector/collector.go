@@ -17,6 +17,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/events"
 	"path"
 	"strconv"
 	"time"
@@ -26,7 +27,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
@@ -67,18 +67,18 @@ func (c *Collector) RegisterTask(targetID string, taskType tasks.TaskType) (stri
 }
 
 // ResumeTask allows to resume a task previously failed
-func (c *Collector) ResumeTask(taskID string) error {
-	taskType, err := tasks.GetTaskType(c.consulClient.KV(), taskID)
+func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
+	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
 	}
-	targetID, err := tasks.GetTaskTarget(c.consulClient.KV(), taskID)
+	targetID, err := tasks.GetTaskTarget(taskID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
 	}
 	var workflowName string
 	if tasks.IsWorkflowTask(taskType) {
-		workflowName, err = tasks.GetTaskData(c.consulClient.KV(), taskID, "workflowName")
+		workflowName, err = tasks.GetTaskData(taskID, "workflowName")
 		if err != nil {
 			return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
 		}
@@ -104,12 +104,12 @@ func (c *Collector) ResumeTask(taskID string) error {
 	}
 
 	// Get operations to register executions
-	err = c.prepareForRegistration(taskOps, taskType, taskID, targetID, workflowName, false)
+	err = c.prepareForRegistration(ctx, taskOps, taskType, taskID, targetID, workflowName, false)
 	if err != nil {
 		return err
 	}
 
-	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
+	tasks.EmitTaskEventWithContextualLogs(nil, targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
 	return nil
 }
 
@@ -133,7 +133,7 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 		}
 
 		hasLivingTask, livingTaskID, livingTaskStatus, err :=
-			tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID, tasksTypesToIgnore)
+			tasks.TargetHasLivingTasks(targetID, tasksTypesToIgnore)
 		if err != nil {
 			return "", err
 		} else if hasLivingTask {
@@ -188,19 +188,18 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 			return "", errors.Errorf("Workflow name can't be retrieved from data :%v", data)
 		}
 	}
-
-	err = c.prepareForRegistration(taskOps, taskType, taskID, targetID, workflowName, true)
-	if err != nil {
-		return "", err
-	}
-
 	ctx := events.NewContext(context.Background(), events.LogOptionalFields{
 		events.WorkFlowID:  workflowName,
 		events.ExecutionID: taskID,
 	})
 
+	err = c.prepareForRegistration(ctx, taskOps, taskType, taskID, targetID, workflowName, true)
+	if err != nil {
+		return "", err
+	}
+
 	if taskType == tasks.TaskTypeUnDeploy || taskType == tasks.TaskTypePurge {
-		status, err := deployments.GetDeploymentStatus(c.consulClient.KV(), targetID)
+		status, err := deployments.GetDeploymentStatus(ctx, targetID)
 		if err != nil {
 			return "", err
 		}
@@ -208,18 +207,18 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 			// Set the deployment status to undeployment in progress right now as the task was registered
 			// But we don't know when it will be processed. This will prevent someone to retry to undeploy as
 			// the status stay in deployed. Doing this will be an error as the task for undeploy is already registered.
-			deployments.SetDeploymentStatus(ctx, c.consulClient.KV(), targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
+			deployments.SetDeploymentStatus(ctx, targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		}
 	}
-	tasks.EmitTaskEventWithContextualLogs(ctx, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
+	tasks.EmitTaskEventWithContextualLogs(ctx, targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
 	return taskID, nil
 }
 
-func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tasks.TaskType, taskID, targetID, workflowName string, registerWorkflow bool) error {
+func (c *Collector) prepareForRegistration(ctx context.Context, operations api.KVTxnOps, taskType tasks.TaskType, taskID, targetID, workflowName string, registerWorkflow bool) error {
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
 	if workflowName != "" {
-		stepOps, err := builder.BuildInitExecutionOperations(c.consulClient.KV(), targetID, taskID, workflowName, registerWorkflow)
+		stepOps, err := builder.BuildInitExecutionOperations(ctx, targetID, taskID, workflowName, registerWorkflow)
 		if err != nil {
 			return err
 		}
@@ -235,7 +234,7 @@ func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tas
 		})
 	}
 
-	err := tasks.StoreOperations(c.consulClient.KV(), taskID, operations)
+	err := tasks.StoreOperations(taskID, operations)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error %s",
 			targetID, taskType.String(), err.Error())

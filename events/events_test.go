@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,7 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
+func testConsulPubSubStatusChange(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
 	ctx := context.Background()
@@ -56,12 +55,12 @@ func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 
 	ids := make([]string, 0)
 	for _, tc := range testData {
-		id, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, tc.node, tc.instance, tc.status)
+		id, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(testData))
 
@@ -83,7 +82,7 @@ func toStatusChangeMap(t *testing.T, statusChange string) map[string]string {
 	return data
 }
 
-func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
+func testConsulPubSubNewEvents(t *testing.T) {
 	// Do not run this test in // as it cause some concurrency issue
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
@@ -95,10 +94,10 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 	ready := make(chan struct{})
 
 	go func() {
-		i, err := GetStatusEventsIndex(kv, deploymentID)
+		i, err := GetStatusEventsIndex(deploymentID)
 		require.Nil(t, err)
 		ready <- struct{}{}
-		events, _, err := StatusEvents(kv, deploymentID, i, 5*time.Minute)
+		events, _, err := StatusEvents(deploymentID, i, 5*time.Minute)
 		assert.Nil(t, err)
 		require.Len(t, events, 1)
 
@@ -108,25 +107,25 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 		assert.Equal(t, event[EInstanceID.String()], instance)
 	}()
 	<-ready
-	_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instance, nodeStatus)
+	_, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 }
 
-func testConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
+func testConsulPubSubNewEventsTimeout(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
 
 	timeout := 25 * time.Millisecond
 
 	t1 := time.Now()
-	events, _, err := StatusEvents(kv, deploymentID, 1, timeout)
+	events, _, err := StatusEvents(deploymentID, 1, timeout)
 	t2 := time.Now()
 	assert.Nil(t, err)
 	require.Len(t, events, 0)
 	assert.WithinDuration(t, t1, t2, timeout+50*time.Millisecond)
 }
 
-func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
+func testConsulPubSubNewEventsWithIndex(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
@@ -143,11 +142,11 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	}
 
 	for _, tc := range testData {
-		_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, tc.node, tc.instance, tc.status)
+		_, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
-	rawEvents, lastIdx, err := StatusEvents(kv, deploymentID, 1, 5*time.Minute)
+	rawEvents, lastIdx, err := StatusEvents(deploymentID, 1, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, rawEvents, 4)
 	for index, event := range rawEvents {
@@ -168,11 +167,11 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	}
 
 	for _, tc := range testData {
-		_, err = PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, tc.node, tc.instance, tc.status)
+		_, err = PublishAndLogInstanceStatusChange(ctx, deploymentID, tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
-	rawEvents, lastIdx, err = StatusEvents(kv, deploymentID, lastIdx, 5*time.Minute)
+	rawEvents, lastIdx, err = StatusEvents(deploymentID, lastIdx, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, rawEvents, 3)
 	require.NotZero(t, lastIdx)
@@ -185,7 +184,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
+func testConsulPubSubNewNodeEvents(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
@@ -194,17 +193,16 @@ func testConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
 	instance := "0"
 	nodeStatus := "error"
 
-	_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instance, nodeStatus)
+	_, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 
 }
 
-func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
+func testconsulDeploymentStatusChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
-		kv     *api.KV
 		status string
 	}
 	tests := []struct {
@@ -212,14 +210,14 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"TestStatusInitial", args{kv, "initial"}, false},
-		{"TestStatusDepInProgress", args{kv, "deployment_in_progress"}, false},
-		{"TestStatusDepDeployed", args{kv, "deployed"}, false},
+		{"TestStatusInitial", args{"initial"}, false},
+		{"TestStatusDepInProgress", args{"deployment_in_progress"}, false},
+		{"TestStatusDepDeployed", args{"deployed"}, false},
 	}
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogDeploymentStatusChange(ctx, tt.args.kv, deploymentID, tt.args.status)
+			got, err := PublishAndLogDeploymentStatusChange(ctx, deploymentID, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeploymentStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -231,7 +229,7 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -244,12 +242,11 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 
 }
 
-func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
+func testconsulCustomCommandStatusChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
-		kv     *api.KV
 		taskID string
 		status string
 	}
@@ -258,17 +255,17 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"TestStatusInitial", args{kv, "1", "initial"}, false},
-		{"TestStatusDepInProgress", args{kv, "1", "running"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "initial"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "running"}, false},
-		{"TestStatusDepDeployed", args{kv, "1", "done"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "done"}, false},
+		{"TestStatusInitial", args{"1", "initial"}, false},
+		{"TestStatusDepInProgress", args{"1", "running"}, false},
+		{"TestStatusDepDeployed", args{"2", "initial"}, false},
+		{"TestStatusDepDeployed", args{"2", "running"}, false},
+		{"TestStatusDepDeployed", args{"1", "done"}, false},
+		{"TestStatusDepDeployed", args{"2", "done"}, false},
 	}
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogCustomCommandStatusChange(ctx, tt.args.kv, deploymentID, tt.args.taskID, tt.args.status)
+			got, err := PublishAndLogCustomCommandStatusChange(ctx, deploymentID, tt.args.taskID, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CustomCommandStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -280,7 +277,7 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -294,12 +291,11 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 
 }
 
-func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
+func testconsulScalingStatusChange(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
 	ctx := context.Background()
 	type args struct {
-		kv     *api.KV
 		taskID string
 		status string
 	}
@@ -308,17 +304,17 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"TestStatusInitial", args{kv, "1", "initial"}, false},
-		{"TestStatusDepInProgress", args{kv, "1", "running"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "initial"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "running"}, false},
-		{"TestStatusDepDeployed", args{kv, "1", "done"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "done"}, false},
+		{"TestStatusInitial", args{"1", "initial"}, false},
+		{"TestStatusDepInProgress", args{"1", "running"}, false},
+		{"TestStatusDepDeployed", args{"2", "initial"}, false},
+		{"TestStatusDepDeployed", args{"2", "running"}, false},
+		{"TestStatusDepDeployed", args{"1", "done"}, false},
+		{"TestStatusDepDeployed", args{"2", "done"}, false},
 	}
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogScalingStatusChange(ctx, tt.args.kv, deploymentID, tt.args.taskID, tt.args.status)
+			got, err := PublishAndLogScalingStatusChange(ctx, deploymentID, tt.args.taskID, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ScalingStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -330,7 +326,7 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -344,12 +340,11 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 
 }
 
-func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
+func testconsulWorkflowStatusChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
-		kv           *api.KV
 		taskID       string
 		status       string
 		workflowName string
@@ -359,17 +354,17 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"TestStatusInitial", args{kv, "1", "initial", "install"}, false},
-		{"TestStatusDepInProgress", args{kv, "1", "running", "install"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "initial", "install"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "running", "install"}, false},
-		{"TestStatusDepDeployed", args{kv, "1", "done", "install"}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "done", "install"}, false},
+		{"TestStatusInitial", args{"1", "initial", "install"}, false},
+		{"TestStatusDepInProgress", args{"1", "running", "install"}, false},
+		{"TestStatusDepDeployed", args{"2", "initial", "install"}, false},
+		{"TestStatusDepDeployed", args{"2", "running", "install"}, false},
+		{"TestStatusDepDeployed", args{"1", "done", "install"}, false},
+		{"TestStatusDepDeployed", args{"2", "done", "install"}, false},
 	}
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogWorkflowStatusChange(ctx, tt.args.kv, deploymentID, tt.args.taskID, tt.args.workflowName, tt.args.status)
+			got, err := PublishAndLogWorkflowStatusChange(ctx, deploymentID, tt.args.taskID, tt.args.workflowName, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WorkflowStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -381,7 +376,7 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -395,11 +390,10 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testconsulWorkflowStepStatusChange(t *testing.T, kv *api.KV) {
+func testconsulWorkflowStepStatusChange(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
-		kv     *api.KV
 		taskID string
 		status string
 		wfInfo *WorkflowStepInfo
@@ -409,17 +403,17 @@ func testconsulWorkflowStepStatusChange(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"TestStatusInitial", args{kv, "1", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepInProgress", args{kv, "1", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "1", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusInitial", args{"1", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepInProgress", args{"1", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"2", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"2", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"1", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"2", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
 	}
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogWorkflowStepStatusChange(context.Background(), tt.args.kv, deploymentID, tt.args.taskID, tt.args.wfInfo, tt.args.status)
+			got, err := PublishAndLogWorkflowStepStatusChange(context.Background(), deploymentID, tt.args.taskID, tt.args.wfInfo, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WorkflowStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -431,7 +425,7 @@ func testconsulWorkflowStepStatusChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -448,11 +442,10 @@ func testconsulWorkflowStepStatusChange(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
+func testconsulAlienTaskStatusChange(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
-		kv              *api.KV
 		taskID          string
 		taskExecutionID string
 		status          string
@@ -463,17 +456,17 @@ func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
 		args    args
 		wantErr bool
 	}{
-		{"TestStatusInitial", args{kv, "1", "33", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepInProgress", args{kv, "1", "33", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "33", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "33", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "1", "33", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
-		{"TestStatusDepDeployed", args{kv, "2", "33", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusInitial", args{"1", "33", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepInProgress", args{"1", "33", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"2", "33", "initial", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"2", "33", "running", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"1", "33", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
+		{"TestStatusDepDeployed", args{"2", "33", "done", &WorkflowStepInfo{WorkflowName: "install", InstanceName: "0", StepName: "step1", NodeName: "node1"}}, false},
 	}
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogAlienTaskStatusChange(context.Background(), tt.args.kv, deploymentID, tt.args.taskID, tt.args.taskExecutionID, tt.args.wfInfo, tt.args.status)
+			got, err := PublishAndLogAlienTaskStatusChange(context.Background(), deploymentID, tt.args.taskID, tt.args.taskExecutionID, tt.args.wfInfo, tt.args.status)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WorkflowStatusChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -485,7 +478,7 @@ func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -503,7 +496,7 @@ func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testconsulAttributeValueChange(t *testing.T, kv *api.KV) {
+func testconsulAttributeValueChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
@@ -535,7 +528,7 @@ func testconsulAttributeValueChange(t *testing.T, kv *api.KV) {
 	}
 
 	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	kvps, _, err := kv.List(prefix, nil)
+	kvps, _, err := consulutil.GetKV().List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
@@ -551,28 +544,28 @@ func testconsulAttributeValueChange(t *testing.T, kv *api.KV) {
 
 }
 
-func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
+func testconsulGetStatusEvents(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	ids := make([]string, 5)
-	id, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, "node1", "1", "started")
+	id, err := PublishAndLogInstanceStatusChange(ctx, deploymentID, "node1", "1", "started")
 	require.Nil(t, err)
 	ids[0] = id
-	id, err = PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, "deployed")
+	id, err = PublishAndLogDeploymentStatusChange(ctx, deploymentID, "deployed")
 	require.Nil(t, err)
 	ids[1] = id
-	id, err = PublishAndLogScalingStatusChange(ctx, kv, deploymentID, "t2", "failed")
+	id, err = PublishAndLogScalingStatusChange(ctx, deploymentID, "t2", "failed")
 	require.Nil(t, err)
 	ids[2] = id
-	id, err = PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, "t3", "running")
+	id, err = PublishAndLogCustomCommandStatusChange(ctx, deploymentID, "t3", "running")
 	require.Nil(t, err)
 	ids[3] = id
-	id, err = PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, "t4", "install", "done")
+	id, err = PublishAndLogWorkflowStatusChange(ctx, deploymentID, "t4", "install", "done")
 	require.Nil(t, err)
 	ids[4] = id
 
-	rawEvents, _, err := StatusEvents(kv, deploymentID, 0, 5*time.Minute)
+	rawEvents, _, err := StatusEvents(deploymentID, 0, 5*time.Minute)
 	require.Nil(t, err)
 	require.Len(t, rawEvents, 5)
 
@@ -618,33 +611,33 @@ func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 	require.Equal(t, "install", events[4][EWorkflowID.String()])
 }
 
-func testconsulGetLogs(t *testing.T, kv *api.KV) {
+func testconsulGetLogs(t *testing.T) {
 	t.Parallel()
 	myErr := errors.New("MyError")
 	deploymentID := testutil.BuildDeploymentID(t)
-	prevIndex, err := GetLogsEventsIndex(kv, deploymentID)
+	prevIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	SimpleLogEntry(LogLevelERROR, deploymentID).RegisterAsString(myErr.Error())
-	newIndex, err := GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message1")
-	newIndex, err = GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message2")
-	newIndex, err = GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message3")
-	newIndex, err = GetLogsEventsIndex(kv, deploymentID)
+	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	logs, _, err := LogsEvents(kv, deploymentID, 0, 5*time.Minute)
+	logs, _, err := LogsEvents(deploymentID, 0, 5*time.Minute)
 	require.Nil(t, err)
 	require.Len(t, logs, 4)
 
@@ -655,50 +648,50 @@ func testconsulGetLogs(t *testing.T, kv *api.KV) {
 
 }
 
-func testPurgeDeploymentEvents(t *testing.T, kv *api.KV) {
+func testPurgeDeploymentEvents(t *testing.T) {
 	ctx := context.Background()
 	deployment1ID := "testPurgeDeploymentEventsA"
 	deployment2ID := "testPurgeDeploymentEventsAA"
-	PublishAndLogInstanceStatusChange(ctx, kv, deployment1ID, "somenode", "someinstance", "somestatus")
-	PublishAndLogInstanceStatusChange(ctx, kv, deployment2ID, "someothernode", "someotherinstance", "someotherstatus")
-	rawEvents, _, err := StatusEvents(kv, deployment1ID, 0, 5*time.Minute)
+	PublishAndLogInstanceStatusChange(ctx, deployment1ID, "somenode", "someinstance", "somestatus")
+	PublishAndLogInstanceStatusChange(ctx, deployment2ID, "someothernode", "someotherinstance", "someotherstatus")
+	rawEvents, _, err := StatusEvents(deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
-	rawEvents, _, err = StatusEvents(kv, deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = StatusEvents(deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentEvents(kv, deployment1ID)
+	err = PurgeDeploymentEvents(deployment1ID)
 	require.NoError(t, err)
 
-	rawEvents, _, err = StatusEvents(kv, deployment1ID, 0, 5*time.Minute)
+	rawEvents, _, err = StatusEvents(deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 0)
-	rawEvents, _, err = StatusEvents(kv, deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = StatusEvents(deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 }
 
-func testPurgeDeploymentLogs(t *testing.T, kv *api.KV) {
+func testPurgeDeploymentLogs(t *testing.T) {
 	deployment1ID := "testPurgeDeploymentLogsA"
 	deployment2ID := "testPurgeDeploymentLogsAA"
 
 	SimpleLogEntry(LogLevelINFO, deployment1ID).RegisterAsString("SomeLog")
 	SimpleLogEntry(LogLevelINFO, deployment2ID).RegisterAsString("SomeOtherLog")
-	rawEvents, _, err := LogsEvents(kv, deployment1ID, 0, 5*time.Minute)
+	rawEvents, _, err := LogsEvents(deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
-	rawEvents, _, err = LogsEvents(kv, deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = LogsEvents(deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentLogs(kv, deployment1ID)
+	err = PurgeDeploymentLogs(deployment1ID)
 	require.NoError(t, err)
 
-	rawEvents, _, err = LogsEvents(kv, deployment1ID, 0, 5*time.Minute)
+	rawEvents, _, err = LogsEvents(deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 0)
-	rawEvents, _, err = LogsEvents(kv, deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = LogsEvents(deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 }

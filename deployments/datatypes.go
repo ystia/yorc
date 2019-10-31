@@ -15,10 +15,10 @@
 package deployments
 
 import (
+	"context"
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -29,8 +29,8 @@ import (
 // Default value is "string" if not specified.
 // Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
-func GetTypePropertyDataType(kv *api.KV, deploymentID, typeName, propertyName string) (string, error) {
-	return getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, true)
+func GetTypePropertyDataType(ctx context.Context, deploymentID, typeName, propertyName string) (string, error) {
+	return getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, true)
 }
 
 // GetTypeAttributeDataType returns the type of a attribute as defined in its attribute definition
@@ -38,44 +38,44 @@ func GetTypePropertyDataType(kv *api.KV, deploymentID, typeName, propertyName st
 // Default value is "string" if not specified.
 // Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
-func GetTypeAttributeDataType(kv *api.KV, deploymentID, typeName, propertyName string) (string, error) {
-	return getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, false)
+func GetTypeAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string) (string, error) {
+	return getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, false)
 }
 
-func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
+func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
 	tType := "properties"
 	if !isProp {
 		tType = "attributes"
 	}
-	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return "", err
 	}
 	propertyDefinitionPath := path.Join(typePath, tType, propertyName)
-	kvp, _, err := kv.Get(path.Join(propertyDefinitionPath, "type"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(propertyDefinitionPath, "type"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil {
+	if !exist || value == "" {
 		// Check parent
-		parentType, err := GetParentType(kv, deploymentID, typeName)
+		parentType, err := GetParentType(ctx, deploymentID, typeName)
 		if parentType == "" {
 			return "", nil
 			// return "", errors.Errorf("property %q not found in type %q", propertyName, typeName)
 		}
-		result, err := GetTypePropertyDataType(kv, deploymentID, parentType, propertyName)
+		result, err := GetTypePropertyDataType(ctx, deploymentID, parentType, propertyName)
 		return result, errors.Wrapf(err, "property %q not found in type %q", propertyName, typeName)
 	}
-	dataType := string(kvp.Value)
+	dataType := value
 	if dataType == "map" || dataType == "list" {
-		kvp, _, err := kv.Get(path.Join(propertyDefinitionPath, "entry_schema"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(propertyDefinitionPath, "entry_schema"))
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			dataType += ":string"
 		} else {
-			dataType += ":" + string(kvp.Value)
+			dataType += ":" + value
 		}
 	} else if dataType == "" {
 		dataType = "string"
@@ -84,7 +84,7 @@ func getTypePropertyOrAttributeDataType(kv *api.KV, deploymentID, typeName, prop
 }
 
 // GetNestedDataType return the type of a nested datatype
-func GetNestedDataType(kv *api.KV, deploymentID, baseType string, nestedKeys ...string) (string, error) {
+func GetNestedDataType(ctx context.Context, deploymentID, baseType string, nestedKeys ...string) (string, error) {
 	currentType := baseType
 	var err error
 	for i := 0; i < len(nestedKeys); i++ {
@@ -95,7 +95,7 @@ func GetNestedDataType(kv *api.KV, deploymentID, baseType string, nestedKeys ...
 			currentType = currentType[4:]
 			continue
 		}
-		currentType, err = GetTypePropertyDataType(kv, deploymentID, currentType, nestedKeys[i])
+		currentType, err = GetTypePropertyDataType(ctx, deploymentID, currentType, nestedKeys[i])
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get type of nested datatype %q.%q", baseType, strings.Join(nestedKeys, "."))
 		}
@@ -109,8 +109,8 @@ func GetNestedDataType(kv *api.KV, deploymentID, baseType string, nestedKeys ...
 // As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetTopologyInputType(kv *api.KV, deploymentID, inputName string) (string, error) {
-	return getTopologyInputOrOutputType(kv, deploymentID, inputName, "inputs")
+func GetTopologyInputType(ctx context.Context, deploymentID, inputName string) (string, error) {
+	return getTopologyInputOrOutputType(deploymentID, inputName, "inputs")
 }
 
 // GetTopologyOutputType retrieves the optional data type of the parameter.
@@ -118,26 +118,26 @@ func GetTopologyInputType(kv *api.KV, deploymentID, inputName string) (string, e
 // As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetTopologyOutputType(kv *api.KV, deploymentID, outputName string) (string, error) {
-	return getTopologyInputOrOutputType(kv, deploymentID, outputName, "outputs")
+func GetTopologyOutputType(ctx context.Context, deploymentID, outputName string) (string, error) {
+	return getTopologyInputOrOutputType(deploymentID, outputName, "outputs")
 }
 
-func getTopologyInputOrOutputType(kv *api.KV, deploymentID, parameterName, parameterType string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "type"), nil)
+func getTopologyInputOrOutputType(deploymentID, parameterName, parameterType string) (string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "type"))
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil {
+	if !exist {
 		return "", nil
 	}
-	iType := string(kvp.Value)
+	iType := value
 	if iType == "list" || iType == "map" {
-		kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "entry_schema"), nil)
+		exist, value, err = consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "entry_schema"))
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			iType += ":" + string(kvp.Value)
+		if exist && value != "" {
+			iType += ":" + value
 		} else {
 			iType += ":string"
 		}

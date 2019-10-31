@@ -28,8 +28,7 @@ var slumTestLocationProps config.DynamicMap
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulSlurmPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	// Create a slurm location
@@ -63,22 +62,22 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 
 	t.Run("groupSlurm", func(t *testing.T) {
 		t.Run("simpleSlurmNodeAllocation", func(t *testing.T) {
-			testSimpleSlurmNodeAllocation(t, kv, cfg)
+			testSimpleSlurmNodeAllocation(t, cfg)
 		})
 		t.Run("simpleSlurmNodeAllocationWithoutProps", func(t *testing.T) {
-			testSimpleSlurmNodeAllocationWithoutProps(t, kv, cfg)
+			testSimpleSlurmNodeAllocationWithoutProps(t, cfg)
 		})
 		t.Run("multipleSlurmNodeAllocation", func(t *testing.T) {
-			testMultipleSlurmNodeAllocation(t, kv, cfg)
+			testMultipleSlurmNodeAllocation(t, cfg)
 		})
 		t.Run("executorTest", func(t *testing.T) {
-			testExecutor(t, srv, kv, cfg)
+			testExecutor(t, srv, cfg)
 		})
 		t.Run("ExecutionCommonBuildJobInfo", func(t *testing.T) {
-			testExecutionCommonBuildJobInfo(t, kv)
+			testExecutionCommonBuildJobInfo(t)
 		})
 		t.Run("ExecutionCommonPrepareAndSubmitJob", func(t *testing.T) {
-			testExecutionCommonPrepareAndSubmitJob(t, kv)
+			testExecutionCommonPrepareAndSubmitJob(t)
 		})
 	})
 }

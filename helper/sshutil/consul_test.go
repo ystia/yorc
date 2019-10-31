@@ -19,26 +19,24 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 func TestRunConsulSSHUtilPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	t.Run("KeysTests", func(t *testing.T) {
-		testGetKeysFromCredentialsAttribute(t, kv)
+		testGetKeysFromCredentialsAttribute(t)
 	})
 }
 
-func loadTestYaml(t *testing.T, kv *api.KV, yamlName string) string {
+func loadTestYaml(t *testing.T, yamlName string) string {
 	deploymentID := path.Base(t.Name())
 	yamlName = "testdata/" + yamlName
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.NoError(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }

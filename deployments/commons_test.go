@@ -21,17 +21,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-func testReadComplexVA(t *testing.T, kv *api.KV) {
+func testReadComplexVA(t *testing.T) {
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
 
 	type args struct {
@@ -51,7 +50,7 @@ func testReadComplexVA(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readComplexVA(kv, tt.args.vaType, deploymentID, tt.args.keyPath, tt.args.vaDatatype, tt.args.nestedKeys...)
+			got, err := readComplexVA(context.Background(), tt.args.vaType, deploymentID, tt.args.keyPath, tt.args.vaDatatype, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("readComplexVA() error = %v, wantErr %v", err, tt.wantErr)
 				return

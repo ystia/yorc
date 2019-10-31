@@ -18,59 +18,58 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testDeleteRelationshipInstance(t *testing.T, kv *api.KV) {
+func testDeleteRelationshipInstance(t *testing.T) {
 	deploymentID := testutil.BuildDeploymentID(t)
 	ctx := context.Background()
 	ctx, errGrp, consulStore := consulutil.WithContext(ctx)
 
-	err := StoreDeploymentDefinition(ctx, kv, deploymentID, "testdata/relationship_instances.yaml")
+	err := StoreDeploymentDefinition(ctx, deploymentID, "testdata/relationship_instances.yaml")
 	require.NoError(t, err, "Failed to store test topology deployment definition")
 
 	nodeAName := "NodeA"
 	nodeBName := "NodeB"
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeAName, "1", "created")
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeAName, "1", "created")
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeAName, "11", "created")
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeAName, "11", "created")
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeBName, "1", "created")
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeBName, "1", "created")
 	require.NoError(t, err)
-	err = SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeBName, "11", "created")
+	err = SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeBName, "11", "created")
 	require.NoError(t, err)
 
-	err = createRelationshipInstances(consulStore, kv, deploymentID, nodeAName)
+	err = createRelationshipInstances(ctx, consulStore, deploymentID, nodeAName)
 	require.NoError(t, err)
 	err = errGrp.Wait()
 	require.NoError(t, err)
 
 	attributeName := "someAttr"
 	attributeValue := "someValue"
-	err = SetRelationshipAttributeForAllInstances(kv, deploymentID, nodeAName, "0", attributeName, attributeValue)
+	err = SetRelationshipAttributeForAllInstances(ctx, deploymentID, nodeAName, "0", attributeName, attributeValue)
 	require.NoError(t, err)
 
-	actualValue, err := GetRelationshipAttributeValueFromRequirement(kv, deploymentID, nodeAName, "1", "0", attributeName)
+	actualValue, err := GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "1", "0", attributeName)
 	require.NoError(t, err)
 	require.NotNil(t, actualValue)
 	require.Equal(t, attributeValue, actualValue.RawString())
-	actualValue, err = GetRelationshipAttributeValueFromRequirement(kv, deploymentID, nodeAName, "11", "0", attributeName)
+	actualValue, err = GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "11", "0", attributeName)
 	require.NoError(t, err)
 	require.NotNil(t, actualValue)
 	require.Equal(t, attributeValue, actualValue.RawString())
 
 	// Now we test
-	err = DeleteRelationshipInstance(kv, deploymentID, nodeAName, "1")
+	err = DeleteRelationshipInstance(ctx, deploymentID, nodeAName, "1")
 	require.NoError(t, err)
 
-	actualValue, err = GetRelationshipAttributeValueFromRequirement(kv, deploymentID, nodeAName, "1", "0", attributeName)
+	actualValue, err = GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "1", "0", attributeName)
 	require.NoError(t, err)
 	require.Nil(t, actualValue)
-	actualValue, err = GetRelationshipAttributeValueFromRequirement(kv, deploymentID, nodeAName, "11", "0", attributeName)
+	actualValue, err = GetRelationshipAttributeValueFromRequirement(ctx, deploymentID, nodeAName, "11", "0", attributeName)
 	require.NoError(t, err)
 	require.NotNil(t, actualValue)
 	require.Equal(t, attributeValue, actualValue.RawString())

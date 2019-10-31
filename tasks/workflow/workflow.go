@@ -79,18 +79,18 @@ func updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx context.Context, cc *
 	defer l.Unlock()
 	if e <= 1 {
 		// we are the latest
-		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, cc.KV(), deploymentID, taskID, workflowName)
+		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, deploymentID, taskID, workflowName)
 		return err
 	}
 	return nil
 }
 
-func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName string) (tasks.TaskStatus, error) {
-	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(kv, taskID)
+func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, deploymentID, taskID, workflowName string) (tasks.TaskStatus, error) {
+	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(taskID)
 	if err != nil {
 		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
 	}
-	hasErrorFlag, err := tasks.TaskHasErrorFlag(kv, taskID)
+	hasErrorFlag, err := tasks.TaskHasErrorFlag(taskID)
 	if err != nil {
 		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
 	}
@@ -105,5 +105,5 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, 
 	} else {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
 	}
-	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, kv, deploymentID, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
+	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, deploymentID, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }

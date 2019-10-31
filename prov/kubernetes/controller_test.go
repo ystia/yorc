@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	ctu "github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -26,7 +25,7 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
+func testsController(t *testing.T, srv *ctu.TestServer) {
 	log.SetDebug(true)
 
 	srv.PopulateKV(t, map[string][]byte{
@@ -111,7 +110,6 @@ func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &execution{
-				kv:           kv,
 				deploymentID: "dep-id",
 				nodeName:     tt.nodeName,
 				nodeType:     tt.nodeType,
@@ -126,7 +124,7 @@ func testsController(t *testing.T, srv *ctu.TestServer, kv *api.KV) {
 			}
 
 			if tt.nodeName == "node-deploy" {
-				replacedRSpec, err := replaceServiceIPInResourceSpec(ctx, kv, k8s.clientset, "dep-id", tt.nodeName, "", "{}")
+				replacedRSpec, err := replaceServiceIPInResourceSpec(ctx, k8s.clientset, "dep-id", tt.nodeName, "", "{}")
 				// TODO test replaceRSpec value
 				require.Nil(t, err)
 				require.NotNil(t, replacedRSpec)

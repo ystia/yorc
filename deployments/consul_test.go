@@ -26,141 +26,140 @@ import (
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
 	defer srv.Stop()
 
 	t.Run("groupDeployments", func(t *testing.T) {
 		t.Run("testArtifacts", func(t *testing.T) {
-			testArtifacts(t, srv, kv)
+			testArtifacts(t, srv)
 		})
 		t.Run("testCapabilities", func(t *testing.T) {
-			testCapabilities(t, srv, kv)
+			testCapabilities(t, srv)
 		})
 		t.Run("testDefinitionStore", func(t *testing.T) {
-			testDefinitionStore(t, kv)
+			testDefinitionStore(t)
 		})
 		t.Run("testDeploymentNodes", func(t *testing.T) {
-			testDeploymentNodes(t, srv, kv)
+			testDeploymentNodes(t, srv)
 		})
 		t.Run("testRequirements", func(t *testing.T) {
-			testRequirements(t, srv, kv)
+			testRequirements(t, srv)
 		})
 		t.Run("testResolver", func(t *testing.T) {
-			testResolver(t, kv)
+			testResolver(t)
 		})
 		t.Run("testGetTypePropertyDataType", func(t *testing.T) {
-			testGetTypePropertyDataType(t, kv)
+			testGetTypePropertyDataType(t)
 		})
 		t.Run("testGetNestedDataType", func(t *testing.T) {
-			testGetNestedDataType(t, kv)
+			testGetNestedDataType(t)
 		})
 		t.Run("testReadComplexVA", func(t *testing.T) {
-			testReadComplexVA(t, kv)
+			testReadComplexVA(t)
 		})
 		t.Run("testIssueGetEmptyPropRel", func(t *testing.T) {
-			testIssueGetEmptyPropRel(t, kv)
+			testIssueGetEmptyPropRel(t)
 		})
 		t.Run("testRelationshipWorkflow", func(t *testing.T) {
-			testRelationshipWorkflow(t, kv)
+			testRelationshipWorkflow(t)
 		})
 		t.Run("testGlobalInputs", func(t *testing.T) {
-			testGlobalInputs(t, kv)
+			testGlobalInputs(t)
 		})
 		t.Run("testInlineWorkflow", func(t *testing.T) {
-			testInlineWorkflow(t, kv)
+			testInlineWorkflow(t)
 		})
 		t.Run("testDeleteWorkflow", func(t *testing.T) {
-			testDeleteWorkflow(t, kv)
+			testDeleteWorkflow(t)
 		})
 		t.Run("testCheckCycleInNestedWorkflows", func(t *testing.T) {
-			testCheckCycleInNestedWorkflows(t, kv)
+			testCheckCycleInNestedWorkflows(t)
 		})
 		t.Run("testGetCapabilityProperties", func(t *testing.T) {
-			testGetCapabilityProperties(t, kv)
+			testGetCapabilityProperties(t)
 		})
 		t.Run("testSubstitutionServiceCapabilityMappings", func(t *testing.T) {
-			testSubstitutionServiceCapabilityMappings(t, kv)
+			testSubstitutionServiceCapabilityMappings(t)
 		})
 		t.Run("testSubstitutionServiceRequirementMappings", func(t *testing.T) {
-			testSubstitutionServiceRequirementMappings(t, kv)
+			testSubstitutionServiceRequirementMappings(t)
 		})
 		t.Run("testSubstitutionClientDirective", func(t *testing.T) {
-			testSubstitutionClientDirective(t, kv)
+			testSubstitutionClientDirective(t)
 		})
 		t.Run("testSubstitutionClientServiceInstance", func(t *testing.T) {
-			testSubstitutionClientServiceInstance(t, kv)
+			testSubstitutionClientServiceInstance(t)
 		})
 		t.Run("TestOperationImplementationArtifact", func(t *testing.T) {
-			testOperationImplementationArtifact(t, kv)
+			testOperationImplementationArtifact(t)
 		})
 		t.Run("TestOperationHost", func(t *testing.T) {
-			testOperationHost(t, kv)
+			testOperationHost(t)
 		})
 		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
-			testIssueGetEmptyPropOnRelationship(t, kv)
+			testIssueGetEmptyPropOnRelationship(t)
 		})
 
 		t.Run("testTopologyUpdate", func(t *testing.T) {
-			testTopologyUpdate(t, kv)
+			testTopologyUpdate(t)
 		})
 		t.Run("testTopologyBadUpdate", func(t *testing.T) {
-			testTopologyBadUpdate(t, kv)
+			testTopologyBadUpdate(t)
 		})
 		t.Run("testRepositories", func(t *testing.T) {
-			testRepositories(t, kv)
+			testRepositories(t)
 		})
 		t.Run("testPurgedDeployments", func(t *testing.T) {
 			testPurgedDeployments(t, client)
 		})
 		t.Run("testDeleteDeployment", func(t *testing.T) {
-			testDeleteDeployment(t, kv)
+			testDeleteDeployment(t)
 		})
 		t.Run("testDeleteInstance", func(t *testing.T) {
-			testDeleteInstance(t, kv)
+			testDeleteInstance(t)
 		})
 		t.Run("testDeleteAllInstances", func(t *testing.T) {
-			testDeleteAllInstances(t, kv)
+			testDeleteAllInstances(t)
 		})
 		t.Run("testDeleteRelationshipInstance", func(t *testing.T) {
-			testDeleteRelationshipInstance(t, kv)
+			testDeleteRelationshipInstance(t)
 		})
 	})
 
 	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {
 		deploymentID := testutil.BuildDeploymentID(t)
-		err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
+		err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology.yml")
 		require.NoError(t, err)
 
 		t.Run("TestNodeHasAttribute", func(t *testing.T) {
-			testNodeHasAttribute(t, kv, deploymentID)
+			testNodeHasAttribute(t, deploymentID)
 		})
 		t.Run("TestNodeHasProperty", func(t *testing.T) {
-			testNodeHasProperty(t, kv, deploymentID)
+			testNodeHasProperty(t, deploymentID)
 		})
 		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
-			testTopologyTemplateMetadata(t, kv, deploymentID)
+			testTopologyTemplateMetadata(t, deploymentID)
 		})
 		t.Run("TestAttributeNotifications", func(t *testing.T) {
-			testAttributeNotifications(t, kv, deploymentID)
+			testAttributeNotifications(t, deploymentID)
 		})
 		t.Run("TestNotifyAttributeOnValueChange", func(t *testing.T) {
-			testNotifyAttributeOnValueChange(t, kv, deploymentID)
+			testNotifyAttributeOnValueChange(t, deploymentID)
 		})
 		t.Run("TestImportTopologyTemplate", func(t *testing.T) {
-			testImportTopologyTemplate(t, kv, deploymentID)
+			testImportTopologyTemplate(t, deploymentID)
 		})
 		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
-			testTopologyTemplateMetadata(t, kv, deploymentID)
+			testTopologyTemplateMetadata(t, deploymentID)
 		})
 	})
 
 	t.Run("CommonsTestsOn_test_topology_substitution.yml", func(t *testing.T) {
 		deploymentID := testutil.BuildDeploymentID(t)
-		err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology_substitution.yml")
+		err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology_substitution.yml")
 		require.NoError(t, err)
 
 		t.Run("TestAddSubstitutionMappingAttributeHostNotification", func(t *testing.T) {
-			testAddSubstitutionMappingAttributeHostNotification(t, kv, deploymentID)
+			testAddSubstitutionMappingAttributeHostNotification(t, deploymentID)
 		})
 	})
 }

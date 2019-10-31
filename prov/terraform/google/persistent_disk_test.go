@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,13 +25,13 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func testSimplePersistentDisk(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimplePersistentDisk(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generatePersistentDisk(context.Background(), kv, cfg, deploymentID, "PersistentDisk", "0", 0, &infrastructure, make(map[string]string))
+	err := g.generatePersistentDisk(context.Background(), cfg, deploymentID, "PersistentDisk", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate persistent disk for %s", deploymentID)
 
 	diskName := resourcePrefix + "persistentdisk-0"

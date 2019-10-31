@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -235,8 +234,8 @@ type k8sJob struct {
 	namespaceProvided bool
 }
 
-func getJob(ctx context.Context, kv *api.KV, clientset kubernetes.Interface, deploymentID, nodeName string) (*k8sJob, error) {
-	rSpec, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "resource_spec")
+func getJob(ctx context.Context, clientset kubernetes.Interface, deploymentID, nodeName string) (*k8sJob, error) {
+	rSpec, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "resource_spec")
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +250,7 @@ func getJob(ctx context.Context, kv *api.KV, clientset kubernetes.Interface, dep
 		return nil, errors.Wrap(err, "The resource-spec JSON unmarshaling failed")
 	}
 	namespace, _ := getNamespace(deploymentID, jobRepr.ObjectMeta)
-	rSpecString, err = replaceServiceIPInResourceSpec(ctx, kv, clientset, deploymentID, nodeName, namespace, rSpecString)
+	rSpecString, err = replaceServiceIPInResourceSpec(ctx, clientset, deploymentID, nodeName, namespace, rSpecString)
 	if err != nil {
 		return nil, err
 	}
@@ -291,8 +290,8 @@ func replaceServiceDepLookups(ctx context.Context, clientset kubernetes.Interfac
 	return rSpec, nil
 }
 
-func replaceServiceIPInResourceSpec(ctx context.Context, kv *api.KV, clientset kubernetes.Interface, deploymentID, nodeName, namespace, rSpec string) (string, error) {
-	serviceDepsLookups, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "service_dependency_lookups")
+func replaceServiceIPInResourceSpec(ctx context.Context, clientset kubernetes.Interface, deploymentID, nodeName, namespace, rSpec string) (string, error) {
+	serviceDepsLookups, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "service_dependency_lookups")
 	if err != nil || serviceDepsLookups == nil || serviceDepsLookups.RawString() == "" {
 		return rSpec, err
 	}

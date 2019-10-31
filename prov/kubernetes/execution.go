@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 
@@ -44,7 +43,6 @@ const (
 )
 
 type execution struct {
-	kv           *api.KV
 	cfg          config.Configuration
 	deploymentID string
 	taskID       string
@@ -58,19 +56,18 @@ const namespaceCreatedMessage string = "K8's Namespace %s created"
 const namespaceDeletionFailedMessage string = "Cannot delete K8's Namespace %s"
 const unsupportedOperationOnK8sResource string = "Unsupported operation on k8s resource"
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
-	taskType, err := tasks.GetTaskType(kv, taskID)
+func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
+	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
 	return &execution{
-		kv:           kv,
 		cfg:          cfg,
 		deploymentID: deploymentID,
 		nodeName:     nodeName,
@@ -88,7 +85,7 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 	}
 
 	// TODO is there any reason for recreating a new generator for each execution?
-	generator := newGenerator(e.kv, e.cfg)
+	generator := newGenerator(e.cfg)
 
 	// Create Yorc representation of the K8S object
 	K8sObj, err := e.getYorcK8sObject(ctx, clientset)
@@ -136,7 +133,7 @@ func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.I
 	case k8sServiceResourceType:
 		K8sObj = &yorcK8sService{}
 	case k8sSimpleRessourceType:
-		rType, err := e.getResourceType()
+		rType, err := e.getResourceType(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +151,7 @@ func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.I
 	}
 
 	// Get K8s object specification
-	rSpec, err := e.getResourceSpec()
+	rSpec, err := e.getResourceSpec(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +166,8 @@ func (e *execution) getYorcK8sObject(ctx context.Context, clientset kubernetes.I
 	return K8sObj, nil
 }
 
-func (e *execution) getResourceType() (string, error) {
-	rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
+func (e *execution) getResourceType(ctx context.Context) (string, error) {
+	rType, err := deployments.GetNodePropertyValue(ctx, e.deploymentID, e.nodeName, "resource_type")
 	if err != nil {
 		return "", err
 	}
@@ -180,8 +177,8 @@ func (e *execution) getResourceType() (string, error) {
 	return rType.RawString(), nil
 }
 
-func (e *execution) getResourceSpec() (string, error) {
-	rSpecProp, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
+func (e *execution) getResourceSpec(ctx context.Context) (string, error) {
+	rSpecProp, err := deployments.GetNodePropertyValue(ctx, e.deploymentID, e.nodeName, "resource_spec")
 	if err != nil {
 		return "", err
 	}
@@ -283,7 +280,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 }
 
 func (e *execution) getExpectedInstances() (int32, error) {
-	expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
+	expectedInstances, err := tasks.GetTaskInput(e.taskID, "EXPECTED_INSTANCES")
 	if err != nil {
 		return -1, err
 	}
@@ -296,7 +293,7 @@ func (e *execution) getExpectedInstances() (int32, error) {
 
 func (e *execution) manageNamespaceDeletion(ctx context.Context, clientset kubernetes.Interface, namespaceProvided bool, namespaceName string) error {
 	if !namespaceProvided { //TODO applicable for all objects ?
-		volDeletable, err := deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.nodeName, "volumeDeletable")
+		volDeletable, err := deployments.GetBooleanNodeProperty(ctx, e.deploymentID, e.nodeName, "volumeDeletable")
 		if err != nil {
 			return err
 		}

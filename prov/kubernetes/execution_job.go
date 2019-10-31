@@ -39,12 +39,12 @@ func (e *execution) executeAsync(ctx context.Context, checksPeriod time.Duration
 		return nil, 0, errors.Errorf("%q node type is not supported by the Kubernetes executor only \"yorc.nodes.kubernetes.api.types.JobResource\" is.", e.nodeType)
 	}
 
-	jobID, err := tasks.GetTaskData(e.kv, e.taskID, e.nodeName+"-jobId")
+	jobID, err := tasks.GetTaskData(e.taskID, e.nodeName+"-jobId")
 	if err != nil {
 		return nil, 0, err
 	}
 
-	job, err := getJob(ctx, e.kv, clientset, e.deploymentID, e.nodeName)
+	job, err := getJob(ctx, clientset, e.deploymentID, e.nodeName)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -64,7 +64,7 @@ func (e *execution) executeAsync(ctx context.Context, checksPeriod time.Duration
 }
 
 func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interface) error {
-	job, err := getJob(ctx, e.kv, clientset, e.deploymentID, e.nodeName)
+	job, err := getJob(ctx, clientset, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
@@ -88,22 +88,22 @@ func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interfac
 	}
 
 	// Set job id to the instance attribute
-	err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "job_id", job.jobRepr.Name)
+	err = deployments.SetAttributeForAllInstances(ctx, e.deploymentID, e.nodeName, "job_id", job.jobRepr.Name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
 	}
 
-	return tasks.SetTaskData(e.kv, e.taskID, e.nodeName+"-jobId", job.jobRepr.Name)
+	return tasks.SetTaskData(e.taskID, e.nodeName+"-jobId", job.jobRepr.Name)
 }
 
 func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interface) error {
-	jobID, err := tasks.GetTaskData(e.kv, e.taskID, e.nodeName+"-jobId")
+	jobID, err := tasks.GetTaskData(e.taskID, e.nodeName+"-jobId")
 	if err != nil {
 		if !tasks.IsTaskDataNotFoundError(err) {
 			return err
 		}
 		// Not cancelling within the same task try to get jobID from attribute
-		jobIDValue, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.nodeName, "0", "job_id")
+		jobIDValue, err := deployments.GetInstanceAttributeValue(ctx, e.deploymentID, e.nodeName, "0", "job_id")
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id to cancel, found neither in task context neither as instance attribute")
 		}
@@ -114,7 +114,7 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
 			"k8s job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.nodeName)
 	}
-	job, err := getJob(ctx, e.kv, clientset, e.deploymentID, e.nodeName)
+	job, err := getJob(ctx, clientset, e.deploymentID, e.nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete job for node %q", e.nodeName)
 	}

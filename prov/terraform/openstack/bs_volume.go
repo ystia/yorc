@@ -15,9 +15,9 @@
 package openstack
 
 import (
+	"context"
 	"strconv"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -26,11 +26,11 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, locationProps config.DynamicMap,
+func (g *osGenerator) generateOSBSVolume(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap,
 	deploymentID, nodeName, instanceName string) (BlockStorageVolume, error) {
 
 	volume := BlockStorageVolume{}
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return volume, err
 	}
@@ -39,7 +39,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, l
 	}
 	volume.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	size, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "size")
+	size, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "size")
 	if err != nil {
 		return volume, err
 	}
@@ -54,7 +54,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, l
 	}
 	log.Debugf("Computed size rounded in GB: %d", volume.Size)
 
-	region, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "region")
+	region, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "region")
 	if err != nil {
 		return volume, err
 	} else if region != nil && region.RawString() != "" {
@@ -62,7 +62,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, l
 	} else {
 		volume.Region = locationProps.GetStringOrDefault("region", defaultOSRegion)
 	}
-	az, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
+	az, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return volume, err
 	}
@@ -74,11 +74,11 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, l
 
 // computeBootVolume gets value of a boot volume if any is defined
 // If none, nil is returned
-func computeBootVolume(kv *api.KV, deploymentID, nodeName string) (*BootVolume, error) {
+func computeBootVolume(ctx context.Context, deploymentID, nodeName string) (*BootVolume, error) {
 	var vol BootVolume
 	var err error
 	// If a boot volume is defined, its source definition is mandatory
-	vol.Source, err = deployments.GetStringNodePropertyValue(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
+	vol.Source, err = deployments.GetStringNodePropertyValue(ctx, deploymentID, nodeName, bootVolumeTOSCAAttr, sourceTOSCAKey)
 	if err != nil || vol.Source == "" {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func computeBootVolume(kv *api.KV, deploymentID, nodeName string) (*BootVolume, 
 	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, deleteOnTerminationTOSCAKey}
 	strValues := make(map[string]string, len(keys))
 	for _, key := range keys {
-		strValues[key], err = deployments.GetStringNodePropertyValue(kv, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
+		strValues[key], err = deployments.GetStringNodePropertyValue(ctx, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
 		if err != nil {
 			return nil, err
 		}

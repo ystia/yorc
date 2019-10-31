@@ -15,17 +15,17 @@
 package deployments
 
 import (
+	"context"
 	"path"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // GetTopologyOutputValue returns the value of a given topology output
-func GetTopologyOutputValue(kv *api.KV, deploymentID, outputName string, nestedKeys ...string) (*TOSCAValue, error) {
-	dataType, err := GetTopologyOutputType(kv, deploymentID, outputName)
+func GetTopologyOutputValue(ctx context.Context, deploymentID, outputName string, nestedKeys ...string) (*TOSCAValue, error) {
+	dataType, err := GetTopologyOutputType(ctx, deploymentID, outputName)
 	if err != nil {
 		return nil, err
 	}
@@ -33,18 +33,18 @@ func GetTopologyOutputValue(kv *api.KV, deploymentID, outputName string, nestedK
 	// TODO this is not clear in the specification but why do we return a single value in this context as in case of attributes and multi-instances
 	// we can have different results.
 	// We have to improve this.
-	res, err := getValueAssignmentWithDataType(kv, deploymentID, valuePath, "", "0", "", dataType, nestedKeys...)
+	res, err := getValueAssignmentWithDataType(ctx, deploymentID, valuePath, "", "0", "", dataType, nestedKeys...)
 	if err != nil || res != nil {
 		return res, err
 	}
 	// check the default
 	defaultPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/outputs", outputName, "default")
-	return getValueAssignmentWithDataType(kv, deploymentID, defaultPath, "", "0", "", dataType, nestedKeys...)
+	return getValueAssignmentWithDataType(ctx, deploymentID, defaultPath, "", "0", "", dataType, nestedKeys...)
 }
 
 // GetTopologyOutputsNames returns the list of outputs for the deployment
-func GetTopologyOutputsNames(kv *api.KV, deploymentID string) ([]string, error) {
-	optPaths, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/outputs")+"/", "/", nil)
+func GetTopologyOutputsNames(ctx context.Context, deploymentID string) ([]string, error) {
+	optPaths, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/outputs"))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
