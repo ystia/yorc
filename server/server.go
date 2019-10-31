@@ -15,7 +15,6 @@
 package server
 
 import (
-	"github.com/ystia/yorc/v4/storage"
 	"os"
 	"os/signal"
 	"sync"
@@ -33,6 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/monitoring"
 	"github.com/ystia/yorc/v4/prov/scheduling/scheduler"
 	"github.com/ystia/yorc/v4/rest"
+	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/tasks/workflow"
 )
 
@@ -105,6 +105,9 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	if err != nil {
 		return err
 	}
+
+	// Test
+	storage.GetStore(storage.StoreTypeEvent).Set("toto", "tutu")
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()

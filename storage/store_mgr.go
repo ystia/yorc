@@ -42,7 +42,7 @@ func LoadStores() error {
 	for _, f := range storePlugins {
 		p, err := plugin.Open(f)
 		if err != nil {
-			return errors.Errorf("Failed to load plugin from file:%q", f)
+			return errors.Wrapf(err, "Failed to load plugin from file:%q", f)
 		}
 
 		symStore, err := p.Lookup("Store")
@@ -55,7 +55,7 @@ func LoadStores() error {
 			return errors.Errorf("A store type is expected from Go plugin Symbol from file:%q", f)
 		}
 
-		log.Printf("Loaded store from plugin file:%q with store types: %v", store.Types())
+		log.Printf("Loaded store from plugin file:%q with store types: %v", f, store.Types())
 		for _, typ := range store.Types() {
 			if _, ok := stores[typ]; ok {
 				log.Printf("[WARNING] a store already exists for type: %q. This will be ignored.", typ)
