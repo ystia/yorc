@@ -138,24 +138,25 @@ RETRY:
 	default:
 	}
 
-	key := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status")
-	exist, value, meta, err := consulutil.GetValueWithMetadata(key)
+	kvp, meta, err := consulutil.GetKV().Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	if status != INITIAL {
-		if !exist || len(value) == 0 || meta == nil {
+		if kvp == nil || len(kvp.Value) == 0 || meta == nil {
 			return errors.WithStack(&deploymentNotFound{deploymentID})
 		}
 
-		currentStatus, err := DeploymentStatusFromString(string(value), true)
+		currentStatus, err := DeploymentStatusFromString(string(kvp.Value), true)
 		if err != nil {
 			return err
 		}
 
 		if status != currentStatus {
-			ok, err := consulutil.CheckAndSet(key, value, meta.LastIndex)
+			kvp.Value = []byte(status.String())
+			kvp.ModifyIndex = meta.LastIndex
+			ok, _, err := consulutil.GetKV().CAS(kvp, nil)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
 			}

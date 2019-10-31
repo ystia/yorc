@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"path"
 	"reflect"
 	"testing"
@@ -480,8 +481,9 @@ func testGetTaskRelatedWFSteps(t *testing.T) {
 				t.Errorf("GetTaskRelatedSteps() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetTaskRelatedSteps() = %v, want %v", got, tt.want)
+			require.Len(t, got, len(tt.want), "GetTaskRelatedSteps()  %d task steps expected instead of %d", len(tt.want), len(got))
+			for _, wanted := range tt.want {
+				require.Contains(t, got, wanted, "GetTaskRelatedSteps() %v expected", wanted)
 			}
 		})
 	}

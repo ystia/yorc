@@ -260,14 +260,14 @@ func LogsEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([
 }
 
 func getEventsIndex(deploymentID string, eventsPrefix string) (uint64, error) {
-	_, _, metadata, err := consulutil.GetValueWithMetadata(path.Join(eventsPrefix, deploymentID))
+	_, qm, err := consulutil.GetKV().Get(path.Join(eventsPrefix, deploymentID), nil)
 	if err != nil {
 		return 0, err
 	}
-	if metadata == nil {
+	if qm == nil {
 		return 0, errors.New("Failed to retrieve last index for events")
 	}
-	return metadata.LastIndex, nil
+	return qm.LastIndex, nil
 }
 
 // GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment

@@ -213,16 +213,16 @@ func getPropAttrMappingFromStore(ctx context.Context, prefix string) (map[string
 }
 
 func getValueAssignmentFromStore(ctx context.Context, valPath string) (*tosca.ValueAssignment, error) {
-	exist, value, meta, err := consulutil.GetValueWithMetadata(valPath)
+	kvp, _, err := consulutil.GetKV().Get(valPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	var val tosca.ValueAssignment
-	if exist {
-		val.Type = tosca.ValueAssignmentType(meta.Flag)
+	if kvp != nil {
+		val.Type = tosca.ValueAssignmentType(kvp.Flags)
 		switch val.Type {
 		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
-			val.Value = value
+			val.Value = kvp.Value
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			val.Value, err = readComplexVA(ctx, val.Type, "", valPath, "")
 			if err != nil {

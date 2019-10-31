@@ -151,43 +151,6 @@ func GetValue(key string) (bool, []byte, error) {
 	return true, kvp.Value, nil
 }
 
-// GetValueWithMetadata retrieves the value for the specified key in bytes array and the related metadata
-// If the key doesn't exist, it returns false
-func GetValueWithMetadata(key string) (bool, []byte, *KeyMetadata, error) {
-	kvp, meta, err := GetKV().Get(key, nil)
-	if err != nil {
-		return false, nil, nil, err
-	}
-	if kvp == nil {
-		if meta == nil {
-			return false, nil, nil, err
-		}
-		return false, nil, &KeyMetadata{LastIndex: meta.LastIndex}, nil
-	}
-	return true, kvp.Value, &KeyMetadata{LastIndex: meta.LastIndex, Flag: kvp.Flags}, nil
-}
-
-// KeyMetadata represents metadata related to key
-// lastIndex is index used for last modification
-// Flag is specific flag attached to the key
-type KeyMetadata struct {
-	LastIndex uint64
-	Flag      uint64
-}
-
-// CheckAndSet allows to execute a check on modify index before setting a key value
-// If modify index is not up, it returns false
-// If Check and set operations are ok, it returns true
-func CheckAndSet(key string, value []byte, lastIndex uint64) (bool, error) {
-	kvp := &api.KVPair{
-		Key:         key,
-		Value:       value,
-		ModifyIndex: lastIndex,
-	}
-	ok, _, err := GetKV().CAS(kvp, nil)
-	return ok, err
-}
-
 // GetStringValue retrieves the value for the specified key in string type
 // If the key doesn't exist, it returns false
 func GetStringValue(key string) (bool, string, error) {
