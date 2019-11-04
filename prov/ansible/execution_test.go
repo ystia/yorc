@@ -105,6 +105,8 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "0/capabilities/cap/attributes/myattr"): []byte("attr-0"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "1/capabilities/cap/attributes/myattr"): []byte("attr-1"),
+
+		path.Join(consulutil.TasksPrefix, "taskIDNotUsedForNow", "type"): []byte("0"),
 	})
 
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {

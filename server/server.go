@@ -106,9 +106,6 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		return err
 	}
 
-	// Test
-	storage.GetStore(storage.StoreTypeEvent).Set("toto", "tutu")
-
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()
 	var httpServer *rest.Server

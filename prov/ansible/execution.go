@@ -712,7 +712,7 @@ func (e *executionCommon) resolveInputs(ctx context.Context) error {
 
 func (e *executionCommon) resolveExecution(ctx context.Context) error {
 	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
-	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
+	ovPath, err := operations.GetOverlayPath(e.cfg, e.taskID, e.deploymentID)
 	if err != nil {
 		return err
 	}
