@@ -15,12 +15,12 @@
 package deployments
 
 import (
+	"context"
 	"net/url"
 	"path"
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"vbom.ml/util/sortorder"
 
@@ -36,9 +36,9 @@ func urlEscapeAll(keys []string) []string {
 	return t
 }
 
-func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (*TOSCAValue, bool, error) {
+func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	keyPath := path.Join(vaPath, path.Join(urlEscapeAll(nestedKeys)...))
-	kvp, _, err := kv.Get(keyPath, nil)
+	kvp, _, err := consulutil.GetKV().Get(keyPath, nil)
 	if err != nil {
 		return nil, false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -48,7 +48,7 @@ func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseData
 		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
 			return &TOSCAValue{Value: string(kvp.Value)}, vat == tosca.ValueAssignmentFunction, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
-			res, err := readComplexVA(kv, vat, deploymentID, keyPath, baseDatatype, nestedKeys...)
+			res, err := readComplexVA(ctx, vat, deploymentID, keyPath, baseDatatype, nestedKeys...)
 			if err != nil {
 				return nil, false, err
 			}
@@ -56,7 +56,7 @@ func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseData
 		}
 	}
 	if baseDatatype != "" && !strings.HasPrefix(baseDatatype, "list:") && !strings.HasPrefix(baseDatatype, "map:") && len(nestedKeys) > 0 {
-		result, isFunc, err := getTypeDefaultProperty(kv, deploymentID, baseDatatype, nestedKeys[0], nestedKeys[1:]...)
+		result, isFunc, err := getTypeDefaultProperty(ctx, deploymentID, baseDatatype, nestedKeys[0], nestedKeys[1:]...)
 		if err != nil || result != nil {
 			return result, isFunc, err
 		}
@@ -65,22 +65,22 @@ func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseData
 	return nil, false, nil
 }
 
-func getValueAssignment(kv *api.KV, deploymentID, vaPath, nodeName, instanceName, requirementIndex string, nestedKeys ...string) (*TOSCAValue, error) {
-	return getValueAssignmentWithDataType(kv, deploymentID, vaPath, nodeName, instanceName, requirementIndex, "", nestedKeys...)
+func getValueAssignment(ctx context.Context, deploymentID, vaPath, nodeName, instanceName, requirementIndex string, nestedKeys ...string) (*TOSCAValue, error) {
+	return getValueAssignmentWithDataType(ctx, deploymentID, vaPath, nodeName, instanceName, requirementIndex, "", nestedKeys...)
 }
 
-func getValueAssignmentWithDataType(kv *api.KV, deploymentID, vaPath, nodeName, instanceName, requirementIndex, baseDatatype string, nestedKeys ...string) (*TOSCAValue, error) {
+func getValueAssignmentWithDataType(ctx context.Context, deploymentID, vaPath, nodeName, instanceName, requirementIndex, baseDatatype string, nestedKeys ...string) (*TOSCAValue, error) {
 
-	value, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, vaPath, baseDatatype, nestedKeys...)
+	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, baseDatatype, nestedKeys...)
 	if err != nil || value == nil || !isFunction {
 		return value, err
 	}
-	return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, value, nestedKeys...)
+	return resolveValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, value, nestedKeys...)
 
 }
 
-func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, keyPath, baseDatatype string, nestedKeys ...string) (interface{}, error) {
-	keys, _, err := kv.Keys(keyPath+"/", "/", nil)
+func readComplexVA(ctx context.Context, vaType tosca.ValueAssignmentType, deploymentID, keyPath, baseDatatype string, nestedKeys ...string) (interface{}, error) {
+	keys, err := consulutil.GetKeys(keyPath)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -94,7 +94,7 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 	sort.Sort(sortorder.Natural(keys))
 	var i int
 	for _, k := range keys {
-		kvp, _, err := kv.Get(k, nil)
+		kvp, _, err := consulutil.GetKV().Get(k, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -109,7 +109,7 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 			switch subKeyType {
 			case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 				newNestedkeys := append(nestedKeys, kr)
-				sr, err = readComplexVA(kv, subKeyType, deploymentID, k, baseDatatype, newNestedkeys...)
+				sr, err = readComplexVA(ctx, subKeyType, deploymentID, k, baseDatatype, newNestedkeys...)
 				if err != nil {
 					return nil, err
 				}
@@ -127,20 +127,20 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 	}
 
 	if baseDatatype != "" && vaType == tosca.ValueAssignmentMap {
-		currentDatatype, err := GetNestedDataType(kv, deploymentID, baseDatatype, nestedKeys...)
+		currentDatatype, err := GetNestedDataType(ctx, deploymentID, baseDatatype, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
 		castedResult := result.(map[string]interface{})
 		for currentDatatype != "" {
-			dtProps, err := GetTypeProperties(kv, deploymentID, currentDatatype, false)
+			dtProps, err := GetTypeProperties(ctx, deploymentID, currentDatatype, false)
 			if err != nil {
 				return nil, err
 			}
 			for _, prop := range dtProps {
 				if _, ok := castedResult[prop]; !ok {
 					// not found check default
-					result, _, err := getTypeDefaultProperty(kv, deploymentID, currentDatatype, prop)
+					result, _, err := getTypeDefaultProperty(ctx, deploymentID, currentDatatype, prop)
 					if err != nil {
 						return nil, err
 					}
@@ -150,7 +150,7 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 					}
 				}
 			}
-			currentDatatype, err = GetParentType(kv, deploymentID, currentDatatype)
+			currentDatatype, err = GetParentType(ctx, deploymentID, currentDatatype)
 			if err != nil {
 				return nil, err
 			}

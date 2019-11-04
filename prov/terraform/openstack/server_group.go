@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -27,18 +26,16 @@ import (
 )
 
 type serverGroupOptions struct {
-	kv            *api.KV
 	deploymentID  string
 	nodeName      string
 	resourceTypes map[string]string
 }
 
 func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupOptions, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
-	kv := opts.kv
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -47,11 +44,11 @@ func (g *osGenerator) generateServerGroup(ctx context.Context, opts serverGroupO
 	}
 
 	serverGroup := &ServerGroup{}
-	serverGroup.Name, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "name", true)
+	serverGroup.Name, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "name", true)
 	if err != nil {
 		return err
 	}
-	policy, err := deployments.GetStringNodeProperty(kv, deploymentID, nodeName, "policy", true)
+	policy, err := deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "policy", true)
 	if err != nil {
 		return err
 	}

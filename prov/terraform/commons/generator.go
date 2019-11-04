@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
@@ -46,23 +44,23 @@ type Generator interface {
 }
 
 // PreDestroyInfraCallback is a function that is call before destroying an infrastructure. If it returns false the node will not be destroyed.
-type PreDestroyInfraCallback func(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error)
+type PreDestroyInfraCallback func(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error)
 
 // PreDestroyStorageInfraCallback is a callback of type PreDestroyInfraCallback
 // checking if a block storage node is deletable on undeployment.
-func PreDestroyStorageInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error) {
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+func PreDestroyStorageInfraCallback(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error) {
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, err
 	}
-	isBlockStorage, err := deployments.IsTypeDerivedFrom(kv, deploymentID, nodeType, "tosca.nodes.BlockStorage")
+	isBlockStorage, err := deployments.IsTypeDerivedFrom(ctx, deploymentID, nodeType, "tosca.nodes.BlockStorage")
 	if err != nil {
 		return false, err
 	}
 
 	if isBlockStorage {
 
-		deletable, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "deletable")
+		deletable, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "deletable")
 		if err != nil {
 			return false, err
 		}

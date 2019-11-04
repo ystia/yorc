@@ -18,29 +18,28 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func testRepositories(t *testing.T, kv *api.KV) {
+func testRepositories(t *testing.T) {
 
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_repositories.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_repositories.yaml")
 	require.Nil(t, err, "Failed to parse testdata/test_repositories.yaml definition")
 
 	t.Run("GetRepositoryURLFromName", func(t *testing.T) {
-		testGetRepositoryURLFromName(t, kv, deploymentID)
+		testGetRepositoryURLFromName(t, deploymentID)
 	})
 	t.Run("GetRepositoryTokenTypeFromName", func(t *testing.T) {
-		testGetRepositoryTokenTypeFromName(t, kv, deploymentID)
+		testGetRepositoryTokenTypeFromName(t, deploymentID)
 	})
 	t.Run("GetRepositoryTokenUserFromName", func(t *testing.T) {
-		testGetRepositoryTokenUserFromName(t, kv, deploymentID)
+		testGetRepositoryTokenUserFromName(t, deploymentID)
 	})
 }
 
-func testGetRepositoryURLFromName(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetRepositoryURLFromName(t *testing.T, deploymentID string) {
 	tests := []struct {
 		name     string
 		repoName string
@@ -53,7 +52,7 @@ func testGetRepositoryURLFromName(t *testing.T, kv *api.KV, deploymentID string)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotURL, err := GetRepositoryURLFromName(kv, deploymentID, tt.repoName)
+			gotURL, err := GetRepositoryURLFromName(context.Background(), deploymentID, tt.repoName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRepositoryURLFromName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -65,7 +64,7 @@ func testGetRepositoryURLFromName(t *testing.T, kv *api.KV, deploymentID string)
 	}
 }
 
-func testGetRepositoryTokenTypeFromName(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetRepositoryTokenTypeFromName(t *testing.T, deploymentID string) {
 	tests := []struct {
 		name     string
 		repoName string
@@ -78,7 +77,7 @@ func testGetRepositoryTokenTypeFromName(t *testing.T, kv *api.KV, deploymentID s
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRepositoryTokenTypeFromName(kv, deploymentID, tt.repoName)
+			got, err := GetRepositoryTokenTypeFromName(context.Background(), deploymentID, tt.repoName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRepositoryTokenTypeFromName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -90,7 +89,7 @@ func testGetRepositoryTokenTypeFromName(t *testing.T, kv *api.KV, deploymentID s
 	}
 }
 
-func testGetRepositoryTokenUserFromName(t *testing.T, kv *api.KV, deploymentID string) {
+func testGetRepositoryTokenUserFromName(t *testing.T, deploymentID string) {
 	tests := []struct {
 		name      string
 		repoName  string
@@ -104,7 +103,7 @@ func testGetRepositoryTokenUserFromName(t *testing.T, kv *api.KV, deploymentID s
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotToken, gotUser, err := GetRepositoryTokenUserFromName(kv, deploymentID, tt.repoName)
+			gotToken, gotUser, err := GetRepositoryTokenUserFromName(context.Background(), deploymentID, tt.repoName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRepositoryTokenUserFromName() error = %v, wantErr %v", err, tt.wantErr)
 				return

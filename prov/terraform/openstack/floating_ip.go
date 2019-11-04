@@ -15,7 +15,7 @@
 package openstack
 
 import (
-	"github.com/hashicorp/consul/api"
+	"context"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/deployments"
@@ -29,12 +29,12 @@ type IP struct {
 	IsIP bool
 }
 
-func (g *osGenerator) generateFloatingIP(kv *api.KV, deploymentID, nodeName, instanceName string) (IP, error) {
+func (g *osGenerator) generateFloatingIP(ctx context.Context, deploymentID, nodeName, instanceName string) (IP, error) {
 	var nodeType string
 	result := IP{}
 	result.IsIP = false
 	var err error
-	if nodeType, err = deployments.GetNodeType(kv, deploymentID, nodeName); err != nil {
+	if nodeType, err = deployments.GetNodeType(ctx, deploymentID, nodeName); err != nil {
 		return IP{}, err
 	}
 	if nodeType != "yorc.nodes.openstack.FloatingIP" {
@@ -42,12 +42,12 @@ func (g *osGenerator) generateFloatingIP(kv *api.KV, deploymentID, nodeName, ins
 	}
 	result.Name = nodeName + "-" + instanceName
 
-	if ip, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "ip"); err != nil {
+	if ip, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "ip"); err != nil {
 		return IP{}, err
 	} else if ip != nil && ip.RawString() != "" {
 		result.Pool = ip.RawString()
 		result.IsIP = true
-	} else if networkName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "floating_network_name"); err != nil {
+	} else if networkName, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "floating_network_name"); err != nil {
 		return IP{}, err
 	} else if networkName != nil && networkName.RawString() != "" {
 		result.Pool = networkName.RawString()

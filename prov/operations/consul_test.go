@@ -29,14 +29,13 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	populateKV(t, srv)
 
 	t.Run("TestGetOverlayPath", func(t *testing.T) {
-		testGetOverlayPath(t, kv)
+		testGetOverlayPath(t)
 	})
 
 }

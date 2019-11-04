@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"context"
 	"net/http"
 	"path"
 
@@ -31,16 +32,14 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 	opt := params.ByName("opt")
 
-	kv := s.consulClient.KV()
-
-	status, err := deployments.GetDeploymentStatus(kv, id)
+	status, err := deployments.GetDeploymentStatus(ctx, id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
 			writeError(w, r, errNotFound)
 		}
 	}
 
-	result, err := deployments.GetTopologyOutputValue(kv, id, opt)
+	result, err := deployments.GetTopologyOutputValue(ctx, id, opt)
 	if err != nil {
 		if status == deployments.DEPLOYMENT_IN_PROGRESS {
 			// Things may not be resolvable yet
@@ -63,7 +62,7 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
-	links := s.listOutputsLinks(id)
+	links := s.listOutputsLinks(ctx, id)
 	if len(links) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -73,9 +72,8 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponse(w, r, optCol)
 }
 
-func (s *Server) listOutputsLinks(id string) []AtomLink {
-	kv := s.consulClient.KV()
-	outNames, err := deployments.GetTopologyOutputsNames(kv, id)
+func (s *Server) listOutputsLinks(ctx context.Context, id string) []AtomLink {
+	outNames, err := deployments.GetTopologyOutputsNames(ctx, id)
 	if err != nil {
 		log.Panic(err)
 	}

@@ -30,25 +30,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/tosca/datatypes"
 )
 
-// MockSSHSession allows to mock an SSH session
-type MockSSHClient struct {
-	MockRunCommand func(string) (string, error)
-}
-
-// RunCommand to mock a command ran via SSH
-func (s *MockSSHClient) RunCommand(cmd string) (string, error) {
-	if s.MockRunCommand != nil {
-		return s.MockRunCommand(cmd)
-	}
-	return "", nil
-}
-
 func TestGetAttributesWithCudaVisibleDeviceKey(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "CUDA_VISIBLE_DEVICES=NoDevFiles", nil
 		},
@@ -61,7 +49,7 @@ func TestGetAttributesWithCudaVisibleDeviceKey(t *testing.T) {
 
 func TestGetAttributesWithNodePartitionKey(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "node1,part1", nil
 		},
@@ -75,7 +63,7 @@ func TestGetAttributesWithNodePartitionKey(t *testing.T) {
 
 func TestGetAttributesWithNodePartitionKeyAndNotEnoughParameters(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "node1,part1", nil
 		},
@@ -86,7 +74,7 @@ func TestGetAttributesWithNodePartitionKeyAndNotEnoughParameters(t *testing.T) {
 
 func TestGetAttributesWithNodePartitionKeyAndMalformedResponse(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "a", nil
 		},
@@ -97,14 +85,14 @@ func TestGetAttributesWithNodePartitionKeyAndMalformedResponse(t *testing.T) {
 
 func TestGetAttributesWithUnknownKey(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{}
+	s := &sshutil.MockSSHClient{}
 	_, err := getAttributes(s, "unknown_key", "1234")
 	require.Error(t, err, "unknown key error expected")
 }
 
 func TestGetAttributesWithFailure(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "", errors.New("expected failure")
 		},
@@ -115,7 +103,7 @@ func TestGetAttributesWithFailure(t *testing.T) {
 
 func TestGetAttributesWithMalformedStdout(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "MALFORMED_VALUE", nil
 		},
@@ -303,6 +291,14 @@ func TestParseJobIDFromSbatchOut(t *testing.T) {
 	require.Equal(t, "4567", ret, "unexpected JobID parsing")
 }
 
+func TestParseJobIDFromSbatchOutWithInterferenceLogs(t *testing.T) {
+	t.Parallel()
+	str := "WARNING Verify of certificates disabled! ::TESTING USE ONLY::\nSubmitted batch job 4567"
+	ret, err := retrieveJobID(str)
+	require.Nil(t, err, "unexpected error")
+	require.Equal(t, "4567", ret, "unexpected JobID parsing")
+}
+
 func TestParseKeyValue(t *testing.T) {
 	t.Parallel()
 	type args struct {
@@ -351,7 +347,7 @@ func TestParseJob(t *testing.T) {
 
 func TestGetJobInfoWithInvalidJob(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "slurm_load_jobs error: Invalid job id specified", errors.New("")
 		},
@@ -364,7 +360,7 @@ func TestGetJobInfoWithInvalidJob(t *testing.T) {
 
 func TestGetJobInfo(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			content, err := ioutil.ReadFile("testdata/scontrol.txt")
 			require.Nil(t, err, "Unexpected error reading scontrol")
@@ -385,7 +381,7 @@ func TestGetJobInfo(t *testing.T) {
 
 func TestGetJobInfoWithEmptyResponse(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "", nil
 		},
@@ -398,7 +394,7 @@ func TestGetJobInfoWithEmptyResponse(t *testing.T) {
 
 func TestGetJobInfoWithError(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHClient{
+	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "oups, it's bad", errors.New("this is an error !")
 		},

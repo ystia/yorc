@@ -18,8 +18,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/provutil"
 	"github.com/ystia/yorc/v4/tasks"
@@ -39,8 +37,8 @@ func GetInstanceID(instanceName string) string {
 
 // GetOverlayPath returns the overlay path
 // In case of taskTypeRemoveNodes, it refers the backup overlay
-func GetOverlayPath(kv *api.KV, cfg config.Configuration, taskID, deploymentID string) (string, error) {
-	taskType, err := tasks.GetTaskType(kv, taskID)
+func GetOverlayPath(cfg config.Configuration, taskID, deploymentID string) (string, error) {
+	taskType, err := tasks.GetTaskType(taskID)
 	if err != nil {
 		return "", err
 	}

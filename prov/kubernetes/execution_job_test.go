@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,20 +33,20 @@ func jobRuntimeObject(id, namespace string) *batchv1.Job {
 	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: id, Namespace: namespace}}
 }
 
-func testExecutionCancelJob(t *testing.T, kv *api.KV) {
+func testExecutionCancelJob(t *testing.T) {
 
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/JobCompute.yml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/JobCompute.yml")
 	require.Nil(t, err, "Failed to parse testdata/JobCompute.yml definition")
 
 	nodeName := "ContainerJobUnit_Resource"
 	defNamespace := defaultNamespace(deploymentID)
 	taskJobID := "containerjobunit--74546570"
 	instanceJobID := "instanceProvidedID"
-	err = tasks.SetTaskData(kv, "t1", nodeName+"-jobId", taskJobID)
+	err = tasks.SetTaskData("t1", nodeName+"-jobId", taskJobID)
 	require.NoError(t, err)
 
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, "0", "job_id", instanceJobID)
+	err = deployments.SetInstanceAttribute(context.Background(), deploymentID, nodeName, "0", "job_id", instanceJobID)
 	require.NoError(t, err, "Failed to set job_id attribute")
 	type fields struct {
 		taskID   string
@@ -67,7 +66,6 @@ func testExecutionCancelJob(t *testing.T, kv *api.KV) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClientSet := fake.NewSimpleClientset(tt.initialElements...)
 			e := &execution{
-				kv:           kv,
 				deploymentID: deploymentID,
 				taskID:       tt.fields.taskID,
 				nodeName:     tt.fields.nodeName,

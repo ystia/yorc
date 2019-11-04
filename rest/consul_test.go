@@ -30,20 +30,16 @@ import (
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-type mockSSHClient struct {
-	config *ssh.ClientConfig
-}
-
-func (m *mockSSHClient) RunCommand(string) (string, error) {
-	if m.config != nil && m.config.User == "fail" {
-		return "", errors.Errorf("Failed to connect")
-	}
-
-	return "ok", nil
-}
-
 var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connection) sshutil.Client {
-	return &mockSSHClient{config}
+	return &sshutil.MockSSHClient{
+		MockRunCommand: func(string) (string, error) {
+			if config != nil && config.User == "fail" {
+				return "", errors.Errorf("Failed to connect")
+			}
+
+			return "ok", nil
+		},
+	}
 }
 
 func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
@@ -75,6 +71,12 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 		})
 		t.Run("testDeploymentHandlers", func(t *testing.T) {
 			testDeploymentHandlers(t, client, srv)
+		})
+		t.Run("testPostInfraUsageHandler", func(t *testing.T) {
+			testPostInfraUsageHandler(t, client, srv)
+		})
+		t.Run("testTaskQueryHandlers", func(t *testing.T) {
+			testTaskQueryHandlers(t, client, srv)
 		})
 	})
 }

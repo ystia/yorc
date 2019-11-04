@@ -137,6 +137,67 @@ func StoreConsulKey(key string, value []byte) error {
 	return StoreConsulKeyWithFlags(key, value, 0)
 }
 
+// GetValue retrieves the value for the specified key in bytes array
+// If the key doesn't exist, it returns false
+func GetValue(key string) (bool, []byte, error) {
+	kv := GetKV()
+	kvp, _, err := kv.Get(key, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	if kvp == nil {
+		return false, nil, nil
+	}
+	return true, kvp.Value, nil
+}
+
+// GetStringValue retrieves the value for the specified key in string type
+// If the key doesn't exist, it returns false
+func GetStringValue(key string) (bool, string, error) {
+	exist, value, err := GetValue(key)
+	if err != nil || !exist {
+		return false, "", errors.Wrap(err, ConsulGenericErrMsg)
+	}
+	return true, string(value), nil
+}
+
+// GetKeys returns the sub-keys list from a specified key
+func GetKeys(key string) ([]string, error) {
+	subKeys, _, err := GetKV().Keys(key+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, ConsulGenericErrMsg)
+	}
+	return subKeys, nil
+}
+
+// List returns the key-value map of all sub-keys from a specified key
+func List(key string) (map[string][]byte, error) {
+	kvps, _, err := GetKV().List(key, nil)
+	kvs := make(map[string][]byte, 0)
+	if err != nil {
+		return nil, errors.Wrap(err, ConsulGenericErrMsg)
+	}
+	for _, kvp := range kvps {
+		kvs[kvp.Key] = kvp.Value
+	}
+
+	return kvs, nil
+}
+
+// Delete delete the key-value from the store
+// If recurse is true, it delete all sub keys too.
+func Delete(key string, recursive bool) error {
+	var err error
+	kv := GetKV()
+	if recursive {
+		_, err = kv.DeleteTree(key, nil)
+	} else {
+		_, err = kv.Delete(key, nil)
+	}
+
+	return errors.Wrap(err, ConsulGenericErrMsg)
+}
+
 // StoreConsulKeyWithFlags stores a Consul key without the use of a ConsulStore you should avoid to use it when storing several keys that could be
 // stored concurrently as this function has an important overhead of creating an execution context using the WithContext function and
 // waiting for the key to be store in Consul using errGroup.Wait()
@@ -188,7 +249,7 @@ func (cs *consulStore) StoreConsulKeyWithFlags(key string, value []byte, flags u
 // In the case where the transaction has to be split, and a pre-operation and
 // post-operation are provided, this function will add the pre and post operations
 // to the operations, else if will execute the operations within a single transaction.
-func ExecuteSplittableTransaction(kv *api.KV, ops api.KVTxnOps, preOpSplit, postOpSplit *api.KVTxnOp) error {
+func ExecuteSplittableTransaction(ops api.KVTxnOps, preOpSplit, postOpSplit *api.KVTxnOp) error {
 
 	var newOps api.KVTxnOps
 	if len(ops) > maxNbTransactionOps {
@@ -206,7 +267,7 @@ func ExecuteSplittableTransaction(kv *api.KV, ops api.KVTxnOps, preOpSplit, post
 			end = opsLength
 		}
 
-		ok, response, _, err := kv.Txn(newOps[begin:end], nil)
+		ok, response, _, err := GetKV().Txn(newOps[begin:end], nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to execute transaction")
 		}

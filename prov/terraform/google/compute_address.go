@@ -20,7 +20,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -29,12 +28,9 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName, instanceName string, instanceID int,
-	infrastructure *commons.Infrastructure,
-	outputs map[string]string) error {
+func (g *googleGenerator) generateComputeAddress(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName, instanceName string, instanceID int, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -64,13 +60,13 @@ func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return err
 		}
 	}
 
-	computeAddress.Labels, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "labels")
+	computeAddress.Labels, err = deployments.GetKeyValuePairsNodeProperty(ctx, deploymentID, nodeName, "labels")
 	if err != nil {
 		return err
 	}

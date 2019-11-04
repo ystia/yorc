@@ -20,7 +20,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,14 +29,14 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration) {
+func testSimplePrivateNetwork(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	networkName := resourcePrefix + "network"
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generatePrivateNetwork(context.Background(), kv, cfg, deploymentID, "Network", &infrastructure, make(map[string]string))
+	err := g.generatePrivateNetwork(context.Background(), cfg, deploymentID, "Network", &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate private network for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_network"], 1, "Expected one private network")
@@ -70,9 +69,9 @@ func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration
 	}, defaultFirewall.Allow)
 }
 
-func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+func testSimpleSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 	subnetName := "network-custom-subnet"
 	srv1.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/network_name"): []byte("network"),
@@ -80,7 +79,7 @@ func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg c
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateSubNetwork(context.Background(), kv, cfg, deploymentID, "Network_custom_subnet", &infrastructure, make(map[string]string))
+	err := g.generateSubNetwork(context.Background(), cfg, deploymentID, "Network_custom_subnet", &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate sub-network for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_subnetwork"], 1, "Expected one sub-network")

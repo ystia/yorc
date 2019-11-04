@@ -29,7 +29,6 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,9 +74,9 @@ func TestTemplates(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 	deploymentID := yorc_testutil.BuildDeploymentID(t)
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/execTemplate.yml")
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/execTemplate.yml")
 	require.NoError(t, err, "Can't store deployment definition")
 	nodeAName := "NodeA"
 	nodeBName := "NodeB"
@@ -109,10 +108,10 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	})
 
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {
-		testExecutionResolveInputsOnNode(t, kv, deploymentID, nodeAName, "yorc.types.A", "standard.create")
+		testExecutionResolveInputsOnNode(t, deploymentID, nodeAName, "yorc.types.A", "standard.create")
 	})
 	t.Run("testExecutionGenerateOnNode", func(t *testing.T) {
-		testExecutionGenerateOnNode(t, kv, deploymentID, nodeAName, "standard.create")
+		testExecutionGenerateOnNode(t, deploymentID, nodeAName, "standard.create")
 	})
 	t.Run("testExecutionGenerateAnsibleConfig", func(t *testing.T) {
 		testExecutionGenerateAnsibleConfig(t)
@@ -126,10 +125,10 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	}
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionResolveInputsOnRelationshipSource(t, kv, deploymentID, nodeAName, nodeBName, operation, "yorc.types.Rel", "connect", "SOURCE")
+			testExecutionResolveInputsOnRelationshipSource(t, deploymentID, nodeAName, nodeBName, operation, "yorc.types.Rel", "connect", "SOURCE")
 		})
 		t.Run("testExecutionGenerateOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionGenerateOnRelationshipSource(t, kv, deploymentID, nodeAName, operation, "connect", "SOURCE")
+			testExecutionGenerateOnRelationshipSource(t, deploymentID, nodeAName, operation, "connect", "SOURCE")
 		})
 	}
 
@@ -139,19 +138,20 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionResolveInputOnRelationshipTarget(t, kv, deploymentID, nodeAName, nodeBName, operation, "yorc.types.Rel", "connect", "TARGET")
+			testExecutionResolveInputOnRelationshipTarget(t, deploymentID, nodeAName, nodeBName, operation, "yorc.types.Rel", "connect", "TARGET")
 		})
 
 		t.Run("testExecutionGenerateOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionGenerateOnRelationshipTarget(t, kv, deploymentID, nodeAName, operation, "connect", "TARGET")
+			testExecutionGenerateOnRelationshipTarget(t, deploymentID, nodeAName, operation, "connect", "TARGET")
 		})
 	}
 }
 
-func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, nodeTypeName, operation string) {
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, "", "")
+func testExecutionResolveInputsOnNode(t *testing.T, deploymentID, nodeName, nodeTypeName, operation string) {
+	ctx := context.Background()
+	op, err := operations.GetOperation(ctx, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
-	execution := &executionCommon{kv: kv,
+	execution := &executionCommon{
 		deploymentID:           deploymentID,
 		NodeName:               nodeName,
 		operation:              op,
@@ -160,10 +160,10 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 		VarInputsNames:         make([]string, 0),
 		EnvInputs:              make([]*operations.EnvInput, 0)}
 
-	err = execution.resolveOperation()
+	err = execution.resolveOperation(ctx)
 	require.Nil(t, err)
 
-	err = execution.resolveInputs()
+	err = execution.resolveInputs(ctx)
 	require.Nil(t, err)
 	require.Len(t, execution.EnvInputs, 24)
 	instanceNames := make(map[string]struct{})
@@ -249,10 +249,10 @@ func getWrappedCommandFunc(path string) func() string {
 	}
 }
 
-func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, "", "")
+func testExecutionGenerateOnNode(t *testing.T, deploymentID, nodeName, operation string) {
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
-	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
+	execution, err := newExecution(context.Background(), GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -332,10 +332,11 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
-func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeAName, operation, requirementName, operationHost)
+func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
+	ctx := context.Background()
+	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution := &executionCommon{kv: kv,
+	execution := &executionCommon{
 		deploymentID:           deploymentID,
 		NodeName:               nodeAName,
 		operation:              op,
@@ -348,7 +349,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 		targetNodeInstances:    []string{"0", "1"},
 	}
 
-	err = execution.resolveInputs()
+	err = execution.resolveInputs(ctx)
 	require.Nil(t, err, "%+v", err)
 	require.Len(t, execution.EnvInputs, 13)
 	instanceNames := make(map[string]struct{})
@@ -394,10 +395,10 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 	require.Len(t, instanceNames, 13)
 }
 
-func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, requirementName, operationHost)
+func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeName, operation, requirementName, operationHost string) {
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
+	execution, err := newExecution(context.Background(), GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -477,10 +478,11 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
-func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeAName, operation, requirementName, operationHost)
+func testExecutionResolveInputOnRelationshipTarget(t *testing.T, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
+	ctx := context.Background()
+	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution := &executionCommon{kv: kv,
+	execution := &executionCommon{
 		deploymentID:             deploymentID,
 		NodeName:                 nodeAName,
 		operation:                op,
@@ -491,10 +493,10 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 		VarInputsNames:           make([]string, 0),
 		EnvInputs:                make([]*operations.EnvInput, 0)}
 
-	err = execution.resolveOperation()
+	err = execution.resolveOperation(ctx)
 	require.Nil(t, err)
 
-	err = execution.resolveInputs()
+	err = execution.resolveInputs(ctx)
 	require.Nil(t, err)
 	require.Len(t, execution.EnvInputs, 12)
 	instanceNames := make(map[string]struct{})
@@ -537,10 +539,10 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 	require.Len(t, instanceNames, 12)
 }
 
-func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, requirementName, operationHost)
+func testExecutionGenerateOnRelationshipTarget(t *testing.T, deploymentID, nodeName, operation, requirementName, operationHost string) {
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
+	execution, err := newExecution(context.Background(), GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"

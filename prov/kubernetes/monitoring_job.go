@@ -24,7 +24,6 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/prov"
 )
@@ -70,7 +69,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return true, err
@@ -170,13 +169,13 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	}
 
 	// Get previus node status and avoit to set err to nil if no error occurs in get
-	previousState, err1 := deployments.GetInstanceStateString(consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0")
+	previousState, err1 := deployments.GetInstanceStateString(ctx, deploymentID, action.Data["nodeName"], "0")
 	if err1 != nil {
 		err = errors.Wrapf(err, "failed to get instance state for job %q", jobID)
 	}
 
 	if len(jobState) != 0 && previousState != jobState {
-		deployments.SetInstanceStateStringWithContextualLogs(ctx, consulutil.GetKV(), deploymentID, action.Data["nodeName"], "0", jobState)
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, action.Data["nodeName"], "0", jobState)
 	}
 
 	return deregister, err

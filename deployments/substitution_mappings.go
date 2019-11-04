@@ -15,11 +15,11 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -48,15 +48,15 @@ const (
 
 // isSubstitutableNode returns true if a node contains an Orchestrator directive
 // that it is substitutable
-func isSubstitutableNode(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "directives"), nil)
+func isSubstitutableNode(deploymentID, nodeName string) (bool, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "directives"))
 	if err != nil {
 		return false, errors.Wrapf(err, "Can't get directives for node %q", nodeName)
 	}
 
 	substitutable := false
-	if kvp != nil && kvp.Value != nil {
-		values := strings.Split(string(kvp.Value), ",")
+	if exist && value != "" {
+		values := strings.Split(value, ",")
 		for _, value := range values {
 			if value == directiveSubstitutable {
 				substitutable = true
@@ -67,58 +67,52 @@ func isSubstitutableNode(kv *api.KV, deploymentID, nodeName string) (bool, error
 	return substitutable, nil
 }
 
-func getDeploymentSubstitutionMapping(kv *api.KV, deploymentID string) (tosca.SubstitutionMapping, error) {
-	return getSubstitutionMappingFromStore(kv,
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"))
+func getDeploymentSubstitutionMapping(ctx context.Context, deploymentID string) (tosca.SubstitutionMapping, error) {
+	return getSubstitutionMappingFromStore(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"))
 }
 
-func getSubstitutionMappingFromStore(kv *api.KV, prefix string) (tosca.SubstitutionMapping, error) {
+func getSubstitutionMappingFromStore(ctx context.Context, prefix string) (tosca.SubstitutionMapping, error) {
 	substitutionPrefix := path.Join(prefix, "substitution_mappings")
 	var substitutionMapping tosca.SubstitutionMapping
 
-	kvp, _, err := kv.Get(path.Join(substitutionPrefix, "node_type"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(substitutionPrefix, "node_type"))
 	if err != nil {
 		return substitutionMapping,
 			errors.Wrapf(err, "Can't get node type for substitution at %q", substitutionPrefix)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		// No mapping defined
 		return substitutionMapping, nil
 	}
-	substitutionMapping.NodeType = string(kvp.Value)
-	substitutionMapping.Capabilities, err = getCapReqMappingFromStore(
-		kv, path.Join(substitutionPrefix, "capabilities"))
+	substitutionMapping.NodeType = value
+	substitutionMapping.Capabilities, err = getCapReqMappingFromStore(ctx, path.Join(substitutionPrefix, "capabilities"))
 	if err != nil {
 		return substitutionMapping, err
 	}
 
-	substitutionMapping.Requirements, err = getCapReqMappingFromStore(
-		kv, path.Join(substitutionPrefix, "requirements"))
+	substitutionMapping.Requirements, err = getCapReqMappingFromStore(ctx, path.Join(substitutionPrefix, "requirements"))
 	if err != nil {
 		return substitutionMapping, err
 	}
 
-	substitutionMapping.Properties, err = getPropAttrMappingFromStore(
-		kv, path.Join(substitutionPrefix, "properties"))
+	substitutionMapping.Properties, err = getPropAttrMappingFromStore(ctx, path.Join(substitutionPrefix, "properties"))
 	if err != nil {
 		return substitutionMapping, err
 	}
 
-	substitutionMapping.Attributes, err = getPropAttrMappingFromStore(
-		kv, path.Join(substitutionPrefix, "attributes"))
+	substitutionMapping.Attributes, err = getPropAttrMappingFromStore(ctx, path.Join(substitutionPrefix, "attributes"))
 	if err != nil {
 		return substitutionMapping, err
 	}
 
-	substitutionMapping.Interfaces, err = getInterfaceMappingFromStore(
-		kv, path.Join(substitutionPrefix, "interfaces"))
+	substitutionMapping.Interfaces, err = getInterfaceMappingFromStore(path.Join(substitutionPrefix, "interfaces"))
 
 	return substitutionMapping, err
 }
 
-func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapReqMapping, error) {
+func getCapReqMappingFromStore(ctx context.Context, prefix string) (map[string]tosca.CapReqMapping, error) {
 
-	capabilityPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	capabilityPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -129,28 +123,26 @@ func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapR
 
 		capName := path.Base(capPath)
 
-		kvp, _, err := kv.Get(path.Join(capPath, "mapping"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(capPath, "mapping"))
 		if err != nil {
 			return capabilities,
 				errors.Wrapf(err, "Can't get mapping for capability at %q", capPath)
 		}
 		var capMapping tosca.CapReqMapping
-		if kvp != nil && len(kvp.Value) != 0 {
-			capMapping.Mapping = strings.Split(string(kvp.Value), ",")
+		if exist && value != "" {
+			capMapping.Mapping = strings.Split(value, ",")
 			// When a mapping is defined, there is no property/attribute
 			// definition, so the capability definition is complete at this point
 			capabilities[capName] = capMapping
 			continue
 		}
 
-		capMapping.Properties, err = getPropertiesOrAttributesFromStore(kv,
-			path.Join(capPath, "properties"))
+		capMapping.Properties, err = getPropertiesOrAttributesFromStore(ctx, path.Join(capPath, "properties"))
 		if err != nil {
 			return capabilities, err
 		}
 
-		capMapping.Attributes, err = getPropertiesOrAttributesFromStore(kv,
-			path.Join(capPath, "attributes"))
+		capMapping.Attributes, err = getPropertiesOrAttributesFromStore(ctx, path.Join(capPath, "attributes"))
 		if err != nil {
 			return capabilities, err
 		}
@@ -161,8 +153,8 @@ func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapR
 	return capabilities, nil
 }
 
-func getPropertiesOrAttributesFromStore(kv *api.KV, prefix string) (map[string]*tosca.ValueAssignment, error) {
-	propPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+func getPropertiesOrAttributesFromStore(ctx context.Context, prefix string) (map[string]*tosca.ValueAssignment, error) {
+	propPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +165,7 @@ func getPropertiesOrAttributesFromStore(kv *api.KV, prefix string) (map[string]*
 
 		propName := path.Base(propPath)
 
-		val, err := getValueAssignmentFromStore(kv, propPath)
+		val, err := getValueAssignmentFromStore(ctx, propPath)
 		if err != nil {
 			return props,
 				errors.Wrapf(err, "Can't get value for property or attribute at %q", propPath)
@@ -186,9 +178,9 @@ func getPropertiesOrAttributesFromStore(kv *api.KV, prefix string) (map[string]*
 	return props, nil
 }
 
-func getPropAttrMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.PropAttrMapping, error) {
+func getPropAttrMappingFromStore(ctx context.Context, prefix string) (map[string]tosca.PropAttrMapping, error) {
 
-	propPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	propPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -200,16 +192,15 @@ func getPropAttrMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.Pr
 		propName := path.Base(propPath)
 
 		var propMapping tosca.PropAttrMapping
-		kvp, _, err := kv.Get(path.Join(propPath, "mapping"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(propPath, "mapping"))
 		if err != nil {
 			return props,
 				errors.Wrapf(err, "Can't get mapping for properties or attributes at %q", propPath)
 		}
-		if kvp != nil && len(kvp.Value) != 0 {
-			propMapping.Mapping = strings.Split(string(kvp.Value), ",")
+		if exist && value != "" {
+			propMapping.Mapping = strings.Split(value, ",")
 		} else {
-			propMapping.Value, err = getValueAssignmentFromStore(
-				kv, path.Join(propPath, "value"))
+			propMapping.Value, err = getValueAssignmentFromStore(ctx, path.Join(propPath, "value"))
 			if err != nil {
 				return props,
 					errors.Wrapf(err, "Can't get mapping for properties or attributes at %q", propPath)
@@ -221,23 +212,19 @@ func getPropAttrMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.Pr
 	return props, nil
 }
 
-func getValueAssignmentFromStore(kv *api.KV, valPath string) (*tosca.ValueAssignment, error) {
-	kvp, _, err := kv.Get(valPath, nil)
+func getValueAssignmentFromStore(ctx context.Context, valPath string) (*tosca.ValueAssignment, error) {
+	kvp, _, err := consulutil.GetKV().Get(valPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	var val tosca.ValueAssignment
 	if kvp != nil {
 		val.Type = tosca.ValueAssignmentType(kvp.Flags)
-		if err != nil {
-			return nil, err
-		}
-
 		switch val.Type {
 		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
 			val.Value = kvp.Value
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
-			val.Value, err = readComplexVA(kv, val.Type, "", valPath, "")
+			val.Value, err = readComplexVA(ctx, val.Type, "", valPath, "")
 			if err != nil {
 				return nil, err
 			}
@@ -247,9 +234,9 @@ func getValueAssignmentFromStore(kv *api.KV, valPath string) (*tosca.ValueAssign
 	return &val, nil
 }
 
-func getInterfaceMappingFromStore(kv *api.KV, prefix string) (map[string]string, error) {
+func getInterfaceMappingFromStore(prefix string) (map[string]string, error) {
 
-	opPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	opPaths, err := consulutil.GetKeys(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -260,13 +247,13 @@ func getInterfaceMappingFromStore(kv *api.KV, prefix string) (map[string]string,
 
 		opName := path.Base(opPath)
 
-		kvp, _, err := kv.Get(path.Join(opPath), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(opPath))
 		if err != nil {
 			return itfs,
 				errors.Wrapf(err, "Can't get mapping for interface at %q", opPath)
 		}
-		if kvp != nil && len(kvp.Value) != 0 {
-			itfs[opName] = string(kvp.Value)
+		if exist && value != "" {
+			itfs[opName] = value
 		}
 	}
 
@@ -278,9 +265,9 @@ func getInterfaceMappingFromStore(kv *api.KV, prefix string) (map[string]string,
 // capability attributes as node attributes prefixed by capabilities.<capability name>
 // as expected by Alien4Cloud until it implements the mapping of capability attributes
 // See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
-func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeName string, set map[string]struct{}) error {
+func storeSubstitutionMappingAttributeNamesInSet(ctx context.Context, deploymentID, nodeName string, set map[string]struct{}) error {
 
-	substMapping, err := getDeploymentSubstitutionMapping(kv, deploymentID)
+	substMapping, err := getDeploymentSubstitutionMapping(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
@@ -303,8 +290,7 @@ func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeN
 					}
 				} else {
 					// Expose all attributes
-					attributeNames, err = GetNodeCapabilityAttributeNames(
-						kv, deploymentID, nodeName, capability, exploreParents)
+					attributeNames, err = GetNodeCapabilityAttributeNames(ctx, deploymentID, nodeName, capability, exploreParents)
 					if err != nil {
 						return err
 					}
@@ -339,7 +325,7 @@ func isSubstitutionMappingAttribute(attributeName string) bool {
 // by Alien4Cloud, using the format capabilities.<capability name>.<attributr name>,
 // this function returns the the value of the corresponding instance capability
 // attribute
-func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+func getSubstitutionMappingAttribute(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	if !isSubstitutionMappingAttribute(attributeName) {
 		return nil, nil
@@ -354,7 +340,7 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 	// Check this capability attribute is really exposed before returning its
 	// value
 	attributesSet := make(map[string]struct{})
-	err := storeSubstitutionMappingAttributeNamesInSet(kv, deploymentID, nodeName, attributesSet)
+	err := storeSubstitutionMappingAttributeNamesInSet(ctx, deploymentID, nodeName, attributesSet)
 	if err != nil {
 		return nil, err
 	}
@@ -362,8 +348,7 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 	if _, ok := attributesSet[attributeName]; ok {
 		// This attribute is exposed, returning its value
 		log.Debugf("Substituting attribute %s by its instance capability attribute in %s %s %s", attributeName, deploymentID, nodeName, instanceName)
-		return GetInstanceCapabilityAttributeValue(
-			kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, nestedKeys...)
+		return GetInstanceCapabilityAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityName, capAttrName, nestedKeys...)
 	}
 
 	return nil, nil
@@ -371,22 +356,22 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 
 // getSubstitutionNodeInstancesIds returns for a substitutable node, a fake
 // instance ID, all necessary infos are stored and retrieved at the node level.
-func getSubstitutionNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+func getSubstitutionNodeInstancesIds(deploymentID, nodeName string) ([]string, error) {
 
 	var names []string
-	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
 	if err == nil && substitutable {
 		names = []string{substitutableNodeInstance}
 	}
 	return names, err
 }
 
-func isSubstitutionNodeInstance(kv *api.KV, deploymentID, nodeName, nodeInstance string) (bool, error) {
+func isSubstitutionNodeInstance(deploymentID, nodeName, nodeInstance string) (bool, error) {
 	if nodeInstance != substitutableNodeInstance {
 		return false, nil
 	}
 
-	return isSubstitutableNode(kv, deploymentID, nodeName)
+	return isSubstitutableNode(deploymentID, nodeName)
 }
 
 // getSubstitutableNodeType returns the node type of a substitutable node.
@@ -396,8 +381,8 @@ func isSubstitutionNodeInstance(kv *api.KV, deploymentID, nodeName, nodeInstance
 // - or this is a reference to a managed service, and the node type here
 //   does not exist, it is the name of a template whose import contains the
 //    real node type
-func getSubstitutableNodeType(kv *api.KV, deploymentID, nodeName, nodeType string) (string, error) {
-	_, err := GetParentType(kv, deploymentID, nodeType)
+func getSubstitutableNodeType(ctx context.Context, deploymentID, nodeName, nodeType string) (string, error) {
+	_, err := GetParentType(ctx, deploymentID, nodeType)
 	if err == nil {
 		// Reference to an external service, this node type is a real abstract
 		// node type
@@ -412,15 +397,15 @@ func getSubstitutableNodeType(kv *api.KV, deploymentID, nodeName, nodeType strin
 	// The real node type has to be found in subsitution mappings of an imported
 	// file whose metadata template name is the nodeType here.
 	importsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/imports")
-	imports, _, err := kv.Keys(importsPath+"/", "/", nil)
+	imports, err := consulutil.GetKeys(importsPath)
 	if err != nil {
 		return "", errors.Wrap(err, "Consul communication error")
 	}
 
 	var importTemplatePath string
 	for _, importPath := range imports {
-		kvp, _, err := kv.Get(path.Join(importPath, "metadata/template_name"), nil)
-		if err == nil && kvp != nil && len(kvp.Value) != 0 && string(kvp.Value) == nodeType {
+		exist, value, err := consulutil.GetStringValue(path.Join(importPath, "metadata/template_name"))
+		if err == nil && exist && value == nodeType {
 			// Found the import
 			importTemplatePath = importPath
 			break
@@ -433,7 +418,7 @@ func getSubstitutableNodeType(kv *api.KV, deploymentID, nodeName, nodeType strin
 	}
 
 	// Check subsitution mappings in this import
-	mappings, err := getSubstitutionMappingFromStore(kv, importTemplatePath)
+	mappings, err := getSubstitutionMappingFromStore(ctx, importTemplatePath)
 	if err == nil && mappings.NodeType != "" {
 		log.Debugf("Substituting type %s by type %s for %s %s", nodeType, mappings.NodeType, deploymentID, nodeName)
 		return mappings.NodeType, err
@@ -462,11 +447,11 @@ func getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attr
 // template, the attribute having this format:
 // capabilities.<capability name>.<attribute name>
 // See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
-func getSubstitutionInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName,
+func getSubstitutionInstanceCapabilityAttribute(ctx context.Context, deploymentID, nodeName,
 	instanceName, capabilityName, attributeType, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	nodeAttrName := fmt.Sprintf(capabilityFormat, capabilityName, attributeName)
-	result, err := getValueAssignmentWithDataType(kv, deploymentID,
+	result, err := getValueAssignmentWithDataType(ctx, deploymentID,
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes",
 			nodeName, "attributes", nodeAttrName),
 		nodeName, instanceName, "", attributeType, nestedKeys...)

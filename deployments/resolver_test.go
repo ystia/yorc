@@ -20,10 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -33,21 +32,21 @@ import (
 	"github.com/ystia/yorc/v4/vault"
 )
 
-func testResolver(t *testing.T, kv *api.KV) {
+func testResolver(t *testing.T) {
 	log.SetDebug(true)
 
 	t.Run("deployments/resolver/testGetOperationOutput", func(t *testing.T) {
-		testGetOperationOutput(t, kv)
+		testGetOperationOutput(t)
 	})
 	t.Run("deployments/resolver/testGetOperationOutputReal", func(t *testing.T) {
-		testGetOperationOutputReal(t, kv)
+		testGetOperationOutputReal(t)
 	})
 	t.Run("deployments/resolver/testResolveComplex", func(t *testing.T) {
-		testResolveComplex(t, kv)
+		testResolveComplex(t)
 	})
 
 	t.Run("TestResolveSecret", func(t *testing.T) {
-		testResolveSecret(t, kv)
+		testResolveSecret(t)
 	})
 
 }
@@ -61,75 +60,78 @@ func generateToscaValueAssignmentFromString(t *testing.T, valueAssignment string
 	return va
 }
 
-func testGetOperationOutput(t *testing.T, kv *api.KV) {
+func testGetOperationOutput(t *testing.T) {
 	// t.Parallel()
+	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/GetOPOutputsNode/0/outputs/standard/configure/MY_OUTPUT"), Value: []byte("MY_RESULT")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/GetOPOutputsNode/0/outputs/standard/configure/MY_OUTPUT"), "MY_RESULT")
 	require.Nil(t, err)
-	r := resolver(kv, deploymentID)
+	r := resolver(deploymentID)
 
-	result, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`).GetFunction())
+	result, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`).GetFunction())
 	require.Nil(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "MY_RESULT", result.RawString())
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part1")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part1")
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part1", result.RawString())
 
-	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part1", result.RawString())
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part2")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part2")
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part2", result.RawString())
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/1/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part3")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/1/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part3")
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part3", result.RawString())
 
 }
 
-func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
+func testGetOperationOutputReal(t *testing.T) {
 	// t.Parallel()
+	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output_real.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_op_output_real.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output_real.yaml definition: %+v", err)
 
-	r := resolver(kv, deploymentID)
+	r := resolver(deploymentID)
 
-	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), Value: []byte("/mypath")}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), "/mypath")
 	require.Nil(t, err)
 
-	result, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`).GetFunction())
+	result, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`).GetFunction())
 	require.Nil(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "/mypath", result.RawString())
 
 }
 
-func testResolveComplex(t *testing.T, kv *api.KV) {
+func testResolveComplex(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err, "Failed to parse testdata/value_assignments.yaml definition: %+v", err)
-	r := resolver(kv, deploymentID)
+	r := resolver(deploymentID)
 
-	type context struct {
+	type data struct {
 		nodeName         string
 		instanceName     string
 		requirementIndex string
@@ -139,31 +141,31 @@ func testResolveComplex(t *testing.T, kv *api.KV) {
 	}
 	resolverTests := []struct {
 		name      string
-		context   context
+		data      data
 		args      args
 		wantErr   bool
 		wantFound bool
 		want      string
 	}{
-		{"ResolveGetPropertyListAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, true, `["http://","yorc",".io"]`},
-		{"ResolveGetPropertyListIndex0", context{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, true, `http://`},
-		{"ResolveGetPropertyListIndex0Alien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, true, `http://`},
-		{"ResolveGetPropertyMapAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, true, `{"one":"1","two":"2"}`},
-		{"ResolveGetPropertyMapSubKey", context{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, true, `1`},
-		{"ResolveGetPropertyMapSubKeyAlien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, true, `1`},
-		{"ResolveGetPropertyLiteralRelationship", context{"VANode2", "0", "0"}, args{`{get_property: [SELF, "literal"]}`}, false, true, `user rel literal`},
-		{"ResolveEmpty", context{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, true, ``},
+		{"ResolveGetPropertyListAll", data{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, true, `["http://","yorc",".io"]`},
+		{"ResolveGetPropertyListIndex0", data{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, true, `http://`},
+		{"ResolveGetPropertyListIndex0Alien", data{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, true, `http://`},
+		{"ResolveGetPropertyMapAll", data{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, true, `{"one":"1","two":"2"}`},
+		{"ResolveGetPropertyMapSubKey", data{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, true, `1`},
+		{"ResolveGetPropertyMapSubKeyAlien", data{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, true, `1`},
+		{"ResolveGetPropertyLiteralRelationship", data{"VANode2", "0", "0"}, args{`{get_property: [SELF, "literal"]}`}, false, true, `user rel literal`},
+		{"ResolveEmpty", data{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, true, ``},
 		// Attribute are resolvable even if absent - returns an empty string
-		{"ResolveGetAttributeWithAbsent", context{"VANode1", "0", ""}, args{`{get_attribute: [SELF, absentAttr]}`}, false, false, ``},
-		{"ResolveGetRequirementAttributeWithAbsent", context{"VANode1", "0", "0"}, args{`{get_attribute: [SELF, host, absentAttr]}`}, false, false, ``},
-		{"ResolveGetPropertyWithAbsent", context{"VANode1", "", ""}, args{`{get_property: [SELF, absentAttr]}`}, true, false, ``},
-		{"ResolveGetRequirementPropertyWithAbsent", context{"VANode1", "", "0"}, args{`{get_property: [SELF, host, absentAttr]}`}, true, false, ``},
+		{"ResolveGetAttributeWithAbsent", data{"VANode1", "0", ""}, args{`{get_attribute: [SELF, absentAttr]}`}, false, false, ``},
+		{"ResolveGetRequirementAttributeWithAbsent", data{"VANode1", "0", "0"}, args{`{get_attribute: [SELF, host, absentAttr]}`}, false, false, ``},
+		{"ResolveGetPropertyWithAbsent", data{"VANode1", "", ""}, args{`{get_property: [SELF, absentAttr]}`}, true, false, ``},
+		{"ResolveGetRequirementPropertyWithAbsent", data{"VANode1", "", "0"}, args{`{get_property: [SELF, host, absentAttr]}`}, true, false, ``},
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {
 			va := generateToscaValueAssignmentFromString(t, tt.args.functionAsString)
 			require.Equal(t, tosca.ValueAssignmentFunction, va.Type)
-			got, err := r.context(withNodeName(tt.context.nodeName), withInstanceName(tt.context.instanceName), withRequirementIndex(tt.context.requirementIndex)).resolveFunction(va.GetFunction())
+			got, err := r.context(withNodeName(tt.data.nodeName), withInstanceName(tt.data.instanceName), withRequirementIndex(tt.data.requirementIndex)).resolveFunction(ctx, va.GetFunction())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("resolveFunction() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -213,37 +215,38 @@ func (m *vaultSecretMock) Raw() interface{} {
 	return m.result
 }
 
-func testResolveSecret(t *testing.T, kv *api.KV) {
+func testResolveSecret(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_secrets.yaml")
+	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/get_secrets.yaml")
 	require.Nil(t, err, "Failed to parse testdata/value_assignments.yaml definition: %+v", err)
 	_, grp, store := consulutil.WithContext(context.Background())
-	createNodeInstance(kv, store, deploymentID, "Tomcat", "0")
+	createNodeInstance(store, deploymentID, "Tomcat", "0")
 	require.NoError(t, grp.Wait(), "Failed to create node instances")
 
-	type context struct {
+	type data struct {
 		nodeName         string
 		instanceName     string
 		requirementIndex string
 	}
-	type resolveFunc func(ctx context) (*TOSCAValue, error)
+	type resolveFunc func(data data) (*TOSCAValue, error)
 
 	opInputResolveFn := func(opName, implementedInType, requirementIndex, input string) resolveFunc {
 
-		return func(ctx context) (*TOSCAValue, error) {
+		return func(data data) (*TOSCAValue, error) {
 			op := prov.Operation{Name: opName, ImplementedInType: implementedInType}
 			if requirementIndex != "" {
 				op.RelOp.IsRelationshipOperation = true
 				op.RelOp.RequirementIndex = requirementIndex
 			}
 
-			inputs, err := GetOperationInput(kv, deploymentID, ctx.nodeName, op, input)
+			inputs, err := GetOperationInput(ctx, deploymentID, data.nodeName, op, input)
 			if err != nil {
 				return nil, err
 			}
 			for i := range inputs {
-				if inputs[i].InstanceName == ctx.instanceName {
+				if inputs[i].InstanceName == data.instanceName {
 					return &TOSCAValue{Value: inputs[i].Value, IsSecret: inputs[i].IsSecret}, nil
 				}
 			}
@@ -253,40 +256,40 @@ func testResolveSecret(t *testing.T, kv *api.KV) {
 
 	resolverTests := []struct {
 		name        string
-		context     context
+		data        data
 		vaultClient vault.Client
 		resolveFn   resolveFunc
 		wantErr     bool
 		wantFound   bool
 		want        string
 	}{
-		{"ResolvePropWithoutVault", context{"JDK", "", ""}, nil, func(ctx context) (*TOSCAValue, error) {
-			return GetNodePropertyValue(kv, deploymentID, ctx.nodeName, "java_home")
+		{"ResolvePropWithoutVault", data{"JDK", "", ""}, nil, func(data data) (*TOSCAValue, error) {
+			return GetNodePropertyValue(ctx, deploymentID, data.nodeName, "java_home")
 		}, true, false, ""},
-		{"ResolveCapabilityPropWithoutVault", context{"Tomcat", "", ""}, nil, func(ctx context) (*TOSCAValue, error) {
-			return GetCapabilityPropertyValue(kv, deploymentID, ctx.nodeName, "data_endpoint", "port")
+		{"ResolveCapabilityPropWithoutVault", data{"Tomcat", "", ""}, nil, func(data data) (*TOSCAValue, error) {
+			return GetCapabilityPropertyValue(ctx, deploymentID, data.nodeName, "data_endpoint", "port")
 		}, true, false, ""},
-		{"ResolveAttributeWithoutVault", context{"JDK", "0", ""}, nil, func(ctx context) (*TOSCAValue, error) {
-			return GetInstanceAttributeValue(kv, deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
+		{"ResolveAttributeWithoutVault", data{"JDK", "0", ""}, nil, func(data data) (*TOSCAValue, error) {
+			return GetInstanceAttributeValue(ctx, deploymentID, data.nodeName, data.instanceName, "java_secret")
 		}, true, false, ""},
-		{"ResolveOperationInputWithoutVault", context{"Tomcat", "0", ""}, nil, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), true, false, ""},
-		{"ResolveOperationInputRelWithoutVault", context{"Tomcat", "0", "0"}, nil, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), true, false, ""},
-		{"ResolvePropWithVault", context{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(ctx context) (*TOSCAValue, error) {
-			return GetNodePropertyValue(kv, deploymentID, ctx.nodeName, "java_home")
+		{"ResolveOperationInputWithoutVault", data{"Tomcat", "0", ""}, nil, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), true, false, ""},
+		{"ResolveOperationInputRelWithoutVault", data{"Tomcat", "0", "0"}, nil, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), true, false, ""},
+		{"ResolvePropWithVault", data{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(data data) (*TOSCAValue, error) {
+			return GetNodePropertyValue(ctx, deploymentID, data.nodeName, "java_home")
 		}, false, true, "mysupersecret"},
-		{"ResolveCapabilityPropWithoutVault", context{"Tomcat", "", ""}, &vaultClientMock{"/secrets/myapp/tomcatport", "443", []string{"tom_opt1=1", "tom_opt2=2"}}, func(ctx context) (*TOSCAValue, error) {
-			return GetCapabilityPropertyValue(kv, deploymentID, ctx.nodeName, "data_endpoint", "port")
+		{"ResolveCapabilityPropWithoutVault", data{"Tomcat", "", ""}, &vaultClientMock{"/secrets/myapp/tomcatport", "443", []string{"tom_opt1=1", "tom_opt2=2"}}, func(data data) (*TOSCAValue, error) {
+			return GetCapabilityPropertyValue(ctx, deploymentID, data.nodeName, "data_endpoint", "port")
 		}, false, true, "443"},
-		{"ResolveAttributeWithoutVault", context{"JDK", "0", ""}, &vaultClientMock{id: "/secrets/app/javatype", result: "java_supersecret"}, func(ctx context) (*TOSCAValue, error) {
-			return GetInstanceAttributeValue(kv, deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
+		{"ResolveAttributeWithoutVault", data{"JDK", "0", ""}, &vaultClientMock{id: "/secrets/app/javatype", result: "java_supersecret"}, func(data data) (*TOSCAValue, error) {
+			return GetInstanceAttributeValue(ctx, deploymentID, data.nodeName, data.instanceName, "java_secret")
 		}, false, true, "java_supersecret"},
-		{"ResolveOperationInputWithoutVault", context{"Tomcat", "0", ""}, &vaultClientMock{"/secrets/app/javatype", "tomcat_supersecret_input", []string{"ji_o"}}, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), false, true, "tomcat_supersecret_input"},
-		{"ResolveOperationInputRelWithoutVault", context{"Tomcat", "0", "0"}, &vaultClientMock{id: "/secrets/app/tominput", result: "java_supersecret_rel_input"}, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), false, true, "java_supersecret_rel_input"},
+		{"ResolveOperationInputWithoutVault", data{"Tomcat", "0", ""}, &vaultClientMock{"/secrets/app/javatype", "tomcat_supersecret_input", []string{"ji_o"}}, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), false, true, "tomcat_supersecret_input"},
+		{"ResolveOperationInputRelWithoutVault", data{"Tomcat", "0", "0"}, &vaultClientMock{id: "/secrets/app/tominput", result: "java_supersecret_rel_input"}, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), false, true, "java_supersecret_rel_input"},
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {
 			DefaultVaultClient = tt.vaultClient
-			got, err := tt.resolveFn(tt.context)
+			got, err := tt.resolveFn(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("resolveFunction() error = %v, wantErr %v", err, tt.wantErr)
 				return

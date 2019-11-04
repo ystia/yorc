@@ -17,7 +17,6 @@ package slurm
 import (
 	"context"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -28,11 +27,11 @@ import (
 
 const infrastructureType = "slurm"
 
-func generateInfrastructure(ctx context.Context, kv *api.KV, locationProps config.DynamicMap, deploymentID, nodeName, operation string) (*infrastructure, error) {
+func generateInfrastructure(ctx context.Context, locationProps config.DynamicMap, deploymentID, nodeName, operation string) (*infrastructure, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	infra := &infrastructure{}
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -40,14 +39,14 @@ func generateInfrastructure(ctx context.Context, kv *api.KV, locationProps confi
 	switch nodeType {
 	case "yorc.nodes.slurm.Compute":
 		var instances []string
-		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
+			instanceState, err = deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
 			if err != nil {
 				return nil, err
 			}
@@ -58,7 +57,7 @@ func generateInfrastructure(ctx context.Context, kv *api.KV, locationProps confi
 				continue
 			}
 
-			if err := generateNodeAllocation(ctx, kv, locationProps, deploymentID, nodeName, instanceName, infra); err != nil {
+			if err := generateNodeAllocation(ctx, locationProps, deploymentID, nodeName, instanceName, infra); err != nil {
 				return nil, err
 			}
 		}

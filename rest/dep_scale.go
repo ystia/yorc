@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"path"
@@ -35,9 +36,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 
-	kv := s.consulClient.KV()
-
-	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	dExits, err := deployments.DoesDeploymentExists(ctx, id)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
@@ -64,7 +63,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := deployments.DoesNodeExist(kv, id, nodeName)
+	exists, err := deployments.DoesNodeExist(ctx, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -73,7 +72,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var ok bool
-	if ok, err = deployments.HasScalableCapability(kv, id, nodeName); err != nil {
+	if ok, err = deployments.HasScalableCapability(ctx, id, nodeName); err != nil {
 		log.Panic(err)
 	} else if !ok {
 		writeError(w, r, newBadRequestParameter("node", errors.Errorf("Node %q must be scalable", nodeName)))
@@ -83,9 +82,9 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Scaling %d instances of node %q", instancesDelta, nodeName)
 	var taskID string
 	if instancesDelta > 0 {
-		taskID, err = s.scaleOut(id, nodeName, uint32(instancesDelta))
+		taskID, err = s.scaleOut(ctx, id, nodeName, uint32(instancesDelta))
 	} else {
-		taskID, err = s.scaleIn(id, nodeName, uint32(-instancesDelta))
+		taskID, err = s.scaleIn(ctx, id, nodeName, uint32(-instancesDelta))
 	}
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
@@ -102,13 +101,12 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, error) {
-	kv := s.consulClient.KV()
-	maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
+func (s *Server) scaleOut(ctx context.Context, id, nodeName string, instancesDelta uint32) (string, error) {
+	maxInstances, err := deployments.GetMaxNbInstancesForNode(ctx, id, nodeName)
 	if err != nil {
 		return "", err
 	}
-	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
+	currentNbInstance, err := deployments.GetNbInstancesForNode(ctx, id, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -129,14 +127,12 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleOut, data)
 }
 
-func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, error) {
-	kv := s.consulClient.KV()
-
-	minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodeName)
+func (s *Server) scaleIn(ctx context.Context, id, nodeName string, instancesDelta uint32) (string, error) {
+	minInstances, err := deployments.GetMinNbInstancesForNode(ctx, id, nodeName)
 	if err != nil {
 		return "", err
 	}
-	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
+	currentNbInstance, err := deployments.GetNbInstancesForNode(ctx, id, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +145,7 @@ func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, er
 		}
 	}
 
-	instancesByNodes, err := deployments.SelectNodeStackInstances(kv, id, nodeName, int(instancesDelta))
+	instancesByNodes, err := deployments.SelectNodeStackInstances(ctx, id, nodeName, int(instancesDelta))
 	if err != nil {
 		return "", err
 	}

@@ -26,8 +26,7 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulAWSPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	cfg := config.Configuration{
@@ -42,34 +41,34 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 
 	t.Run("groupAWS", func(t *testing.T) {
 		t.Run("simpleAWSInstance", func(t *testing.T) {
-			testSimpleAWSInstance(t, kv, cfg)
+			testSimpleAWSInstance(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithPrivateKey", func(t *testing.T) {
-			testSimpleAWSInstanceWithPrivateKey(t, kv, cfg)
+			testSimpleAWSInstanceWithPrivateKey(t, cfg)
 		})
 		t.Run("simpleAWSInstanceFailed", func(t *testing.T) {
-			testSimpleAWSInstanceFailed(t, kv, cfg)
+			testSimpleAWSInstanceFailed(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithEIP", func(t *testing.T) {
-			testSimpleAWSInstanceWithEIP(t, kv, cfg)
+			testSimpleAWSInstanceWithEIP(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithProvidedEIP", func(t *testing.T) {
-			testSimpleAWSInstanceWithProvidedEIP(t, kv, cfg)
+			testSimpleAWSInstanceWithProvidedEIP(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithListOfProvidedEIP", func(t *testing.T) {
-			testSimpleAWSInstanceWithListOfProvidedEIP(t, kv, cfg)
+			testSimpleAWSInstanceWithListOfProvidedEIP(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithListOfProvidedEIP2", func(t *testing.T) {
-			testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t, kv, cfg)
+			testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithNoDeleteVolumeOnTermination", func(t *testing.T) {
-			testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t, kv, cfg)
+			testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t, cfg)
 		})
 		t.Run("simpleAWSInstanceWithMalformedEIP", func(t *testing.T) {
-			testSimpleAWSInstanceWithMalformedEIP(t, kv, cfg)
+			testSimpleAWSInstanceWithMalformedEIP(t, cfg)
 		})
 		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
-			testGenerateTerraformInfraForAWSNode(t, kv, cfg, locationMgr)
+			testGenerateTerraformInfraForAWSNode(t, cfg, locationMgr)
 		})
 
 	})

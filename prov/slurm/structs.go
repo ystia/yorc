@@ -38,21 +38,20 @@ type nodeAllocation struct {
 }
 
 type jobInfo struct {
-	ID                     string            `json:"id,omitempty"`
-	Name                   string            `json:"name,omitempty"`
-	Tasks                  int               `json:"tasks,omitempty"`
-	Cpus                   int               `json:"cpus,omitempty"`
-	Nodes                  int               `json:"nodes,omitempty"`
-	Mem                    string            `json:"mem,omitempty"`
-	MaxTime                string            `json:"max_time,omitempty"`
-	Opts                   []string          `json:"opts,omitempty"`
-	Args                   []string          `json:"args,omitempty"`
-	EnvVars                []string          `json:"env_vars,omitempty"`
-	Inputs                 map[string]string `json:"inputs,omitempty"`
-	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
-	Account                string            `json:"account,omitempty"`
-	Reservation            string            `json:"reservation,omitempty"`
-	Command                string            `json:"command,omitempty"`
-	WorkingDir             string            `json:"working_directory,omitempty"`
-	Artifacts              []string          `json:"artifacts,omitempty"`
+	ID                     string                          `json:"id,omitempty"`
+	Name                   string                          `json:"name,omitempty"`
+	Tasks                  int                             `json:"tasks,omitempty"`
+	Cpus                   int                             `json:"cpus,omitempty"`
+	Nodes                  int                             `json:"nodes,omitempty"`
+	Mem                    string                          `json:"mem,omitempty"`
+	MaxTime                string                          `json:"max_time,omitempty"`
+	Opts                   []string                        `json:"opts,omitempty"`
+	ExecutionOptions       datatypes.SlurmExecutionOptions `json:"execution_options,omitempty"`
+	Inputs                 map[string]string               `json:"inputs,omitempty"`
+	MonitoringTimeInterval time.Duration                   `json:"monitoring_time_interval,omitempty"`
+	Account                string                          `json:"account,omitempty"`
+	Reservation            string                          `json:"reservation,omitempty"`
+	WorkingDir             string                          `json:"working_directory,omitempty"`
+	Artifacts              []string                        `json:"artifacts,omitempty"`
+	EnvFile                string                          `json:"env_file,omitempty"`
 }

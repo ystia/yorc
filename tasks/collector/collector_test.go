@@ -42,7 +42,6 @@ func testResumeTask(t *testing.T, client *api.Client) {
 	kv := client.KV()
 	testCollector := NewCollector(client)
 	type args struct {
-		kv     *api.KV
 		taskID string
 	}
 	tests := []struct {
@@ -50,11 +49,11 @@ func testResumeTask(t *testing.T, client *api.Client) {
 		args    args
 		wantErr bool
 	}{
-		{"ResumeTask", args{kv, "t12"}, false},
+		{"ResumeTask", args{"t12"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := testCollector.ResumeTask(tt.args.taskID); (err != nil) != tt.wantErr {
+			if err := testCollector.ResumeTask(context.Background(), tt.args.taskID); (err != nil) != tt.wantErr {
 				t.Errorf("ResumeTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -82,10 +81,9 @@ func testResumeTask(t *testing.T, client *api.Client) {
 }
 
 func testRegisterTaskWithBigWorkflow(t *testing.T, client *api.Client) {
-	kv := client.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	topologyFile := "testdata/bigTopology.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, topologyFile)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, topologyFile)
 	require.NoError(t, err, "Failed to store topology %s", topologyFile)
 
 	testCollector := NewCollector(client)

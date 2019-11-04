@@ -49,18 +49,17 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 func TestRunConsulWorkerTests(t *testing.T) {
 	log.SetDebug(true)
 	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
 	defer srv.Stop()
 
 	populateKV(t, srv)
 
 	t.Run("TestRunPurge", func(t *testing.T) {
-		testRunPurge(t, srv, kv, client)
+		testRunPurge(t, srv, client)
 	})
 }
 
-func createTaskExecutionKVWithKey(t *testing.T, kv *api.KV, execID, keyName, keyValue string) {
+func createTaskExecutionKVWithKey(t *testing.T, execID, keyName, keyValue string) {
 	t.Helper()
-	_, err := kv.Put(&api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, execID, keyName), Value: []byte(keyValue)}, nil)
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, execID, keyName), Value: []byte(keyValue)}, nil)
 	require.NoError(t, err)
 }

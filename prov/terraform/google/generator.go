@@ -41,12 +41,6 @@ type googleGenerator struct {
 
 func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
-
-	cClient, err := cfg.GetConsulClient()
-	if err != nil {
-		return false, nil, nil, nil, err
-	}
-	kv := cClient.KV()
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 
 	infrastructure := commons.Infrastructure{}
@@ -58,7 +52,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return false, nil, nil, nil, err
@@ -87,18 +81,18 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	}
 
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
 	outputs := make(map[string]string)
-	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
 
 	for instNb, instanceName := range instances {
-		instanceState, err := deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
+		instanceState, err := deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
 		if err != nil {
 			return false, nil, nil, nil, err
 		}
@@ -109,32 +103,32 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 		switch nodeType {
 		case "yorc.nodes.google.Compute":
-			instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+			instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 
-			err := g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv)
+			err := g.generateComputeInstance(ctx, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 		case "yorc.nodes.google.Address":
-			err = g.generateComputeAddress(ctx, kv, cfg, locationProps, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			err = g.generateComputeAddress(ctx, cfg, locationProps, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 		case "yorc.nodes.google.PersistentDisk":
-			err = g.generatePersistentDisk(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			err = g.generatePersistentDisk(ctx, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 		case "yorc.nodes.google.PrivateNetwork":
-			err = g.generatePrivateNetwork(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs)
+			err = g.generatePrivateNetwork(ctx, cfg, deploymentID, nodeName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
 		case "yorc.nodes.google.Subnetwork":
-			err = g.generateSubNetwork(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs)
+			err = g.generateSubNetwork(ctx, cfg, deploymentID, nodeName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

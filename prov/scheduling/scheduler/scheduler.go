@@ -177,7 +177,6 @@ func (sc *scheduler) stopScheduling() {
 
 func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	sca := &scheduledAction{}
-	sca.kv = sc.cc.KV()
 	sca.ID = id
 
 	actionPrefix := path.Join(consulutil.SchedulingKVPrefix, "actions", id)

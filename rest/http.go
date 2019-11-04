@@ -183,9 +183,9 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listVaultsBuilderHandler))
 	s.router.Get("/registry/infra_usage_collectors", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listInfraHandler))
 
-	s.router.Post("/infra_usage/:infraName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
-	s.router.Get("/infra_usage/:infraName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
-	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
+	s.router.Post("/infra_usage/:infraName/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
+	s.router.Get("/infra_usage/:infraName/:locationName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
+	s.router.Delete("/infra_usage/:infraName/:locationName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
 	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
 
 	s.router.Put("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))

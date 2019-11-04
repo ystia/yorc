@@ -15,10 +15,10 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	ctu "github.com/hashicorp/consul/testutil"
 
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
+func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{
@@ -211,177 +211,178 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer, kv *api.KV) {
 
 	t.Run("groupDeploymentsNodes", func(t *testing.T) {
 		t.Run("TestIsNodeTypeDerivedFrom", func(t *testing.T) {
-			testIsNodeTypeDerivedFrom(t, kv)
+			testIsNodeTypeDerivedFrom(t)
 		})
 		t.Run("TestGetDefaultNbInstancesForNode", func(t *testing.T) {
-			testGetDefaultNbInstancesForNode(t, kv)
+			testGetDefaultNbInstancesForNode(t)
 		})
 		t.Run("TestGetMaxNbInstancesForNode", func(t *testing.T) {
-			testGetMaxNbInstancesForNode(t, kv)
+			testGetMaxNbInstancesForNode(t)
 		})
 		t.Run("TesttestGetMinNbInstancesForNode", func(t *testing.T) {
-			testGetMinNbInstancesForNode(t, kv)
+			testGetMinNbInstancesForNode(t)
 		})
 		t.Run("TestGetNodeProperty", func(t *testing.T) {
-			testGetNodeProperty(t, kv)
+			testGetNodeProperty(t)
 		})
 		// t.Run("TestGetNodeAttributes", func(t *testing.T) {
 		// 	testGetNodeAttributes(t, kv)
 		// })
 		t.Run("TestGetNodeAttributesNames", func(t *testing.T) {
-			testGetNodeAttributesNames(t, kv)
+			testGetNodeAttributesNames(t)
 		})
 		t.Run("TestGetNodeInstancesIds", func(t *testing.T) {
-			testGetNodeInstancesIds(t, kv)
+			testGetNodeInstancesIds(t)
 		})
 		t.Run("TestGetTypeAttributesNames", func(t *testing.T) {
-			testGetTypeAttributesNames(t, kv)
+			testGetTypeAttributesNames(t)
 		})
 		t.Run("TestDeleteNode", func(t *testing.T) {
-			testDeleteNode(t, kv)
+			testDeleteNode(t)
 		})
 	})
 }
 
-func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
+func testIsNodeTypeDerivedFrom(t *testing.T) {
 	// t.Parallel()
-
-	ok, err := IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.HostedOn")
+	ctx := context.Background()
+	ok, err := IsTypeDerivedFrom(ctx, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.HostedOn")
 	require.Nil(t, err)
 	require.True(t, ok)
 
-	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.ConnectsTo")
+	ok, err = IsTypeDerivedFrom(ctx, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.ConnectsTo")
 	require.Nil(t, err)
 	require.False(t, ok)
 
-	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "yorc.type.1")
+	ok, err = IsTypeDerivedFrom(ctx, "testIsNodeTypeDerivedFrom", "yorc.type.1", "yorc.type.1")
 	require.Nil(t, err)
 	require.True(t, ok)
 }
 
-func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
+func testGetDefaultNbInstancesForNode(t *testing.T) {
 	// t.Parallel()
-
-	nb, err := GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	ctx := context.Background()
+	nb, err := GetDefaultNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
 	require.Equal(t, uint32(10), nb)
 
-	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetDefaultNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 
-	_, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetDefaultNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute3")
 	require.NotNil(t, err)
 
-	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetDefaultNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
 	require.Equal(t, uint32(10), nb)
 
-	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetDefaultNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
 	require.Equal(t, uint32(10), nb)
 
-	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetDefaultNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 }
 
-func testGetMaxNbInstancesForNode(t *testing.T, kv *api.KV) {
+func testGetMaxNbInstancesForNode(t *testing.T) {
 	// t.Parallel()
-
-	nb, err := GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	ctx := context.Background()
+	nb, err := GetMaxNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
 	require.Equal(t, uint32(20), nb)
 
-	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetMaxNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 
-	_, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetMaxNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute3")
 	fmt.Println(err)
 	require.NotNil(t, err)
 
-	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetMaxNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
 	require.Equal(t, uint32(20), nb)
 
-	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetMaxNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
 	require.Equal(t, uint32(20), nb)
 
-	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetMaxNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 }
 
-func testGetMinNbInstancesForNode(t *testing.T, kv *api.KV) {
+func testGetMinNbInstancesForNode(t *testing.T) {
 	// t.Parallel()
-
-	nb, err := GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	ctx := context.Background()
+	nb, err := GetMinNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
 	require.Equal(t, uint32(2), nb)
 
-	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetMinNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 
-	_, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetMinNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Compute3")
 	fmt.Println(err)
 	require.NotNil(t, err)
 
-	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetMinNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
 	require.Equal(t, uint32(2), nb)
 
-	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetMinNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
 	require.Equal(t, uint32(2), nb)
 
-	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetMinNbInstancesForNode(ctx, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 }
 
-func testGetNodeProperty(t *testing.T, kv *api.KV) {
+func testGetNodeProperty(t *testing.T) {
 	// t.Parallel()
-
+	ctx := context.Background()
 	// Property is directly in node
-	value, err := GetNodePropertyValue(kv, "testGetNbInstancesForNode", "Node1", "simple")
+	value, err := GetNodePropertyValue(ctx, "testGetNbInstancesForNode", "Node1", "simple")
 	require.Nil(t, err)
 	require.NotNil(t, value)
 	require.Equal(t, "simple", value.RawString())
 
 	// Property is in a parent node we found it with recurse
-	value, err = GetNodePropertyValue(kv, "testGetNbInstancesForNode", "Node4", "recurse")
+	value, err = GetNodePropertyValue(ctx, "testGetNbInstancesForNode", "Node4", "recurse")
 	require.Nil(t, err)
 	require.NotNil(t, value)
 	require.Equal(t, "Node2", value.RawString())
 
 	// Property has a default in node type
-	value, err = GetNodePropertyValue(kv, "testGetNbInstancesForNode", "Node4", "typeprop")
+	value, err = GetNodePropertyValue(ctx, "testGetNbInstancesForNode", "Node4", "typeprop")
 	require.Nil(t, err)
 	require.NotNil(t, value)
 	require.Equal(t, "SoftwareComponentTypeProp", value.RawString())
 
-	value, err = GetNodePropertyValue(kv, "testGetNbInstancesForNode", "Node4", "typeprop")
+	value, err = GetNodePropertyValue(ctx, "testGetNbInstancesForNode", "Node4", "typeprop")
 	require.Nil(t, err)
 	require.NotNil(t, value)
 	require.Equal(t, "SoftwareComponentTypeProp", value.RawString())
 
 	// Property has a default in a parent of the node type
-	value, err = GetNodePropertyValue(kv, "testGetNbInstancesForNode", "Node4", "parenttypeprop")
+	value, err = GetNodePropertyValue(ctx, "testGetNbInstancesForNode", "Node4", "parenttypeprop")
 	require.Nil(t, err)
 	require.NotNil(t, value)
 	require.Equal(t, "RootComponentTypeProp", value.RawString())
 
-	value, err = GetNodePropertyValue(kv, "testGetNbInstancesForNode", "Node4", "parenttypeprop")
+	value, err = GetNodePropertyValue(ctx, "testGetNbInstancesForNode", "Node4", "parenttypeprop")
 	require.Nil(t, err)
 	require.NotNil(t, value)
 	require.Equal(t, "RootComponentTypeProp", value.RawString())
 
 }
 
-func testGetNodeAttributes(t *testing.T, kv *api.KV) {
+func testGetNodeAttributes(t *testing.T) {
+	ctx := context.Background()
 	// t.Parallel()
 	// Attribute is directly in node
 	// res, instancesValues, err := GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node3", "simple")
@@ -391,7 +392,7 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	// require.Equal(t, "simple", instancesValues[""])
 
 	// Attribute is directly in instances
-	instancesValues, err := GetNodeAttributesValues(kv, "testGetNbInstancesForNode", "Compute1", "id")
+	instancesValues, err := GetNodeAttributesValues(ctx, "testGetNbInstancesForNode", "Compute1", "id")
 	require.Nil(t, err)
 	require.Len(t, instancesValues, 10)
 	require.NotNil(t, instancesValues["0"])
@@ -418,7 +419,7 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	// require.Equal(t, "DefaultSoftwareComponentTypeid", instancesValues[""])
 
 	// Look at generic node type attribute before parents
-	instancesValues, err = GetNodeAttributesValues(kv, "testGetNbInstancesForNode", "Node2", "type")
+	instancesValues, err = GetNodeAttributesValues(ctx, "testGetNbInstancesForNode", "Node2", "type")
 	require.Nil(t, err)
 	require.Len(t, instancesValues, 10)
 	require.NotNil(t, instancesValues["0"])
@@ -429,7 +430,7 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	require.Equal(t, "DefaultSoftwareComponentTypeid", instancesValues["6"].RawString())
 
 	//
-	instancesValues, err = GetNodeAttributesValues(kv, "testGetNbInstancesForNode", "Node2", "recurse")
+	instancesValues, err = GetNodeAttributesValues(ctx, "testGetNbInstancesForNode", "Node2", "recurse")
 	require.Nil(t, err)
 	require.Len(t, instancesValues, 10)
 	require.NotNil(t, instancesValues["0"])
@@ -440,7 +441,7 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	require.Equal(t, "Recurse-Compute1-6", instancesValues["6"].RawString())
 
 	//
-	instancesValues, err = GetNodeAttributesValues(kv, "testGetNbInstancesForNode", "Node1", "recurse")
+	instancesValues, err = GetNodeAttributesValues(ctx, "testGetNbInstancesForNode", "Node1", "recurse")
 	require.Nil(t, err)
 	require.Len(t, instancesValues, 10)
 	require.NotNil(t, instancesValues["0"])
@@ -451,10 +452,10 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	require.Equal(t, "Recurse-Compute1-6", instancesValues["6"].RawString())
 }
 
-func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
+func testGetNodeAttributesNames(t *testing.T) {
 	// t.Parallel()
-
-	attrNames, err := GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Compute1")
+	ctx := context.Background()
+	attrNames, err := GetNodeAttributesNames(ctx, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 3)
@@ -463,7 +464,7 @@ func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "ip")
 	require.Contains(t, attrNames, "recurse")
 
-	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node1")
+	attrNames, err = GetNodeAttributesNames(ctx, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 2)
@@ -471,7 +472,7 @@ func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "id")
 	require.Contains(t, attrNames, "type")
 
-	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node2")
+	attrNames, err = GetNodeAttributesNames(ctx, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 2)
@@ -479,7 +480,7 @@ func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "id")
 	require.Contains(t, attrNames, "type")
 
-	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node3")
+	attrNames, err = GetNodeAttributesNames(ctx, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 3)
@@ -488,7 +489,7 @@ func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "simple")
 
-	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node4")
+	attrNames, err = GetNodeAttributesNames(ctx, "testGetNbInstancesForNode", "Node4")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 2)
@@ -497,10 +498,10 @@ func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 }
 
-func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
+func testGetTypeAttributesNames(t *testing.T) {
 	// t.Parallel()
-
-	attrNames, err := GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "tosca.nodes.SoftwareComponent")
+	ctx := context.Background()
+	attrNames, err := GetTypeAttributesNames(ctx, "testGetNbInstancesForNode", "tosca.nodes.SoftwareComponent")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 2)
@@ -508,7 +509,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "id")
 	require.Contains(t, attrNames, "type")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC1")
+	attrNames, err = GetTypeAttributesNames(ctx, "testGetNbInstancesForNode", "yorc.type.DerivedSC1")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 2)
@@ -516,7 +517,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "id")
 	require.Contains(t, attrNames, "type")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC2")
+	attrNames, err = GetTypeAttributesNames(ctx, "testGetNbInstancesForNode", "yorc.type.DerivedSC2")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 3)
@@ -525,7 +526,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "dsc2")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC3")
+	attrNames, err = GetTypeAttributesNames(ctx, "testGetNbInstancesForNode", "yorc.type.DerivedSC3")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 3)
@@ -534,7 +535,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "dsc2")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC4")
+	attrNames, err = GetTypeAttributesNames(ctx, "testGetNbInstancesForNode", "yorc.type.DerivedSC4")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 4)
@@ -545,33 +546,34 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "dsc4")
 }
 
-func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
+func testGetNodeInstancesIds(t *testing.T) {
 	// t.Parallel()
 
+	ctx := context.Background()
 	node1ExpectedResult := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "20"}
-	instancesIDs, err := GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node1")
+	instancesIDs, err := GetNodeInstancesIds(ctx, "testGetNodeInstancesIds", "Node1")
 	require.NoError(t, err)
 	require.Equal(t, node1ExpectedResult, instancesIDs)
 
 	node2ExpectedResult := []string{"ab0", "ab1", "ab2", "ab10", "ab20a", "za3", "za11"}
-	instancesIDs, err = GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node2")
+	instancesIDs, err = GetNodeInstancesIds(ctx, "testGetNodeInstancesIds", "Node2")
 	require.NoError(t, err)
 	require.Equal(t, node2ExpectedResult, instancesIDs)
 }
 
-func testDeleteNode(t *testing.T, kv *api.KV) {
-
+func testDeleteNode(t *testing.T) {
+	ctx := context.Background()
 	deploymentID := "testDeleteNode"
 	nodeName := "Compute1"
-	err := DeleteNode(kv, deploymentID, nodeName)
+	err := DeleteNode(ctx, deploymentID, nodeName)
 	require.NoError(t, err, "Unexpected error deleting node %s", nodeName)
 
-	instancesValues, err := GetNodeAttributesValues(kv, deploymentID, nodeName, "type")
+	instancesValues, err := GetNodeAttributesValues(ctx, deploymentID, nodeName, "type")
 	require.NoError(t, err, "Unexpected error calling GetNodeAttributesValues")
 	require.Len(t, instancesValues, 0, "Expected an empty map, got %+v", instancesValues)
 }
 
-func testNodeHasAttribute(t *testing.T, kv *api.KV, deploymentID string) {
+func testNodeHasAttribute(t *testing.T, deploymentID string) {
 	type args struct {
 		nodeName       string
 		attributeName  string
@@ -590,7 +592,7 @@ func testNodeHasAttribute(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NodeHasAttribute(kv, deploymentID, tt.args.nodeName, tt.args.attributeName, tt.args.exploreParents)
+			got, err := NodeHasAttribute(context.Background(), deploymentID, tt.args.nodeName, tt.args.attributeName, tt.args.exploreParents)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeHasAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -602,7 +604,8 @@ func testNodeHasAttribute(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 }
 
-func testNodeHasProperty(t *testing.T, kv *api.KV, deploymentID string) {
+func testNodeHasProperty(t *testing.T, deploymentID string) {
+	ctx := context.Background()
 	type args struct {
 		nodeName       string
 		propertyName   string
@@ -621,7 +624,7 @@ func testNodeHasProperty(t *testing.T, kv *api.KV, deploymentID string) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NodeHasProperty(kv, deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.exploreParents)
+			got, err := NodeHasProperty(ctx, deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.exploreParents)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeHasProperty() error = %v, wantErr %v", err, tt.wantErr)
 				return

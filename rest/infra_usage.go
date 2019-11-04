@@ -30,7 +30,8 @@ func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	infraName := params.ByName("infraName")
-	log.Debugf("Posting query for getting infra usage information with infra:%q", infraName)
+	locationName := params.ByName("locationName")
+	log.Debugf("Posting query for getting infra usage information with infra:%q, location:%q", infraName, locationName)
 
 	// Check an infraUsageCollector with the defined infra name exists
 	var reg = registry.GetRegistry()
@@ -43,17 +44,14 @@ func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Build a task targetID to describe query
 	targetID := fmt.Sprintf("infra_usage:%s", infraName)
-	taskID, err := s.tasksCollector.RegisterTask(targetID, tasks.TaskTypeQuery)
+
+	data := make(map[string]string)
+	data["locationName"] = locationName
+	taskID, err := s.tasksCollector.RegisterTaskWithData(targetID, tasks.TaskTypeQuery, data)
 	if err != nil {
-		// If any identical query is running : we provide the related task ID
-		if ok, currTaskID := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
-			w.Header().Set("Location", fmt.Sprintf("/infra_usage/%s/tasks/%s", infraName, currTaskID))
-			w.WriteHeader(http.StatusAccepted)
-			return
-		}
 		log.Panic(err)
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/infra_usage/%s/tasks/%s", infraName, taskID))
+	w.Header().Set("Location", fmt.Sprintf("/infra_usage/%s/%s/tasks/%s", infraName, locationName, taskID))
 	w.WriteHeader(http.StatusAccepted)
 }

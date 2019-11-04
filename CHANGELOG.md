@@ -8,7 +8,11 @@ Enrich Yorc REST API with endpoints and handlers for locations management ([GH-4
 
 ### ENHANCEMENTS
 
-Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
+* Add Consul DB migration of hostspools due to locations modifications ([GH-531](https://github.com/ystia/yorc/issues/531))
+* Allow to provide inline configuration options for generated sbatch scripts ([GH-537](https://github.com/ystia/yorc/issues/537))
+* Optionally source an environment file before submitting slurm jobs ([GH-541](https://github.com/ystia/yorc/issues/541))
+* Update Infrastructure collector feature to handle locations ([GH-533](https://github.com/ystia/yorc/issues/533))
+* Refactor deployments package to be able to use different storage backends - part One: Reduce Consul coupling / Add Context parameter ([GH-530](https://github.com/ystia/yorc/issues/530))
 
 ### BUG FIXES
 
@@ -21,8 +25,9 @@ Add Consul DB migration of hostspools due to locations modifications ([GH-531](h
 The support of locations in Yorc (issue [GH-478](https://github.com/ystia/yorc/issues/478)), provides the ability to create several locations of a given infrastructure type (Openstack, Google Cloud, AWS, SLURM, Hosts Pool).
 
 It introduces breaking changes in Yorc configuration as described below.
- 
+
 It is not anymore possible to define infrastructure properties through:
+
 * environment variables, like `YORC_INFRA_OPENSTACK_AUTH_URL`
 * yorc server command flags, like `--infrastructure_openstack_auth_url`.
 
@@ -90,20 +95,19 @@ But the CLI commands have now a mandatory argument to provide the location name:
 For example, this command was executed in previous Yorc version to create/update a Hosts Pool from a file:
 
 ```bash
-$ yorc hp apply myhostspool.yaml
+yorc hp apply myhostspool.yaml
 ```
 
 It is now:
- 
+
 ```bash
-$ yorc hp apply -l myLocation myhostspool.yaml
+yorc hp apply -l myLocation myhostspool.yaml
 ```
 
 See Yorc documentation for additional details:
+
 * section [configuration](https://yorc.readthedocs.io/en/latest/configuration.html)
 * section on [CLI commands related to Hosts pool](https://yorc.readthedocs.io/en/latest/cli.html#cli-commands-related-to-hosts-pool)
-
-
 
 ### FEATURES
 
@@ -112,7 +116,7 @@ See Yorc documentation for additional details:
 
 ### ENHANCEMENTS
 
-* Locations concept in Yorc ([GH-478(https://github.com/ystia/yorc/issues/478))
+* Locations concept in Yorc ([GH-478](https://github.com/ystia/yorc/issues/478))
 
 ### BUG FIXES
 

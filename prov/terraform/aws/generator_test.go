@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -53,11 +52,10 @@ func Test_addOutput(t *testing.T) {
 	}
 }
 
-func testGenerateTerraformInfraForAWSNode(t *testing.T, kv *api.KV, cfg config.Configuration,
-	locationMgr locations.Manager) {
+func testGenerateTerraformInfraForAWSNode(t *testing.T, cfg config.Configuration, locationMgr locations.Manager) {
 
 	t.Parallel()
-	deploymentID := loadTestYaml(t, kv)
+	deploymentID := loadTestYaml(t)
 
 	locationProps := config.DynamicMap{
 		"access_key": "ak1",

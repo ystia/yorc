@@ -44,14 +44,13 @@ var builtinTypes = make([]string, 0)
 // For example, one path key could be _yorc/commons_types/some_type/2.0.0 if the last version
 // of the some_type type is 2.0.0
 func getLatestCommonsTypesPaths() ([]string, error) {
-	kv := consulutil.GetKV()
-	keys, _, err := kv.Keys(consulutil.CommonsTypesKVPrefix+"/", "/", nil)
+	keys, err := consulutil.GetKeys(consulutil.CommonsTypesKVPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	paths := make([]string, 0, len(keys))
 	for _, builtinTypesPath := range keys {
-		versions, _, err := kv.Keys(builtinTypesPath, "/", nil)
+		versions, err := consulutil.GetKeys(builtinTypesPath)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -99,7 +98,6 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		return errors.Wrapf(err, "failed to unmarshal TOSCA definition %q", definitionName)
 	}
 	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
-	kv := consulutil.GetKV()
 	name := topology.Metadata["template_name"]
 	if name == "" {
 		return errors.Errorf("Can't store builtin TOSCA definition %q, template_name is missing", definitionName)
@@ -121,7 +119,7 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		}
 	}()
 
-	keys, _, err := kv.Keys(topologyPrefix+"/", "/", nil)
+	keys, err := consulutil.GetKeys(topologyPrefix)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -169,7 +167,6 @@ func GetCommonsDefinitionsList() ([]Definition, error) {
 		// So let use latest values of each stored builtin types in Consul
 		builtinTypes, _ = getLatestCommonsTypesPaths()
 	}
-	kv := consulutil.GetKV()
 	res := make([]Definition, len(builtinTypes))
 	for _, p := range builtinTypes {
 		d := Definition{}
@@ -177,12 +174,12 @@ func GetCommonsDefinitionsList() ([]Definition, error) {
 		p = path.Dir(p)
 		d.Name = path.Base(p)
 		res = append(res, d)
-		kvp, _, err := kv.Get(path.Join(p, "metadata", yorcOriginConsulKey), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(p, "metadata", yorcOriginConsulKey))
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil {
-			d.Version = string(kvp.Value)
+		if exist {
+			d.Version = value
 		}
 	}
 	return res, nil

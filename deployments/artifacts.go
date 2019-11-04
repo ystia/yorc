@@ -15,11 +15,11 @@
 package deployments
 
 import (
+	"context"
 	"path"
 
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -29,31 +29,31 @@ import (
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
-func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]string, error) {
-	parentType, err := GetParentType(kv, deploymentID, typeName)
+func GetArtifactsForType(ctx context.Context, deploymentID, typeName string) (map[string]string, error) {
+	parentType, err := GetParentType(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 	var artifacts map[string]string
 	if parentType != "" {
-		artifacts, err = GetArtifactsForType(kv, deploymentID, parentType)
+		artifacts, err = GetArtifactsForType(ctx, deploymentID, parentType)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		artifacts = make(map[string]string)
 	}
-	typePath, err := locateTypePath(kv, deploymentID, typeName)
+	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 
 	artifactsPath := path.Join(typePath, "artifacts")
-	importPath, err := GetTypeImportPath(kv, deploymentID, typeName)
+	importPath, err := GetTypeImportPath(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
-	err = updateArtifactsFromPath(kv, artifacts, artifactsPath, importPath)
+	err = updateArtifactsFromPath(artifacts, artifactsPath, importPath)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for type: %q", typeName)
 }
 
@@ -62,56 +62,56 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 // The returned artifacts paths are relative to root of the deployment archive.
 // It will first fetch artifacts from it node type and its parents and fetch artifacts for the node template itself.
 // This way artifacts from a parent type may be overridden by child types and artifacts from node type may be overridden by the node template
-func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+func GetArtifactsForNode(ctx context.Context, deploymentID, nodeName string) (map[string]string, error) {
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
-	artifacts, err := GetArtifactsForType(kv, deploymentID, nodeType)
+	artifacts, err := GetArtifactsForType(ctx, deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}
 	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "artifacts")
 	// No importPath for node templates as they will be CSAR root relative
-	err = updateArtifactsFromPath(kv, artifacts, artifactsPath, "")
+	err = updateArtifactsFromPath(artifacts, artifactsPath, "")
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for node: %q", nodeName)
 }
 
 // updateArtifactsFromPath returns a map of artifact name / artifact file for the given node or type denoted by the given artifactsPath.
-func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsPath, importPath string) error {
-	kvps, _, err := kv.Keys(artifactsPath+"/", "/", nil)
+func updateArtifactsFromPath(artifacts map[string]string, artifactsPath, importPath string) error {
+	keys, err := consulutil.GetKeys(artifactsPath)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	for _, artifactPath := range kvps {
+	for _, artifactPath := range keys {
 		artifactName := path.Base(artifactPath)
-		kvp, _, err := kv.Get(path.Join(artifactPath, "file"), nil)
+		exist, value, err := consulutil.GetStringValue(path.Join(artifactPath, "file"))
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if !exist || value == "" {
 			return errors.Errorf("Missing mandatory attribute \"file\" for artifact %q", path.Base(artifactPath))
 		}
 		// TODO path is relative to the type and may not be the same as a child type
-		artifacts[artifactName] = path.Join(importPath, string(kvp.Value))
+		artifacts[artifactName] = path.Join(importPath, value)
 	}
 	return nil
 }
 
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.
 // If the artifact doesn't define any extension then a nil slice is returned
-func GetArtifactTypeExtensions(kv *api.KV, deploymentID, artifactType string) ([]string, error) {
-	typePath, err := locateTypePath(kv, deploymentID, artifactType)
+func GetArtifactTypeExtensions(ctx context.Context, deploymentID, artifactType string) ([]string, error) {
+	typePath, err := locateTypePath(deploymentID, artifactType)
 	if err != nil {
 		return nil, err
 	}
-	kvp, _, err := kv.Get(path.Join(typePath, "file_ext"), nil)
+	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "file_ext"))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if !exist || value == "" {
 		return nil, nil
 	}
-	return strings.Split(string(kvp.Value), ","), nil
+	return strings.Split(value, ","), nil
 }

@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -45,7 +44,6 @@ type osGenerator struct {
 }
 
 type generateInfraOptions struct {
-	kv             *api.KV
 	cfg            config.Configuration
 	infrastructure *commons.Infrastructure
 	locationProps  config.DynamicMap
@@ -58,32 +56,12 @@ type generateInfraOptions struct {
 	resourceTypes  map[string]string
 }
 
-// func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) (string, error) {
-// 	getResult, _, err := kv.Get(baseURL+"/"+property, nil)
-// 	if err != nil {
-// 		return "", errors.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
-// 	}
-// 	if getResult == nil {
-// 		log.Debugf("Can't get property %s for node %s (not found)", property, baseURL)
-// 		return "", nil
-// 	}
-// 	return string(getResult.Value), nil
-// }
-
 func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
-	cClient, err := cfg.GetConsulClient()
-	if err != nil {
-		return false, nil, nil, nil, err
-	}
-	kv := cClient.KV()
-
-	return g.generateTerraformInfraForNode(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath)
+	return g.generateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
 }
 
-func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID,
-	nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
+func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
@@ -98,7 +76,7 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
 	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(deploymentID, nodeName, infrastructureType)
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
 	}
 	if err != nil {
 		return false, nil, nil, nil, err
@@ -107,13 +85,13 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 	infrastructure.Provider, cmdEnv = getOpenStackProviderEnv(cfg, locationProps)
 
 	log.Debugf("inspecting node %s", nodeName)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
 	outputs := make(map[string]string)
 
-	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
@@ -122,7 +100,6 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, kv *api
 
 	for instIdx, instanceName := range instances {
 		infraOpts := generateInfraOptions{
-			kv:             kv,
 			cfg:            cfg,
 			infrastructure: &infrastructure,
 			locationProps:  locationProps,
@@ -185,7 +162,7 @@ func getOpenStackProviderEnv(cfg config.Configuration, locationProps config.Dyna
 func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateInfraOptions,
 	outputs map[string]string, cmdEnv *[]string) error {
 
-	instanceState, err := deployments.GetInstanceState(opts.kv, opts.deploymentID,
+	instanceState, err := deployments.GetInstanceState(ctx, opts.deploymentID,
 		opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
@@ -199,7 +176,6 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 	case "yorc.nodes.openstack.Compute":
 		err = g.generateOSInstance(ctx,
 			osInstanceOptions{
-				kv:             opts.kv,
 				cfg:            opts.cfg,
 				infrastructure: opts.infrastructure,
 				locationProps:  opts.locationProps,
@@ -211,18 +187,17 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 			outputs, cmdEnv)
 
 	case "yorc.nodes.openstack.BlockStorage":
-		err = g.generateBlockStorageInfra(opts)
+		err = g.generateBlockStorageInfra(ctx, opts)
 
 	case "yorc.nodes.openstack.FloatingIP":
-		err = g.generateFloatingIPInfra(opts)
+		err = g.generateFloatingIPInfra(ctx, opts)
 
 	case "yorc.nodes.openstack.Network":
-		err = g.generateNetworkInfra(opts)
+		err = g.generateNetworkInfra(ctx, opts)
 
 	case "yorc.nodes.openstack.ServerGroup":
 		err = g.generateServerGroup(ctx,
 			serverGroupOptions{
-				kv:            opts.kv,
 				deploymentID:  opts.deploymentID,
 				nodeName:      opts.nodeName,
 				resourceTypes: opts.resourceTypes,
@@ -235,10 +210,10 @@ func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateIn
 	return err
 }
 
-func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error {
+func (g *osGenerator) generateBlockStorageInfra(ctx context.Context, opts generateInfraOptions) error {
 
 	var bsIds []string
-	volumeID, err := deployments.GetNodePropertyValue(opts.kv, opts.deploymentID, opts.nodeName, "volume_id")
+	volumeID, err := deployments.GetNodePropertyValue(ctx, opts.deploymentID, opts.nodeName, "volume_id")
 	if err != nil {
 		return err
 	}
@@ -249,7 +224,7 @@ func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error
 	}
 
 	var bsVolume BlockStorageVolume
-	bsVolume, err = g.generateOSBSVolume(opts.kv, opts.cfg, opts.locationProps,
+	bsVolume, err = g.generateOSBSVolume(ctx, opts.cfg, opts.locationProps,
 		opts.deploymentID, opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
@@ -274,9 +249,9 @@ func (g *osGenerator) generateBlockStorageInfra(opts generateInfraOptions) error
 	return err
 }
 
-func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
+func (g *osGenerator) generateFloatingIPInfra(ctx context.Context, opts generateInfraOptions) error {
 
-	ip, err := g.generateFloatingIP(opts.kv, opts.deploymentID, opts.nodeName, opts.instanceName)
+	ip, err := g.generateFloatingIP(ctx, opts.deploymentID, opts.nodeName, opts.instanceName)
 	if err != nil {
 		return err
 	}
@@ -297,7 +272,7 @@ func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
 			return err
 		}
 		if (len(ips) - 1) < instName {
-			networkName, err := deployments.GetNodePropertyValue(opts.kv, opts.deploymentID,
+			networkName, err := deployments.GetNodePropertyValue(ctx, opts.deploymentID,
 				opts.nodeName, "floating_network_name")
 			if err != nil {
 				return err
@@ -329,9 +304,9 @@ func (g *osGenerator) generateFloatingIPInfra(opts generateInfraOptions) error {
 	return err
 }
 
-func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
+func (g *osGenerator) generateNetworkInfra(ctx context.Context, opts generateInfraOptions) error {
 
-	networkID, err := deployments.GetNodePropertyValue(opts.kv, opts.deploymentID,
+	networkID, err := deployments.GetNodePropertyValue(ctx, opts.deploymentID,
 		opts.nodeName, "network_id")
 	if err != nil {
 		return err
@@ -342,12 +317,12 @@ func (g *osGenerator) generateNetworkInfra(opts generateInfraOptions) error {
 	}
 
 	var network Network
-	network, err = g.generateNetwork(opts.kv, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName)
+	network, err = g.generateNetwork(ctx, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}
 	var subnet Subnet
-	subnet, err = g.generateSubnet(opts.kv, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName,
+	subnet, err = g.generateSubnet(ctx, opts.cfg, opts.locationProps, opts.deploymentID, opts.nodeName,
 		opts.resourceTypes[networkingNetwork])
 	if err != nil {
 		return err

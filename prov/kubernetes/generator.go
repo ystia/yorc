@@ -15,18 +15,15 @@
 package kubernetes
 
 import (
-	"github.com/hashicorp/consul/api"
-
 	"github.com/ystia/yorc/v4/config"
 )
 
 // A k8sGenerator is used to generate the Kubernetes objects for a given TOSCA node
 type k8sGenerator struct {
-	kv  *api.KV
 	cfg config.Configuration
 }
 
 // newGenerator create a K8sGenerator
-func newGenerator(kv *api.KV, cfg config.Configuration) *k8sGenerator {
-	return &k8sGenerator{kv: kv, cfg: cfg}
+func newGenerator(cfg config.Configuration) *k8sGenerator {
+	return &k8sGenerator{cfg: cfg}
 }

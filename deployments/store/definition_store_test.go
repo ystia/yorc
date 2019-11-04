@@ -33,12 +33,12 @@ import (
 // TestRunDefinitionStoreTests aims to run a max of tests on store functions
 func TestRunDefinitionStoreTests(t *testing.T) {
 	// create consul server and consul client
-	srv, cc := newTestConsulInstance(t)
+	srv, _ := newTestConsulInstance(t)
 	defer srv.Stop()
 
 	t.Run("StoreTests", func(t *testing.T) {
 		t.Run("TestTypesPath", func(t *testing.T) {
-			testTypesPath(t, cc.KV())
+			testTypesPath(t)
 		})
 	})
 }
@@ -95,7 +95,7 @@ func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
 // - consulutil.CommonsTypesKVPrefix
 // - some_type/some_value
 // - some_name
-func testTypesPath(t *testing.T, kv *api.KV) {
+func testTypesPath(t *testing.T) {
 	log.SetDebug(true)
 
 	tests := []struct {
@@ -110,7 +110,7 @@ func testTypesPath(t *testing.T, kv *api.KV) {
 	}
 
 	for _, tt := range tests {
-		_, err := kv.DeleteTree(consulutil.CommonsTypesKVPrefix, nil)
+		err := consulutil.Delete(consulutil.CommonsTypesKVPrefix, true)
 		require.NoError(t, err)
 		storeCommonTypePath(context.Background(), t, tt.existingPaths)
 		paths, err := getLatestCommonsTypesPaths()

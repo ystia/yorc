@@ -31,8 +31,7 @@ func TestRunConsulLocationsPackageTests(t *testing.T) {
 
 	t.Run("groupLocations", func(t *testing.T) {
 		deploymentID := testutil.BuildDeploymentID(t)
-		err := deployments.StoreDeploymentDefinition(context.Background(), client.KV(),
-			deploymentID, "testdata/test_topology.yml")
+		err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology.yml")
 		require.NoError(t, err)
 		t.Run("testLocationsFromConfig", func(t *testing.T) {
 			testLocationsFromConfig(t, srv, client, deploymentID)

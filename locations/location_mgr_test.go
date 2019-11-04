@@ -15,6 +15,7 @@
 package locations
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -41,44 +42,40 @@ import (
 //
 // Currently this is used for testing purpose to mock the ssh connection.
 func GetManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspool.SSHClientFactory) (Manager, Manager, error) {
-
+	mgr, err := GetManager(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
 	var locationMgr *locationManager
-	var manager Manager
 	if locationMgr == nil {
 		client, err := cfg.GetConsulClient()
 		if err != nil {
-			return locationMgr, manager, err
+			return nil, nil, err
 		}
 		locationMgr = &locationManager{cc: client}
-		manager = NewManager(client)
 		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapterWithSSHFactory(client, sshClientFactory)
 	}
 
-	//return locationMgr, nil
-	return locationMgr, manager, nil
-}
-
-type mockSSHClient struct {
-	config *ssh.ClientConfig
-}
-
-func (m *mockSSHClient) RunCommand(string) (string, error) {
-	if m.config != nil && m.config.User == "fail" {
-		return "", errors.Errorf("Failed to connect")
-	}
-
-	return "ok", nil
+	return locationMgr, mgr, nil
 }
 
 var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connection) sshutil.Client {
-	return &mockSSHClient{config}
+	return &sshutil.MockSSHClient{
+		MockRunCommand: func(string) (string, error) {
+			if config != nil && config.User == "fail" {
+				return "", errors.Errorf("Failed to connect")
+			}
+
+			return "ok", nil
+		},
+	}
 }
 
 func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Client,
 	deploymentID string) {
 
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	openStackLocation1 := LocationConfiguration{
 		Name: "myLocation1",
 		Type: "openstack",
@@ -350,12 +347,12 @@ func testLocationsFromConfig(t *testing.T, srv1 *testutil.TestServer, cc *api.Cl
 	require.Error(t, err, "Expected to have an error attempting to update a non existing location")
 
 	// testdata/test_topology.yaml defines a location in Compute1 metadata
-	props, err = mgr.GetLocationPropertiesForNode(deploymentID, "Compute1", "openstack")
+	props, err = mgr.GetLocationPropertiesForNode(ctx, deploymentID, "Compute1", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to get location for Compute1")
 	assert.Equal(t, "test2", props["user_name"])
 
 	// testdata/test_topology.yaml defines no location in Compute2 metadata
-	props, err = mgr.GetLocationPropertiesForNode(deploymentID, "Compute2", "openstack")
+	props, err = mgr.GetLocationPropertiesForNode(ctx, deploymentID, "Compute2", "openstack")
 	require.NoError(t, err, "Unexpected error attempting to get location for Compute2")
 	// Check an openstack-specific confiugration value is provided in result
 	assert.Equal(t, "RegionOne", props["region"])

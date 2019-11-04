@@ -21,16 +21,15 @@ import (
 )
 
 func TestConsulKubernetesPackage(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	t.Run("groupK8S", func(t *testing.T) {
 		t.Run("testExecutionCancelJob", func(t *testing.T) {
-			testExecutionCancelJob(t, kv)
+			testExecutionCancelJob(t)
 		})
 		t.Run("testsController", func(t *testing.T) {
-			testsController(t, srv, kv)
+			testsController(t, srv)
 		})
 	})
 }

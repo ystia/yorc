@@ -140,7 +140,7 @@ func (yorcDep *yorcK8sDeployment) unmarshalResource(ctx context.Context, e *exec
 		return err
 	}
 	ns, _ := getNamespace(e.deploymentID, yorcDep.ObjectMeta)
-	rSpec, err = replaceServiceIPInResourceSpec(ctx, e.kv, clientset, e.deploymentID, e.nodeName, ns, rSpec)
+	rSpec, err = replaceServiceIPInResourceSpec(ctx, clientset, e.deploymentID, e.nodeName, ns, rSpec)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (yorcDep *yorcK8sDeployment) scaleResource(ctx context.Context, e *executio
 }
 
 func (yorcDep *yorcK8sDeployment) setAttributes(ctx context.Context, e *execution) (err error) {
-	return deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcDep.Spec.Replicas))
+	return deployments.SetAttributeForAllInstances(ctx, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcDep.Spec.Replicas))
 }
 
 func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
@@ -241,7 +241,7 @@ func (yorcSts *yorcK8sStatefulSet) unmarshalResource(ctx context.Context, e *exe
 		return err
 	}
 	ns, _ := getNamespace(e.deploymentID, yorcSts.ObjectMeta)
-	rSpec, err = replaceServiceIPInResourceSpec(ctx, e.kv, clientset, e.deploymentID, e.nodeName, ns, rSpec)
+	rSpec, err = replaceServiceIPInResourceSpec(ctx, clientset, e.deploymentID, e.nodeName, ns, rSpec)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (yorcSts *yorcK8sStatefulSet) scaleResource(ctx context.Context, e *executi
 }
 
 func (yorcSts *yorcK8sStatefulSet) setAttributes(ctx context.Context, e *execution) error {
-	return deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcSts.Spec.Replicas))
+	return deployments.SetAttributeForAllInstances(ctx, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*yorcSts.Spec.Replicas))
 }
 
 func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
@@ -358,11 +358,11 @@ func (yorcSvc *yorcK8sService) setAttributes(ctx context.Context, e *execution) 
 		if val.NodePort != 0 {
 			str := fmt.Sprintf("%d", val.NodePort)
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%s : %s: %d:%d mapped to %s", yorcSvc.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
-			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_url", str)
+			err = deployments.SetAttributeForAllInstances(ctx, e.deploymentID, e.nodeName, "k8s_service_url", str)
 			if err != nil {
 				return errors.Wrap(err, "Failed to set attribute")
 			}
-			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "node_port", strconv.Itoa(int(val.NodePort)))
+			err = deployments.SetAttributeForAllInstances(ctx, e.deploymentID, e.nodeName, "node_port", strconv.Itoa(int(val.NodePort)))
 			if err != nil {
 				return errors.Wrap(err, "Failed to set attribute")
 			}
