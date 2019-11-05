@@ -17,16 +17,19 @@ package locations
 import (
 	"fmt"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/v4/commands"
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/tabutil"
+	"github.com/ystia/yorc/v4/rest"
 )
 
 func init() {
 	commands.RootCmd.AddCommand(LocationsCmd)
-	commands.ConfigureYorcClientCommand(LocationsCmd, DepViper, &cfgFile, &NoColor)
+	commands.ConfigureYorcClientCommand(LocationsCmd, DepViper, &cfgFile, &noColor)
 }
 
 // DepViper is the viper configuration for the locations command and its children
@@ -36,8 +39,16 @@ var DepViper = viper.New()
 var ClientConfig config.Client
 var cfgFile string
 
-// NoColor returns true if no-color option is set
-var NoColor bool
+// noColor returns true if no-color option is set
+var noColor bool
+
+// Internal constants for operations on locations
+const (
+	locationDeletion = iota
+	locationUpdate
+	locationCreation
+	locationList
+)
 
 // LocationsCmd is the locations-based command
 var LocationsCmd = &cobra.Command{
@@ -55,4 +66,66 @@ var LocationsCmd = &cobra.Command{
 			fmt.Print(err)
 		}
 	},
+}
+
+// getColoredText returns a text colored according to the operation in
+// argument :
+// - red for a deletion
+// - yellow for an update (bold for the new version, regular for the old one)
+// - green for a creation
+func getColoredText(colorize bool, text string, operation int) string {
+	if !colorize {
+		return text
+	}
+	switch operation {
+	case locationCreation:
+		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(text)
+	case locationUpdate:
+		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(text)
+	case locationDeletion:
+		return color.New(color.FgHiRed, color.Bold).SprintFunc()(text)
+	default:
+		return text
+	}
+}
+
+// AddRow adds a row to a table, with text colored according to the operation
+// longTable specifies table with all headers
+func addRow(table tabutil.Table, colorize bool, operation int, lConfig rest.LocationConfiguration) {
+	colNumber := 3
+	subRowsNumber := 1
+	//sliceutil.PadSlices("", &allocationsSubRows, &connectionSubRows, &labelSubRows)
+
+	// Add rows, one for each sub-column
+	for i := 0; i < subRowsNumber; i++ {
+		coloredColumns := make([]interface{}, colNumber)
+		//coloredColumns[0] = getColoredText(colorize, lConfig.Name, operation)
+
+		//coloredColumns[1] = getColoredText(colorize, lConfig.Type, operation)
+		locProps := lConfig.Properties
+		propKeys := locProps.Keys()
+		for i := 0; i < len(propKeys); i++ {
+			propValue := locProps.Get(propKeys[i])
+			value := fmt.Sprintf("%v", propValue)
+			prop := propKeys[i] + ": " + value
+			if i == 0 {
+				coloredColumns[0] = getColoredText(colorize, lConfig.Name, operation)
+				coloredColumns[1] = getColoredText(colorize, lConfig.Type, operation)
+				coloredColumns[2] = getColoredText(colorize, prop, operation)
+			} else {
+				coloredColumns[0] = getColoredText(colorize, "", operation)
+				coloredColumns[1] = getColoredText(colorize, "", operation)
+				coloredColumns[2] = getColoredText(colorize, prop, operation)
+
+			}
+			table.AddRow(coloredColumns...)
+		}
+		/*
+			if i == 0 {
+				// Don't repeat single column values in sub-columns
+				host.Name = ""
+				statusString = ""
+				host.Message = ""
+			}*/
+	}
 }

@@ -15,22 +15,25 @@
 package locations
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/v4/commands/httputil"
+	"github.com/ystia/yorc/v4/helper/tabutil"
 	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/rest"
 )
 
 func init() {
-	//var autoApprove bool
+	var autoApprove bool
 	var applyCmd = &cobra.Command{
 		Use:   "apply <path to locations configuration file>",
 		Short: "Apply a locations configuration file",
@@ -41,16 +44,16 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			return applyLocationsConfig(client, args /*, autoApprove*/)
+			return applyLocationsConfig(client, args, autoApprove)
 		},
 	}
-	// TODO implement approval
-	//applyCmd.PersistentFlags().BoolVarP(&autoApprove, "auto-approve", "", false,
-	//	"Skip interactive approval before applying this new locations configuration.")
+	applyCmd.PersistentFlags().BoolVarP(&autoApprove, "auto-approve", "", false,
+		"Skip interactive approval before applying this new locations configuration.")
 	LocationsCmd.AddCommand(applyCmd)
 }
 
-func applyLocationsConfig(client httputil.HTTPClient, args []string /*, autoApprove bool*/) error {
+func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove bool) error {
+	colorize := !noColor
 	if len(args) != 1 {
 		return errors.Errorf("Expecting a path to a file (got %d parameters)", len(args))
 	}
@@ -85,8 +88,8 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string /*, autoAppr
 	// Prepare a map for locations to update
 	updateLocationsMap := make(map[string]rest.LocationConfiguration)
 
-	// Prepare a slice for locations to delete
-	var locationsToDelete []string
+	// Prepare a map for locations to delete
+	deleteLocationsMap := make(map[string]rest.LocationConfiguration)
 
 	// Get existent locations configuration
 	locsConfig, err := getLocationsConfig(client)
@@ -105,16 +108,73 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string /*, autoAppr
 				delete(newLocationsMap, locConfig.Name)
 			} else {
 				// locConfig is not in the new locations specifications, delete it from consul
-				fmt.Println("Location " + locConfig.Name + " is not defined in the new file to apply. It will be deleted")
-				locationsToDelete = append(locationsToDelete, locConfig.Name)
+				deleteLocationsMap[locConfig.Name] = locConfig
 			}
 		}
 	}
 
-	fmt.Printf("New Locations to create : %v ", len(newLocationsMap))
-	fmt.Printf("Total number of locations to update : %v", len(updateLocationsMap))
-	fmt.Printf("Total number of locations to delete : %v", len(locationsToDelete))
+	locationsToCreateTable := tabutil.NewTable()
+	locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
+	for _, locConfig := range newLocationsMap {
+		addRow(locationsToCreateTable, colorize, locationCreation, locConfig)
+	}
+	fmt.Println("\n- Locations to be created :")
 	fmt.Println("")
+	fmt.Println(locationsToCreateTable.Render())
+
+	locationsToUpdateTable := tabutil.NewTable()
+	locationsToUpdateTable.AddHeaders("Name", "Type", "Properties")
+	for _, locConfig := range updateLocationsMap {
+		addRow(locationsToUpdateTable, colorize, locationUpdate, locConfig)
+	}
+	fmt.Println("\n- Locations to update :")
+	fmt.Println("")
+	fmt.Println(locationsToUpdateTable.Render())
+
+	locationsToDeleteTable := tabutil.NewTable()
+	locationsToDeleteTable.AddHeaders("Name", "Type", "Properties")
+	for _, locConfig := range deleteLocationsMap {
+		addRow(locationsToDeleteTable, colorize, locationDeletion, locConfig)
+	}
+	fmt.Println("\n- Locations to delete :")
+	fmt.Println("")
+	fmt.Println(locationsToDeleteTable.Render())
+
+	fmt.Printf("Number of ocations to create : %v ", len(newLocationsMap))
+	fmt.Println("")
+	fmt.Printf("Number of locations to update : %v", len(updateLocationsMap))
+	fmt.Println("")
+	fmt.Printf("Number of locations to delete : %v", len(deleteLocationsMap))
+	fmt.Println("")
+
+	if !autoApprove {
+
+		// Ask for confirmation
+		badAnswer := true
+		var answer string
+		for badAnswer {
+			fmt.Printf("\nApply these settings [y/N]: ")
+			var inputText string
+			reader := bufio.NewReader(os.Stdin)
+			inputText, err := reader.ReadString('\n')
+			badAnswer = err != nil
+			if !badAnswer {
+				answer = strings.ToLower(strings.TrimSpace(inputText))
+				badAnswer = answer != "" &&
+					answer != "n" && answer != "no" &&
+					answer != "y" && answer != "yes"
+			}
+
+			if badAnswer {
+				fmt.Println("Unexpected input. Please enter y or n.")
+			}
+		}
+
+		if answer != "y" && answer != "yes" {
+			fmt.Println("Changes not applied.")
+			return nil
+		}
+	}
 
 	// Proceed to the create
 
@@ -135,7 +195,7 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string /*, autoAppr
 			return err
 		}
 
-		fmt.Printf("New Locations %s created !!!", newLocation.Name)
+		fmt.Printf("Location %s created", newLocation.Name)
 		fmt.Println("")
 
 	}
@@ -159,14 +219,14 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string /*, autoAppr
 			return err
 		}
 
-		fmt.Printf("Locations %s updated !!!", updateLocation.Name)
+		fmt.Printf("Location %s updated", updateLocation.Name)
 		fmt.Println("")
 
 	}
 
 	// Proceed to delete
 
-	for _, locNameToDelete := range locationsToDelete {
+	for locNameToDelete, _ := range deleteLocationsMap {
 		request, err := client.NewRequest("DELETE", "/locations/"+locNameToDelete, nil)
 		if err != nil {
 			return err
@@ -175,7 +235,7 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string /*, autoAppr
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Locations %s deleted !!!", locNameToDelete)
+		fmt.Printf("Location %s deleted", locNameToDelete)
 		fmt.Println("")
 	}
 
