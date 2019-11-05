@@ -14,6 +14,8 @@
 
 package storage
 
+import "github.com/ystia/yorc/v4/storage/types"
+
 // Store is an abstraction for different key-value store implementations.
 // A store must be able to store, retrieve and delete key-value pairs,
 // with the key being a string and the value being any Go interface{}.
@@ -42,5 +44,5 @@ type Store interface {
 	// If recursive is true, all sub-keys are deleted too.
 	Delete(k string, recursive bool) error
 	// Types defines all the Store types concerned by this store.
-	Types() []StoreType
+	Types() []types.StoreType
 }

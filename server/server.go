@@ -69,6 +69,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
+	// Load main stores used for deployments, logs, events
+	err = storage.LoadStores()
+	if err != nil {
+		return err
+	}
+
 	err = registerBuiltinTOSCATypes()
 
 	if err != nil {
@@ -98,12 +104,6 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		} else {
 			log.Debugf("Locations already initialized")
 		}
-	}
-
-	// Load stores
-	err = storage.LoadStores()
-	if err != nil {
-		return err
 	}
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)

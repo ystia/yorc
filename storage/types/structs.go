@@ -12,24 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package types
 
-import (
-	"github.com/ystia/yorc/v4/testutil"
-	"testing"
-)
+//go:generate go-enum -f=structs.go  --names
 
-// The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulStoragePackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
-
-	t.Run("groupStorage", func(t *testing.T) {
-		t.Run("testTypes", func(t *testing.T) {
-			testTypes(t, srv)
-		})
-		t.Run("testStore", func(t *testing.T) {
-			testStore(t, srv)
-		})
-	})
-}
+// StoreType x ENUM(
+// Deployment,
+// Log,
+// Event
+// )
+type StoreType int

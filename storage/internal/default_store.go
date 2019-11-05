@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package internal
 
 import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage/types"
+
 	"github.com/ystia/yorc/v4/storage/encoding"
 )
 
 type consulStore struct {
 	codec encoding.Codec
+}
+
+func NewStore() *consulStore {
+	return &consulStore{encoding.JSON}
 }
 
 func (c *consulStore) Set(k string, v interface{}) error {
@@ -65,6 +71,6 @@ func (c *consulStore) Delete(k string, recursive bool) error {
 	return consulutil.Delete(k, recursive)
 }
 
-func (c *consulStore) Types() []StoreType {
+func (c *consulStore) Types() []types.StoreType {
 	return nil
 }
