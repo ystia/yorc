@@ -36,54 +36,76 @@ var listCmd = &cobra.Command{
 	Short: "List locations",
 	Long:  `List locations.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		//colorize := !NoColor
 		client, err := httputil.GetClient(ClientConfig)
 		if err != nil {
 			httputil.ErrExit(err)
 		}
-		request, err := client.NewRequest("GET", "/locations", nil)
+		// Get locations definitions
+		locsConfig, err := getLocationsConfig(client)
 		if err != nil {
 			httputil.ErrExit(err)
 		}
-		request.Header.Add("Content-Type", "application/json")
-		response, err := client.Do(request)
-		if err != nil {
-			httputil.ErrExit(err)
-		}
-		defer response.Body.Close()
-		httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
-		var locs rest.LocationsCollection
-		body, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			httputil.ErrExit(err)
-		}
-		err = json.Unmarshal(body, &locs)
-		if err != nil {
-			httputil.ErrExit(err)
-		}
-
+		// Print out locations definitions in a table
 		locsTable := tabutil.NewTable()
 		locsTable.AddHeaders("Name", "Type", "Properties")
-		for _, loc := range locs.Locations {
-			if loc.Type != adapter.AdaptedLocationType {
-				locProps := loc.Properties
+		for _, locConfig := range locsConfig.Locations {
+			if locConfig.Type != adapter.AdaptedLocationType {
+				locProps := locConfig.Properties
 				propKeys := locProps.Keys()
 				for i := 0; i < len(propKeys); i++ {
 					propValue := locProps.Get(propKeys[i])
 					value := fmt.Sprintf("%v", propValue)
 					prop := propKeys[i] + ": " + value
 					if i == 0 {
-						locsTable.AddRow(loc.Name, loc.Type, prop)
+						locsTable.AddRow(locConfig.Name, locConfig.Type, prop)
 					} else {
 						locsTable.AddRow("", "", prop)
 					}
 				}
 			} else {
-				locsTable.AddRow(loc.Name, loc.Type, "")
+				locsTable.AddRow(locConfig.Name, locConfig.Type, "")
 			}
 		}
 		fmt.Println("Locations:")
 		fmt.Println(locsTable.Render())
 		return nil
 	},
+}
+
+// getLocationsConfig makes a GET request to locations API and returns the existent location definitions
+func getLocationsConfig(client httputil.HTTPClient) (*rest.LocationsCollection, error) {
+	request, err := client.NewRequest("GET", "/locations", nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Add("Accept", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
+	var locRefs rest.LocationCollection
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(body, &locRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	var locs rest.LocationsCollection
+
+	for _, locLink := range locRefs.Locations {
+		var locConfig rest.LocationConfiguration
+		err = httputil.GetJSONEntityFromAtomGetRequest(client, locLink, &locConfig)
+		if err != nil {
+			return nil, err
+		}
+		locs.Locations = append(locs.Locations, locConfig)
+	}
+
+	return &locs, nil
 }

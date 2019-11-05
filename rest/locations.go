@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"path"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -27,30 +28,55 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func (s *Server) listLocations(w http.ResponseWriter, r *http.Request) {
-	locs := make([]LocationResult, 0)
+func (s *Server) listLocationsHandler(w http.ResponseWriter, r *http.Request) {
 	locationConfigurations, err := s.locationMgr.GetLocations()
 	if err != nil {
 		log.Panic(err)
 	}
-	for _, locationConfiguration := range locationConfigurations {
-		locationName := locationConfiguration.Name
-		locationType := locationConfiguration.Type
-		locationProps := locationConfiguration.Properties
-		locs = append(locs, LocationResult{
-			Name:       locationName,
-			Type:       locationType,
-			Properties: locationProps,
-		})
+
+	locs := make([]AtomLink, len(locationConfigurations))
+	for i, locationConfiguration := range locationConfigurations {
+		locs[i] = newAtomLink(LinkRelLocation, path.Join("/locations", locationConfiguration.Name))
 	}
 	if len(locs) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	encodeJSONResponse(w, r, LocationsCollection{Locations: locs})
+	encodeJSONResponse(w, r, LocationCollection{Locations: locs})
 }
 
-func (s *Server) createLocation(w http.ResponseWriter, r *http.Request) {
+func (s *Server) getLocationHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	var locConfig *LocationConfiguration
+
+	ctx := r.Context()
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	locationName := params.ByName("locationName")
+
+	locationConfigurations, err := s.locationMgr.GetLocations()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	for _, locationConfiguration := range locationConfigurations {
+		if locationConfiguration.Name == locationName {
+			locConfig = &LocationConfiguration{
+				Name:       locationConfiguration.Name,
+				Type:       locationConfiguration.Type,
+				Properties: locationConfiguration.Properties,
+			}
+			break
+		}
+	}
+	if locConfig == nil {
+		writeError(w, r, newBadRequestError(errors.Errorf("Cannot get location with name %s as it does not exist", locationName)))
+		return
+	}
+	encodeJSONResponse(w, r, *locConfig)
+
+}
+
+func (s *Server) createLocationHandler(w http.ResponseWriter, r *http.Request) {
 	lConfig, err := getRequestedLocationConfig(r)
 	if err != nil {
 		writeError(w, r, newBadRequestError(err))
@@ -69,7 +95,7 @@ func (s *Server) createLocation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) updateLocation(w http.ResponseWriter, r *http.Request) {
+func (s *Server) updateLocationHandler(w http.ResponseWriter, r *http.Request) {
 	lConfig, err := getRequestedLocationConfig(r)
 	if err != nil {
 		writeError(w, r, newBadRequestError(err))
@@ -93,7 +119,7 @@ func (s *Server) updateLocation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) deleteLocation(w http.ResponseWriter, r *http.Request) {
+func (s *Server) deleteLocationHandler(w http.ResponseWriter, r *http.Request) {
 
 	var params httprouter.Params
 	ctx := r.Context()

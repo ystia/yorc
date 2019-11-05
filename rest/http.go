@@ -197,11 +197,11 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
 	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
 
-	s.router.Get("/locations", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.listLocations))
-	s.router.Put("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocation))
-	s.router.Patch("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocation))
-	s.router.Delete("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.deleteLocation))
-
+	s.router.Get("/locations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listLocationsHandler))
+	s.router.Get("/locations/:locationName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getLocationHandler))
+	s.router.Put("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocationHandler))
+	s.router.Patch("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocationHandler))
+	s.router.Delete("/locations/:locationName", commonHandlers.ThenFunc(s.deleteLocationHandler))
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
 	}
