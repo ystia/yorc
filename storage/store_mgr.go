@@ -28,7 +28,6 @@ var stores map[types.StoreType]Store
 var defaultStore Store
 
 func init() {
-	log.Print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 	defaultStore = internal.NewStore()
 }
 

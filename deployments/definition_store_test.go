@@ -17,9 +17,12 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"io/ioutil"
 	stdlog "log"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -38,9 +41,6 @@ func testDefinitionStore(t *testing.T) {
 	t.Run("groupDeploymentsDefinitionStore", func(t *testing.T) {
 		t.Run("TestImplementationArtifacts", func(t *testing.T) {
 			testImplementationArtifacts(t)
-		})
-		t.Run("TestImplementationArtifactsDuplicates", func(t *testing.T) {
-			testImplementationArtifactsDuplicates(t)
 		})
 		t.Run("TestValueAssignments", func(t *testing.T) {
 			testValueAssignments(t)
@@ -81,14 +81,6 @@ func testImplementationArtifacts(t *testing.T) {
 	impl, err = GetImplementationArtifactForExtension(ctx, deploymentID, "yml")
 	require.Nil(t, err)
 	require.Equal(t, "tosca.artifacts.Implementation.Ansible", impl)
-
-}
-
-func testImplementationArtifactsDuplicates(t *testing.T) {
-	// t.Parallel()
-	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/artifacts_ext_duplicate.yaml")
-	require.Error(t, err, "Expecting for a duplicate extension for artifact implementation")
 
 }
 
@@ -1008,24 +1000,26 @@ func testImportTopologyTemplate(t *testing.T, deploymentID string) {
 func testTopologyTemplateMetadata(t *testing.T, deploymentID string) {
 	t.Parallel()
 
-	// Check the stored template metadata
-	// This topology template imports a tempologuy template with metatadata
-	// Checking the imported template metadata
-	expectedKeyValuePairs := map[string]string{
-		"topology/metadata/template_name":                               "topotest-Environment",
-		"topology/metadata/template_version":                            "0.1.0-SNAPSHOT",
-		"topology/metadata/template_author":                             "yorcTester",
-		"topology/imports/test_component.yml/metadata/template_name":    "test-component",
-		"topology/imports/test_component.yml/metadata/template_version": "2.0.0-SNAPSHOT",
-		"topology/imports/test_component.yml/metadata/template_author":  "yorcTester",
+	tests := []struct {
+		name         string
+		topologyPath string
+		expected     map[string]string
+	}{
+		{"topologyOne", "topology", map[string]string{"template_name": "topotest-Environment", "template_version": "0.1.0-SNAPSHOT", "template_author": "yorcTester"}},
+		{"topologyImport", "topology/imports/test_component.yml", map[string]string{"template_name": "test-component", "template_version": "2.0.0-SNAPSHOT", "template_author": "yorcTester"}},
 	}
-
-	for key, expectedValue := range expectedKeyValuePairs {
-		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		exist, value, err := consulutil.GetStringValue(consulKey)
-		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.True(t, exist, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, tt.topologyPath, "metadata")
+			metadataPtr := new(map[string]string)
+			exist, err := storage.GetStore(types.StoreTypeDeployment).Get(consulKey, metadataPtr)
+			require.NoError(t, err, "Error getting value for key %s", consulKey)
+			require.True(t, exist, "Unexpected null value for key %s", consulKey)
+			metadata := *metadataPtr
+			if !reflect.DeepEqual(metadata, tt.expected) {
+				t.Errorf("testTopologyTemplateMetadata = %v, want %v", metadata, tt.expected)
+			}
+		})
 	}
 
 }

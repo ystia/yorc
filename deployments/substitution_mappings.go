@@ -17,6 +17,8 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 
@@ -404,8 +406,10 @@ func getSubstitutableNodeType(ctx context.Context, deploymentID, nodeName, nodeT
 
 	var importTemplatePath string
 	for _, importPath := range imports {
-		exist, value, err := consulutil.GetStringValue(path.Join(importPath, "metadata/template_name"))
-		if err == nil && exist && value == nodeType {
+		metadataPtr := new(map[string]string)
+		exist, err := storage.GetStore(types.StoreTypeDeployment).Get(path.Join(importPath, "metadata"), metadataPtr)
+		metadata := *metadataPtr
+		if err == nil && exist && metadata["template_name"] == nodeType {
 			// Found the import
 			importTemplatePath = importPath
 			break

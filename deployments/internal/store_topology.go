@@ -78,6 +78,7 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 //
 // This may be done under the import path in case of imports.
 func StoreTopologyTopLevelKeyNames(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
+	//storeStringMap(consulStore, topologyPrefix+"/metadata", topology.Metadata)
 	storage.GetStore(types.StoreTypeDeployment).Set(topologyPrefix+"/metadata", topology.Metadata)
 }
 

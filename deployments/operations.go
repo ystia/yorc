@@ -17,6 +17,8 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -420,14 +422,18 @@ func getOperationOutputForRequirements(ctx context.Context, deploymentID, nodeNa
 // If the extension is unknown then an empty string is returned
 func GetImplementationArtifactForExtension(ctx context.Context, deploymentID, extension string) (string, error) {
 	extension = strings.ToLower(extension)
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, extension))
+
+	extensionsPtr := new(map[string]string)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath), extensionsPtr)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if !exist {
 		return "", nil
 	}
-	return value, nil
+
+	extensions := *extensionsPtr
+	return extensions[extension], nil
 }
 
 // GetImplementationArtifactForOperation returns the implementation artifact type for a given operation.

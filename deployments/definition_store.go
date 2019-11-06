@@ -31,6 +31,8 @@ import (
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	storageTypes "github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
@@ -128,6 +130,7 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 	if err != nil {
 		return err
 	}
+	extensionsMap := make(map[string]string)
 	for _, t := range types {
 		isImpl, err := IsTypeDerivedFrom(ctx, deploymentID, t, "tosca.artifacts.Implementation")
 		if err != nil {
@@ -143,22 +146,16 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 			if err != nil {
 				return err
 			}
+
 			for _, ext := range extensions {
 				ext = strings.ToLower(ext)
-				check, err := GetImplementationArtifactForExtension(ctx, deploymentID, ext)
-				if err != nil {
-					return err
-				}
-				if check != "" {
-					return errors.Errorf("Duplicate implementation artifact file extension %q found in artifact %q and %q", ext, check, t)
-				}
-				extPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, ext)
-				err = consulutil.StoreConsulKeyAsString(extPath, t)
-				if err != nil {
-					return err
-				}
+				extensionsMap[ext] = t
 			}
 		}
+	}
+
+	if len(extensionsMap) > 0 {
+		return storage.GetStore(storageTypes.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath), extensionsMap)
 	}
 
 	return nil
