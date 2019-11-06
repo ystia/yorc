@@ -113,32 +113,40 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 		}
 	}
 
-	locationsToCreateTable := tabutil.NewTable()
-	locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
-	for _, locConfig := range newLocationsMap {
-		addRow(locationsToCreateTable, colorize, locationCreation, locConfig)
-	}
-	fmt.Println("\n- Locations to be created :")
-	fmt.Println("")
-	fmt.Println(locationsToCreateTable.Render())
+	// Present locations to be created
+	if len(newLocationsMap) > 0 {
+		locationsToCreateTable := tabutil.NewTable()
+		locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
+		for _, locConfig := range newLocationsMap {
+			addRow(locationsToCreateTable, colorize, locationCreation, locConfig)
+		}
+		fmt.Println("\n- Locations to be created :")
+		fmt.Println("")
+		fmt.Println(locationsToCreateTable.Render())
 
-	locationsToUpdateTable := tabutil.NewTable()
-	locationsToUpdateTable.AddHeaders("Name", "Type", "Properties")
-	for _, locConfig := range updateLocationsMap {
-		addRow(locationsToUpdateTable, colorize, locationUpdate, locConfig)
 	}
-	fmt.Println("\n- Locations to update :")
-	fmt.Println("")
-	fmt.Println(locationsToUpdateTable.Render())
-
-	locationsToDeleteTable := tabutil.NewTable()
-	locationsToDeleteTable.AddHeaders("Name", "Type", "Properties")
-	for _, locConfig := range deleteLocationsMap {
-		addRow(locationsToDeleteTable, colorize, locationDeletion, locConfig)
+	// Present locations to be updated
+	if len(updateLocationsMap) > 0 {
+		locationsToUpdateTable := tabutil.NewTable()
+		locationsToUpdateTable.AddHeaders("Name", "Type", "Properties")
+		for _, locConfig := range updateLocationsMap {
+			addRow(locationsToUpdateTable, colorize, locationUpdate, locConfig)
+		}
+		fmt.Println("\n- Locations to update :")
+		fmt.Println("")
+		fmt.Println(locationsToUpdateTable.Render())
 	}
-	fmt.Println("\n- Locations to delete :")
-	fmt.Println("")
-	fmt.Println(locationsToDeleteTable.Render())
+	// Present locations to be deleted
+	if len(deleteLocationsMap) > 0 {
+		locationsToDeleteTable := tabutil.NewTable()
+		locationsToDeleteTable.AddHeaders("Name", "Type", "Properties")
+		for _, locConfig := range deleteLocationsMap {
+			addRow(locationsToDeleteTable, colorize, locationDeletion, locConfig)
+		}
+		fmt.Println("\n- Locations to delete :")
+		fmt.Println("")
+		fmt.Println(locationsToDeleteTable.Render())
+	}
 
 	fmt.Printf("Number of ocations to create : %v ", len(newLocationsMap))
 	fmt.Println("")
@@ -146,8 +154,9 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	fmt.Println("")
 	fmt.Printf("Number of locations to delete : %v", len(deleteLocationsMap))
 	fmt.Println("")
+	nbOpsToDo := len(newLocationsMap) + len(updateLocationsMap) + len(deleteLocationsMap)
 
-	if !autoApprove {
+	if !autoApprove && (nbOpsToDo > 0) {
 
 		// Ask for confirmation
 		badAnswer := true
@@ -177,7 +186,6 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	}
 
 	// Proceed to the create
-
 	for _, newLocation := range newLocationsMap {
 		locationName := newLocation.Name
 		locationRequest := rest.LocationRequest{
@@ -197,7 +205,6 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 
 		fmt.Printf("Location %s created", newLocation.Name)
 		fmt.Println("")
-
 	}
 
 	// Proceed to update
@@ -221,11 +228,9 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 
 		fmt.Printf("Location %s updated", updateLocation.Name)
 		fmt.Println("")
-
 	}
 
 	// Proceed to delete
-
 	for locNameToDelete, _ := range deleteLocationsMap {
 		request, err := client.NewRequest("DELETE", "/locations/"+locNameToDelete, nil)
 		if err != nil {

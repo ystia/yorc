@@ -93,39 +93,25 @@ func getColoredText(colorize bool, text string, operation int) string {
 // longTable specifies table with all headers
 func addRow(table tabutil.Table, colorize bool, operation int, lConfig rest.LocationConfiguration) {
 	colNumber := 3
-	subRowsNumber := 1
-	//sliceutil.PadSlices("", &allocationsSubRows, &connectionSubRows, &labelSubRows)
 
-	// Add rows, one for each sub-column
-	for i := 0; i < subRowsNumber; i++ {
-		coloredColumns := make([]interface{}, colNumber)
-		//coloredColumns[0] = getColoredText(colorize, lConfig.Name, operation)
+	coloredColumns := make([]interface{}, colNumber)
+	locProps := lConfig.Properties
+	propKeys := locProps.Keys()
+	for i := 0; i < len(propKeys); i++ {
+		propValue := locProps.Get(propKeys[i])
+		value := fmt.Sprintf("%v", propValue)
+		prop := propKeys[i] + ": " + value
+		if i == 0 {
+			coloredColumns[0] = getColoredText(colorize, lConfig.Name, operation)
+			coloredColumns[1] = getColoredText(colorize, lConfig.Type, operation)
+			coloredColumns[2] = getColoredText(colorize, prop, operation)
+		} else {
+			coloredColumns[0] = getColoredText(colorize, "", operation)
+			coloredColumns[1] = getColoredText(colorize, "", operation)
+			coloredColumns[2] = getColoredText(colorize, prop, operation)
 
-		//coloredColumns[1] = getColoredText(colorize, lConfig.Type, operation)
-		locProps := lConfig.Properties
-		propKeys := locProps.Keys()
-		for i := 0; i < len(propKeys); i++ {
-			propValue := locProps.Get(propKeys[i])
-			value := fmt.Sprintf("%v", propValue)
-			prop := propKeys[i] + ": " + value
-			if i == 0 {
-				coloredColumns[0] = getColoredText(colorize, lConfig.Name, operation)
-				coloredColumns[1] = getColoredText(colorize, lConfig.Type, operation)
-				coloredColumns[2] = getColoredText(colorize, prop, operation)
-			} else {
-				coloredColumns[0] = getColoredText(colorize, "", operation)
-				coloredColumns[1] = getColoredText(colorize, "", operation)
-				coloredColumns[2] = getColoredText(colorize, prop, operation)
-
-			}
-			table.AddRow(coloredColumns...)
 		}
-		/*
-			if i == 0 {
-				// Don't repeat single column values in sub-columns
-				host.Name = ""
-				statusString = ""
-				host.Message = ""
-			}*/
+		table.AddRow(coloredColumns...)
 	}
+
 }
