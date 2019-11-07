@@ -39,7 +39,8 @@ type mockInfraUsageCollector struct {
 	lof                events.LogOptionalFields
 }
 
-func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string) (map[string]interface{}, error) {
+func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string,
+	params map[string]string) (map[string]interface{}, error) {
 	return nil, nil
 }
 

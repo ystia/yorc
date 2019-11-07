@@ -40,7 +40,8 @@ type mockInfraUsageCollector struct {
 	lof                events.LogOptionalFields
 }
 
-func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string) (map[string]interface{}, error) {
+func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string,
+	params map[string]string) (map[string]interface{}, error) {
 	m.getUsageInfoCalled = true
 	m.ctx = ctx
 	m.conf = conf
@@ -101,7 +102,7 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 	info, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-		"TestTaskID", "myInfra", "myLocation")
+		"TestTaskID", "myInfra", "myLocation", map[string]string{})
 	require.Nil(t, err)
 	require.True(t, mock.getUsageInfoCalled)
 	require.Equal(t, "test", mock.conf.Consul.Address)
@@ -131,7 +132,7 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 	_, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-		"TestFailure", "myInfra", "myLocation")
+		"TestFailure", "myInfra", "myLocation", map[string]string{})
 	require.Error(t, err, "An error was expected during executing plugin infra usage collector")
 	require.EqualError(t, err, "a failure occurred during plugin infra usage collector")
 }
@@ -144,7 +145,7 @@ func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 		_, err := plugin.GetUsageInfo(
 			ctx,
 			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-			"TestCancel", "myInfra", "myLocation")
+			"TestCancel", "myInfra", "myLocation", map[string]string{})
 		require.Nil(t, err)
 	}()
 	cancelF()
