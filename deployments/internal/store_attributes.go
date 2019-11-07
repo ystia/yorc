@@ -16,6 +16,8 @@ package internal
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
@@ -23,8 +25,10 @@ import (
 
 // storeAttributeDefinition stores an attribute definition
 func storeAttributeDefinition(ctx context.Context, consulStore consulutil.ConsulStore, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
-	consulStore.StoreConsulKeyAsString(attrPrefix+"/type", attrDefinition.Type)
-	consulStore.StoreConsulKeyAsString(attrPrefix+"/entry_schema", attrDefinition.EntrySchema.Type)
-	StoreValueAssignment(consulStore, attrPrefix+"/default", attrDefinition.Default)
-	consulStore.StoreConsulKeyAsString(attrPrefix+"/status", attrDefinition.Status)
+	//consulStore.StoreConsulKeyAsString(attrPrefix+"/type", attrDefinition.Type)
+	//consulStore.StoreConsulKeyAsString(attrPrefix+"/entry_schema", attrDefinition.EntrySchema.Type)
+	//StoreValueAssignment(consulStore, attrPrefix+"/default", attrDefinition.Default)
+	//consulStore.StoreConsulKeyAsString(attrPrefix+"/status", attrDefinition.Status)
+
+	storage.GetStore(types.StoreTypeDeployment).Set(attrPrefix, attrDefinition)
 }

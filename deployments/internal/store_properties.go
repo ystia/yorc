@@ -16,7 +16,8 @@ package internal
 
 import (
 	"context"
-	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
@@ -24,13 +25,21 @@ import (
 
 // storePropertyDefinition stores a property definition
 func storePropertyDefinition(ctx context.Context, consulStore consulutil.ConsulStore, propPrefix, propName string, propDefinition tosca.PropertyDefinition) {
-	consulStore.StoreConsulKeyAsString(propPrefix+"/type", propDefinition.Type)
-	consulStore.StoreConsulKeyAsString(propPrefix+"/entry_schema", propDefinition.EntrySchema.Type)
-	StoreValueAssignment(consulStore, propPrefix+"/default", propDefinition.Default)
 	if propDefinition.Required == nil {
+		b := true
 		// Required by default
-		consulStore.StoreConsulKeyAsString(propPrefix+"/required", "true")
-	} else {
-		consulStore.StoreConsulKeyAsString(propPrefix+"/required", fmt.Sprint(*propDefinition.Required))
+		propDefinition.Required = &b
 	}
+
+	storage.GetStore(types.StoreTypeDeployment).Set(propPrefix, propDefinition)
+
+	//consulStore.StoreConsulKeyAsString(propPrefix+"/type", propDefinition.Type)
+	//consulStore.StoreConsulKeyAsString(propPrefix+"/entry_schema", propDefinition.EntrySchema.Type)
+	//StoreValueAssignment(consulStore, propPrefix+"/default", propDefinition.Default)
+	//if propDefinition.Required == nil {
+	//	// Required by default
+	//	consulStore.StoreConsulKeyAsString(propPrefix+"/required", "true")
+	//} else {
+	//	consulStore.StoreConsulKeyAsString(propPrefix+"/required", fmt.Sprint(*propDefinition.Required))
+	//}
 }

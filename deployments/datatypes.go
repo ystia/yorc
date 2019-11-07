@@ -16,6 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strings"
 
@@ -42,40 +45,45 @@ func GetTypeAttributeDataType(ctx context.Context, deploymentID, typeName, prope
 	return getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, false)
 }
 
-func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
+func getPropertyDefinition(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (bool, *tosca.PropertyDefinition, error) {
 	tType := "properties"
 	if !isProp {
 		tType = "attributes"
 	}
+
 	typePath, err := locateTypePath(deploymentID, typeName)
+	if err != nil {
+		return false, nil, err
+	}
+	propertyDefinitionPath := path.Join(typePath, tType, propertyName)
+	propDefinition := new(tosca.PropertyDefinition)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(propertyDefinitionPath, propDefinition)
+	if err != nil {
+		return false, nil, err
+	}
+	return exist, propDefinition, nil
+}
+
+func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
+	exist, propDefinition, err := getPropertyDefinition(ctx, deploymentID, typeName, propertyName, isProp)
 	if err != nil {
 		return "", err
 	}
-	propertyDefinitionPath := path.Join(typePath, tType, propertyName)
-	exist, value, err := consulutil.GetStringValue(path.Join(propertyDefinitionPath, "type"))
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !exist || value == "" {
+	if !exist || propDefinition == nil || propDefinition.Type == "" {
 		// Check parent
 		parentType, err := GetParentType(ctx, deploymentID, typeName)
 		if parentType == "" {
 			return "", nil
-			// return "", errors.Errorf("property %q not found in type %q", propertyName, typeName)
 		}
 		result, err := GetTypePropertyDataType(ctx, deploymentID, parentType, propertyName)
 		return result, errors.Wrapf(err, "property %q not found in type %q", propertyName, typeName)
 	}
-	dataType := value
+	dataType := propDefinition.Type
 	if dataType == "map" || dataType == "list" {
-		exist, value, err := consulutil.GetStringValue(path.Join(propertyDefinitionPath, "entry_schema"))
-		if err != nil {
-			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" {
+		if &propDefinition.EntrySchema == nil || propDefinition.EntrySchema.Type == "" {
 			dataType += ":string"
 		} else {
-			dataType += ":" + value
+			dataType += ":" + propDefinition.EntrySchema.Type
 		}
 	} else if dataType == "" {
 		dataType = "string"

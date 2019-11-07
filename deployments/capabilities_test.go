@@ -44,27 +44,27 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer) {
 	})
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
-		t.Run("TestHasScalableCapability", func(t *testing.T) {
-			testHasScalableCapability(t, deploymentID)
-		})
-		t.Run("TestGetCapabilitiesOfType", func(t *testing.T) {
-			testGetCapabilitiesOfType(t, deploymentID)
-		})
-		t.Run("TestGetNodeCapabilityType", func(t *testing.T) {
-			testGetNodeCapabilityType(t, deploymentID)
-		})
-		t.Run("TestGetCapabilityProperty", func(t *testing.T) {
-			testGetCapabilityProperty(t, deploymentID)
-		})
-		t.Run("TestGetCapabilityPropertyType", func(t *testing.T) {
-			testGetCapabilityPropertyType(t, deploymentID)
-		})
+		//t.Run("TestHasScalableCapability", func(t *testing.T) {
+		//	testHasScalableCapability(t, deploymentID)
+		//})
+		//t.Run("TestGetCapabilitiesOfType", func(t *testing.T) {
+		//	testGetCapabilitiesOfType(t, deploymentID)
+		//})
+		//t.Run("TestGetNodeCapabilityType", func(t *testing.T) {
+		//	testGetNodeCapabilityType(t, deploymentID)
+		//})
+		//t.Run("TestGetCapabilityProperty", func(t *testing.T) {
+		//	testGetCapabilityProperty(t, deploymentID)
+		//})
+		//t.Run("TestGetCapabilityPropertyType", func(t *testing.T) {
+		//	testGetCapabilityPropertyType(t, deploymentID)
+		//})
 		t.Run("TestGetInstanceCapabilityAttribute", func(t *testing.T) {
 			testGetInstanceCapabilityAttribute(t, deploymentID)
 		})
-		t.Run("TestGetIPAddressFromHost", func(t *testing.T) {
-			testGetIPAddressFromHost(t, deploymentID)
-		})
+		//t.Run("TestGetIPAddressFromHost", func(t *testing.T) {
+		//	testGetIPAddressFromHost(t, deploymentID)
+		//})
 	})
 }
 

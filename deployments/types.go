@@ -232,39 +232,19 @@ func getTypeDefaultAttribute(ctx context.Context, deploymentID, typeName, attrib
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
 func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeName, propertyName string, isProperty bool, nestedKeys ...string) (*TOSCAValue, bool, error) {
-
+	hasProp, prop, err := getPropertyDefinition(ctx, deploymentID, typeName, propertyName, isProperty)
 	// If this type doesn't contains the property lets continue to explore the type hierarchy
-	var hasProp bool
-	var err error
-	if isProperty {
-		hasProp, err = TypeHasProperty(ctx, deploymentID, typeName, propertyName, false)
-	} else {
-		hasProp, err = TypeHasAttribute(ctx, deploymentID, typeName, propertyName, false)
-	}
 	if err != nil {
 		return nil, false, err
 	}
 	if hasProp {
-		typePath, err := locateTypePath(deploymentID, typeName)
-		if err != nil {
-			return nil, false, err
-		}
-		var t string
-		if isProperty {
-			t = "properties"
-		} else {
-			t = "attributes"
-		}
-		defaultPath := path.Join(typePath, t, propertyName, "default")
-
-		baseDataType, err := getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, isProperty)
-		if err != nil {
-			return nil, false, err
-		}
-
-		result, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, defaultPath, baseDataType, nestedKeys...)
-		if err != nil || result != nil {
-			return result, isFunction, errors.Wrapf(err, "Failed to get default %s %q for type %q", t, propertyName, typeName)
+		// Just need to resolve the va
+		va := prop.Default
+		switch va.Type {
+		case tosca.ValueAssignmentLiteral:
+			return &TOSCAValue{Value: va.String()}, va.Type == tosca.ValueAssignmentFunction, nil
+		case tosca.ValueAssignmentFunction, tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
+			return &TOSCAValue{Value: va.String()}, true, nil
 		}
 	}
 	// No default in this type
