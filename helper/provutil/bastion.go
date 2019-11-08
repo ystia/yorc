@@ -24,7 +24,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca/types"
 )
 
-const BastionCapabilityName = "bastion"
+const bastionCapabilityName = "bastion"
 
 // GetInstanceBastionHost returns a sshutil.BastionHostConfig for a given hosts or nil when no
 // bastion host is specified.
@@ -104,7 +104,7 @@ func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, n
 	if err != nil {
 		return
 	}
-	port, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, BastionCapabilityName, "port")
+	port, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, bastionCapabilityName, "port")
 	if err != nil {
 		return
 	}
@@ -134,7 +134,7 @@ func getBastionHostInstanceCredentials(ctx context.Context, deploymentID, bastNo
 		return
 	}
 	n := bastNode
-	c := BastionCapabilityName
+	c := bastionCapabilityName
 	if useHostCreds.String() == "true" {
 		n = bastHostNode
 		c = "endpoint"
