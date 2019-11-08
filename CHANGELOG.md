@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 4.0.0-M6 (November 08, 2019)
 
 ### ENHANCEMENTS
