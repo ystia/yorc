@@ -19,39 +19,38 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
-func loadTestYaml(t *testing.T, kv *api.KV) string {
+func loadTestYaml(t *testing.T) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }
 
 func TestRunConsulProvutilPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
+	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	log.SetDebug(true)
 
 	t.Run("BastionNotDefined", func(t *testing.T) {
-		testBastionNotDefined(t, client.KV())
+		testBastionNotDefined(t)
 	})
 
 	t.Run("BastionRelationship", func(t *testing.T) {
-		testBastionRelationship(t, client.KV())
+		testBastionRelationship(t)
 	})
 
 	t.Run("BastionEndpoint", func(t *testing.T) {
-		testBastionEndpoint(t, client.KV())
+		testBastionEndpoint(t)
 	})
 
 	t.Run("BastionEndpointPriority", func(t *testing.T) {
-		testBastionEndpointPriority(t, client.KV())
+		testBastionEndpointPriority(t)
 	})
 }

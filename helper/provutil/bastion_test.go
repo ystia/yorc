@@ -21,7 +21,6 @@ import (
 
 	"github.com/ystia/yorc/v4/deployments"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,10 +35,10 @@ func init() {
 	}
 }
 
-func testBastionEndpoint(t *testing.T, kv *api.KV) {
-	deploymentID := loadTestYaml(t, kv)
+func testBastionEndpoint(t *testing.T) {
+	deploymentID := loadTestYaml(t)
 
-	b, err := GetInstanceBastionHost(context.Background(), kv, deploymentID, "ComputePassword")
+	b, err := GetInstanceBastionHost(context.Background(), deploymentID, "ComputePassword")
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
 		assert.Equal(t, "10.0.0.2", b.Host)
@@ -49,7 +48,7 @@ func testBastionEndpoint(t *testing.T, kv *api.KV) {
 		assert.Empty(t, b.PrivateKeys)
 	}
 
-	b, err = GetInstanceBastionHost(context.Background(), kv, deploymentID, "ComputeKey")
+	b, err = GetInstanceBastionHost(context.Background(), deploymentID, "ComputeKey")
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
 		assert.Equal(t, "10.0.0.2", b.Host)
@@ -59,17 +58,17 @@ func testBastionEndpoint(t *testing.T, kv *api.KV) {
 		assert.Equal(t, expectedKey, b.PrivateKeys["0"].Content)
 	}
 
-	b, err = GetInstanceBastionHost(context.Background(), kv, deploymentID, "ComputeNoBastion")
+	b, err = GetInstanceBastionHost(context.Background(), deploymentID, "ComputeNoBastion")
 
 	require.Nil(t, err)
 	assert.Nil(t, b, "shouldn't return a bastion host configuration when use == false")
 }
 
-func testBastionEndpointPriority(t *testing.T, kv *api.KV) {
-	deploymentID := loadTestYaml(t, kv)
-	deployments.SetAttributeForAllInstances(kv, deploymentID, "Bastion", "ip_address", "10.0.0.3")
+func testBastionEndpointPriority(t *testing.T) {
+	deploymentID := loadTestYaml(t)
+	deployments.SetAttributeForAllInstances(context.Background(), deploymentID, "Bastion", "ip_address", "10.0.0.3")
 
-	b, err := GetInstanceBastionHost(context.Background(), kv, deploymentID, "Compute")
+	b, err := GetInstanceBastionHost(context.Background(), deploymentID, "Compute")
 
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
@@ -81,21 +80,21 @@ func testBastionEndpointPriority(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testBastionNotDefined(t *testing.T, kv *api.KV) {
-	deploymentID := loadTestYaml(t, kv)
+func testBastionNotDefined(t *testing.T) {
+	deploymentID := loadTestYaml(t)
 
-	bast, err := GetInstanceBastionHost(context.Background(), kv, deploymentID, "Compute")
+	bast, err := GetInstanceBastionHost(context.Background(), deploymentID, "Compute")
 
 	require.Nil(t, err)
 	assert.Nil(t, bast, "shouldn't return a bastion host configuration")
 }
 
-func testBastionRelationship(t *testing.T, kv *api.KV) {
-	deploymentID := loadTestYaml(t, kv)
-	deployments.SetAttributeForAllInstances(kv, deploymentID, "BastionKey", "ip_address", "10.0.0.3")
-	deployments.SetAttributeForAllInstances(kv, deploymentID, "BastionPassword", "ip_address", "10.0.0.4")
+func testBastionRelationship(t *testing.T) {
+	deploymentID := loadTestYaml(t)
+	deployments.SetAttributeForAllInstances(context.Background(), deploymentID, "BastionKey", "ip_address", "10.0.0.3")
+	deployments.SetAttributeForAllInstances(context.Background(), deploymentID, "BastionPassword", "ip_address", "10.0.0.4")
 
-	b, err := GetInstanceBastionHost(context.Background(), kv, deploymentID, "ComputePassword")
+	b, err := GetInstanceBastionHost(context.Background(), deploymentID, "ComputePassword")
 
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
@@ -105,7 +104,7 @@ func testBastionRelationship(t *testing.T, kv *api.KV) {
 		assert.Equal(t, "secret", b.Password)
 	}
 
-	b, err = GetInstanceBastionHost(context.Background(), kv, deploymentID, "ComputeKey")
+	b, err = GetInstanceBastionHost(context.Background(), deploymentID, "ComputeKey")
 
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
