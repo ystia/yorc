@@ -15,6 +15,8 @@
 package internal
 
 import (
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strconv"
 
@@ -24,22 +26,24 @@ import (
 
 // StoreRequirementAssignment stores a TOSCA RequirementAssignment under a given prefix
 func StoreRequirementAssignment(consulStore consulutil.ConsulStore, requirement tosca.RequirementAssignment, requirementPrefix, requirementName string) {
-	consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
-	consulStore.StoreConsulKeyAsString(requirementPrefix+"/node", requirement.Node)
-	consulStore.StoreConsulKeyAsString(requirementPrefix+"/relationship", requirement.Relationship)
-	consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
-	consulStore.StoreConsulKeyAsString(requirementPrefix+"/type_requirement", requirement.TypeRequirement)
+	//consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
+	//consulStore.StoreConsulKeyAsString(requirementPrefix+"/node", requirement.Node)
+	//consulStore.StoreConsulKeyAsString(requirementPrefix+"/relationship", requirement.Relationship)
+	//consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
+	//consulStore.StoreConsulKeyAsString(requirementPrefix+"/type_requirement", requirement.TypeRequirement)
+	storage.GetStore(types.StoreTypeDeployment).Set(requirementPrefix, requirement)
 	storeMapValueAssignment(consulStore, path.Join(requirementPrefix, "properties"), requirement.RelationshipProps)
 }
 
 func storeRequirementDefinition(consulStore consulutil.ConsulStore, reqDefinition tosca.RequirementDefinition, reqName, reqPrefix string) {
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqDefinition.Node)
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
-	consulStore.StoreConsulKeyAsString(reqPrefix+"/capability_name", reqDefinition.CapabilityName)
+	storage.GetStore(types.StoreTypeDeployment).Set(reqPrefix, reqDefinition)
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqDefinition.Node)
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
+	//consulStore.StoreConsulKeyAsString(reqPrefix+"/capability_name", reqDefinition.CapabilityName)
 }
 
 func storeRequirementDefinitionMap(consulStore consulutil.ConsulStore, requirements []tosca.RequirementDefinitionMap, requirementsPrefix string) {

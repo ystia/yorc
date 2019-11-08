@@ -16,9 +16,10 @@ package internal
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"net/url"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -88,14 +89,14 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 		capabilitiesPrefix := nodeTypePrefix + "/capabilities"
 		for capName, capability := range nodeType.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
-
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/type", capability.Type)
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
-
-			storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "properties"), capability.Properties)
-			storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "attributes"), capability.Attributes)
+			storage.GetStore(types.StoreTypeDeployment).Set(capabilityPrefix, capability)
+			//consulStore.StoreConsulKeyAsString(capabilityPrefix+"/type", capability.Type)
+			//consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
+			//consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
+			//consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
+			//
+			//storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "properties"), capability.Properties)
+			//storeMapValueAssignment(consulStore, path.Join(capabilityPrefix, "attributes"), capability.Attributes)
 		}
 
 		err := storeInterfaces(consulStore, nodeType.Interfaces, nodeTypePrefix, false)
@@ -105,6 +106,7 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 		attributesPrefix := nodeTypePrefix + "/attributes"
 		for attrName, attrDefinition := range nodeType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
+
 			storeAttributeDefinition(ctx, consulStore, attrPrefix, attrName, attrDefinition)
 			if attrDefinition.Default != nil && attrDefinition.Default.Type == tosca.ValueAssignmentFunction {
 				err := storeOperationOutput(consulStore, attrDefinition.Default, path.Join(nodeTypePrefix, "interfaces"))

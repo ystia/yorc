@@ -237,14 +237,14 @@ func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeNa
 	if err != nil {
 		return nil, false, err
 	}
-	if hasProp {
+	if hasProp && prop.Default != nil {
 		// Just need to resolve the va
 		va := prop.Default
 		switch va.Type {
 		case tosca.ValueAssignmentLiteral:
 			return &TOSCAValue{Value: va.String()}, va.Type == tosca.ValueAssignmentFunction, nil
 		case tosca.ValueAssignmentFunction, tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
-			return &TOSCAValue{Value: va.String()}, true, nil
+			return &TOSCAValue{Value: va.String()}, false, nil
 		}
 	}
 	// No default in this type

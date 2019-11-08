@@ -16,15 +16,15 @@ package internal
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
-
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/tosca"
 )
 
 // storeNodes stores topology nodes
@@ -32,11 +32,13 @@ func storeNodes(ctx context.Context, consulStore consulutil.ConsulStore, topolog
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
-		consulStore.StoreConsulKeyAsString(nodePrefix+"/type", node.Type)
+		//consulStore.StoreConsulKeyAsString(nodePrefix+"/type", node.Type)
+		storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix+"/type", node.Type)
 		if node.Directives != nil {
-			consulStore.StoreConsulKeyAsString(
-				path.Join(nodePrefix, "directives"),
-				strings.Join(node.Directives, ","))
+			storage.GetStore(types.StoreTypeDeployment).Set(path.Join(nodePrefix, "directives"), node.Directives)
+			//consulStore.StoreConsulKeyAsString(
+			//	path.Join(nodePrefix, "directives"),
+			//	strings.Join(node.Directives, ","))
 		}
 		storeMapValueAssignment(consulStore, path.Join(nodePrefix, "properties"), node.Properties)
 		storeMapValueAssignment(consulStore, path.Join(nodePrefix, "attributes"), node.Attributes)
@@ -65,9 +67,10 @@ func storeNodes(ctx context.Context, consulStore consulutil.ConsulStore, topolog
 		}
 
 		metadataPrefix := nodePrefix + "/metadata/"
-		for metaName, metaValue := range node.Metadata {
-			consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
-		}
+		//for metaName, metaValue := range node.Metadata {
+		//	consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
+		//}
+		storage.GetStore(types.StoreTypeDeployment).Set(metadataPrefix, node.Metadata)
 
 		storeInterfaces(consulStore, node.Interfaces, nodePrefix, false)
 	}

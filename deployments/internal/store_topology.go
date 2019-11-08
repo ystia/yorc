@@ -16,15 +16,13 @@ package internal
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"path"
-	"strconv"
-
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"golang.org/x/sync/errgroup"
+	"path"
 )
 
 // StoreTopology stores a given topology.
@@ -95,16 +93,22 @@ func storeInputs(ctx context.Context, consulStore consulutil.ConsulStore, topolo
 func storeParameterDefinition(ctx context.Context, consulStore consulutil.ConsulStore, paramsPrefix string, paramDefsMap map[string]tosca.ParameterDefinition) {
 	for paramName, paramDef := range paramDefsMap {
 		paramDefPrefix := path.Join(paramsPrefix, paramName)
-		StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "default"), paramDef.Default)
 		if paramDef.Required == nil {
 			// Required by default
-			consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), "true")
-		} else {
-			consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), strconv.FormatBool(*paramDef.Required))
+			b := true
+			paramDef.Required = &b
 		}
-		consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "status"), paramDef.Status)
-		consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "type"), paramDef.Type)
-		consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "entry_schema"), paramDef.EntrySchema.Type)
-		StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "value"), paramDef.Value)
+		storage.GetStore(types.StoreTypeDeployment).Set(paramDefPrefix, paramDef)
+		//StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "default"), paramDef.Default)
+		//if paramDef.Required == nil {
+		//	// Required by default
+		//	consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), "true")
+		//} else {
+		//	consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), strconv.FormatBool(*paramDef.Required))
+		//}
+		//consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "status"), paramDef.Status)
+		//consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "type"), paramDef.Type)
+		//consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "entry_schema"), paramDef.EntrySchema.Type)
+		//StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "value"), paramDef.Value)
 	}
 }

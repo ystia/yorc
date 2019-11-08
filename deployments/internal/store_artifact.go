@@ -16,6 +16,8 @@ package internal
 
 import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
@@ -26,8 +28,9 @@ func storeArtifacts(consulStore consulutil.ConsulStore, artifacts tosca.Artifact
 	}
 }
 func storeArtifact(consulStore consulutil.ConsulStore, artifact tosca.ArtifactDefinition, artifactPrefix string) {
-	consulStore.StoreConsulKeyAsString(artifactPrefix+"/file", artifact.File)
-	consulStore.StoreConsulKeyAsString(artifactPrefix+"/type", artifact.Type)
-	consulStore.StoreConsulKeyAsString(artifactPrefix+"/repository", artifact.Repository)
-	consulStore.StoreConsulKeyAsString(artifactPrefix+"/deploy_path", artifact.DeployPath)
+	storage.GetStore(types.StoreTypeDeployment).Set(artifactPrefix, artifact)
+	//consulStore.StoreConsulKeyAsString(artifactPrefix+"/file", artifact.File)
+	//consulStore.StoreConsulKeyAsString(artifactPrefix+"/type", artifact.Type)
+	//consulStore.StoreConsulKeyAsString(artifactPrefix+"/repository", artifact.Repository)
+	//consulStore.StoreConsulKeyAsString(artifactPrefix+"/deploy_path", artifact.DeployPath)
 }
