@@ -43,7 +43,7 @@ func testAddConnectionCheckResource(t *testing.T, kv *api.KV) {
 	ctx := context.Background()
 	testPk := sshutil.PrivateKey{Content: []byte("secretkey")}
 
-	err := AddConnectionCheckResource(ctx, kv, deploymentID, "Compute", infra, "user",
+	err := AddConnectionCheckResource(ctx, deploymentID, "Compute", infra, "user",
 		&testPk, "10.0.0.1", "Compute", env)
 	assert.Nil(t, err)
 	check := requireRemoteExec(t, infra, "Compute")
@@ -53,7 +53,7 @@ func testAddConnectionCheckResource(t *testing.T, kv *api.KV) {
 	assert.Contains(t, *env, "TF_VAR_private_key="+string(testPk.Content), "private key environment variable should be set")
 	assert.NotNil(t, infra.Variable["private_key"])
 
-	err = AddConnectionCheckResource(ctx, kv, deploymentID, "ComputeBastionPassword", infra, "user",
+	err = AddConnectionCheckResource(ctx, deploymentID, "ComputeBastionPassword", infra, "user",
 		&testPk, "10.0.0.1", "ComputeBastionPassword", env)
 	assert.Nil(t, err)
 	check = requireRemoteExec(t, infra, "ComputeBastionPassword")
@@ -65,7 +65,7 @@ func testAddConnectionCheckResource(t *testing.T, kv *api.KV) {
 	assert.Contains(t, *env, "TF_VAR_bastion_private_key="+string(testPk.Content))
 	assert.NotNil(t, infra.Variable["bastion_private_key"])
 
-	err = AddConnectionCheckResource(ctx, kv, deploymentID, "ComputeBastionKey", infra, "user",
+	err = AddConnectionCheckResource(ctx, deploymentID, "ComputeBastionKey", infra, "user",
 		&testPk, "10.0.0.1", "ComputeBastionKey", env)
 	assert.Nil(t, err)
 	check = requireRemoteExec(t, infra, "ComputeBastionKey")

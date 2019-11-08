@@ -29,7 +29,7 @@ import (
 func loadTestYaml(t *testing.T, kv *api.KV) string {
 	deploymentID := path.Base(t.Name())
 	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 	return deploymentID
 }

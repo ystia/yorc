@@ -93,9 +93,9 @@ func testBastionRelationship(t *testing.T) {
 	deploymentID := loadTestYaml(t)
 	deployments.SetAttributeForAllInstances(context.Background(), deploymentID, "BastionKey", "ip_address", "10.0.0.3")
 	deployments.SetAttributeForAllInstances(context.Background(), deploymentID, "BastionPassword", "ip_address", "10.0.0.4")
+	deployments.SetAttributeForAllInstances(context.Background(), deploymentID, "BastionCapabilityCredentials", "ip_address", "10.0.0.5")
 
 	b, err := GetInstanceBastionHost(context.Background(), deploymentID, "ComputePassword")
-
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
 		assert.Equal(t, "10.0.0.4", b.Host)
@@ -105,7 +105,6 @@ func testBastionRelationship(t *testing.T) {
 	}
 
 	b, err = GetInstanceBastionHost(context.Background(), deploymentID, "ComputeKey")
-
 	require.Nil(t, err)
 	if assert.NotNil(t, b, "should return bastion host configuration") {
 		assert.Equal(t, "10.0.0.3", b.Host)
@@ -113,5 +112,14 @@ func testBastionRelationship(t *testing.T) {
 		assert.Equal(t, "ubuntu", b.User)
 		assert.Equal(t, "", b.Password)
 		assert.Equal(t, expectedKey, b.PrivateKeys["0"].Content)
+	}
+
+	b, err = GetInstanceBastionHost(context.Background(), deploymentID, "ComputeCapabilityCredentials")
+	require.Nil(t, err)
+	if assert.NotNil(t, b, "should return bastion host configuration") {
+		assert.Equal(t, "10.0.0.5", b.Host)
+		assert.Equal(t, "22", b.Port)
+		assert.Equal(t, "bastion", b.User, "should use the custom user of the capability")
+		assert.Equal(t, "letmein", b.Password, "should use the custom password of the capability")
 	}
 }

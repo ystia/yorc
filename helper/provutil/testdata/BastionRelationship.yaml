@@ -3,11 +3,12 @@ tosca_definitions_version: alien_dsl_2_0_0
 imports:
   - <normative-types.yml>
   - <yorc-types.yml>
+  - <test-types.yml>
 
 topology_template:
   node_templates:
     SSHBastionHostKey:
-      type: yorc.nodes.SSHBastionHost
+      type: yorc.test.nodes.SSHBastionHost
       requirements:
         - hostedOnComputeHost:
             type_requirement: host
@@ -55,21 +56,20 @@ topology_template:
     ComputeKey:
       type: yorc.nodes.Compute
       requirements:
-        - dependsOnSshBastionHostFeature:
+        - deploysThroughSshBastionHost:
             type_requirement: dependency
             node: SSHBastionHostKey
-            capability: tosca.capabilities.Node
+            capability: yorc.capabilities.SSHBastionHost
             relationship: yorc.relationships.DeploysThrough
 
     SSHBastionHostPassword:
-      type: yorc.nodes.SSHBastionHost
+      type: yorc.test.nodes.SSHBastionHost
       requirements:
         - hostedOnComputeHost:
             type_requirement: host
             node: BastionPassword
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-      capabilities:
     BastionPassword:
       type: yorc.nodes.Compute
       capabilities:
@@ -82,8 +82,42 @@ topology_template:
     ComputePassword:
       type: yorc.nodes.Compute
       requirements:
-        - dependsOnSshBastionHostFeature:
+        - deploysThroughSshBastionHost:
             type_requirement: dependency
             node: SSHBastionHostPassword
-            capability: tosca.capabilities.Node
+            capability: yorc.capabilities.SSHBastionHost
+            relationship: yorc.relationships.DeploysThrough
+
+    SSHBastionHostCapabilityCredentials:
+      type: yorc.test.nodes.SSHBastionHost
+      capabilities:
+        bastion:
+          properties:
+            use_host_credentials: false
+            credentials:
+              user: 'bastion'
+              token_type: 'password'
+              token: 'letmein'
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: BastionCapabilityCredentials
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    BastionCapabilityCredentials:
+      type: yorc.nodes.Compute
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: 'ubuntu'
+              token_type: 'password'
+              token: 'secret'
+    ComputeCapabilityCredentials:
+      type: yorc.nodes.Compute
+      requirements:
+        - deploysThroughSshBastionHost:
+            type_requirement: dependency
+            node: SSHBastionHostCapabilityCredentials
+            capability: yorc.capabilities.SSHBastionHost
             relationship: yorc.relationships.DeploysThrough

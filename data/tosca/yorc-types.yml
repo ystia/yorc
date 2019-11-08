@@ -113,6 +113,27 @@ capability_types:
 
   yorc.capabilities.Group:
     derived_from: tosca.capabilities.Root
+  
+capability_types:
+  yorc.capabilities.SSHBastionHost:
+    derived_from: tosca.capabilities.Node
+    properties:
+      port: 
+        type: integer
+        required: false
+      network_name: 
+        type: string
+        required: false
+      port_name: 
+        type: string
+        required: false
+      use_host_credentials:
+        type: boolean
+        required: false
+        default: true
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        required: false
 
 relationship_types:
   yorc.relationships.AssignsTo:
@@ -126,7 +147,7 @@ relationship_types:
   yorc.relationships.DeploysThrough:
     derived_from: tosca.relationships.DependsOn
     description: This type assigns a bastion host to use for connecting to a compute instance.
-    valid_target_types: [ yorc.nodes.SSHBastionHost ]
+    valid_target_types: [ yorc.capabilities.SSHBastionHost ]
 
 node_types:
   yorc.nodes.Compute:
@@ -150,28 +171,6 @@ node_types:
           description: Monitor a submitted job for completion.
         cancel:
           description: Cancel a submitted job.
-  
-  yorc.nodes.SSHBastionHost:
-    derived_from: tosca.nodes.SoftwareComponent
-    attributes:
-      ip_address: { get_attribute: [HOST, ip_address] }
-      port: { get_attribute: [HOST, endpoint, port] }
-      network_name: { get_attribute: [HOST, endpoint, network_name] }
-      port_name: { get_attribute: [HOST, endpoint, port_name] }
-      credentials: { get_attribute: [HOST, endpoint, credentials] }
-    capabilities:
-      os:
-        type: tosca.capabilities.OperatingSystem
-        properties:
-          architecture: x86_64
-          type: linux
-          distribution: ubuntu
-    interfaces:
-      Standard:
-        configure:
-          implementation:
-            file: ansible/bastion.yml
-            type: tosca.artifacts.Implementation.Ansible
 
 policy_types:
   yorc.policies.Monitoring:

@@ -3,11 +3,12 @@ tosca_definitions_version: alien_dsl_2_0_0
 imports:
   - <normative-types.yml>
   - <yorc-types.yml>
+  - <test-types.yml>
 
 topology_template:
   node_templates:
     SSHBastionHost:
-      type: yorc.nodes.SSHBastionHost
+      type: yorc.test.nodes.SSHBastionHost
       requirements:
         - hostedOnComputeHost:
             type_requirement: host
@@ -24,10 +25,10 @@ topology_template:
     Compute:
       type: yorc.nodes.Compute
       requirements:
-        - dependsOnSshBastionHostFeature:
+        - deploysThroughSshBastionHost:
             type_requirement: dependency
             node: SSHBastionHost
-            capability: tosca.capabilities.Node
+            capability: yorc.capabilities.SSHBastionHost
             relationship: yorc.relationships.DeploysThrough
       capabilities:
         endpoint:

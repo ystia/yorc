@@ -17,13 +17,14 @@ package provutil
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/tosca/types"
 )
+
+const BastionCapabilityName = "bastion"
 
 // GetInstanceBastionHost returns a sshutil.BastionHostConfig for a given hosts or nil when no
 // bastion host is specified.
@@ -90,57 +91,61 @@ func getInstanceBastionHostFromEndpoint(ctx context.Context, deploymentID, nodeN
 	return b, nil
 }
 
-func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, nodeName, depIdx string) (*sshutil.BastionHostConfig, error) {
-	bastionNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, depIdx)
+func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, nodeName, reqIdx string) (b *sshutil.BastionHostConfig, err error) {
+	bastNode, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIdx)
 	if err != nil {
-		return nil, err
+		return
 	}
-
-	bastionNodeType, err := deployments.GetNodeType(ctx, deploymentID, bastionNodeName)
+	bastHostNode, err := deployments.GetHostedOnNode(ctx, deploymentID, bastNode)
 	if err != nil {
-		return nil, err
+		return
 	}
-	if bastionNodeType != "yorc.nodes.SSHBastionHost" {
-		return nil, errors.New("unspported node type for DeploysThrough relationship")
-	}
-
-	ipAddr, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastionNodeName, "0", "ip_address")
+	ip, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastHostNode, "0", "ip_address")
 	if err != nil {
-		return nil, err
+		return
 	}
-
-	port, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastionNodeName, "0", "port")
+	port, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, BastionCapabilityName, "port")
 	if err != nil {
-		return nil, err
+		return
 	}
-
-	credsRaw, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastionNodeName, "0", "credentials")
+	creds, err := getBastionHostInstanceCredentials(ctx, deploymentID, bastNode, bastHostNode)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	creds := types.Credential{}
-	if credsRaw.RawString() != "" {
-		if err := json.Unmarshal([]byte(credsRaw.RawString()), &creds); err != nil {
-			return nil, err
-		}
-	}
-
-	b := &sshutil.BastionHostConfig{Host: ipAddr.String(), Port: port.String(), User: creds.User}
-
+	b = &sshutil.BastionHostConfig{Host: ip.String(), Port: port.String(), User: creds.User}
 	if creds.TokenType == "password" {
 		b.Password = creds.Token
 	}
-
 	keys, err := sshutil.GetKeysFromCredentialsDataType(&creds)
 	if err != nil {
-		return nil, err
+		return
 	}
 	b.PrivateKeys = keys
-
 	if b.Port == "" {
 		b.Port = "22"
 	}
+	return
+}
 
-	return b, nil
+func getBastionHostInstanceCredentials(ctx context.Context, deploymentID, bastNode, bastHostNode string) (creds types.Credential, err error) {
+	useHostCreds, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, "bastion", "use_host_credentials")
+	if err != nil {
+		return
+	}
+	n := bastNode
+	c := BastionCapabilityName
+	if useHostCreds.String() == "true" {
+		n = bastHostNode
+		c = "endpoint"
+	}
+	credsRaw, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, n, c, "credentials")
+	if err != nil {
+		return
+	}
+	if credsRaw.RawString() == "" {
+		return
+	}
+	err = json.Unmarshal([]byte(credsRaw.RawString()), &creds)
+	return
 }
