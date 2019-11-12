@@ -32,6 +32,9 @@ import (
 	"github.com/ystia/yorc/v4/rest"
 )
 
+const LOCPATH = "/locations/"
+const APPJSON = "application/json"
+
 func init() {
 	commands.RootCmd.AddCommand(LocationsCmd)
 	commands.ConfigureYorcClientCommand(LocationsCmd, DepViper, &cfgFile, &noColor)
@@ -121,9 +124,9 @@ func addRow(table tabutil.Table, colorize bool, operation int, lConfig rest.Loca
 }
 
 // getLocationConfig makes a GET request to get a given location's configuration
-func getLocationConfig(client httputil.HTTPClient, locName string) (rest.LocationConfiguration, error) {
+func getLocationConfig(client httputil.HTTPClient, locationName string) (rest.LocationConfiguration, error) {
 	var locConfig rest.LocationConfiguration
-	request, err := client.NewRequest("GET", "/locations/"+locName, nil)
+	request, err := client.NewRequest("GET", getLocationPath(locationName), nil)
 	if err != nil {
 		return locConfig, err
 	}
@@ -134,7 +137,7 @@ func getLocationConfig(client httputil.HTTPClient, locName string) (rest.Locatio
 	}
 
 	defer response.Body.Close()
-	httputil.HandleHTTPStatusCode(response, locName, "locations", http.StatusOK)
+	httputil.HandleHTTPStatusCode(response, locationName, "locations", http.StatusOK)
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -156,7 +159,7 @@ func putLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConfig
 		Properties: locConfig.Properties,
 	}
 	bArray, err := json.Marshal(locationRequest)
-	request, err := client.NewRequest("PUT", "/locations/"+locationName, bytes.NewBuffer(bArray))
+	request, err := client.NewRequest("PUT", getLocationPath(locationName), bytes.NewBuffer(bArray))
 	if err != nil {
 		return locationName, err
 	}
@@ -179,7 +182,7 @@ func patchLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConf
 		Properties: locConfig.Properties,
 	}
 	bArray, err := json.Marshal(locationRequest)
-	request, err := client.NewRequest("PATCH", "/locations/"+locationName, bytes.NewBuffer(bArray))
+	request, err := client.NewRequest("PATCH", getLocationPath(locationName), bytes.NewBuffer(bArray))
 	if err != nil {
 		return locationName, err
 	}
@@ -188,13 +191,13 @@ func patchLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConf
 	if err != nil {
 		return locationName, err
 	}
-	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
+	httputil.HandleHTTPStatusCode(response, "", LOCPATH, http.StatusOK)
 	return locationName, nil
 }
 
-func deleteLocationConfig(client httputil.HTTPClient, locName string) error {
+func deleteLocationConfig(client httputil.HTTPClient, locationName string) error {
 
-	request, err := client.NewRequest("DELETE", "/locations/"+locName, nil)
+	request, err := client.NewRequest("DELETE", getLocationPath(locationName), nil)
 	if err != nil {
 		return err
 	}
@@ -202,7 +205,11 @@ func deleteLocationConfig(client httputil.HTTPClient, locName string) error {
 	if err != nil {
 		return err
 	}
-	httputil.HandleHTTPStatusCode(response, locName, "locations", http.StatusOK)
+	httputil.HandleHTTPStatusCode(response, locationName, "locations", http.StatusOK)
 
 	return nil
+}
+
+func getLocationPath(locName string) string {
+	return LOCPATH + locName
 }
