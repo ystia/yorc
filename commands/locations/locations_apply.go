@@ -219,7 +219,7 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 
 	// Proceed to delete
 	for locNameToDelete, _ := range deleteLocationsMap {
-		request, err := client.NewRequest("DELETE", "/locations/"+locNameToDelete, nil)
+		request, err := client.NewRequest("DELETE", getLocationPath(locNameToDelete), nil)
 		if err != nil {
 			return err
 		}

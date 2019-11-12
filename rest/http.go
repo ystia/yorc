@@ -34,6 +34,12 @@ import (
 	"github.com/ystia/yorc/v4/tasks/collector"
 )
 
+const HOSTSPOOL = "/hosts_pool"
+const HOSTPLOCATION = HOSTSPOOL + "/:location"
+const HOSTURI = HOSTPLOCATION + "/:host"
+const LOCATIONS = "/locations/"
+const LOCATIONURI = LOCATIONS + ":locationName"
+
 type router struct {
 	*httprouter.Router
 }
@@ -188,20 +194,21 @@ func (s *Server) registerHandlers() {
 	s.router.Delete("/infra_usage/:infraName/:locationName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
 	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
 
-	s.router.Put("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
-	s.router.Patch("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
-	s.router.Delete("/hosts_pool/:location/:host", commonHandlers.ThenFunc(s.deleteHostInPool))
-	s.router.Post("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
-	s.router.Put("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
-	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
-	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
-	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
+	s.router.Put(HOSTURI, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
+	s.router.Patch(HOSTURI, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
+	s.router.Delete(HOSTURI, commonHandlers.ThenFunc(s.deleteHostInPool))
+	s.router.Post(HOSTPLOCATION, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
+	s.router.Put(HOSTPLOCATION, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
+	s.router.Get(HOSTPLOCATION, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
+	s.router.Get(HOSTURI, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
+	s.router.Get(HOSTSPOOL, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
 
-	s.router.Get("/locations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listLocationsHandler))
-	s.router.Get("/locations/:locationName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getLocationHandler))
-	s.router.Put("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocationHandler))
-	s.router.Patch("/locations/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocationHandler))
-	s.router.Delete("/locations/:locationName", commonHandlers.ThenFunc(s.deleteLocationHandler))
+	s.router.Get(LOCATIONS, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listLocationsHandler))
+	s.router.Get(LOCATIONURI, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getLocationHandler))
+	s.router.Put(LOCATIONURI, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocationHandler))
+	s.router.Patch(LOCATIONURI, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocationHandler))
+	s.router.Delete(LOCATIONURI, commonHandlers.ThenFunc(s.deleteLocationHandler))
+
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
 	}

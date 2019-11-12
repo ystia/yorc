@@ -130,7 +130,7 @@ func getLocationConfig(client httputil.HTTPClient, locationName string) (rest.Lo
 	if err != nil {
 		return locConfig, err
 	}
-	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Accept", APPJSON)
 	response, err := client.Do(request)
 	if err != nil {
 		return locConfig, err
@@ -163,7 +163,7 @@ func putLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConfig
 	if err != nil {
 		return locationName, err
 	}
-	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Content-Type", APPJSON)
 	response, err := client.Do(request)
 	if err != nil {
 		return locationName, err
@@ -186,7 +186,7 @@ func patchLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConf
 	if err != nil {
 		return locationName, err
 	}
-	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Content-Type", APPJSON)
 	response, err := client.Do(request)
 	if err != nil {
 		return locationName, err
