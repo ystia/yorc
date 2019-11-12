@@ -36,6 +36,7 @@ type mockInfraUsageCollector struct {
 	taskID             string
 	infraName          string
 	locationName       string
+	params             map[string]string
 	contextCancelled   bool
 	lof                events.LogOptionalFields
 }
@@ -48,6 +49,7 @@ func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.
 	m.taskID = taskID
 	m.infraName = infraName
 	m.locationName = locationName
+	m.params = params
 	m.lof, _ = events.FromContext(ctx)
 
 	go func() {
@@ -99,10 +101,11 @@ func setupInfraUsageCollectorTestEnv(t *testing.T) (*mockInfraUsageCollector, *p
 func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 	mock, client, plugin, lof, ctx := setupInfraUsageCollectorTestEnv(t)
 	defer client.Close()
+	params := map[string]string{"param1": "value1"}
 	info, err := plugin.GetUsageInfo(
 		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
-		"TestTaskID", "myInfra", "myLocation", map[string]string{})
+		"TestTaskID", "myInfra", "myLocation", params)
 	require.Nil(t, err)
 	require.True(t, mock.getUsageInfoCalled)
 	require.Equal(t, "test", mock.conf.Consul.Address)
@@ -110,6 +113,7 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 	require.Equal(t, "TestTaskID", mock.taskID)
 	require.Equal(t, "myInfra", mock.infraName)
 	require.Equal(t, "myLocation", mock.locationName)
+	require.Equal(t, params, mock.params)
 	require.Equal(t, 3, len(info))
 	assert.Equal(t, lof, mock.lof)
 
