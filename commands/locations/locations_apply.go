@@ -50,34 +50,45 @@ func init() {
 	LocationsCmd.AddCommand(applyCmd)
 }
 
-func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove bool) error {
-	colorize := !noColor
-	if len(args) != 1 {
-		return errors.Errorf("Expecting a path to a file (got %d parameters)", len(args))
-	}
-	fileInfo, err := os.Stat(args[0])
+// readConfigFile reads the configuration file and returns the provided locations configurations
+func readConfigFile(client httputil.HTTPClient, path string) (*rest.LocationsCollection, error) {
+	var locationsApplied *rest.LocationsCollection
+
+	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if fileInfo.IsDir() {
-		return errors.Errorf("Expecting a path to a file (%s is a directory)", args[0])
+		return nil, errors.Errorf("Expecting a path to a file (%s is a directory)", path)
 	}
 
 	// Read config file, viper will accept indifferently a yaml or json
 	// format
 	v := viper.New()
-	v.SetConfigFile(args[0])
+	v.SetConfigFile(path)
 	err = v.ReadInConfig()
+	if err != nil {
+		return nil, err
+	}
+	err = v.Unmarshal(&locationsApplied)
+	if err != nil {
+		return nil, err
+	}
+	return locationsApplied, nil
+}
+
+func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove bool) error {
+	colorize := !noColor
+	if len(args) != 1 {
+		return errors.Errorf("Expecting a path to a file (got %d parameters)", len(args))
+	}
+
+	// Get locations definitions proposed by the client
+	locationsApplied, err := readConfigFile(client, args[0])
 	if err != nil {
 		return err
 	}
 
-	// Get locations definitions proposed by the client
-	var locationsApplied rest.LocationsCollection
-	err = v.Unmarshal(&locationsApplied)
-	if err != nil {
-		return err
-	}
 	// Put all these desfinitions for the momemnt in a map of locations to create
 	newLocationsMap := make(map[string]rest.LocationConfiguration)
 	for _, newLocation := range locationsApplied.Locations {
