@@ -15,13 +15,18 @@
 package locations
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/v4/commands"
+	"github.com/ystia/yorc/v4/commands/httputil"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/tabutil"
 	"github.com/ystia/yorc/v4/rest"
@@ -113,5 +118,91 @@ func addRow(table tabutil.Table, colorize bool, operation int, lConfig rest.Loca
 		}
 		table.AddRow(coloredColumns...)
 	}
+}
 
+// getLocationConfig makes a GET request to get a given location's configuration
+func getLocationConfig(client httputil.HTTPClient, locName string) (rest.LocationConfiguration, error) {
+	var locConfig rest.LocationConfiguration
+	request, err := client.NewRequest("GET", "/locations/"+locName, nil)
+	if err != nil {
+		return locConfig, err
+	}
+	request.Header.Add("Accept", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return locConfig, err
+	}
+
+	defer response.Body.Close()
+	httputil.HandleHTTPStatusCode(response, locName, "locations", http.StatusOK)
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return locConfig, err
+	}
+	err = json.Unmarshal(body, &locConfig)
+	if err != nil {
+		return locConfig, err
+	}
+	return locConfig, nil
+}
+
+// putLocationsConfig makes a PUT request to locations API
+func putLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConfiguration) (string, error) {
+
+	locationName := locConfig.Name
+	locationRequest := rest.LocationRequest{
+		Type:       locConfig.Type,
+		Properties: locConfig.Properties,
+	}
+	bArray, err := json.Marshal(locationRequest)
+	request, err := client.NewRequest("PUT", "/locations/"+locationName, bytes.NewBuffer(bArray))
+	if err != nil {
+		return locationName, err
+	}
+	request.Header.Add("Content-Type", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return locationName, err
+	}
+
+	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusCreated)
+	return locationName, nil
+}
+
+// patchLocation makes a PATCH request to loactions API
+func patchLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConfiguration) (string, error) {
+
+	locationName := locConfig.Name
+	locationRequest := rest.LocationRequest{
+		Type:       locConfig.Type,
+		Properties: locConfig.Properties,
+	}
+	bArray, err := json.Marshal(locationRequest)
+	request, err := client.NewRequest("PATCH", "/locations/"+locationName, bytes.NewBuffer(bArray))
+	if err != nil {
+		return locationName, err
+	}
+	request.Header.Add("Content-Type", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return locationName, err
+	}
+	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
+	return locationName, nil
+}
+
+func deleteLocationConfig(client httputil.HTTPClient, locName string) error {
+
+	request, err := client.NewRequest("DELETE", "/locations/"+locName, nil)
+	if err != nil {
+		return err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	httputil.HandleHTTPStatusCode(response, locName, "locations", http.StatusOK)
+
+	return nil
 }

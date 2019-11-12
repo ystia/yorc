@@ -16,8 +16,6 @@ package locations
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -187,46 +185,35 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 
 	// Proceed to the create
 	for _, newLocation := range newLocationsMap {
-		locationName := newLocation.Name
-		locationRequest := rest.LocationRequest{
+		locConfig := rest.LocationConfiguration{
+			Name:       newLocation.Name,
 			Type:       newLocation.Type,
 			Properties: newLocation.Properties,
 		}
-		bArray, err := json.Marshal(locationRequest)
-		request, err := client.NewRequest("PUT", "/locations/"+locationName, bytes.NewBuffer(bArray))
-		if err != nil {
-			return err
-		}
-		request.Header.Add("Content-Type", "application/json")
-		_, err = client.Do(request)
+
+		locName, err := putLocationConfig(client, locConfig)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("Location %s created", newLocation.Name)
+		fmt.Printf("Location %s created", locName)
 		fmt.Println("")
 	}
 
 	// Proceed to update
 	for _, updateLocation := range updateLocationsMap {
-		locationName := updateLocation.Name
-		locationRequest := rest.LocationRequest{
+		locConfig := rest.LocationConfiguration{
+			Name:       updateLocation.Name,
 			Type:       updateLocation.Type,
 			Properties: updateLocation.Properties,
 		}
-		bArray, err := json.Marshal(locationRequest)
-		request, err := client.NewRequest("PATCH", "/locations/"+locationName, bytes.NewBuffer(bArray))
-		if err != nil {
-			return err
-		}
-		request.Header.Add("Content-Type", "application/json")
 
-		_, err = client.Do(request)
+		locName, err := patchLocationConfig(client, locConfig)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("Location %s updated", updateLocation.Name)
+		fmt.Printf("Location %s updated", locName)
 		fmt.Println("")
 	}
 
