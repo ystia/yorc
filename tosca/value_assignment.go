@@ -112,9 +112,9 @@ func (p ValueAssignment) GetList() []interface{} {
 // GetMap retruns the map associated with this ValueAssignment
 //
 // If ValueAssignment.Type is not ValueAssignmentMap then nil is returned
-func (p ValueAssignment) GetMap() map[interface{}]interface{} {
+func (p ValueAssignment) GetMap() map[string]interface{} {
 	if p.Type == ValueAssignmentMap && p.Value != nil {
-		return p.Value.(map[interface{}]interface{})
+		return p.Value.(map[string]interface{})
 	}
 	return nil
 }
@@ -228,25 +228,11 @@ func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) e
 	}
 
 	// Not a List nor a TOSCA function, let's try a map or complex type
-	var m map[interface{}]interface{}
+	var m map[string]interface{}
 	if err := unmarshal(&m); err == nil {
 		p.Value = m
 		p.Type = ValueAssignmentMap
 		return nil
 	}
-
-	// JSON map unmarshaling expects a map[string]interface{}
-	var strMap map[string]interface{}
-	if err := unmarshal(&strMap); err != nil {
-		return err
-	}
-
-	p.Value = strMap
-	p.Type = ValueAssignmentMap
 	return nil
-}
-
-// MarshalJSON is marshaling only the Value field of a ValueAssignment
-func (p *ValueAssignment) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.Value)
 }

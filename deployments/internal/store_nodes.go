@@ -70,7 +70,10 @@ func storeNodes(ctx context.Context, consulStore consulutil.ConsulStore, topolog
 		//for metaName, metaValue := range node.Metadata {
 		//	consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
 		//}
-		storage.GetStore(types.StoreTypeDeployment).Set(metadataPrefix, node.Metadata)
+
+		if len(node.Metadata) > 0 {
+			storage.GetStore(types.StoreTypeDeployment).Set(metadataPrefix, node.Metadata)
+		}
 
 		storeInterfaces(consulStore, node.Interfaces, nodePrefix, false)
 	}

@@ -16,11 +16,11 @@ package internal
 
 import (
 	"context"
-	"path"
-	"strings"
-
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
+	"path"
 )
 
 // storePolicies stores topology policies
@@ -29,32 +29,20 @@ func storePolicies(ctx context.Context, consulStore consulutil.ConsulStore, topo
 	for _, policyMap := range topology.TopologyTemplate.Policies {
 		for policyName, policy := range policyMap {
 			nodePrefix := nodesPrefix + "/" + policyName
-			consulStore.StoreConsulKeyAsString(nodePrefix+"/type", policy.Type)
 
-			if policy.Targets != nil {
-				targetPrefix := nodePrefix + "/targets"
-				consulStore.StoreConsulKeyAsString(targetPrefix, strings.Join(policy.Targets, ","))
-			}
+			storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, policy)
+
+			//consulStore.StoreConsulKeyAsString(nodePrefix+"/type", policy.Type)
+
+			//if policy.Targets != nil {
+			//	targetPrefix := nodePrefix + "/targets"
+			//	consulStore.StoreConsulKeyAsString(targetPrefix, strings.Join(policy.Targets, ","))
+			//}
 			storeMapValueAssignment(consulStore, path.Join(nodePrefix, "properties"), policy.Properties)
-			metadataPrefix := nodePrefix + "/metadata/"
-			for metaName, metaValue := range policy.Metadata {
-				consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
-			}
+			//metadataPrefix := nodePrefix + "/metadata/"
+			//for metaName, metaValue := range policy.Metadata {
+			//	consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
+			//}
 		}
-	}
-}
-
-// storePolicyTypes stores topology policy types
-func storePolicyTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) {
-	for policyName, policyType := range topology.PolicyTypes {
-		key := path.Join(topologyPrefix, "types", policyName)
-		storeCommonType(consulStore, policyType.Type, key, importPath)
-		consulStore.StoreConsulKeyAsString(key+"/name", policyName)
-		propertiesPrefix := key + "/properties"
-		for propName, propDefinition := range policyType.Properties {
-			propPrefix := propertiesPrefix + "/" + propName
-			storePropertyDefinition(ctx, consulStore, propPrefix, propName, propDefinition)
-		}
-		consulStore.StoreConsulKeyAsString(key+"/targets", strings.Join(policyType.Targets, ","))
 	}
 }

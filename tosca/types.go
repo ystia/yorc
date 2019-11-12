@@ -45,6 +45,7 @@ func IsBuiltinType(typeName string) bool {
 type Type struct {
 	DerivedFrom string            `yaml:"derived_from,omitempty"`
 	Version     string            `yaml:"version,omitempty"`
+	ImportPath  string            `yaml:"importPath,omitempty"`
 	Description string            `yaml:"description,omitempty"`
 	Metadata    map[string]string `yaml:"metadata,omitempty"`
 }
