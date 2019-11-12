@@ -34,10 +34,19 @@ import (
 	"github.com/ystia/yorc/v4/tasks/collector"
 )
 
+// URI for host pool requests
 const HOSTSPOOL = "/hosts_pool"
+
+// URI for host pool requests for a given location
 const HOSTPLOCATION = HOSTSPOOL + "/:location"
+
+// URI for a particular host request
 const HOSTURI = HOSTPLOCATION + "/:host"
+
+// URI for locations requests
 const LOCATIONS = "/locations/"
+
+// URI for a particular location request
 const LOCATIONURI = LOCATIONS + ":locationName"
 
 type router struct {

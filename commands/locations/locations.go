@@ -32,7 +32,10 @@ import (
 	"github.com/ystia/yorc/v4/rest"
 )
 
+// Path for locations requests
 const LOCPATH = "/locations/"
+
+// Header value for requests
 const APPJSON = "application/json"
 
 func init() {
@@ -191,7 +194,7 @@ func patchLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConf
 	if err != nil {
 		return locationName, err
 	}
-	httputil.HandleHTTPStatusCode(response, "", LOCPATH, http.StatusOK)
+	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
 	return locationName, nil
 }
 
