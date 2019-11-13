@@ -104,8 +104,8 @@ func (l LiteralOperand) String() string {
 //
 // A Function is composed by an Operator and a list of Operand
 type Function struct {
-	Operator Operator
-	Operands []Operand
+	Operator Operator  `json:"operator,omitempty"`
+	Operands []Operand `json:"operands,omitempty"`
 }
 
 // IsLiteral allows to know if an Operand is a LiteralOperand (true) or a TOSCA Function (false)
@@ -151,7 +151,7 @@ func (f *Function) GetFunctionsByOperator(o Operator) []*Function {
 
 // UnmarshalYAML unmarshal a yaml into a Function
 func (f *Function) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var m map[interface{}]interface{}
+	var m map[string]interface{}
 	if err := unmarshal(&m); err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func parseFunctionOperands(value interface{}) ([]Operand, error) {
 			}
 			ops[i] = o[0]
 		}
-	case map[interface{}]interface{}:
+	case map[string]interface{}:
 		log.Debugf("Found map value %v %T", v, v)
 		f, err := parseFunction(v)
 		if err != nil {
@@ -197,7 +197,7 @@ func parseFunctionOperands(value interface{}) ([]Operand, error) {
 	return ops, nil
 }
 
-func parseFunction(f map[interface{}]interface{}) (*Function, error) {
+func parseFunction(f map[string]interface{}) (*Function, error) {
 	log.Debugf("parsing TOSCA function %+v", f)
 	for k, v := range f {
 		operator, err := parseOperator(fmt.Sprint(k))

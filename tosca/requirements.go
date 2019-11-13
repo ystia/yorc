@@ -31,12 +31,12 @@ type RequirementDefinitionMap map[string]RequirementDefinition
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_REQUIREMENT_DEF for more details
 type RequirementDefinition struct {
-	Capability   string `yaml:"capability"`
-	Node         string `yaml:"node,omitempty"`
-	Relationship string `yaml:"relationship,omitempty"`
-	Occurrences  Range  `yaml:"occurrences,omitempty"`
+	Capability   string `yaml:"capability" json:"capability"`
+	Node         string `yaml:"node,omitempty" json:"node,omitempty"`
+	Relationship string `yaml:"relationship,omitempty" json:"relationship,omitempty"`
+	Occurrences  Range  `yaml:"occurrences,omitempty" json:"occurrences,omitempty"`
 	// Non Tosca-Standard A4C capability_name property
-	CapabilityName string `yaml:"capability_name,omitempty"`
+	CapabilityName string `yaml:"capability_name,omitempty" json:"capability_name,omitempty"`
 	// Extra types used in list (A4C) mode
 	name string
 }
@@ -132,20 +132,20 @@ type RequirementAssignmentMap map[string]RequirementAssignment
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
 type RequirementAssignment struct {
-	Capability        string `yaml:"capability"`
-	Node              string `yaml:"node,omitempty"`
-	Relationship      string `yaml:"relationship,omitempty"`
-	RelationshipProps map[string]*ValueAssignment
+	Capability        string                      `yaml:"capability" json:"capability"`
+	Node              string                      `yaml:"node,omitempty" json:"node,omitempty"`
+	Relationship      string                      `yaml:"relationship,omitempty" json:"relationship,omitempty"`
+	RelationshipProps map[string]*ValueAssignment `yaml:"relationship_props,omitempty" json:"relationship_props,omitempty"`
 	// Non Tosca-Standard A4C type_requirement property
-	TypeRequirement string `yaml:"type_requirement,omitempty"`
+	TypeRequirement string `yaml:"type_requirement,omitempty" json:"type_requirement,omitempty"`
 }
 
 // An RequirementRelationship is the representation of the relationship part of a TOSCA Requirement Assignment
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
 type RequirementRelationship struct {
-	Type       string                      `yaml:"type"`
-	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
+	Type       string                      `yaml:"type" json:"type"`
+	Properties map[string]*ValueAssignment `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an RequirementAssignment

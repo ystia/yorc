@@ -16,6 +16,7 @@ package internal
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage"
@@ -35,30 +36,47 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 	default:
 	}
 	log.Debugf("Storing topology with name %q (Import prefix %q)", topology.Metadata[tosca.TemplateName], importPrefix)
-	StoreTopologyTopLevelKeyNames(ctx, consulStore, topology, path.Join(topologyPrefix, importPrefix))
+	if err := StoreTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix)); err != nil {
+		return errors.Wrapf(err, "failed to store top level topology key names")
+	}
 	if err := storeImports(ctx, consulStore, errGroup, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to store topology imports")
 	}
 
-	StoreAllTypes(ctx, consulStore, topology, topologyPrefix, importPath)
+	if err := StoreAllTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+		return errors.Wrapf(err, "failed to store topology types")
+	}
 
-	StoreRepositories(ctx, consulStore, topology, topologyPrefix)
+	if err := StoreRepositories(ctx, consulStore, topology, topologyPrefix); err != nil {
+		return errors.Wrapf(err, "failed to store topology repositories")
+	}
 
 	// There is no need to parse a topology template if this topology template
 	// is declared in an import.
 	// Parsing only the topology template declared in the root topology file
-	isRootTopologyTemplate := (importPrefix == "")
+	isRootTopologyTemplate := importPrefix == ""
 	if isRootTopologyTemplate {
-		storeInputs(ctx, consulStore, topology, topologyPrefix)
-		storeOutputs(ctx, consulStore, topology, topologyPrefix)
-		storeSubstitutionMappings(ctx, consulStore, topology, topologyPrefix)
-		storeNodes(ctx, consulStore, topology, topologyPrefix, importPath, rootDefPath)
-		storePolicies(ctx, consulStore, topology, topologyPrefix)
+		if err := storeInputs(ctx, topology, topologyPrefix); err != nil {
+			return errors.Wrapf(err, "failed to store topology inputs")
+		}
+		if err := storeOutputs(ctx, topology, topologyPrefix); err != nil {
+			return errors.Wrapf(err, "failed to store topology outputs")
+		}
+		if err := storeSubstitutionMappings(ctx, topology, topologyPrefix); err != nil {
+			return errors.Wrapf(err, "failed to store substitution mapping")
+		}
+		if err := storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath); err != nil {
+			return errors.Wrapf(err, "failed to store topology nodes")
+		}
+		if err := storePolicies(ctx, topology, topologyPrefix); err != nil {
+			return errors.Wrapf(err, "failed to store topology policies")
+		}
 	} else {
 		// For imported templates, storing substitution mappings if any
 		// as they contain details on service to application/node type mapping
-		storeSubstitutionMappings(ctx, consulStore, topology,
-			path.Join(topologyPrefix, importPrefix))
+		if err := storeSubstitutionMappings(ctx, topology, path.Join(topologyPrefix, importPrefix)); err != nil {
+			return errors.Wrapf(err, "failed to store substitution mapping")
+		}
 	}
 
 	// Detect potential cycles in inline workflows
@@ -67,7 +85,9 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 	}
 
 	if isRootTopologyTemplate {
-		storeWorkflows(ctx, consulStore, topology, deploymentID)
+		if err := storeWorkflows(ctx, topology, deploymentID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -75,22 +95,21 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 // StoreTopologyTopLevelKeyNames stores top level keynames for a topology.
 //
 // This may be done under the import path in case of imports.
-func StoreTopologyTopLevelKeyNames(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
-	//storeStringMap(consulStore, topologyPrefix+"/metadata", topology.Metadata)
-	storage.GetStore(types.StoreTypeDeployment).Set(topologyPrefix+"/metadata", topology.Metadata)
+func StoreTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
+	return storage.GetStore(types.StoreTypeDeployment).Set(topologyPrefix+"/metadata", topology.Metadata)
 }
 
 // storeOutputs stores topology outputs
-func storeOutputs(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
-	storeParameterDefinition(ctx, consulStore, path.Join(topologyPrefix, "outputs"), topology.TopologyTemplate.Outputs)
+func storeOutputs(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
+	return storeParameterDefinition(ctx, path.Join(topologyPrefix, "outputs"), topology.TopologyTemplate.Outputs)
 }
 
 // storeInputs stores topology outputs
-func storeInputs(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
-	storeParameterDefinition(ctx, consulStore, path.Join(topologyPrefix, "inputs"), topology.TopologyTemplate.Inputs)
+func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
+	return storeParameterDefinition(ctx, path.Join(topologyPrefix, "inputs"), topology.TopologyTemplate.Inputs)
 }
 
-func storeParameterDefinition(ctx context.Context, consulStore consulutil.ConsulStore, paramsPrefix string, paramDefsMap map[string]tosca.ParameterDefinition) {
+func storeParameterDefinition(ctx context.Context, paramsPrefix string, paramDefsMap map[string]tosca.ParameterDefinition) error {
 	for paramName, paramDef := range paramDefsMap {
 		paramDefPrefix := path.Join(paramsPrefix, paramName)
 		if paramDef.Required == nil {
@@ -98,17 +117,10 @@ func storeParameterDefinition(ctx context.Context, consulStore consulutil.Consul
 			b := true
 			paramDef.Required = &b
 		}
-		storage.GetStore(types.StoreTypeDeployment).Set(paramDefPrefix, paramDef)
-		//StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "default"), paramDef.Default)
-		//if paramDef.Required == nil {
-		//	// Required by default
-		//	consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), "true")
-		//} else {
-		//	consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "required"), strconv.FormatBool(*paramDef.Required))
-		//}
-		//consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "status"), paramDef.Status)
-		//consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "type"), paramDef.Type)
-		//consulStore.StoreConsulKeyAsString(path.Join(paramDefPrefix, "entry_schema"), paramDef.EntrySchema.Type)
-		//StoreValueAssignment(consulStore, path.Join(paramDefPrefix, "value"), paramDef.Value)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(paramDefPrefix, paramDef)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }

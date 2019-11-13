@@ -18,9 +18,6 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
-	"net/url"
-	"path"
 )
 
 // StoreComplexType stores a TOSCA value into a given path.
@@ -46,30 +43,4 @@ func StoreComplexType(consulStore consulutil.ConsulStore, valuePath string, valu
 	//	// Default flag is for literal
 	//	consulStore.StoreConsulKeyAsString(valuePath, fmt.Sprint(v))
 	//}
-}
-
-// StoreValueAssignment stores a TOSCA value assignment under a given path
-func StoreValueAssignment(consulStore consulutil.ConsulStore, vaPrefix string, va *tosca.ValueAssignment) {
-	if va == nil {
-		return
-	}
-	//switch va.Type {
-	//case tosca.ValueAssignmentLiteral:
-	//	// Default flag is for literal
-	//	consulStore.StoreConsulKeyAsString(vaPrefix, va.GetLiteral())
-	//case tosca.ValueAssignmentFunction:
-	//	consulStore.StoreConsulKeyAsStringWithFlags(vaPrefix, va.GetFunction().String(), uint64(tosca.ValueAssignmentFunction))
-	//case tosca.ValueAssignmentList:
-	//	StoreComplexType(consulStore, vaPrefix, va.GetList())
-	//case tosca.ValueAssignmentMap:
-	//	StoreComplexType(consulStore, vaPrefix, va.GetMap())
-	//}
-
-	storage.GetStore(types.StoreTypeDeployment).Set(vaPrefix, va)
-}
-
-func storeMapValueAssignment(consulStore consulutil.ConsulStore, prefix string, mapValueAssignment map[string]*tosca.ValueAssignment) {
-	for name, value := range mapValueAssignment {
-		StoreValueAssignment(consulStore, path.Join(prefix, url.QueryEscape(name)), value)
-	}
 }

@@ -16,89 +16,17 @@ package internal
 
 import (
 	"context"
-	"path"
-	"strings"
-
-	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
+	"path"
 )
 
-func storeSubstitutionMappings(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
+func storeSubstitutionMappings(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	substitutionPrefix := path.Join(topologyPrefix, "substitution_mappings")
 	substitution := topology.TopologyTemplate.SubstitionMappings
 	if substitution != nil {
-		consulStore.StoreConsulKeyAsString(path.Join(substitutionPrefix, "node_type"),
-			substitution.NodeType)
-		storePropAttrMappings(consulStore, path.Join(substitutionPrefix, "properties"),
-			substitution.Properties)
-		storePropAttrMappings(consulStore, path.Join(substitutionPrefix, "attributes"),
-			substitution.Attributes)
-		storeCapReqMappings(consulStore, path.Join(substitutionPrefix, "capabilities"),
-			substitution.Capabilities)
-		storeCapReqMappings(consulStore, path.Join(substitutionPrefix, "requirements"),
-			substitution.Requirements)
-		storeInterfaceMappings(consulStore, path.Join(substitutionPrefix, "interfaces"),
-			substitution.Interfaces)
+		return storage.GetStore(types.StoreTypeDeployment).Set(substitutionPrefix, substitution)
 	}
-}
-
-func storePropAttrMappings(
-	consulStore consulutil.ConsulStore,
-	prefix string,
-	mappings map[string]tosca.PropAttrMapping) {
-
-	if mappings != nil {
-
-		for name, propAttrMapping := range mappings {
-
-			propAttrPrefix := path.Join(prefix, name)
-			if propAttrMapping.Mapping != nil {
-				consulStore.StoreConsulKeyAsString(
-					path.Join(propAttrPrefix, "mapping"),
-					strings.Join(propAttrMapping.Mapping, ","))
-			} else {
-				StoreValueAssignment(consulStore, path.Join(propAttrPrefix, "value"), propAttrMapping.Value)
-			}
-		}
-	}
-}
-
-func storeCapReqMappings(
-	consulStore consulutil.ConsulStore,
-	prefix string,
-	mappings map[string]tosca.CapReqMapping) {
-
-	if mappings != nil {
-
-		for name, capReqMapping := range mappings {
-
-			capReqPrefix := path.Join(prefix, name)
-
-			if capReqMapping.Mapping != nil {
-				consulStore.StoreConsulKeyAsString(
-					path.Join(capReqPrefix, "mapping"),
-					strings.Join(capReqMapping.Mapping, ","))
-			}
-
-			if capReqMapping.Properties != nil {
-				storeMapValueAssignment(consulStore, path.Join(capReqPrefix, "properties"), capReqMapping.Properties)
-			}
-
-			if capReqMapping.Attributes != nil {
-				storeMapValueAssignment(consulStore, path.Join(capReqPrefix, "attributes"), capReqMapping.Attributes)
-			}
-		}
-	}
-}
-
-func storeInterfaceMappings(
-	consulStore consulutil.ConsulStore,
-	prefix string,
-	mappings map[string]string) {
-
-	if mappings != nil {
-		for operationName, workflowName := range mappings {
-			consulStore.StoreConsulKeyAsString(path.Join(prefix, operationName), workflowName)
-		}
-	}
+	return nil
 }

@@ -16,7 +16,6 @@ package internal
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
@@ -24,25 +23,17 @@ import (
 )
 
 // storePolicies stores topology policies
-func storePolicies(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) {
+func storePolicies(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	nodesPrefix := path.Join(topologyPrefix, "policies")
 	for _, policyMap := range topology.TopologyTemplate.Policies {
 		for policyName, policy := range policyMap {
 			nodePrefix := nodesPrefix + "/" + policyName
 
-			storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, policy)
-
-			//consulStore.StoreConsulKeyAsString(nodePrefix+"/type", policy.Type)
-
-			//if policy.Targets != nil {
-			//	targetPrefix := nodePrefix + "/targets"
-			//	consulStore.StoreConsulKeyAsString(targetPrefix, strings.Join(policy.Targets, ","))
-			//}
-			storeMapValueAssignment(consulStore, path.Join(nodePrefix, "properties"), policy.Properties)
-			//metadataPrefix := nodePrefix + "/metadata/"
-			//for metaName, metaValue := range policy.Metadata {
-			//	consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
-			//}
+			err := storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, policy)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }

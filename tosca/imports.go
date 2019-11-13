@@ -22,10 +22,10 @@ import (
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_IMPORT_DEF for more details
 type ImportDefinition struct {
-	File            string `yaml:"file"` // Required
-	Repository      string `yaml:"repository,omitempty"`
-	NamespaceURI    string `yaml:"namespace_uri,omitempty"` // Deprecated
-	NamespacePrefix string `yaml:"namespace_prefix,omitempty"`
+	File            string `yaml:"file" json:"file"` // Required
+	Repository      string `yaml:"repository,omitempty" json:"repository,omitempty"`
+	NamespaceURI    string `yaml:"namespace_uri,omitempty" json:"namespace_uri,omitempty"` // Deprecated
+	NamespacePrefix string `yaml:"namespace_prefix,omitempty" json:"namespace_prefix,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an ImportDefinition

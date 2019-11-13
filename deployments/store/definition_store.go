@@ -128,8 +128,7 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		return nil
 	}
 	errGroup.Go(func() error {
-		internal.StoreTopologyTopLevelKeyNames(ctx, consulStore, topology, topologyPrefix)
-		return nil
+		return internal.StoreTopologyTopLevelKeyNames(ctx, topology, topologyPrefix)
 	})
 	errGroup.Go(func() error {
 		return internal.StoreRepositories(ctx, consulStore, topology, topologyPrefix)

@@ -74,8 +74,8 @@ func ValueAssignmentTypeFromString(s string) (ValueAssignmentType, error) {
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_PROPERTY_VALUE_ASSIGNMENT and
 // http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_ATTRIBUTE_VALUE_ASSIGNMENT for more details
 type ValueAssignment struct {
-	Type  ValueAssignmentType
-	Value interface{}
+	Type  ValueAssignmentType `json:"type"`
+	Value interface{}         `json:"value,omitempty"`
 }
 
 // GetLiteral retruns the string representation of a literal value
@@ -228,11 +228,51 @@ func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) e
 	}
 
 	// Not a List nor a TOSCA function, let's try a map or complex type
-	var m map[string]interface{}
-	if err := unmarshal(&m); err == nil {
+	var tmp map[interface{}]interface{}
+	if err := unmarshal(&tmp); err == nil {
+		// for nested map, we need to cast map[interface{}]interface{} to map[string]interface{} as JSON doesn't accept map[interface{}]interface{}
+		m := cleanUpInterfaceMap(tmp)
 		p.Value = m
 		p.Type = ValueAssignmentMap
 		return nil
 	}
+
+	// JSON map unmarshaling expects a map[string]interface{}
+	var strMap map[string]interface{}
+	if err := unmarshal(&strMap); err != nil {
+		return err
+	}
+
+	p.Value = strMap
+	p.Type = ValueAssignmentMap
 	return nil
+}
+
+func cleanUpInterfaceArray(in []interface{}) []interface{} {
+	result := make([]interface{}, len(in))
+	for i, v := range in {
+		result[i] = cleanUpMapValue(v)
+	}
+	return result
+}
+
+func cleanUpInterfaceMap(in map[interface{}]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range in {
+		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+	}
+	return result
+}
+
+func cleanUpMapValue(v interface{}) interface{} {
+	switch v := v.(type) {
+	case []interface{}:
+		return cleanUpInterfaceArray(v)
+	case map[interface{}]interface{}:
+		return cleanUpInterfaceMap(v)
+	case string:
+		return v
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }

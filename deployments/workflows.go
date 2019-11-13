@@ -224,7 +224,7 @@ func enhanceWorkflows(ctx context.Context, consulStore consulutil.ConsulStore, d
 		}
 	}
 	if wasUpdated {
-		internal.StoreWorkflow(consulStore, deploymentID, "run", wf)
+		internal.StoreWorkflow(ctx, deploymentID, "run", wf)
 	}
 	return nil
 }

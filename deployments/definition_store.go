@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -372,10 +371,10 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
-			var computeNodeName string
-			if exist {
-				computeNodeName = value
-			}
+			//var computeNodeName string
+			//if exist {
+			//	computeNodeName = value
+			//}
 			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "capability"))
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
@@ -422,19 +421,14 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 				}
 				req.RelationshipProps[path.Base(key)] = va
 			}
-			newReqID, err := GetNbRequirementsForNode(ctx, deploymentID, computeNodeName)
-			if err != nil {
-				return err
-			}
+			//FIXME this needs to be done with new storage
+			//newReqID, err := GetNbRequirementsForNode(ctx, deploymentID, computeNodeName)
+			//if err != nil {
+			//	return err
+			//}
 
 			// Do not share the consul store as we have to compute the number of requirements for nodes and as we will modify it asynchronously it may lead to overwriting
-			_, errgroup, consulStore := consulutil.WithContext(ctx)
-			internal.StoreRequirementAssignment(consulStore, req, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
-
-			err = errgroup.Wait()
-			if err != nil {
-				return err
-			}
+			//internal.StoreRequirementAssignment(consulStore, req, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
 		}
 
 	}
