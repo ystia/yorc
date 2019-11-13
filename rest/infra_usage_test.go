@@ -16,16 +16,18 @@ package rest
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/registry"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 type mockInfraUsageCollector struct {
@@ -41,7 +43,12 @@ type mockInfraUsageCollector struct {
 
 func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string,
 	params map[string]string) (map[string]interface{}, error) {
-	return nil, nil
+
+	var err error
+	if params["myparam"] == "failure" {
+		err = fmt.Errorf("Expected test error")
+	}
+	return nil, err
 }
 
 func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -51,7 +58,25 @@ func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.T
 	var reg = registry.GetRegistry()
 	reg.RegisterInfraUsageCollector("myInfraName", mock, "mock")
 
-	req := httptest.NewRequest("POST", "/infra_usage/myInfraName/myLocationName", nil)
+	req := httptest.NewRequest("POST", "/infra_usage/myInfraName/myLocationName?myparam=success", nil)
+	req.Header.Add("Content-Type", "application/json")
+	resp := newTestHTTPRouter(client, req)
+
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusAccepted, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusAccepted)
+
+	require.Equal(t, 1, len(resp.Header["Location"]), "unexpected len(resp.Header[\"Location\"] equal to 1")
+	require.Equal(t, true, strings.HasPrefix(resp.Header["Location"][0], "/infra_usage/myInfraName/myLocationName/tasks"), "unexpected location header prefix")
+}
+
+func testPostInfraUsageHandlerError(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+
+	mock := new(mockInfraUsageCollector)
+	var reg = registry.GetRegistry()
+	reg.RegisterInfraUsageCollector("myInfraName", mock, "mock")
+
+	req := httptest.NewRequest("POST", "/infra_usage/myInfraError/myLocationName?myparam=failure", nil)
 	req.Header.Add("Content-Type", "application/json")
 	resp := newTestHTTPRouter(client, req)
 
