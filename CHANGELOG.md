@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Allow to specify query parameters in infrastructure usage queries ([GH-543](https://github.com/ystia/yorc/issues/543))
+
 ## 4.0.0-M6 (November 08, 2019)
 
 ### ENHANCEMENTS
