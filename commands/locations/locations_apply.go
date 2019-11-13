@@ -123,73 +123,17 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	}
 
 	// Present locations to be created
-	if len(newLocationsMap) > 0 {
-		locationsToCreateTable := tabutil.NewTable()
-		locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
-		for _, locConfig := range newLocationsMap {
-			addRow(locationsToCreateTable, colorize, locationCreation, locConfig)
-		}
-		fmt.Println("\n- Locations to be created :")
-		fmt.Println("")
-		fmt.Println(locationsToCreateTable.Render())
+	presentLocationsMap(newLocationsMap, colorize, locationCreation)
 
-	}
 	// Present locations to be updated
-	if len(updateLocationsMap) > 0 {
-		locationsToUpdateTable := tabutil.NewTable()
-		locationsToUpdateTable.AddHeaders("Name", "Type", "Properties")
-		for _, locConfig := range updateLocationsMap {
-			addRow(locationsToUpdateTable, colorize, locationUpdate, locConfig)
-		}
-		fmt.Println("\n- Locations to update :")
-		fmt.Println("")
-		fmt.Println(locationsToUpdateTable.Render())
-	}
+	presentLocationsMap(updateLocationsMap, colorize, locationUpdate)
+
 	// Present locations to be deleted
-	if len(deleteLocationsMap) > 0 {
-		locationsToDeleteTable := tabutil.NewTable()
-		locationsToDeleteTable.AddHeaders("Name", "Type", "Properties")
-		for _, locConfig := range deleteLocationsMap {
-			addRow(locationsToDeleteTable, colorize, locationDeletion, locConfig)
-		}
-		fmt.Println("\n- Locations to delete :")
-		fmt.Println("")
-		fmt.Println(locationsToDeleteTable.Render())
-	}
+	presentLocationsMap(deleteLocationsMap, colorize, locationDeletion)
 
-	fmt.Printf("Number of ocations to create : %v ", len(newLocationsMap))
-	fmt.Println("")
-	fmt.Printf("Number of locations to update : %v", len(updateLocationsMap))
-	fmt.Println("")
-	fmt.Printf("Number of locations to delete : %v", len(deleteLocationsMap))
-	fmt.Println("")
-	nbOpsToDo := len(newLocationsMap) + len(updateLocationsMap) + len(deleteLocationsMap)
-
-	if !autoApprove && (nbOpsToDo > 0) {
-
-		// Ask for confirmation
-		badAnswer := true
-		var answer string
-		for badAnswer {
-			fmt.Printf("\nApply these settings [y/N]: ")
-			var inputText string
-			reader := bufio.NewReader(os.Stdin)
-			inputText, err := reader.ReadString('\n')
-			badAnswer = err != nil
-			if !badAnswer {
-				answer = strings.ToLower(strings.TrimSpace(inputText))
-				badAnswer = answer != "" &&
-					answer != "n" && answer != "no" &&
-					answer != "y" && answer != "yes"
-			}
-
-			if badAnswer {
-				fmt.Println("Unexpected input. Please enter y or n.")
-			}
-		}
-
-		if answer != "y" && answer != "yes" {
-			fmt.Println("Changes not applied.")
+	if (len(newLocationsMap) + len(updateLocationsMap) + len(deleteLocationsMap)) > 0 {
+		// Changes to do. Let's see what user decides
+		if !approveToApply(autoApprove) {
 			return nil
 		}
 	}
@@ -230,17 +174,59 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 
 	// Proceed to delete
 	for locNameToDelete, _ := range deleteLocationsMap {
-		request, err := client.NewRequest("DELETE", getLocationPath(locNameToDelete), nil)
+		err := deleteLocationConfig(client, locNameToDelete)
 		if err != nil {
 			return err
 		}
-		_, err = client.Do(request)
-		if err != nil {
-			return err
-		}
+
 		fmt.Printf("Location %s deleted", locNameToDelete)
 		fmt.Println("")
 	}
 
 	return nil
+}
+
+func presentLocationsMap(locationsMap map[string]rest.LocationConfiguration, colorize bool, op int) {
+	if len(locationsMap) > 0 {
+		locationsToCreateTable := tabutil.NewTable()
+		locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
+		for _, locConfig := range locationsMap {
+			addRow(locationsToCreateTable, colorize, op, locConfig)
+		}
+		fmt.Printf("\n- Locations to %s:", opNames[op])
+		fmt.Println("")
+		fmt.Println(locationsToCreateTable.Render())
+		fmt.Printf("Number of ocations to %s : %v ", opNames[op], len(locationsMap))
+		fmt.Println("")
+	}
+}
+
+func approveToApply(autoApprove bool) bool {
+	if !autoApprove {
+		// Ask for confirmation
+		badAnswer := true
+		var answer string
+		for badAnswer {
+			fmt.Printf("\nApply these settings [y/N]: ")
+			var inputText string
+			reader := bufio.NewReader(os.Stdin)
+			inputText, err := reader.ReadString('\n')
+			badAnswer = err != nil
+			if !badAnswer {
+				answer = strings.ToLower(strings.TrimSpace(inputText))
+				badAnswer = answer != "" &&
+					answer != "n" && answer != "no" &&
+					answer != "y" && answer != "yes"
+			}
+			if badAnswer {
+				fmt.Println("Unexpected input. Please enter y or n.")
+			}
+		}
+		// Check answer
+		if answer != "y" && answer != "yes" {
+			fmt.Println("Changes not applied.")
+			return false
+		}
+	}
+	return true
 }

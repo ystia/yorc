@@ -38,9 +38,22 @@ const LOCPATH = "/locations/"
 // Header value for requests
 const APPJSON = "application/json"
 
+var opNames []string
+
+// Internal constants for operations on locations
+const (
+	locationDeletion = iota
+	locationUpdate
+	locationCreation
+)
+
 func init() {
 	commands.RootCmd.AddCommand(LocationsCmd)
 	commands.ConfigureYorcClientCommand(LocationsCmd, DepViper, &cfgFile, &noColor)
+	opNames = make([]string, 3)
+	opNames[locationDeletion] = "delete"
+	opNames[locationCreation] = "create"
+	opNames[locationUpdate] = "update"
 }
 
 // DepViper is the viper configuration for the locations command and its children
@@ -52,14 +65,6 @@ var cfgFile string
 
 // noColor returns true if no-color option is set
 var noColor bool
-
-// Internal constants for operations on locations
-const (
-	locationDeletion = iota
-	locationUpdate
-	locationCreation
-	locationList
-)
 
 // LocationsCmd is the locations-based command
 var LocationsCmd = &cobra.Command{
