@@ -16,9 +16,8 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
-
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -102,16 +101,14 @@ func updateArtifactsFromPath(artifacts map[string]string, artifactsPath, importP
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.
 // If the artifact doesn't define any extension then a nil slice is returned
 func GetArtifactTypeExtensions(ctx context.Context, deploymentID, artifactType string) ([]string, error) {
-	typePath, err := locateTypePath(deploymentID, artifactType)
+	artifactTyp := new(tosca.ArtifactType)
+	exist, err := getType(deploymentID, artifactType, artifactTyp)
 	if err != nil {
 		return nil, err
 	}
-	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "file_ext"))
-	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !exist || value == "" {
+	if !exist {
 		return nil, nil
 	}
-	return strings.Split(value, ","), nil
+
+	return artifactTyp.FileExt, nil
 }

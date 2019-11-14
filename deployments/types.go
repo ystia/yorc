@@ -17,12 +17,13 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -45,34 +46,48 @@ func IsTypeMissingError(err error) bool {
 	return ok
 }
 
-func checkIfTypeExists(typePath string) (bool, error) {
-	exist, _, err := consulutil.GetStringValue(path.Join(typePath, internal.TypeExistsFlagName))
+func getTypeBase(typePath string) (bool, *tosca.Type, error) {
+	typ := new(tosca.Type)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
 	if err != nil {
-		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return false, nil, err
 	}
-	return exist, nil
+	return exist, typ, nil
+}
+
+func getType(deploymentID, typeName string, typ interface{}) (bool, error) {
+	typePath, err := locateTypePath(deploymentID, typeName)
+	if err != nil {
+		return false, err
+	}
+
+	return storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+}
+
+func checkIfTypeExists(typePath string) (bool, error) {
+	return storage.GetStore(types.StoreTypeDeployment).Exist(typePath)
 }
 
 func locateTypePath(deploymentID, typeName string) (string, error) {
 	// First check for type in deployment
 	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
 	// Check if node type exist
-	exits, err := checkIfTypeExists(typePath)
+	exist, err := checkIfTypeExists(typePath)
 	if err != nil {
 		return "", err
 	}
-	if exits {
+	if exist {
 		return typePath, nil
 	}
 
 	builtinTypesPaths := store.GetCommonsTypesPaths()
 	for i := range builtinTypesPaths {
 		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types", typeName)
-		exits, err := checkIfTypeExists(builtinTypesPaths[i])
+		exist, err := checkIfTypeExists(builtinTypesPaths[i])
 		if err != nil {
 			return "", err
 		}
-		if exits {
+		if exist {
 			return builtinTypesPaths[i], nil
 		}
 	}
@@ -92,14 +107,11 @@ func GetParentType(ctx context.Context, deploymentID, typeName string) (string, 
 		return "", err
 	}
 
-	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "derived_from"))
+	_, typ, err := getTypeBase(typePath)
 	if err != nil {
-		return "", errors.Wrap(err, "Consul access error: ")
+		return "", err
 	}
-	if !exist || value == "" {
-		return "", nil
-	}
-	return value, nil
+	return typ.DerivedFrom, nil
 }
 
 // IsTypeDerivedFrom traverses 'derived_from' to check if type derives from another type
@@ -117,11 +129,11 @@ func IsTypeDerivedFrom(ctx context.Context, deploymentID, nodeType, derives stri
 // GetTypes returns the names of the different types for a given deployment.
 func GetTypes(ctx context.Context, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
-	types, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types"))
+	typs, err := storage.GetStore(types.StoreTypeDeployment).Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types"))
 	if err != nil {
 		return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for _, t := range types {
+	for _, t := range typs {
 		names = append(names, path.Base(t))
 	}
 
@@ -130,11 +142,11 @@ func GetTypes(ctx context.Context, deploymentID string) ([]string, error) {
 		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types")
 	}
 	for _, builtinTypesPath := range builtinTypesPaths {
-		types, err := consulutil.GetKeys(builtinTypesPath)
+		typs, err := storage.GetStore(types.StoreTypeDeployment).Keys(builtinTypesPath)
 		if err != nil {
 			return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		for _, t := range types {
+		for _, t := range typs {
 			names = append(names, path.Base(t))
 		}
 	}
@@ -164,6 +176,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 	if err != nil {
 		return nil, err
 	}
+
 	result, err := consulutil.GetKeys(path.Join(typePath, paramType))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -325,13 +338,11 @@ func GetTypeImportPath(ctx context.Context, deploymentID, typeName string) (stri
 	if err != nil {
 		return "", err
 	}
-	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "importPath"))
+
+	_, typ, err := getTypeBase(typePath)
 	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return "", err
 	}
 	// Can be empty if type is defined into the root topology
-	if !exist {
-		return "", nil
-	}
-	return value, nil
+	return typ.ImportPath, nil
 }

@@ -16,6 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"sort"
 	"strconv"
@@ -29,6 +32,16 @@ import (
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
 )
+
+func getNode(deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
+	node := new(tosca.NodeTemplate)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(nodePath, node)
+	if !exist {
+		return nil, errors.Errorf("No node with name:%q found for deploymentID:%q")
+	}
+	return node, err
+}
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.
 //
@@ -281,18 +294,77 @@ func GetNodesHostedOn(ctx context.Context, deploymentID, hostNode string) ([]str
 	return stackNodes, nil
 }
 
+// NodeTypeHasProperty returns true if the node type has a property named propertyName defined
+//
+// exploreParents switch enable property check on parent types
+func NodeTypeHasProperty(ctx context.Context, deploymentID, typeName, propertyName string, exploreParents bool) (bool, error) {
+	props, err := GetNodeTypeProperties(ctx, deploymentID, typeName, exploreParents)
+	if err != nil {
+		return false, err
+	}
+	return collections.ContainsString(props, propertyName), nil
+}
+
+// GetNodeTypeProperties returns the list of properties defined in a given type and in parents if exploreParents is true
+func GetNodeTypeProperties(ctx context.Context, deploymentID, typeName string, exploreParents bool) ([]string, error) {
+	if tosca.IsBuiltinType(typeName) {
+		return nil, nil
+	}
+
+	result := make([]string, 0)
+	nodeType := new(tosca.NodeType)
+
+	exist, err := getType(deploymentID, typeName, nodeType)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("failed to get type with name:%q", typeName)
+	}
+
+	for k := range nodeType.Properties {
+		result = append(result, k)
+	}
+
+	if exploreParents {
+		parentType, err := GetParentType(ctx, deploymentID, typeName)
+		if err != nil {
+			return nil, err
+		}
+		if parentType != "" {
+			parentRes, err := GetNodeTypeProperties(ctx, deploymentID, parentType, true)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, parentRes...)
+		}
+	}
+	return result, nil
+}
+
 // GetNodePropertyValue retrieves the value for a given property in a given node
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy
 func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
+	node, err := getNode(deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
+
+	// Check if the node template property is set
+	val, is := node.Properties[propertyName]
+	if is {
+		//FIXME we need to resolve the va in case of function
+		return &TOSCAValue{Value: val}, nil
+	}
+
+	nodeType := node.Type
+
+	// Check type default value
 	var propDataType string
-	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
+	hasProp, err := NodeTypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +565,7 @@ func GetStringNodePropertyValue(ctx context.Context, deploymentID, nodeName, pro
 func GetNodes(ctx context.Context, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
 	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes")
-	nodes, err := consulutil.GetKeys(nodesPath)
+	nodes, err := storage.GetStore(types.StoreTypeDeployment).Keys(nodesPath)
 	if err != nil {
 		return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -505,11 +577,13 @@ func GetNodes(ctx context.Context, deploymentID string) ([]string, error) {
 
 // GetNodeType returns the type of a given node identified by its name
 func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, error) {
-	exist, nodeType, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"))
+	var nodeType string
+	node, err := getNode(deploymentID, nodeName)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
 	}
-	if !exist || nodeType == "" {
+	nodeType = node.Type
+	if node.Type == "" {
 		return "", errors.Errorf("Missing mandatory parameter \"type\" for node %q", nodeName)
 	}
 

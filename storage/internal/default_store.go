@@ -55,16 +55,20 @@ func (c *consulStore) Get(k string, v interface{}) (bool, error) {
 	return true, c.codec.Unmarshal(value, v)
 }
 
-func (c *consulStore) List(k string) ([]string, error) {
-	m, err := consulutil.List(k)
+func (c *consulStore) Exist(k string) (bool, error) {
+	if err := CheckKey(k); err != nil {
+		return false, err
+	}
+
+	found, _, err := consulutil.GetValue(k)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	keys := make([]string, 0)
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys, nil
+	return found, nil
+}
+
+func (c *consulStore) Keys(k string) ([]string, error) {
+	return consulutil.GetKeys(k)
 }
 
 func (c *consulStore) Delete(k string, recursive bool) error {

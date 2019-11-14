@@ -823,7 +823,7 @@ func testRelationshipWorkflow(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 4)
 
-	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
+	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInstall.Steps), 14)
 
@@ -929,7 +929,7 @@ func testInlineWorkflow(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 3)
 
-	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
+	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInstall.Steps), 4)
 
@@ -943,7 +943,7 @@ func testInlineWorkflow(t *testing.T) {
 	require.Equal(t, len(step.Activities), 1)
 	require.Equal(t, step.Activities[0].Inline, "inception")
 
-	wfInception, err := ReadWorkflow(ctx, deploymentID, "inception")
+	wfInception, err := GetWorkflow(ctx, deploymentID, "inception")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInception.Steps), 1)
 }
@@ -962,7 +962,7 @@ func testDeleteWorkflow(t *testing.T) {
 	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
 
-	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
+	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
 	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
 
@@ -1051,7 +1051,7 @@ func testRunnableWorkflowsAutoCancel(t *testing.T) {
 		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
 	}
 
-	wf, err := ReadWorkflow(context.Background(), deploymentID, "run")
+	wf, err := GetWorkflow(context.Background(), deploymentID, "run")
 	require.NoError(t, err)
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_submit")
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_run")

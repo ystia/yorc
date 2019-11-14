@@ -34,10 +34,14 @@ type Store interface {
 	// If no value is found it returns (false, nil).
 	// The key must not be "" and the pointer must not be nil.
 	Get(k string, v interface{}) (bool, error)
-	// List returns all the sub-keys of a specified one.
+	// Exist returns true if the key exists in the store
+	// If no value is found it returns (false, nil).
+	// The key must not be "" and the pointer must not be nil.
+	Exist(k string) (bool, error)
+	// Keys returns all the sub-keys of a specified one.
 	// The key must not be "".
 	// If no sub-key is found, it returns an empty slice.
-	List(k string) ([]string, error)
+	Keys(k string) ([]string, error)
 	// Delete deletes the stored value for the given key.
 	// Deleting a non-existing key-value pair does NOT lead to an error.
 	// The key must not be "".

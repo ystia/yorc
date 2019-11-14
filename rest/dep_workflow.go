@@ -173,10 +173,9 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, errNotFound)
 		return
 	}
-	wfSteps, err := deployments.ReadWorkflow(ctx, deploymentID, workflowName)
+	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		log.Panic(err)
 	}
-	wf := Workflow{Name: workflowName, Workflow: wfSteps}
-	encodeJSONResponse(w, r, wf)
+	encodeJSONResponse(w, r, Workflow{Name: workflowName, Workflow: *wf})
 }

@@ -22,30 +22,19 @@ import (
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"net/url"
 	"path"
 )
 
-func storeWorkflowStep(ctx context.Context, deploymentID, workflowName, stepName string, step *tosca.Step) error {
-	stepPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", url.QueryEscape(workflowName), "steps", url.QueryEscape(stepName))
-	return storage.GetStore(types.StoreTypeDeployment).Set(stepPrefix, step)
-}
-
 // StoreWorkflow stores a workflow
-func StoreWorkflow(ctx context.Context, deploymentID, workflowName string, workflow tosca.Workflow) error {
-	for stepName, step := range workflow.Steps {
-		err := storeWorkflowStep(ctx, deploymentID, workflowName, stepName, step)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+func StoreWorkflow(ctx context.Context, deploymentID, workflowName string, workflow *tosca.Workflow) error {
+	wfPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName)
+	return storage.GetStore(types.StoreTypeDeployment).Set(wfPrefix, workflow)
 }
 
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) error {
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
-		err := StoreWorkflow(ctx, deploymentID, wfName, workflow)
+		err := StoreWorkflow(ctx, deploymentID, wfName, &workflow)
 		if err != nil {
 			return err
 		}
