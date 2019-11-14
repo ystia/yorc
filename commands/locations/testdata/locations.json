@@ -1,0 +1,17 @@
+{
+  "locations": [
+    {"name": "location1",
+      "type": "openstack",
+      "properties": {
+        "auth_url": "http://10.197.135.201:5000/v2.0",
+        "tenant_name": "starlings",
+        "user_name": "Starlings",
+        "password": "Star16.gs",
+        "region": "RegionOne",
+        "private_network_name": "private-test",
+        "provisioning_over_fip_allowed": "true",
+        "os_default_security_groups": ["default", "openbar"]
+      }
+    }
+  ]
+}

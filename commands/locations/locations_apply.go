@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/v4/commands/httputil"
 	"github.com/ystia/yorc/v4/helper/tabutil"
-	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/rest"
 )
 
@@ -103,22 +102,19 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	// Get existent locations configuration
 	locsConfig, err := getLocationsConfig(client)
 	for _, locConfig := range locsConfig.Locations {
-
-		if locConfig.Type != adapter.AdaptedLocationType {
-			if newLocConfig, ok := newLocationsMap[locConfig.Name]; ok {
-				// newLocConfig corresponds to an already defined location
-				// Check if there is any change before registering the need to update
-				if locConfig.Type != newLocConfig.Type ||
-					!reflect.DeepEqual(locConfig.Properties, newLocConfig.Properties) {
-					// Add newLocConfig to the map for locations to update
-					updateLocationsMap[locConfig.Name] = newLocConfig
-				}
-				// Delete newLocConfig from the map of locations to create
-				delete(newLocationsMap, locConfig.Name)
-			} else {
-				// locConfig is not in the new locations specifications, delete it from consul
-				deleteLocationsMap[locConfig.Name] = locConfig
+		if newLocConfig, ok := newLocationsMap[locConfig.Name]; ok {
+			// newLocConfig corresponds to an already defined location
+			// Check if there is any change before registering the need to update
+			if locConfig.Type != newLocConfig.Type ||
+				!reflect.DeepEqual(locConfig.Properties, newLocConfig.Properties) {
+				// Add newLocConfig to the map for locations to update
+				updateLocationsMap[locConfig.Name] = newLocConfig
 			}
+			// Delete newLocConfig from the map of locations to create
+			delete(newLocationsMap, locConfig.Name)
+		} else {
+			// locConfig is not in the new locations specifications, delete it from consul
+			deleteLocationsMap[locConfig.Name] = locConfig
 		}
 	}
 

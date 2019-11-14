@@ -54,21 +54,17 @@ func listLocations(client httputil.HTTPClient, args []string) error {
 	locsTable := tabutil.NewTable()
 	locsTable.AddHeaders("Name", "Type", "Properties")
 	for _, locConfig := range locsConfig.Locations {
-		if locConfig.Type != adapter.AdaptedLocationType {
-			locProps := locConfig.Properties
-			propKeys := locProps.Keys()
-			for i := 0; i < len(propKeys); i++ {
-				propValue := locProps.Get(propKeys[i])
-				value := fmt.Sprintf("%v", propValue)
-				prop := propKeys[i] + ": " + value
-				if i == 0 {
-					locsTable.AddRow(locConfig.Name, locConfig.Type, prop)
-				} else {
-					locsTable.AddRow("", "", prop)
-				}
+		locProps := locConfig.Properties
+		propKeys := locProps.Keys()
+		for i := 0; i < len(propKeys); i++ {
+			propValue := locProps.Get(propKeys[i])
+			value := fmt.Sprintf("%v", propValue)
+			prop := propKeys[i] + ": " + value
+			if i == 0 {
+				locsTable.AddRow(locConfig.Name, locConfig.Type, prop)
+			} else {
+				locsTable.AddRow("", "", prop)
 			}
-		} else {
-			locsTable.AddRow(locConfig.Name, locConfig.Type, "")
 		}
 	}
 	fmt.Println("Locations:")
@@ -108,7 +104,9 @@ func getLocationsConfig(client httputil.HTTPClient) (*rest.LocationsCollection, 
 		if err != nil {
 			return nil, err
 		}
-		locs.Locations = append(locs.Locations, locConfig)
+		if locConfig.Type != adapter.AdaptedLocationType {
+			locs.Locations = append(locs.Locations, locConfig)
+		}
 	}
 
 	return &locs, nil

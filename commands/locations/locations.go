@@ -178,7 +178,8 @@ func putLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConfig
 		return locationName, err
 	}
 
-	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusCreated)
+	//httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusCreated)
+	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
 	return locationName, nil
 }
 
