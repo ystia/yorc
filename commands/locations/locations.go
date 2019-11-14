@@ -32,10 +32,10 @@ import (
 	"github.com/ystia/yorc/v4/rest"
 )
 
-// Path for locations requests
+// LOCPATH defines the base path for locations requests
 const LOCPATH = "/locations/"
 
-// Header value for requests
+// APPJSON defines the Accept header value for requests
 const APPJSON = "application/json"
 
 var opNames []string
