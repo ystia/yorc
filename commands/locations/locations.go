@@ -45,6 +45,7 @@ const (
 	locationDeletion = iota
 	locationUpdate
 	locationCreation
+	locationShow
 )
 
 func init() {

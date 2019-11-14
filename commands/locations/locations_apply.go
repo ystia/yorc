@@ -198,15 +198,15 @@ func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[st
 
 func presentLocationsMap(locationsMap *map[string]rest.LocationConfiguration, colorize bool, op int) {
 	if len(*locationsMap) > 0 {
-		locationsToCreateTable := tabutil.NewTable()
-		locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
+		locationsTable := tabutil.NewTable()
+		locationsTable.AddHeaders("Name", "Type", "Properties")
 		for _, locConfig := range *locationsMap {
-			addRow(locationsToCreateTable, colorize, op, locConfig)
+			addRow(locationsTable, colorize, op, locConfig)
 		}
 		fmt.Printf("\n- Locations to %s:", opNames[op])
 		fmt.Println("")
-		fmt.Println(locationsToCreateTable.Render())
-		fmt.Printf("Number of ocations to %s : %v ", opNames[op], len(*locationsMap))
+		fmt.Println(locationsTable.Render())
+		fmt.Printf("Number of locations to %s : %v ", opNames[op], len(*locationsMap))
 		fmt.Println("")
 	}
 }

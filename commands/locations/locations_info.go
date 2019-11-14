@@ -20,47 +20,41 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/ystia/yorc/v4/commands/httputil"
-	"github.com/ystia/yorc/v4/locations/adapter"
+	"github.com/ystia/yorc/v4/helper/tabutil"
 )
 
 func init() {
+	var infoCmd = &cobra.Command{
+		Use:   "info <locationName>",
+		Short: "Gets a location definition",
+		Long:  `Gets the type and the properties of a location.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := httputil.GetClient(ClientConfig)
+			if err != nil {
+				httputil.ErrExit(err)
+			}
+			if len(args) != 1 {
+				httputil.ErrExit(errors.Errorf("Expecting one parameter for location name (got %d parameters)", len(args)))
+			}
+			err = getLocationInfo(client, args[0])
+			if err != nil {
+				httputil.ErrExit(err)
+			}
+			return nil
+		},
+	}
 	LocationsCmd.AddCommand(infoCmd)
 }
 
-var infoCmd = &cobra.Command{
-	Use:   "info <locationName>",
-	Short: "Get a location definition",
-	Long:  `Get a location definition.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := httputil.GetClient(ClientConfig)
-		if err != nil {
-			httputil.ErrExit(err)
-		}
-		return getLocationInfo(client, args)
-	},
-}
-
-func getLocationInfo(client httputil.HTTPClient, args []string) error {
-	if len(args) != 1 {
-		return errors.Errorf("Expecting one location name (got %d parameters)", len(args))
-	}
-
-	locConfig, err := getLocationConfig(client, args[0])
+func getLocationInfo(client httputil.HTTPClient, locName string) error {
+	locConfig, err := getLocationConfig(client, locName)
 	if err != nil {
 		return err
 	}
 
-	if locConfig.Type != adapter.AdaptedLocationType {
-		fmt.Println("Location " + locConfig.Name + " has type " + locConfig.Type)
-		fmt.Println("Location " + locConfig.Name + " configuration properties: ")
-		locProps := locConfig.Properties
-		propKeys := locProps.Keys()
-		for i := 0; i < len(propKeys); i++ {
-			propValue := locProps.Get(propKeys[i])
-			value := fmt.Sprintf("%v", propValue)
-			prop := propKeys[i] + ": " + value
-			fmt.Println(prop)
-		}
-	}
+	locationTable := tabutil.NewTable()
+	locationTable.AddHeaders("Name", "Type", "Properties")
+	addRow(locationTable, false, locationShow, locConfig)
+	fmt.Println(locationTable.Render())
 	return nil
 }
