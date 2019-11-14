@@ -123,13 +123,13 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	}
 
 	// Present locations to be created
-	presentLocationsMap(newLocationsMap, colorize, locationCreation)
+	presentLocationsMap(&newLocationsMap, colorize, locationCreation)
 
 	// Present locations to be updated
-	presentLocationsMap(updateLocationsMap, colorize, locationUpdate)
+	presentLocationsMap(&updateLocationsMap, colorize, locationUpdate)
 
 	// Present locations to be deleted
-	presentLocationsMap(deleteLocationsMap, colorize, locationDeletion)
+	presentLocationsMap(&deleteLocationsMap, colorize, locationDeletion)
 
 	if (len(newLocationsMap) + len(updateLocationsMap) + len(deleteLocationsMap)) > 0 {
 		// Changes to do. Let's see what user decides
@@ -138,8 +138,18 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 		}
 	}
 
+	// Proceed to apply changes
+	err = doApply(client, &newLocationsMap, &updateLocationsMap, &deleteLocationsMap)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[string]rest.LocationConfiguration) error {
 	// Proceed to the create
-	for _, newLocation := range newLocationsMap {
+	for _, newLocation := range *createMap {
 		locConfig := rest.LocationConfiguration{
 			Name:       newLocation.Name,
 			Type:       newLocation.Type,
@@ -156,7 +166,7 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	}
 
 	// Proceed to update
-	for _, updateLocation := range updateLocationsMap {
+	for _, updateLocation := range *updateMap {
 		locConfig := rest.LocationConfiguration{
 			Name:       updateLocation.Name,
 			Type:       updateLocation.Type,
@@ -173,7 +183,7 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	}
 
 	// Proceed to delete
-	for locNameToDelete, _ := range deleteLocationsMap {
+	for locNameToDelete, _ := range *deleteMap {
 		err := deleteLocationConfig(client, locNameToDelete)
 		if err != nil {
 			return err
@@ -186,17 +196,17 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	return nil
 }
 
-func presentLocationsMap(locationsMap map[string]rest.LocationConfiguration, colorize bool, op int) {
-	if len(locationsMap) > 0 {
+func presentLocationsMap(locationsMap *map[string]rest.LocationConfiguration, colorize bool, op int) {
+	if len(*locationsMap) > 0 {
 		locationsToCreateTable := tabutil.NewTable()
 		locationsToCreateTable.AddHeaders("Name", "Type", "Properties")
-		for _, locConfig := range locationsMap {
+		for _, locConfig := range *locationsMap {
 			addRow(locationsToCreateTable, colorize, op, locConfig)
 		}
 		fmt.Printf("\n- Locations to %s:", opNames[op])
 		fmt.Println("")
 		fmt.Println(locationsToCreateTable.Render())
-		fmt.Printf("Number of ocations to %s : %v ", opNames[op], len(locationsMap))
+		fmt.Printf("Number of ocations to %s : %v ", opNames[op], len(*locationsMap))
 		fmt.Println("")
 	}
 }
