@@ -100,15 +100,11 @@ func updateArtifactsFromPath(artifacts map[string]string, artifactsPath, importP
 
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.
 // If the artifact doesn't define any extension then a nil slice is returned
-func GetArtifactTypeExtensions(ctx context.Context, deploymentID, artifactType string) ([]string, error) {
+func GetArtifactTypeExtensions(ctx context.Context, deploymentID, artifactTypeName string) ([]string, error) {
 	artifactTyp := new(tosca.ArtifactType)
-	exist, err := getType(deploymentID, artifactType, artifactTyp)
+	err := getTypeStruct(deploymentID, artifactTypeName, artifactTyp)
 	if err != nil {
 		return nil, err
 	}
-	if !exist {
-		return nil, nil
-	}
-
 	return artifactTyp.FileExt, nil
 }

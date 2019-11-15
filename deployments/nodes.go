@@ -33,7 +33,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-func getNode(deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
+func getNodeTemplateStruct(deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
 	node := new(tosca.NodeTemplate)
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(nodePath, node)
@@ -314,12 +314,9 @@ func GetNodeTypeProperties(ctx context.Context, deploymentID, typeName string, e
 	result := make([]string, 0)
 	nodeType := new(tosca.NodeType)
 
-	exist, err := getType(deploymentID, typeName, nodeType)
+	err := getTypeStruct(deploymentID, typeName, nodeType)
 	if err != nil {
 		return nil, err
-	}
-	if !exist {
-		return nil, errors.Errorf("failed to get type with name:%q", typeName)
 	}
 
 	for k := range nodeType.Properties {
@@ -342,55 +339,53 @@ func GetNodeTypeProperties(ctx context.Context, deploymentID, typeName string, e
 	return result, nil
 }
 
+func getNodeTypePropertyDefinition(ctx context.Context, deploymentID, typeName, propertyName string) (*tosca.PropertyDefinition, error) {
+	typ := new(tosca.NodeType)
+	err := getTypeStruct(deploymentID, typeName, typ)
+	if err != nil {
+		return nil, err
+	}
+
+	propDef, is := typ.Properties[propertyName]
+	if is {
+		return &propDef, nil
+	}
+
+	// Check parent
+	if typ.DerivedFrom != "" {
+		return getNodeTypePropertyDefinition(ctx, deploymentID, typ.DerivedFrom, propertyName)
+	}
+
+	// Not found
+	return nil, nil
+}
+
 // GetNodePropertyValue retrieves the value for a given property in a given node
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy
 func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	node, err := getNode(deploymentID, nodeName)
+	node, err := getNodeTemplateStruct(deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if the node template property is set
-	val, is := node.Properties[propertyName]
-	if is {
-		//FIXME we need to resolve the va in case of function
-		return &TOSCAValue{Value: val}, nil
+	// Check if the node template property is set and doesn't need to be resolved
+	va, is := node.Properties[propertyName]
+	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
+		return resolveVA(ctx, va, nestedKeys...), nil
 	}
 
-	nodeType := node.Type
-
-	// Check type default value
-	var propDataType string
-	hasProp, err := NodeTypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
+	// Retrieve related propertyDefinition with default property
+	propDef, err := getNodeTypePropertyDefinition(ctx, deploymentID, node.Type, propertyName)
 	if err != nil {
 		return nil, err
 	}
-	if hasProp {
-		propDataType, err = GetTypePropertyDataType(ctx, deploymentID, nodeType, propertyName)
-		if err != nil {
-			return nil, err
-		}
+	if propDef != nil {
+		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef, nestedKeys...)
 	}
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
-	if err != nil || result != nil {
-		return result, errors.Wrapf(err, "Failed to get property %q for node %q", propertyName, nodeName)
-	}
-	// Not found look at node type
-	value, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, nodeType, propertyName, nestedKeys...)
-	if err != nil {
-		return nil, err
-	}
-	if value != nil {
-		if !isFunction {
-			return value, nil
-		}
-		return resolveValueAssignment(ctx, deploymentID, nodeName, "", "", value, nestedKeys...)
-	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	host, err := GetHostedOnNode(ctx, deploymentID, nodeName)
@@ -403,42 +398,8 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 			return value, err
 		}
 	}
-	if hasProp {
-		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, nodeType, propertyName)
-		if err != nil {
-			return nil, err
-		}
-		if !isRequired {
-			// For backward compatibility
-			// TODO this doesn't look as a good idea to me
-			return &TOSCAValue{Value: ""}, nil
-		}
-
-		if len(nestedKeys) > 1 && propDataType != "" {
-			// Check if nested type is optional
-			nestedKeyType, err := GetNestedDataType(ctx, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
-			if err != nil {
-				return nil, err
-			}
-			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
-			if err != nil {
-				return nil, err
-			}
-			if !isRequired {
-				// For backward compatibility
-				// TODO this doesn't look as a good idea to me
-				return &TOSCAValue{Value: ""}, nil
-			}
-		}
-	}
 	// Not found anywhere
 	return nil, nil
-}
-
-// SetNodeProperty sets a node property
-func SetNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName, propertyValue string) error {
-	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "properties", propertyName), propertyValue)
 }
 
 // GetStringNodeProperty returns the string value of a property.
@@ -463,16 +424,16 @@ func GetStringNodeProperty(ctx context.Context, deploymentID, nodeName, property
 // GetBooleanNodeProperty returns the boolean value of a property (default: false)
 func GetBooleanNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) (bool, error) {
 	var result bool
-	strValue, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
+	va, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return result, err
 	}
 
-	if strValue != nil && strValue.RawString() != "" {
-		result, err = strconv.ParseBool(strValue.RawString())
+	if va != nil && va.RawString() != "" {
+		result, err = strconv.ParseBool(va.RawString())
 		if err != nil {
 			// TODO: who reads logs in production? Should be in app logs
-			log.Printf("Unexpected value for %s %s: '%s', considering it is set to 'false'", nodeName, propertyName, strValue)
+			log.Printf("Unexpected value for %s %s: '%+v', considering it is set to 'false'", nodeName, propertyName, va)
 		}
 	}
 	return result, nil
@@ -482,15 +443,15 @@ func GetBooleanNodeProperty(ctx context.Context, deploymentID, nodeName, propert
 // This function returns a nil array for an empty string property value
 func GetStringArrayNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) ([]string, error) {
 	var result []string
-	strValue, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
+	va, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return nil, err
 	}
 
-	if strValue != nil && strValue.RawString() != "" {
-		values := strings.Split(strValue.RawString(), ",")
-		for _, val := range values {
-			result = append(result, strings.TrimSpace(val))
+	if va != nil && va.Value != nil {
+		result, ok := va.Value.([]string)
+		if ok {
+			return result, nil
 		}
 	}
 
@@ -578,7 +539,7 @@ func GetNodes(ctx context.Context, deploymentID string) ([]string, error) {
 // GetNodeType returns the type of a given node identified by its name
 func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, error) {
 	var nodeType string
-	node, err := getNode(deploymentID, nodeName)
+	node, err := getNodeTemplateStruct(deploymentID, nodeName)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
 	}
@@ -933,4 +894,9 @@ func NodeHasProperty(ctx context.Context, deploymentID, nodeName, propertyName s
 // DeleteNode deletes the given node from the Consul store
 func DeleteNode(ctx context.Context, deploymentID, nodeName string) error {
 	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", true)
+}
+
+// SetNodeProperty sets a node property
+func SetNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName, propertyValue string) error {
+	return nil
 }

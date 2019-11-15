@@ -55,13 +55,20 @@ func getTypeBase(typePath string) (bool, *tosca.Type, error) {
 	return exist, typ, nil
 }
 
-func getType(deploymentID, typeName string, typ interface{}) (bool, error) {
+func getTypeStruct(deploymentID, typeName string, typ interface{}) error {
 	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		return errors.Errorf("No type found with name:%q", typeName)
+	}
+	return nil
 }
 
 func checkIfTypeExists(typePath string) (bool, error) {

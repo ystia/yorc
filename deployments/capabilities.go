@@ -93,29 +93,35 @@ func GetCapabilitiesOfType(ctx context.Context, deploymentID, typeName, capabili
 
 // GetCapabilityPropertyType retrieves the type for a given property in a given node capability
 // It returns false if there is no such property
-func GetCapabilityPropertyType(ctx context.Context, deploymentID, nodeName, capabilityName,
-	propertyName string) (bool, string, error) {
-
-	capabilityType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
+func GetCapabilityPropertyType(ctx context.Context, deploymentID, nodeName, capabilityName, propertyName string) (bool, string, error) {
+	capType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return false, "", err
 	}
-	var propDataType string
-	var hasProp bool
-	if capabilityType != "" {
-		hasProp, err = TypeHasProperty(ctx, deploymentID, capabilityType, propertyName, true)
-		if err != nil {
-			return false, "", err
-		}
-		if hasProp {
-			propDataType, err = GetTypePropertyDataType(ctx, deploymentID, capabilityType, propertyName)
-			if err != nil {
-				return true, "", err
-			}
-		}
+
+	propDef, err := getCapabilityPropertyDefinition(ctx, deploymentID, capType, propertyName)
+	return propDef == nil, propDef.Type, err
+}
+
+func getCapabilityPropertyDefinition(ctx context.Context, deploymentID, capabilityTypeName, propertyName string) (*tosca.PropertyDefinition, error) {
+	typ := new(tosca.CapabilityType)
+	err := getTypeStruct(deploymentID, capabilityTypeName, typ)
+	if err != nil {
+		return nil, err
 	}
 
-	return hasProp, propDataType, err
+	propDef, is := typ.Properties[propertyName]
+	if is {
+		return &propDef, nil
+	}
+
+	// Check parent
+	if typ.DerivedFrom != "" {
+		return getCapabilityPropertyDefinition(ctx, deploymentID, typ.DerivedFrom, propertyName)
+	}
+
+	// Not found
+	return nil, nil
 }
 
 // GetCapabilityPropertyValue retrieves the value for a given property in a given node capability
@@ -123,47 +129,35 @@ func GetCapabilityPropertyType(ctx context.Context, deploymentID, nodeName, capa
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
+	node, err := getNodeTemplateStruct(deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the capability property is set at node template level and doesn't need to be resolved
+	var va *tosca.ValueAssignment
+	ca, is := node.Capabilities[capabilityName]
+	if is && &ca != nil {
+		va, is = ca.Properties[propertyName]
+		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
+			return resolveVA(ctx, va, nestedKeys...), nil
+		}
+	}
+
+	// Retrieve related propertyDefinition with default property
 	capabilityType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return nil, err
 	}
 
-	hasProp, propDataType, err := GetCapabilityPropertyType(ctx, deploymentID, nodeName, capabilityName, propertyName)
+	propDef, err := getCapabilityPropertyDefinition(ctx, deploymentID, capabilityType, propertyName)
 	if err != nil {
 		return nil, err
 	}
-
-	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "properties", propertyName)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capPropPath, nodeName, "", "", propDataType, nestedKeys...)
-	if err != nil || result != nil {
-		// If there is an error or property was found
-		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node %q", propertyName, capabilityName, nodeName)
+	if propDef != nil {
+		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef, nestedKeys...)
 	}
 
-	// Not found: let's look at capability in node type
-	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err = GetNodeTypeCapabilityPropertyValue(ctx, deploymentID, nodeType, capabilityName, propertyName, propDataType, nestedKeys...)
-	if err != nil || result != nil {
-		return result, err
-	}
-
-	// Not found let's look at capability type for default
-	if capabilityType != "" {
-		result, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, capabilityType, propertyName, nestedKeys...)
-		if err != nil {
-			return nil, err
-		}
-		if result != nil {
-			if !isFunction {
-				return result, nil
-			}
-			return resolveValueAssignment(ctx, deploymentID, nodeName, "", "", result, nestedKeys...)
-		}
-	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	host, err := GetHostedOnNode(ctx, deploymentID, nodeName)
@@ -171,42 +165,11 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 		return nil, err
 	}
 	if host != "" {
-		result, err = GetCapabilityPropertyValue(ctx, deploymentID, host, capabilityName, propertyName, nestedKeys...)
-		if err != nil || result != nil {
-			return result, err
+		value, err := GetCapabilityPropertyValue(ctx, deploymentID, host, capabilityName, propertyName, nestedKeys...)
+		if err != nil || value != nil {
+			return value, err
 		}
 	}
-
-	if hasProp && capabilityType != "" {
-		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, capabilityType, propertyName)
-		if err != nil {
-			return nil, err
-		}
-		if !isRequired {
-			// For backward compatibility
-			// TODO this doesn't look as a good idea to me
-			return &TOSCAValue{Value: ""}, nil
-		}
-
-		if len(nestedKeys) > 1 && propDataType != "" {
-			// Check if nested type is optional
-			nestedKeyType, err := GetNestedDataType(ctx, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
-			if err != nil {
-				return nil, err
-			}
-			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
-			if err != nil {
-				return nil, err
-			}
-			if !isRequired {
-				// For backward compatibility
-				// TODO this doesn't look as a good idea to me
-				return &TOSCAValue{Value: ""}, nil
-			}
-		}
-	}
-
 	// Not found anywhere
 	return nil, nil
 }
@@ -431,17 +394,17 @@ func GetNodeCapabilityType(ctx context.Context, deploymentID, nodeName, capabili
 // It explores the type hierarchy (derived_from) to found the given capability.
 // It may return an empty string if the capability is not found in the type hierarchy
 func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capabilityName string) (string, error) {
-	typePath, err := locateTypePath(deploymentID, nodeType)
+	typ := new(tosca.NodeType)
+	err := getTypeStruct(deploymentID, nodeType, typ)
 	if err != nil {
 		return "", err
 	}
-	exist, value, err := consulutil.GetStringValue(path.Join(typePath, "capabilities", capabilityName, "type"))
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+
+	capDef, is := typ.Capabilities[capabilityName]
+	if is {
+		return capDef.Type, nil
 	}
-	if exist || value != "" {
-		return value, nil
-	}
+
 	parentType, err := GetParentType(ctx, deploymentID, nodeType)
 	if err != nil {
 		return "", err
@@ -450,6 +413,28 @@ func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capa
 		return "", nil
 	}
 	return GetNodeTypeCapabilityType(ctx, deploymentID, parentType, capabilityName)
+}
+
+func GetNodeTypeCapabilityDefinition(ctx context.Context, deploymentID, nodeType, capabilityName string) (*tosca.CapabilityDefinition, error) {
+	typ := new(tosca.NodeType)
+	err := getTypeStruct(deploymentID, nodeType, typ)
+	if err != nil {
+		return nil, err
+	}
+
+	capDef, is := typ.Capabilities[capabilityName]
+	if is {
+		return &capDef, nil
+	}
+
+	parentType, err := GetParentType(ctx, deploymentID, nodeType)
+	if err != nil {
+		return nil, err
+	}
+	if parentType == "" {
+		return nil, nil
+	}
+	return GetNodeTypeCapabilityDefinition(ctx, deploymentID, parentType, capabilityName)
 }
 
 // GetNodeTypeCapabilityPropertyValue retrieves the property value of a node type capability identified by its name

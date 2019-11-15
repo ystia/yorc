@@ -308,7 +308,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 
 	// First look at instance-scoped attributes
 	vaPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, attrDataType)
+	value, isFunction, err := getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, vaPath, attrDataType)
 	if err != nil || (value != nil && !isFunction) {
 		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 	}
@@ -316,7 +316,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 	// Then look at global node level (not instance-scoped)
 	if value == nil {
 		vaPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName)
-		value, isFunction, err = getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, attrDataType)
+		value, isFunction, err = getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, vaPath, attrDataType)
 		if err != nil || (value != nil && !isFunction) {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}

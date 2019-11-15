@@ -16,7 +16,6 @@ package tosca
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -183,26 +182,26 @@ func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error
 }
 
 // UnmarshalJSON unmarshals json into a ValueAssignment
-func (p *ValueAssignment) UnmarshalJSON(b []byte) error {
-
-	jsonUnmarshal := func(itf interface{}) error {
-		return json.Unmarshal(b, itf)
-	}
-	if err := p.unmarshalYAMLJSON(jsonUnmarshal); err == nil {
-		return nil
-	}
-
-	// Not a List nor a TOSCA function, nor a map or complex type, let's try literal
-	// For JSON it could be any type
-	var s interface{}
-	if err := jsonUnmarshal(&s); err != nil {
-		return err
-	}
-
-	p.Value = s
-	p.Type = ValueAssignmentLiteral
-	return nil
-}
+//func (p *ValueAssignment) UnmarshalJSON(b []byte) error {
+//
+//	jsonUnmarshal := func(itf interface{}) error {
+//		return json.Unmarshal(b, itf)
+//	}
+//	if err := p.unmarshalYAMLJSON(jsonUnmarshal); err == nil {
+//		return nil
+//	}
+//
+//	// Not a List nor a TOSCA function, nor a map or complex type, let's try literal
+//	// For JSON it could be any type
+//	var s interface{}
+//	if err := jsonUnmarshal(&s); err != nil {
+//		return err
+//	}
+//
+//	p.Value = s
+//	p.Type = ValueAssignmentLiteral
+//	return nil
+//}
 
 // unmarshalYAMLJSON unmarshals yaml or json into a ValueAssignment
 func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) error {

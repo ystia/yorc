@@ -548,14 +548,14 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 		return nil, err
 	}
 	inputPath := path.Join(operationPath, "inputs", inputName, "data")
-	res, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, inputPath, "")
+	res, isFunction, err := getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
 	if res == nil {
 		// Check global interface input
 		inputPath = path.Join(interfacePath, "inputs", inputName, "data")
-		res, isFunction, err = getValueAssignmentWithoutResolve(ctx, deploymentID, inputPath, "")
+		res, isFunction, err = getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, inputPath, "")
 		if err != nil {
 			return nil, err
 		}
@@ -661,7 +661,7 @@ func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentI
 	}
 	inputPath := path.Join(operationPath, "inputs", inputName, "default")
 	// TODO base datatype should be retrieved
-	res, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, inputPath, "")
+	res, isFunction, err := getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
@@ -670,7 +670,7 @@ func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentI
 		// Check global interface input
 		inputPath = path.Join(interfacePath, "inputs", inputName, "default")
 		// TODO base datatype should be retrieved
-		res, isFunction, err = getValueAssignmentWithoutResolve(ctx, deploymentID, inputPath, "")
+		res, isFunction, err = getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, inputPath, "")
 		if err != nil {
 			return nil, err
 		}
