@@ -35,10 +35,10 @@ import (
 )
 
 // URI for locations requests
-const LOCATIONS = "/locations/"
+const LOCATIONS = "/locations"
 
 // URI for a particular location request
-const LOCATIONURI = LOCATIONS + ":locationName"
+const LOCATIONURI = LOCATIONS + "/:locationName"
 
 type router struct {
 	*httprouter.Router

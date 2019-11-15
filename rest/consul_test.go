@@ -25,6 +25,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/sshutil"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"github.com/ystia/yorc/v4/tasks/collector"
 	"github.com/ystia/yorc/v4/testutil"
@@ -49,6 +50,7 @@ func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 		router:         router,
 		consulClient:   client,
 		hostsPoolMgr:   hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
+		locationMgr:    locations.NewManager(client),
 		tasksCollector: collector.NewCollector(client),
 		config:         config.Configuration{},
 	}
@@ -65,6 +67,9 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 	t.Run("groupRest", func(t *testing.T) {
 		t.Run("testHostsPoolHandlers", func(t *testing.T) {
 			testHostsPoolHandlers(t, client, srv)
+		})
+		t.Run("testLocationsHandlers", func(t *testing.T) {
+			testLocationsHandlers(t, client, srv)
 		})
 		t.Run("testSSLRest", func(t *testing.T) {
 			testSSLREST(t, client, srv)

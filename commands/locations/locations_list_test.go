@@ -51,6 +51,7 @@ func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 	if req.URL.Path == "/locations/locationOne" {
 		locationConfigProps := make(map[string]interface{})
 		locationConfigProps["region"] = "us-east-2"
+		locationConfigProps["regionbis"] = "us-east-3"
 		locationConfig := &rest.LocationConfiguration{Name: "location3", Type: "aws", Properties: locationConfigProps}
 		b, err := json.Marshal(locationConfig)
 		if err != nil {
