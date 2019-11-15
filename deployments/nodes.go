@@ -16,9 +16,6 @@ package deployments
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/helper/collections"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"sort"
 	"strconv"
@@ -28,8 +25,11 @@ import (
 	"vbom.ml/util/sortorder"
 
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
@@ -38,7 +38,7 @@ func getNode(deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(nodePath, node)
 	if !exist {
-		return nil, errors.Errorf("No node with name:%q found for deploymentID:%q")
+		return nil, errors.Errorf("No node with name: %q found for deploymentID: %q", nodeName, deploymentID)
 	}
 	return node, err
 }
