@@ -39,13 +39,26 @@ func (c *httpClientMockList) NewRequest(method, path string, body io.Reader) (*h
 func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
 
-	locations := &rest.LocationCollection{Locations: []rest.AtomLink{{Rel: "location", Href: "/locations/locationOne", LinkType: rest.LinkRelHost}}}
-	b, err := json.Marshal(locations)
-	if err != nil {
-		return nil, errors.New("Failed to build MockList http client response")
+	if req.URL.Path == "/locations" {
+		locations := &rest.LocationCollection{Locations: []rest.AtomLink{{Rel: "location", Href: "/locations/locationOne", LinkType: rest.LinkRelHost}}}
+		b, err := json.Marshal(locations)
+		if err != nil {
+			return nil, errors.New("Failed to build MockList http client response")
+		}
+		w.Write(b)
 	}
 
-	w.Write(b)
+	if req.URL.Path == "/locations/locationOne" {
+		locationConfigProps := make(map[string]interface{})
+		locationConfigProps["region"] = "us-east-2"
+		locationConfig := &rest.LocationConfiguration{Name: "location3", Type: "aws", Properties: locationConfigProps}
+		b, err := json.Marshal(locationConfig)
+		if err != nil {
+			return nil, errors.New("Failed to build Mock http client response")
+		}
+		w.Write(b)
+	}
+
 	return w.Result(), nil
 }
 
