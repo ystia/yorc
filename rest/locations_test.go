@@ -32,6 +32,9 @@ func testLocationsHandlers(t *testing.T, client *api.Client, srv *testutil.TestS
 	t.Run("testListLocations", func(t *testing.T) {
 		testListLocations(t, client, srv)
 	})
+	t.Run("testDeleteLocation", func(t *testing.T) {
+		testDeleteLocation(t, client, srv)
+	})
 }
 
 func testListLocations(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -71,4 +74,35 @@ func testListLocations(t *testing.T, client *api.Client, srv *testutil.TestServe
 	client.KV().DeleteTree(consulutil.LocationsPrefix+"/loc1", nil)
 	client.KV().DeleteTree(consulutil.LocationsPrefix+"/loc2", nil)
 	client.KV().DeleteTree(consulutil.LocationsPrefix+"/loc3", nil)
+}
+
+func testDeleteLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.LocationsPrefix + "/loc1": []byte("{\"Name\":\"loc1\",\"Type\":\"t1\",\"Properties\":{\"p11\":\"v11\",\"p21\":\"v21\"}}"),
+	})
+
+	req := httptest.NewRequest("DELETE", "/locations/loc1", nil)
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+}
+
+func testDeleteInexistentLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.LocationsPrefix + "/loc1": []byte("{\"Name\":\"loc1\",\"Type\":\"t1\",\"Properties\":{\"p11\":\"v11\",\"p21\":\"v21\"}}"),
+	})
+
+	req := httptest.NewRequest("DELETE", "/locations/loc2", nil)
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
