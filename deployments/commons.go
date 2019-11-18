@@ -20,8 +20,8 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex string, va *tosca.ValueAssignment, propertyDefinition *tosca.PropertyDefinition, nestedKeys ...string) (*TOSCAValue, error) {
-	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, propertyDefinition, nestedKeys...)
+func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex string, va, vaDef *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, error) {
+	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, vaDef, nestedKeys...)
 	if err != nil || value == nil || !isFunction {
 		return value, err
 	}
@@ -46,7 +46,7 @@ func resolveVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...str
 	return nil
 }
 
-func getValueAssignmentWithoutResolve(ctx context.Context, va *tosca.ValueAssignment, propertyDefinition *tosca.PropertyDefinition, nestedKeys ...string) (*TOSCAValue, bool, error) {
+func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	// Get value if not nil
 	if va != nil && va.Value != nil {
 		switch va.Type {
@@ -63,7 +63,6 @@ func getValueAssignmentWithoutResolve(ctx context.Context, va *tosca.ValueAssign
 	}
 
 	// Get default property otherwise
-	vaDef := propertyDefinition.Default
 	if vaDef != nil {
 		return &TOSCAValue{Value: vaDef.Value}, vaDef.Type == tosca.ValueAssignmentFunction, nil
 	}

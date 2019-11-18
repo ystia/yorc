@@ -360,7 +360,7 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementAssignmentsByTypeForNode(ctx, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
@@ -456,7 +456,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uin
 func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeNames []string) error {
 
 	for _, nodeName := range nodeNames {
-		requirementsKey, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+		requirements, err := GetRequirementAssignmentsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 		if err != nil {
 			return err
 		}
@@ -468,21 +468,10 @@ func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulut
 
 		var bsName []string
 
-		for _, requirement := range requirementsKey {
-			exist, _, err := consulutil.GetStringValue(path.Join(requirement, "capability"))
-			if err != nil {
-				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			} else if !exist {
-				continue
+		for _, requirement := range requirements {
+			if requirement.Capability != "" {
+				bsName = append(bsName, requirement.Node)
 			}
-
-			_, bsNode, err := consulutil.GetStringValue(path.Join(path.Join(requirement, "node")))
-			if err != nil {
-				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
-			}
-
-			bsName = append(bsName, bsNode)
 		}
 
 		for _, name := range bsName {
@@ -497,28 +486,17 @@ func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulut
 This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
 func checkBlockStorage(ctx context.Context, deploymentID, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	requirements, err := GetRequirementAssignmentsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
 
 	var bsName []string
-
-	for _, requirement := range requirementsKey {
-		exist, _, err := consulutil.GetStringValue(path.Join(requirement, "capability"))
-		if err != nil {
-			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		} else if !exist {
-			continue
+	for _, requirement := range requirements {
+		if requirement.Capability != "" {
+			bsName = append(bsName, requirement.Node)
 		}
 
-		_, bsNode, err := consulutil.GetStringValue(path.Join(requirement, "node"))
-		if err != nil {
-			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
-		}
-
-		bsName = append(bsName, bsNode)
 	}
 
 	return true, bsName, nil

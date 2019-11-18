@@ -169,7 +169,7 @@ func nodeHasAttributeOrCapabilityAttribute(ctx context.Context, deploymentID, no
 		if err != nil || capabilityType == "" {
 			return false, err
 		}
-		return TypeHasAttribute(ctx, deploymentID, capabilityType, attributeName, true)
+		return TypeHasAttribute(ctx, deploymentID, capabilityType, "capability", attributeName, true)
 	}
 	return NodeHasAttribute(ctx, deploymentID, nodeName, attributeName, true)
 }
@@ -295,7 +295,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	var attrDataType string
-	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, attributeName, true)
+	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, "node", attributeName, true)
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 
 	// Not found look at node type
 	if value == nil {
-		value, isFunction, err = getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName)
+		value, isFunction, err = getTypeDefaultAttribute(ctx, deploymentID, nodeType, "node", attributeName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}

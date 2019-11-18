@@ -101,18 +101,6 @@ func GetDeploymentStatus(ctx context.Context, deploymentID string) (DeploymentSt
 	return DeploymentStatusFromString(value, true)
 }
 
-//GetDeploymentTemplateName only return the name of the template used during the deployment
-func GetDeploymentTemplateName(ctx context.Context, deploymentID string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"))
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !exist || value == "" {
-		return "", deploymentNotFound{deploymentID: deploymentID}
-	}
-	return value, nil
-}
-
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment
 func DoesDeploymentExists(ctx context.Context, deploymentID string) (bool, error) {
 	if _, err := GetDeploymentStatus(ctx, deploymentID); err != nil {

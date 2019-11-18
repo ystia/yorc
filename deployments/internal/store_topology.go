@@ -112,11 +112,6 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 func storeParameterDefinition(ctx context.Context, paramsPrefix string, paramDefsMap map[string]tosca.ParameterDefinition) error {
 	for paramName, paramDef := range paramDefsMap {
 		paramDefPrefix := path.Join(paramsPrefix, paramName)
-		if paramDef.Required == nil {
-			// Required by default
-			b := true
-			paramDef.Required = &b
-		}
 		err := storage.GetStore(types.StoreTypeDeployment).Set(paramDefPrefix, paramDef)
 		if err != nil {
 			return err

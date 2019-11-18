@@ -38,7 +38,7 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 	var propDataType string
 	var hasProp bool
 	if relationshipType != "" {
-		hasProp, err := TypeHasProperty(ctx, deploymentID, relationshipType, propertyName, true)
+		hasProp, err := TypeHasProperty(ctx, deploymentID, relationshipType, "relationship", propertyName, true)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 
 	// Look at the relationship type to find a default value
 	if relationshipType != "" {
-		result, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, relationshipType, propertyName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, relationshipType, "relationship", propertyName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 
 	if hasProp && relationshipType != "" {
 		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, relationshipType, propertyName)
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, relationshipType, "relationship", propertyName)
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +88,7 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 			if err != nil {
 				return nil, err
 			}
-			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, "data", nestedKeys[len(nestedKeys)-1])
 			if err != nil {
 				return nil, err
 			}
@@ -115,7 +115,7 @@ func GetRelationshipAttributeValueFromRequirement(ctx context.Context, deploymen
 
 	var attrDataType string
 	if relationshipType != "" {
-		hasProp, err := TypeHasAttribute(ctx, deploymentID, relationshipType, attributeName, true)
+		hasProp, err := TypeHasAttribute(ctx, deploymentID, relationshipType, "relationship", attributeName, true)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func GetRelationshipAttributeValueFromRequirement(ctx context.Context, deploymen
 	}
 	// Now look at relationship type for default
 	if relationshipType != "" {
-		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, relationshipType, attributeName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, relationshipType, "relationship", attributeName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}

@@ -167,7 +167,7 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	var attrDataType string
-	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, attributeName, true)
+	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, "node", attributeName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Not found look at node type
-	defaultValue, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName, nestedKeys...)
+	defaultValue, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, "node", attributeName, nestedKeys...)
 	if err != nil {
 		return nil, err
 	}

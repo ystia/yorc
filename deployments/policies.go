@@ -34,26 +34,6 @@ func getPolicyTypeStruct(ctx context.Context, deploymentID, policyTypeName strin
 	return policyTyp, nil
 }
 
-func getPolicyTypePropertyDefinition(ctx context.Context, deploymentID, policyTypeName, propertyName string) (*tosca.PropertyDefinition, error) {
-	policyTyp, err := getPolicyTypeStruct(ctx, deploymentID, policyTypeName)
-	if err != nil {
-		return nil, err
-	}
-
-	propDef, is := policyTyp.Properties[propertyName]
-	if is {
-		return &propDef, nil
-	}
-
-	// Check parent
-	if policyTyp.DerivedFrom != "" {
-		return getNodeTypePropertyDefinition(ctx, deploymentID, policyTyp.DerivedFrom, propertyName)
-	}
-
-	// Not found
-	return nil, nil
-}
-
 func getPolicyStruct(ctx context.Context, deploymentID, policyName string) (*tosca.Policy, error) {
 	key := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName)
 	policy := new(tosca.Policy)
@@ -134,12 +114,12 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 	}
 
 	// Retrieve related propertyDefinition with default property
-	propDef, err := getPolicyTypePropertyDefinition(ctx, deploymentID, policy.Type, propertyName)
+	propDef, err := getTypePropertyDefinition(ctx, deploymentID, policy.Type, "policy", propertyName)
 	if err != nil {
 		return nil, err
 	}
 	if propDef != nil {
-		return getValueAssignment(ctx, deploymentID, policyName, "", "", va, propDef, nestedKeys...)
+		return getValueAssignment(ctx, deploymentID, policyName, "", "", va, propDef.Default, nestedKeys...)
 	}
 
 	// Not found anywhere

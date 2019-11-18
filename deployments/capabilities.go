@@ -129,7 +129,7 @@ func getCapabilityPropertyDefinition(ctx context.Context, deploymentID, capabili
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	node, err := getNodeTemplateStruct(deploymentID, nodeName)
+	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 		return nil, err
 	}
 	if propDef != nil {
-		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef, nestedKeys...)
+		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
 	}
 
 	// No default found in type hierarchy
@@ -187,7 +187,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	var attrDataType string
 	if capabilityType != "" {
-		hasProp, err := TypeHasAttribute(ctx, deploymentID, capabilityType, attributeName, true)
+		hasProp, err := TypeHasAttribute(ctx, deploymentID, capabilityType, "capability", attributeName, true)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	// Now look at capability type for default
 	if capabilityType != "" {
-		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, capabilityType, attributeName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, capabilityType, "capability", attributeName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
@@ -327,7 +327,7 @@ func GetNodeCapabilityAttributeNames(ctx context.Context, deploymentID, nodeName
 	if err != nil {
 		return nil, err
 	}
-	return GetTypeAttributes(ctx, deploymentID, capabilityType, exploreParents)
+	return GetTypeAttributes(ctx, deploymentID, capabilityType, "capability", exploreParents)
 
 }
 

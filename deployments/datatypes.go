@@ -16,10 +16,6 @@ package deployments
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
-	"path"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -45,45 +41,36 @@ func GetTypeAttributeDataType(ctx context.Context, deploymentID, typeName, prope
 	return getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, false)
 }
 
-func getPropertyDefinition(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (bool, *tosca.PropertyDefinition, error) {
-	tType := "properties"
-	if !isProp {
-		tType = "attributes"
-	}
-
-	typePath, err := locateTypePath(deploymentID, typeName)
-	if err != nil {
-		return false, nil, err
-	}
-	propertyDefinitionPath := path.Join(typePath, tType, propertyName)
-	propDefinition := new(tosca.PropertyDefinition)
-	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(propertyDefinitionPath, propDefinition)
-	if err != nil {
-		return false, nil, err
-	}
-	return exist, propDefinition, nil
-}
-
 func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeName, propertyName string, isProp bool) (string, error) {
-	exist, propDefinition, err := getPropertyDefinition(ctx, deploymentID, typeName, propertyName, isProp)
-	if err != nil {
-		return "", err
-	}
-	if !exist || propDefinition == nil || propDefinition.Type == "" {
-		// Check parent
-		parentType, err := GetParentType(ctx, deploymentID, typeName)
-		if parentType == "" {
-			return "", nil
+	var dataType string
+	var entrySchemaType string
+	if isProp {
+		def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, "data", propertyName)
+		if err != nil {
+			return "", err
 		}
-		result, err := GetTypePropertyDataType(ctx, deploymentID, parentType, propertyName)
-		return result, errors.Wrapf(err, "property %q not found in type %q", propertyName, typeName)
+		if def != nil {
+			dataType = def.Type
+			if &def.EntrySchema != nil {
+				entrySchemaType = def.EntrySchema.Type
+			}
+		}
+	} else {
+		def, err := getTypeAttributeDefinition(ctx, deploymentID, typeName, "data", propertyName)
+		if err != nil {
+			return "", err
+		}
+		if def != nil {
+			dataType = def.Type
+			entrySchemaType = def.EntrySchema.Type
+		}
 	}
-	dataType := propDefinition.Type
+
 	if dataType == "map" || dataType == "list" {
-		if &propDefinition.EntrySchema == nil || propDefinition.EntrySchema.Type == "" {
+		if entrySchemaType == "" {
 			dataType += ":string"
 		} else {
-			dataType += ":" + propDefinition.EntrySchema.Type
+			dataType += ":" + entrySchemaType
 		}
 	} else if dataType == "" {
 		dataType = "string"
@@ -118,7 +105,7 @@ func GetNestedDataType(ctx context.Context, deploymentID, baseType string, neste
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
 func GetTopologyInputType(ctx context.Context, deploymentID, inputName string) (string, error) {
-	return getTopologyInputOrOutputType(deploymentID, inputName, "inputs")
+	return getTopologyInputOrOutputType(ctx, deploymentID, inputName, "inputs")
 }
 
 // GetTopologyOutputType retrieves the optional data type of the parameter.
@@ -127,25 +114,22 @@ func GetTopologyInputType(ctx context.Context, deploymentID, inputName string) (
 // If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
 // the type (ie list:integer) otherwise string is assumed for then entry_schema.
 func GetTopologyOutputType(ctx context.Context, deploymentID, outputName string) (string, error) {
-	return getTopologyInputOrOutputType(deploymentID, outputName, "outputs")
+	return getTopologyInputOrOutputType(ctx, deploymentID, outputName, "outputs")
 }
 
-func getTopologyInputOrOutputType(deploymentID, parameterName, parameterType string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "type"))
+func getTopologyInputOrOutputType(ctx context.Context, deploymentID, parameterName, parameterType string) (string, error) {
+	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, parameterName, parameterType)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if !exist {
 		return "", nil
 	}
-	iType := value
+
+	iType := paramDef.Type
 	if iType == "list" || iType == "map" {
-		exist, value, err = consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName, "entry_schema"))
-		if err != nil {
-			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if exist && value != "" {
-			iType += ":" + value
+		if paramDef.EntrySchema.Type != "" {
+			iType += ":" + paramDef.EntrySchema.Type
 		} else {
 			iType += ":string"
 		}
