@@ -87,7 +87,7 @@ type LocationRequest struct {
 	Properties config.DynamicMap `json:"properties"`
 }
 
-// LocationResult represents a location definition
+// LocationConfiguration contains the data for a location definition
 type LocationConfiguration struct {
 	Name       string            `json:"name"`
 	Type       string            `json:"type"`

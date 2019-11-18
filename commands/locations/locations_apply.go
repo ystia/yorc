@@ -179,7 +179,7 @@ func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[st
 	}
 
 	// Proceed to delete
-	for locNameToDelete, _ := range *deleteMap {
+	for locNameToDelete := range *deleteMap {
 		err := deleteLocationConfig(client, locNameToDelete)
 		if err != nil {
 			return err

@@ -34,10 +34,10 @@ import (
 	"github.com/ystia/yorc/v4/tasks/collector"
 )
 
-// URI for locations requests
+// LOCATIONS is the URI for locations requests
 const LOCATIONS = "/locations"
 
-// URI for a particular location request
+// LOCATIONURI is the URI for a particular location request
 const LOCATIONURI = LOCATIONS + "/:locationName"
 
 type router struct {
