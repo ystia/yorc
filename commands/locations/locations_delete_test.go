@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,6 +36,10 @@ func (c *httpMockClientDelete) NewRequest(method, path string, body io.Reader) (
 
 func (c *httpMockClientDelete) Do(req *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
+
+	if req.URL.Path == "/locations/locerror" {
+		return nil, errors.New("Failed to do delete")
+	}
 
 	return w.Result(), nil
 }
@@ -63,5 +68,9 @@ func TestLocationDelete(t *testing.T) {
 
 func TestLocationDeleteNoName(t *testing.T) {
 	err := deleteLocation(&httpMockClientDelete{}, []string{})
+	require.Error(t, err, "Expecting one location name (got 0 parameters)")
+}
+func TestLocationDeleteError(t *testing.T) {
+	err := deleteLocation(&httpMockClientDelete{}, []string{"locerror"})
 	require.Error(t, err, "Expecting one location name (got 0 parameters)")
 }
