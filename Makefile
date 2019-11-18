@@ -52,7 +52,7 @@ build: test
 	 -X $(YORC_PACKAGE)/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
 	 -X $(YORC_PACKAGE)/commands/bootstrap.alien4cloudVersion=$(ALIEN4CLOUD_VERSION) \
 	 -X $(YORC_PACKAGE)/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
-	 -X $(YORC_PACKAGE)/commands/bootstrap.yorcVersion=$(YORC_VERSION)"
+	 -X $(YORC_PACKAGE)/config.YorcVersion=$(YORC_VERSION)"
 	 @rm -f ./build/embeddedResources.zip
 	 @cd ./commands && zip -q -r ../build/embeddedResources.zip ./bootstrap/resources/*
 	 @cd ./data && zip -q -r ../build/embeddedResources.zip ./*

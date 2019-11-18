@@ -18,16 +18,15 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
-
-var version = "unknown phantom version"
 
 var gitCommit = "dev version"
 
 func init() {
 	var quiet bool
+	var version = config.YorcVersion
 	versionCmd := &cobra.Command{
 
 		Use:   "version",
