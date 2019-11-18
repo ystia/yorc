@@ -6,6 +6,10 @@
 
 Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
 
+### BUG FIXES
+
+* Duplicate SLURM job info log in case of failure ([GH-545](https://github.com/ystia/yorc/issues/545))
+
 ## 4.0.0-M6 (November 08, 2019)
 
 ### ENHANCEMENTS
