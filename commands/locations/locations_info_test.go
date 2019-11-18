@@ -68,6 +68,10 @@ func (c *httpMockClientInfo) PostForm(path string, data url.Values) (*http.Respo
 }
 
 func TestLocationInfo(t *testing.T) {
-	err := getLocationInfo(&httpMockClientInfo{}, "location3")
+	err := getLocationInfo(&httpMockClientInfo{}, []string{"location3"})
 	require.NoError(t, err, "Failed to get location info")
+}
+func TestLocationInfoNoName(t *testing.T) {
+	err := getLocationInfo(&httpMockClientInfo{}, []string{})
+	require.Error(t, err, "Expecting one parameter for location name (got 0 parameters)")
 }

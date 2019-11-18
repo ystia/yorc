@@ -36,11 +36,7 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			err = addLocation(client, jsonParam)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			return nil
+			return addLocation(client, jsonParam)
 		},
 	}
 

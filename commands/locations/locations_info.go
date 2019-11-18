@@ -33,21 +33,17 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			if len(args) != 1 {
-				httputil.ErrExit(errors.Errorf("Expecting one parameter for location name (got %d parameters)", len(args)))
-			}
-			err = getLocationInfo(client, args[0])
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			return nil
+			return getLocationInfo(client, args)
 		},
 	}
 	LocationsCmd.AddCommand(infoCmd)
 }
 
-func getLocationInfo(client httputil.HTTPClient, locName string) error {
-	locConfig, err := getLocationConfig(client, locName)
+func getLocationInfo(client httputil.HTTPClient, args []string) error {
+	if len(args) != 1 {
+		return errors.Errorf("Expecting one parameter for location name (got %d parameters)", len(args))
+	}
+	locConfig, err := getLocationConfig(client, args[0])
 	if err != nil {
 		return err
 	}

@@ -36,11 +36,7 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			err = updateLocation(client, jsonParam)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			return nil
+			return updateLocation(client, jsonParam)
 		},
 	}
 
@@ -50,7 +46,6 @@ func init() {
 }
 
 func updateLocation(client httputil.HTTPClient, jsonParam string) error {
-
 	if len(jsonParam) == 0 {
 		return errors.Errorf("You need to provide JSON data with updated location definition")
 	}

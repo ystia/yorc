@@ -83,3 +83,10 @@ func TestLocationUpdateWithFailure(t *testing.T) {
 	err := updateLocation(&httpMockClientUpdate{}, jsonParam)
 	require.Error(t, err, "Expected error due to malformed JSON")
 }
+
+func TestLocationUpdateWithNoJsonParam(t *testing.T) {
+	var jsonParam string
+	jsonParam = ""
+	err := updateLocation(&httpMockClientUpdate{}, jsonParam)
+	require.Error(t, err, "You need to provide JSON data with updated location definition")
+}

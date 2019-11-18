@@ -57,6 +57,7 @@ func (c *httpMockClientAdd) PostForm(path string, data url.Values) (*http.Respon
 	return &http.Response{}, nil
 }
 
+// TestLocationAdd tests add location operation
 func TestLocationAdd(t *testing.T) {
 	locationConfigProps := make(map[string]interface{})
 	locationConfigProps["region"] = "us-east-2"
@@ -67,6 +68,7 @@ func TestLocationAdd(t *testing.T) {
 	require.NoError(t, err, "Failed to add location")
 }
 
+// TestLocationAddNoName tests add location operation in case no location name provided
 func TestLocationAddNoName(t *testing.T) {
 	locationConfigProps := make(map[string]interface{})
 	locationConfigProps["region"] = "us-east-2"
@@ -77,9 +79,18 @@ func TestLocationAddNoName(t *testing.T) {
 	require.Error(t, err, "Expected error due to missing location name")
 }
 
+// TestLocationAddWithFailure tests add location operation in case provided definition is malformated
 func TestLocationAddWithFailure(t *testing.T) {
 	var jsonParam string
 	jsonParam = "test"
 	err := addLocation(&httpMockClientAdd{}, jsonParam)
 	require.Error(t, err, "Expected error due to malformed JSON")
+}
+
+// TestLocationAddWithNoJsonParam tests add location operation in case JSON definition is not provided
+func TestLocationAddWithNoJsonParam(t *testing.T) {
+	var jsonParam string
+	jsonParam = ""
+	err := addLocation(&httpMockClientAdd{}, jsonParam)
+	require.Error(t, err, "You need to provide JSON data with location definition")
 }
