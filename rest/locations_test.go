@@ -50,7 +50,13 @@ func testLocationsHandlers(t *testing.T, client *api.Client, srv *testutil.TestS
 	t.Run("testCreateLocation", func(t *testing.T) {
 		testCreateLocation(t, client, srv)
 	})
+	t.Run("testCreateAlreadyExistentLocation", func(t *testing.T) {
+		testCreateAlreadyExistentLocation(t, client, srv)
+	})
 	t.Run("testUpdateLocation", func(t *testing.T) {
+		testUpdateLocation(t, client, srv)
+	})
+	t.Run("testUpdateNoDataLocation", func(t *testing.T) {
 		testUpdateLocation(t, client, srv)
 	})
 	cleanUpKV(client)
@@ -167,6 +173,28 @@ func testCreateLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
 }
 
+func testCreateAlreadyExistentLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	locationProps := config.DynamicMap{
+		"p11": "v11",
+		"p12": "v12",
+	}
+	locationReq := LocationRequest{
+		Type:       "t1",
+		Properties: locationProps,
+	}
+	tmp, err := json.Marshal(locationReq)
+	require.Nil(t, err, "unexpected error marshalling data to provide body request")
+	req := httptest.NewRequest("PUT", "/locations/loc1", bytes.NewBuffer([]byte(string(tmp))))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	resp := newTestHTTPRouter(client, req)
+	_, err = ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+}
+
 func testUpdateLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 	locationProps := config.DynamicMap{
 		"p11": "v11",
@@ -183,6 +211,18 @@ func testUpdateLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	req.Header.Add("Content-Type", "application/json")
 	resp := newTestHTTPRouter(client, req)
 	_, err = ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+}
+
+func testUpdateNoDataLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	req := httptest.NewRequest("PATCH", "/locations/loc1", nil)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
 	require.NotNil(t, resp, "unexpected nil response")
