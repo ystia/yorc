@@ -1167,9 +1167,11 @@ Content-Type: application/json
 ### Execute a query to retrieve infrastructure usage for a defined infrastructure usage collector <a name="infra-usage-query-exec"></a>
 
 Submit a query for a given infrastructure and a given location to retrieve usage information.
+Query parameters can be specified, depending on the infrastructure usage collector implementation.
+
 'Content-Type' header should be set to 'application/json'.
 
-`POST    /infra_usage/<infra_name>/<location_name>`
+`POST    /infra_usage/<infra_name>/<location_name>[?param1=value1&param2=value2...]`
 
 **Response**:
 
