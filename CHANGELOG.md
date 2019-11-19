@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Allow to specify query parameters in infrastructure usage queries ([GH-543](https://github.com/ystia/yorc/issues/543))
+
 ### BUG FIXES
 
 * Duplicate SLURM job info log in case of failure ([GH-545](https://github.com/ystia/yorc/issues/545))
