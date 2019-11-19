@@ -70,7 +70,7 @@ type AtomLink struct {
 }
 
 func newAtomLink(rel, href string) AtomLink {
-	return AtomLink{Rel: rel, Href: href, LinkType: "application/json"}
+	return AtomLink{Rel: rel, Href: href, LinkType: mimeTypeApplicationJSON}
 }
 
 // Health of a Yorc instance

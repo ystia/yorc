@@ -226,14 +226,14 @@ func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.Te
 		//	{"getDeploymentWithBadID", "badDeploymentID", &result{statusCode: http.StatusNotFound, errors: &Errors{[]*Error{errNotFound}}}},
 		{"getDeployment", "getDeployment", &result{statusCode: http.StatusOK, errors: nil,
 			deployment: &Deployment{ID: "getDeployment", Status: "DEPLOYED",
-				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "self", LinkType: "application/json"},
-					{Href: "/deployments/getDeployment/nodes/Compute", Rel: "node", LinkType: "application/json"}}}}},
+				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "self", LinkType: mimeTypeApplicationJSON},
+					{Href: "/deployments/getDeployment/nodes/Compute", Rel: "node", LinkType: mimeTypeApplicationJSON}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prepareTest(t, tt.name, client, srv)
 			req := httptest.NewRequest("GET", "/deployments/"+tt.deploymentID, nil)
-			req.Header.Set("Accept", "application/json")
+			req.Header.Set("Accept", mimeTypeApplicationJSON)
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
@@ -278,7 +278,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 	}{
 		{"getDeployment", &result{statusCode: http.StatusOK, errors: nil,
 			deployments: &DeploymentsCollection{[]Deployment{{ID: "getDeployment", Status: "DEPLOYED",
-				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "deployment", LinkType: "application/json"}}}}}}},
+				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "deployment", LinkType: mimeTypeApplicationJSON}}}}}}},
 		{"noDeployment", &result{statusCode: http.StatusNoContent, errors: nil,
 			deployments: nil}},
 	}
@@ -286,7 +286,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 		t.Run(tt.name, func(t *testing.T) {
 			prepareTest(t, tt.name, client, srv)
 			req := httptest.NewRequest("GET", "/deployments", nil)
-			req.Header.Set("Accept", "application/json")
+			req.Header.Set("Accept", mimeTypeApplicationJSON)
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
@@ -338,7 +338,7 @@ func testUpdateDeploymentsOSS(t *testing.T, client *api.Client, srv *testutil.Te
 			prepareTest(t, tt.deploymentID, client, srv)
 
 			req := httptest.NewRequest("PATCH", "/deployments/"+tt.deploymentID, nil)
-			req.Header.Set("Content-Type", "application/zip")
+			req.Header.Set("Content-Type", mimeTypeApplicationZip)
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)

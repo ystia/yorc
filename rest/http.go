@@ -33,6 +33,11 @@ import (
 	"github.com/ystia/yorc/v4/tasks/collector"
 )
 
+const (
+	mimeTypeApplicationZip  = "application/zip"
+	mimeTypeApplicationJSON = "application/json"
+)
+
 type router struct {
 	*httprouter.Router
 }
@@ -143,57 +148,57 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 
 func (s *Server) registerHandlers() {
 	commonHandlers := alice.New(telemetryHandler, loggingHandler, recoverHandler)
-	s.router.Get("/health", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHealthHandler))
-	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
-	s.router.Put("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
-	s.router.Patch("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.updateDeploymentHandler))
+	s.router.Get("/health", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getHealthHandler))
+	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationZip)).ThenFunc(s.newDeploymentHandler))
+	s.router.Put("/deployments/:id", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationZip)).ThenFunc(s.newDeploymentHandler))
+	s.router.Patch("/deployments/:id", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationZip)).ThenFunc(s.updateDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))
-	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
-	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
-	s.router.Get("/deployments/:id/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollEvents))
-	s.router.Get("/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollEvents))
+	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getDeploymentHandler))
+	s.router.Get("/deployments", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listDeploymentsHandler))
+	s.router.Get("/deployments/:id/events", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.pollEvents))
+	s.router.Get("/events", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.pollEvents))
 	s.router.Head("/deployments/:id/events", commonHandlers.ThenFunc(s.headEventsIndex))
 	s.router.Head("/events", commonHandlers.ThenFunc(s.headEventsIndex))
-	s.router.Get("/deployments/:id/logs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollLogs))
-	s.router.Get("/logs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollLogs))
+	s.router.Get("/deployments/:id/logs", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.pollLogs))
+	s.router.Get("/logs", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.pollLogs))
 	s.router.Head("/deployments/:id/logs", commonHandlers.ThenFunc(s.headLogsEventsIndex))
 	s.router.Head("/logs", commonHandlers.ThenFunc(s.headLogsEventsIndex))
-	s.router.Get("/deployments/:id/nodes/:nodeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeHandler))
-	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceHandler))
-	s.router.Get("/deployments/:id/outputs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listOutputsHandler))
-	s.router.Get("/deployments/:id/outputs/:opt", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getOutputHandler))
-	s.router.Get("/deployments/:id/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskHandler))
-	s.router.Get("/deployments/:id/tasks/:taskId/steps", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskStepsHandler))
+	s.router.Get("/deployments/:id/nodes/:nodeName", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getNodeHandler))
+	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getNodeInstanceHandler))
+	s.router.Get("/deployments/:id/outputs", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listOutputsHandler))
+	s.router.Get("/deployments/:id/outputs/:opt", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getOutputHandler))
+	s.router.Get("/deployments/:id/tasks/:taskId", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getTaskHandler))
+	s.router.Get("/deployments/:id/tasks/:taskId/steps", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getTaskStepsHandler))
 	s.router.Delete("/deployments/:id/tasks/:taskId", commonHandlers.ThenFunc(s.cancelTaskHandler))
 	s.router.Put("/deployments/:id/tasks/:taskId", commonHandlers.ThenFunc(s.resumeTaskHandler))
-	s.router.Put("/deployments/:id/tasks/:taskId/steps/:stepId", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateTaskStepStatusHandler))
+	s.router.Put("/deployments/:id/tasks/:taskId/steps/:stepId", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.updateTaskStepStatusHandler))
 	s.router.Post("/deployments/:id/scale/:nodeName", commonHandlers.ThenFunc(s.scaleHandler))
-	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributesListHandler))
-	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes/:attributeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributeHandler))
-	s.router.Post("/deployments/:id/custom", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newCustomCommandHandler))
+	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getNodeInstanceAttributesListHandler))
+	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes/:attributeName", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getNodeInstanceAttributeHandler))
+	s.router.Post("/deployments/:id/custom", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.newCustomCommandHandler))
 	s.router.Post("/deployments/:id/workflows/:workflowName", commonHandlers.ThenFunc(s.newWorkflowHandler))
-	s.router.Get("/deployments/:id/workflows/:workflowName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getWorkflowHandler))
-	s.router.Get("/deployments/:id/workflows", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listWorkflowsHandler))
+	s.router.Get("/deployments/:id/workflows/:workflowName", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getWorkflowHandler))
+	s.router.Get("/deployments/:id/workflows", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listWorkflowsHandler))
 
-	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDelegatesHandler))
-	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryImplementationsHandler))
-	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
-	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listVaultsBuilderHandler))
-	s.router.Get("/registry/infra_usage_collectors", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listInfraHandler))
+	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listRegistryDelegatesHandler))
+	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listRegistryImplementationsHandler))
+	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listRegistryDefinitionsHandler))
+	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listVaultsBuilderHandler))
+	s.router.Get("/registry/infra_usage_collectors", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listInfraHandler))
 
-	s.router.Post("/infra_usage/:infraName/:locationName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
-	s.router.Get("/infra_usage/:infraName/:locationName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
+	s.router.Post("/infra_usage/:infraName/:locationName", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.postInfraUsageHandler))
+	s.router.Get("/infra_usage/:infraName/:locationName/tasks/:taskId", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getTaskQueryHandler))
 	s.router.Delete("/infra_usage/:infraName/:locationName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
-	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
+	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listTaskQueryHandler))
 
-	s.router.Put("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
-	s.router.Patch("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
+	s.router.Put("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.newHostInPool))
+	s.router.Patch("/hosts_pool/:location/:host", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.updateHostInPool))
 	s.router.Delete("/hosts_pool/:location/:host", commonHandlers.ThenFunc(s.deleteHostInPool))
-	s.router.Post("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
-	s.router.Put("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
-	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
-	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
-	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsPoolLocations))
+	s.router.Post("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.applyHostsPool))
+	s.router.Put("/hosts_pool/:location", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationJSON)).ThenFunc(s.applyHostsPool))
+	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listHostsInPool))
+	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getHostInPool))
+	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listHostsPoolLocations))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
@@ -205,7 +210,7 @@ func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}
 	if _, ok := r.URL.Query()["pretty"]; ok {
 		jEnc.SetIndent("", "  ")
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", mimeTypeApplicationJSON)
 	jEnc.Encode(resp)
 }
 

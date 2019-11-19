@@ -51,7 +51,7 @@ func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.T
 	reg.RegisterInfraUsageCollector("myInfraName", mock, "mock")
 
 	req := httptest.NewRequest("POST", "/infra_usage/myInfraName/myLocationName", nil)
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
