@@ -49,11 +49,18 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 			}
 		}
 	}
-	reqPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex)
 
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
-	if err != nil || result != nil {
-		return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
+	// Look at requirement level
+	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil {
+		return nil, err
+	}
+	va, is := req.RelationshipProps[propertyName]
+	if is && va != nil {
+		result, err := getValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, va, nil, nestedKeys...)
+		if err != nil || result != nil {
+			return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
+		}
 	}
 
 	// Look at the relationship type to find a default value

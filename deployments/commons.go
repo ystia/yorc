@@ -29,7 +29,7 @@ func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceNam
 
 }
 
-func resolveVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...string) *TOSCAValue {
+func resolveComplexVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...string) *TOSCAValue {
 	if len(nestedKeys) == 0 {
 		return &TOSCAValue{Value: va.Value}
 	}
@@ -38,7 +38,7 @@ func resolveVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...str
 		if ok {
 			v, ok := m[nestedKeys[0]].(tosca.ValueAssignment)
 			if ok {
-				return resolveVA(ctx, &v, nestedKeys[1:]...)
+				return resolveComplexVA(ctx, &v, nestedKeys[1:]...)
 			}
 			return &TOSCAValue{Value: m[nestedKeys[0]]}
 		}
@@ -56,7 +56,7 @@ func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.Valu
 			return &TOSCAValue{Value: va.Value}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			if len(nestedKeys) > 0 {
-				return resolveVA(ctx, va, nestedKeys...), false, nil
+				return resolveComplexVA(ctx, va, nestedKeys...), false, nil
 			}
 			return &TOSCAValue{Value: va.Value}, false, nil
 		}

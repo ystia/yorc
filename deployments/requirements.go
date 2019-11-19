@@ -16,49 +16,32 @@ package deployments
 
 import (
 	"context"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
-// GetRequirementKeyByNameForNode returns path to requirement which name match with defined requirementName for a given node name
-// Deprecated
-// See GetRequirementIndexByNameForNode
-func GetRequirementKeyByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
-	return "", nil
+// Requirement describes a requirement assignment with its name and index
+type Requirement struct {
+	tosca.RequirementAssignment
+	Name  string
+	Index string
 }
 
-// GetRequirementsKeysByTypeForNode returns paths to requirements whose name or type_requirement match the given requirementType
-//
-// The returned slice may be empty if there is no matching requirements.
-// Deprecated
-// See GetRequirementAssignmentsByTypeForNode
-func GetRequirementsKeysByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]string, error) {
-	return nil, nil
-}
-
-// GetRequirementIndexFromRequirementKey returns the corresponding requirement index from a given requirement key
-// (typically returned by GetRequirementsKeysByTypeForNode)
-// Deprecated
-func GetRequirementIndexFromRequirementKey(ctx context.Context, requirementKey string) string {
-	return path.Base(requirementKey)
-}
-
-func GetRequirementAssignmentsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]tosca.RequirementAssignment, error) {
-	reqs := make([]tosca.RequirementAssignment, 0)
+func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error) {
+	reqs := make([]Requirement, 0)
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
-	for _, reqList := range node.Requirements {
-		for name, req := range reqList {
+	for i, reqList := range node.Requirements {
+		for name, reqAssignment := range reqList {
 			// Search matching with name or type_requirement
-			if name == requirementType || req.TypeRequirement == requirementType {
-				reqs = append(reqs, req)
+			if name == requirementType || reqAssignment.TypeRequirement == requirementType {
+				reqs = append(reqs, Requirement{reqAssignment, name, strconv.Itoa(i)})
 			}
 		}
 	}

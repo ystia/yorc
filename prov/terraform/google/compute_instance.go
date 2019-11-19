@@ -338,17 +338,12 @@ func handleDeviceAttributes(ctx context.Context, cfg config.Configuration, infra
 func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
 	devices := make([]string, 0)
 
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	storageReqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
-	for _, storagePrefix := range storageKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, storagePrefix)
-		volumeNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, storageReq := range storageReqs {
+		volumeNodeName := storageReq.Node
 		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 
 		zone, err := deployments.GetStringNodeProperty(ctx, deploymentID, volumeNodeName, "zone", true)
@@ -356,7 +351,7 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 			return nil, err
 		}
 
-		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, requirementIndex, "mode")
+		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, storageReq.Index, "mode")
 		if err != nil {
 			return nil, err
 		}
@@ -397,8 +392,8 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 		outputDeviceVal := commons.FileOutputPrefix + device
 		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
 		outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = outputDeviceVal
-		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
-		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, storageReq.Index, instanceName, "attributes/device")] = outputDeviceVal
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, storageReq.Index, instanceName, "attributes/device")] = outputDeviceVal
 		// Add device
 		devices = append(devices, device)
 	}
@@ -409,34 +404,28 @@ func addPrivateNetworkInterfaces(ctx context.Context, deploymentID, nodeName str
 	var netInterfaces []NetworkInterface
 
 	// Check if subnets have been specified by user into network relationship
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "network")
+	storageReqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "network")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
-	for _, storagePrefix := range storageKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, storagePrefix)
-
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
-		}
+	for _, storageReq := range storageReqs {
 
 		// Check if node is network or subnet
-		netType, err := deployments.GetNodeType(ctx, deploymentID, networkNodeName)
+		netType, err := deployments.GetNodeType(ctx, deploymentID, storageReq.Node)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 		switch netType {
 		case "yorc.nodes.google.Subnetwork":
-			subnet, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkNodeName, "0", "subnetwork_name")
+			subnet, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, storageReq.Node, "0", "subnetwork_name")
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, storageReq.Node)
 			}
 			log.Debugf("add network interface with sub-network property:%s", subnet)
 			netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subnet})
 		case "yorc.nodes.google.PrivateNetwork":
 			// We mention subnet if provided by network relationship property
-			subRaw, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, requirementIndex, "subnet")
+			subRaw, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, storageReq.Index, "subnet")
 			if err != nil {
 				return nil, err
 			}
@@ -444,9 +433,9 @@ func addPrivateNetworkInterfaces(ctx context.Context, deploymentID, nodeName str
 				log.Debugf("add network interface with user-specified sub-network property:%s", subRaw.RawString())
 				netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subRaw.RawString()})
 			} else { // we mention the network
-				network, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkNodeName, "0", "network_name")
+				network, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, storageReq.Node, "0", "network_name")
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+					return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, storageReq.Node)
 				}
 				log.Debugf("add network interface with network property:%s", network)
 				netInterfaces = append(netInterfaces, NetworkInterface{Network: network})

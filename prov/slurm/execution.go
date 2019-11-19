@@ -618,7 +618,11 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	if e.isSingularity {
 		e.Primary, err = deployments.GetOperationImplementationFile(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 	} else {
-		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		var operationDef *tosca.OperationDefinition
+		operationDef, err = deployments.GetOperationForNodeOrNodeType(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		if operationDef != nil && &operationDef.Implementation != nil {
+			e.Primary = operationDef.Implementation.Primary
+		}
 	}
 	if err != nil {
 		return err

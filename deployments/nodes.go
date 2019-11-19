@@ -155,13 +155,13 @@ func GetNodeInstancesIds(ctx context.Context, deploymentID, nodeName string) ([]
 
 	if len(names) == 0 {
 		// Check if this is a node to substitute
-		substitutable, err := isSubstitutableNode(deploymentID, nodeName)
+		substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 		if err != nil {
 			return names, err
 		}
 		if substitutable {
 			log.Debugf("Found no instance for %s %s, getting substitutable node instance", deploymentID, nodeName)
-			names, err = getSubstitutionNodeInstancesIds(deploymentID, nodeName)
+			names, err = getSubstitutionNodeInstancesIds(ctx, deploymentID, nodeName)
 			if err != nil {
 				return names, err
 			}
@@ -292,7 +292,7 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 	// Check if the node template property is set and doesn't need to be resolved
 	va, is := node.Properties[propertyName]
 	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-		return resolveVA(ctx, va, nestedKeys...), nil
+		return resolveComplexVA(ctx, va, nestedKeys...), nil
 	}
 
 	// Retrieve related propertyDefinition with default property
@@ -467,7 +467,7 @@ func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, er
 	}
 
 	// If the corresponding node is substitutable, get its real node type
-	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -554,50 +554,33 @@ func storeSubKeysInSet(parentPath string, set map[string]struct{}) error {
 }
 
 func getInstancesDependentLinkedNodes(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
-	localStorageReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	localStorageReqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
 	nodesList := make([]string, 0)
 	for _, req := range localStorageReqs {
-		exist, value, err := consulutil.GetStringValue(path.Join(req, "node"))
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" {
-			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
-
-		}
-		nodesList = append(nodesList, value)
+		nodesList = append(nodesList, req.Node)
 	}
-	networkReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "network")
+	networkReqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "network")
 	if err != nil {
 		return nil, err
 	}
-	assignmentReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "assignment")
+	assignmentReqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "assignment")
 	if err != nil {
 		return nil, err
 	}
 	allReqs := append(networkReqs, assignmentReqs...)
 	for _, req := range allReqs {
-		exist, value, err := consulutil.GetStringValue(path.Join(req, "capability"))
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" || (value != "yorc.capabilities.openstack.FIPConnectivity" && value != "yorc.capabilities.Assignable") {
+		if req.Capability != "yorc.capabilities.openstack.FIPConnectivity" && req.Capability != "yorc.capabilities.Assignable" {
 			// Neither a FIP connectivity nor an assignable cap: see next
 			continue
 		}
-
-		exist, value, err = consulutil.GetStringValue(path.Join(req, "node"))
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" {
-			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
+		if req.Node == "" {
+			return nil, errors.Errorf("Missing attribute \"node\" for requirement %+v on node %q", req, nodeName)
 
 		}
-		nodesList = append(nodesList, value)
+		nodesList = append(nodesList, req.Node)
 	}
 	return nodesList, nil
 }

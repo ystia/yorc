@@ -138,7 +138,7 @@ func GetInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 
 func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, skipInstanceLevel bool, nestedKeys ...string) (*TOSCAValue, error) {
 
-	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return nil, err
 	}

@@ -214,7 +214,7 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 		return isCompute, err
 	}
 
-	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
@@ -360,42 +360,19 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementAssignmentsByTypeForNode(ctx, deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
 		for _, attachReq := range attachReqs {
-			req := tosca.RequirementAssignment{}
+			req := attachReq.RequirementAssignment
+			// Reverse the target node
+			computeNodeName := req.Node
 			req.Node = nodeName
-			exist, value, err := consulutil.GetStringValue(path.Join(attachReq, "node"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			//var computeNodeName string
-			//if exist {
-			//	computeNodeName = value
-			//}
-			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "capability"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			if exist {
-				req.Capability = value
-			}
-			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "relationship"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			if exist {
-				req.Relationship = value
-			}
 			device, err := GetNodePropertyValue(ctx, deploymentID, nodeName, "device")
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
-
-			req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
-
 			if device != nil {
 				va := &tosca.ValueAssignment{}
 				if device.RawString() != "" {
@@ -404,33 +381,21 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 						return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q, failed to parse device property", nodeName)
 					}
 				}
+				// Add device requirement property
+				if req.RelationshipProps == nil {
+					req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
+				}
 				req.RelationshipProps["device"] = va
 			}
 
-			// Get all requirement properties
-			// Appending a final "/" here is not necessary as there is no other keys starting with "properties" prefix
-			kvs, err := consulutil.List(path.Join(attachReq, "properties"))
+			// Update the compute node with new requirement
+			node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+				return err
 			}
-			for key, value := range kvs {
-				va := &tosca.ValueAssignment{}
-				err := yaml.Unmarshal(value, va)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-				}
-				req.RelationshipProps[path.Base(key)] = va
-			}
-			//FIXME this needs to be done with new storage
-			//newReqID, err := GetNbRequirementsForNode(ctx, deploymentID, computeNodeName)
-			//if err != nil {
-			//	return err
-			//}
-
-			// Do not share the consul store as we have to compute the number of requirements for nodes and as we will modify it asynchronously it may lead to overwriting
-			//internal.StoreRequirementAssignment(consulStore, req, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
+			nodePrefix := path.Join(consulutil.DeploymentKVPrefix, "topology", "nodes", computeNodeName)
+			storage.GetStore(storageTypes.StoreTypeDeployment).Set(nodePrefix, node)
 		}
-
 	}
 
 	return nil
@@ -456,7 +421,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uin
 func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeNames []string) error {
 
 	for _, nodeName := range nodeNames {
-		requirements, err := GetRequirementAssignmentsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+		requirements, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 		if err != nil {
 			return err
 		}
@@ -486,7 +451,7 @@ func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulut
 This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
 func checkBlockStorage(ctx context.Context, deploymentID, nodeName string) (bool, []string, error) {
-	requirements, err := GetRequirementAssignmentsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	requirements, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}

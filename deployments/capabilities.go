@@ -45,33 +45,27 @@ func TypeHasCapability(ctx context.Context, deploymentID, typeName, capabilityTy
 	return len(capabilities) > 0, err
 }
 
-// GetCapabilitiesOfType returns names of all capabilities in a given type hierarchy that derives from a given capability type
+// GetCapabilitiesOfType returns names of all capabilities for a given node type hierarchy that derives from a given capability type
 func GetCapabilitiesOfType(ctx context.Context, deploymentID, typeName, capabilityTypeName string) ([]string, error) {
 	capabilities := make([]string, 0)
-	typePath, err := locateTypePath(deploymentID, typeName)
+
+	node := new(tosca.NodeType)
+	err := getTypeStruct(deploymentID, typeName, node)
 	if err != nil {
 		return capabilities, err
 	}
-	capabilitiesKeys, err := consulutil.GetKeys(path.Join(typePath, "capabilities"))
-	if err != nil {
-		return capabilities, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
 
-	for _, capName := range capabilitiesKeys {
-		exist, value, err := consulutil.GetStringValue(path.Join(capName, "type"))
-		if err != nil {
-			return capabilities, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" {
-			return capabilities, errors.Errorf("Missing \"type\" key for type capability %q", capName)
+	for name, capability := range node.Capabilities {
+		if capability.Type == "" {
+			return capabilities, errors.Errorf("Missing \"type\" key for type capability %q", name)
 		}
 		var isCorrectType bool
-		isCorrectType, err = IsTypeDerivedFrom(ctx, deploymentID, value, capabilityTypeName)
+		isCorrectType, err = IsTypeDerivedFrom(ctx, deploymentID, capability.Type, capabilityTypeName)
 		if err != nil {
 			return capabilities, err
 		}
 		if isCorrectType {
-			capabilities = append(capabilities, path.Base(capName))
+			capabilities = append(capabilities, name)
 		}
 	}
 
@@ -140,11 +134,22 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 	if is && &ca != nil {
 		va, is = ca.Properties[propertyName]
 		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-			return resolveVA(ctx, va, nestedKeys...), nil
+			return resolveComplexVA(ctx, va, nestedKeys...), nil
 		}
 	}
 
-	// Retrieve related propertyDefinition with default property
+	// Retrieve related va from node type
+	if va == nil {
+		va, err := GetNodeTypeCapabilityPropertyValueAssignment(ctx, deploymentID, node.Type, capabilityName, propertyName)
+		if err != nil {
+			return nil, err
+		}
+		if va != nil && va.Type != tosca.ValueAssignmentFunction {
+			return resolveComplexVA(ctx, va, nestedKeys...), nil
+		}
+	}
+
+	// Retrieve related propertyDefinition with default property at capability type
 	capabilityType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return nil, err
@@ -201,7 +206,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	// Capability attributes of a Service referencing an application in another
 	// deployment are actually available as attributes of the node template
-	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return nil, err
 	}
@@ -226,11 +231,21 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 	}
 
 	// Then look at global node level
-	nodeCapPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName)
-	result, err = getValueAssignmentWithDataType(ctx, deploymentID, nodeCapPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
-	if err != nil || result != nil {
-		// If there is an error or attribute was found
-		return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
+	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	ca, is := node.Capabilities[capabilityName]
+	if is && &ca != nil {
+		va, is := ca.Attributes[attributeName]
+		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
+			result, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", va, nil, nestedKeys...)
+			if err != nil || result != nil {
+				// If there is an error or attribute was found
+				return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
+			}
+		}
 	}
 
 	// Now look at capability type for default
@@ -415,50 +430,23 @@ func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capa
 	return GetNodeTypeCapabilityType(ctx, deploymentID, parentType, capabilityName)
 }
 
-func GetNodeTypeCapabilityDefinition(ctx context.Context, deploymentID, nodeType, capabilityName string) (*tosca.CapabilityDefinition, error) {
+func GetNodeTypeCapabilityPropertyValueAssignment(ctx context.Context, deploymentID, nodeType, capabilityName, propertyName string) (*tosca.ValueAssignment, error) {
 	typ := new(tosca.NodeType)
 	err := getTypeStruct(deploymentID, nodeType, typ)
 	if err != nil {
 		return nil, err
 	}
-
 	capDef, is := typ.Capabilities[capabilityName]
-	if is {
-		return &capDef, nil
+	if is && &capDef != nil {
+		va, is := capDef.Properties[propertyName]
+		if is && va != nil {
+			return va, nil
+		}
 	}
-
-	parentType, err := GetParentType(ctx, deploymentID, nodeType)
-	if err != nil {
-		return nil, err
-	}
-	if parentType == "" {
+	if typ.DerivedFrom == "" {
 		return nil, nil
 	}
-	return GetNodeTypeCapabilityDefinition(ctx, deploymentID, parentType, capabilityName)
-}
-
-// GetNodeTypeCapabilityPropertyValue retrieves the property value of a node type capability identified by its name
-//
-// It explores the type hierarchy (derived_from) to found the given capability.
-func GetNodeTypeCapabilityPropertyValue(ctx context.Context, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (*TOSCAValue, error) {
-	typePath, err := locateTypePath(deploymentID, nodeType)
-	if err != nil {
-		return nil, err
-	}
-	capPropPath := path.Join(typePath, "capabilities", capabilityName, "properties", propertyName)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capPropPath, "", "", "", propDataType, nestedKeys...)
-	if err != nil || result != nil {
-		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
-	}
-
-	parentType, err := GetParentType(ctx, deploymentID, nodeType)
-	if err != nil {
-		return nil, err
-	}
-	if parentType == "" {
-		return nil, nil
-	}
-	return GetNodeTypeCapabilityPropertyValue(ctx, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
+	return GetNodeTypeCapabilityPropertyValueAssignment(ctx, deploymentID, typ.DerivedFrom, capabilityName, propertyName)
 }
 
 func notifyAndPublishCapabilityAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {

@@ -162,7 +162,7 @@ type executionCommon struct {
 	BasePrimary              string
 	Dependencies             []string
 	hosts                    map[string]*hostConnection
-	OperationPath            string
+	OperationDefinition      *tosca.OperationDefinition
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
@@ -264,36 +264,27 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	if e.operation.RelOp.IsRelationshipOperation {
 		operationNodeType = e.relationshipType
 	}
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
+	e.OperationDefinition, err = deployments.GetOperationForNodeOrNodeType(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
-	if e.OperationPath == "" || e.Primary == "" {
+	if e.OperationDefinition.Implementation.Primary == "" {
 		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.operation.Name, e.NodeType, e.deploymentID)}
 	}
-	e.Primary = strings.TrimSpace(e.Primary)
-	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
+	e.Primary = strings.TrimSpace(e.OperationDefinition.Implementation.Primary)
+	log.Debugf("Operation Definition: %+v, primary implementation: %q", e.OperationDefinition, e.Primary)
 	e.BasePrimary = path.Base(e.Primary)
 
-	exist, value, err := consulutil.GetStringValue(e.OperationPath + "/implementation/dependencies")
-	if err != nil {
-		return err
-	}
-
-	if exist {
-		e.Dependencies = strings.Split(value, ",")
+	if e.OperationDefinition.Implementation.Dependencies != nil {
+		e.Dependencies = e.OperationDefinition.Implementation.Dependencies
 	} else {
 		e.Dependencies = make([]string, 0)
 	}
 
 	// if operation_host is not overridden by requirement, we retrieve operation/implementation definition info
 	if e.operation.OperationHost == "" {
-		exist, value, err := consulutil.GetStringValue(e.OperationPath + "/implementation/operation_host")
-		if err != nil {
-			return errors.Wrap(err, "Consul query failed: ")
-		}
-		if exist && value != "" {
-			e.operation.OperationHost = value
+		if &e.OperationDefinition.Implementation != nil && e.OperationDefinition.Implementation.OperationHost != "" {
+			e.operation.OperationHost = e.OperationDefinition.Implementation.OperationHost
 		}
 	}
 
@@ -567,7 +558,9 @@ func (e *executionCommon) resolveContext(ctx context.Context) error {
 
 func (e *executionCommon) resolveOperationOutputPath() error {
 	//Here we get the modelable entity output of the operation
-	entities, err := consulutil.GetKeys(e.OperationPath + "/outputs/")
+	//FIXME really don't know how to get this ?
+	operationPath := "hasBeenRemoved"
+	entities, err := consulutil.GetKeys(operationPath + "/outputs/")
 	if err != nil {
 		return err
 	}

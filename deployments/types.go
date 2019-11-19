@@ -28,14 +28,10 @@ import (
 )
 
 //RAF refactoring:
-//requirements
-//capabilities
-//relationships
-//operations
 
+// outputs ????
 //definition store enhancements
 //attributes notifications
-//substitutions
 
 type typeMissingError struct {
 	name         string

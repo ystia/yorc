@@ -271,7 +271,7 @@ func addSubstitutionMappingAttributeNotification(ctx context.Context, deployment
 // This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
 // This allows too to publish initial state for default attribute value
 func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string) error {
-	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return err
 	}

@@ -84,22 +84,16 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, opts osInstanceOpt
 }
 
 func addServerGroupMembership(ctx context.Context, deploymentID, nodeName string, compute *ComputeInstance) error {
-	keys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "group")
+	reqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "group")
 	if err != nil {
 		return err
 	}
-	if len(keys) == 0 {
+	if len(reqs) == 0 {
 		return nil
 	}
 
-	if len(keys) == 1 {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, keys[0])
-		serverGroup, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return err
-		}
-
-		id, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, serverGroup, "0", "id")
+	if len(reqs) == 1 {
+		id, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, reqs[0].Node, "0", "id")
 		if err != nil {
 			return err
 		}
@@ -203,22 +197,18 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 	nodeName := opts.nodeName
 	instanceName := opts.instanceName
 
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	storageReqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
 	}
-	for _, storagePrefix := range storageKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, storagePrefix)
-		volumeNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return err
-		} else if volumeNodeName != "" {
-			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
-			device, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, requirementIndex, "device")
+	for _, storageReq := range storageReqs {
+		if storageReq.Node != "" {
+			log.Debugf("Volume attachment required form Volume named %s", storageReq.Node)
+			device, err := deployments.GetRelationshipPropertyValueFromRequirement(ctx, deploymentID, nodeName, storageReq.Index, "device")
 			if err != nil {
 				return err
 			}
-			volumeID, err := getVolumeID(ctx, deploymentID, volumeNodeName, instanceName)
+			volumeID, err := getVolumeID(ctx, deploymentID, storageReq.Node, instanceName)
 			if err != nil {
 				return err
 			}
@@ -231,7 +221,7 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 			if device != nil {
 				volumeAttach.Device = device.RawString()
 			}
-			attachName := "Vol" + volumeNodeName + "to" + instance.Name
+			attachName := "Vol" + storageReq.Node + "to" + instance.Name
 			commons.AddResource(infrastructure, opts.resourceTypes[computeVolumeAttach],
 				attachName, &volumeAttach)
 
@@ -242,9 +232,9 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 			commons.AddOutput(infrastructure, key1, &commons.Output{
 				Value: fmt.Sprintf("${%s.%s.device}",
 					opts.resourceTypes[computeVolumeAttach], attachName)})
-			outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = key1
-			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, topologyTree, "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = key1
-			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, topologyTree, "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = key1
+			outputs[path.Join(instancesPrefix, storageReq.Node, instanceName, "attributes/device")] = key1
+			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, topologyTree, "relationship_instances", nodeName, storageReq.Index, instanceName, "attributes/device")] = key1
+			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, topologyTree, "relationship_instances", storageReq.Node, storageReq.Index, instanceName, "attributes/device")] = key1
 		}
 	}
 
@@ -340,28 +330,16 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 	deploymentID := opts.deploymentID
 	nodeName := opts.nodeName
 
-	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "network")
+	networkReqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "network")
 	if err != nil {
 		return err
 	}
 	var fipAssociateName string
 	instancesKey := path.Join(instancesPrefix, nodeName)
-	for _, networkReqPrefix := range networkKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, networkReqPrefix)
-
-		capability, err := deployments.GetCapabilityForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return err
-		}
-
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return err
-		}
-
+	for _, networkReq := range networkReqs {
 		var isFip bool
-		if capability != "" {
-			isFip, err = deployments.IsTypeDerivedFrom(ctx, deploymentID, capability, "yorc.capabilities.openstack.FIPConnectivity")
+		if networkReq.Capability != "" {
+			isFip, err = deployments.IsTypeDerivedFrom(ctx, deploymentID, networkReq.Capability, "yorc.capabilities.openstack.FIPConnectivity")
 			if err != nil {
 				return err
 			}
@@ -369,10 +347,9 @@ func computeConnectionSettings(ctx context.Context, opts osInstanceOptions,
 
 		if isFip {
 			fipAssociateName = "FIP" + instance.Name
-			err = computeFloatingIPAddress(ctx, opts, fipAssociateName, networkNodeName,
-				instancesKey, instance, outputs)
+			err = computeFloatingIPAddress(ctx, opts, fipAssociateName, networkReq.Node, instancesKey, instance, outputs)
 		} else {
-			err = computeNetworkAttributes(ctx, opts, networkNodeName, instancesKey, instance, outputs)
+			err = computeNetworkAttributes(ctx, opts, networkReq.Node, instancesKey, instance, outputs)
 
 		}
 		if err != nil {
