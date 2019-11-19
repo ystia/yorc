@@ -88,8 +88,7 @@ func GetOperationForNodeOrNodeType(ctx context.Context, deploymentID, nodeTempla
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on template/type %q", operationName, typeOrNodeTemplate)
 	}
-	// Check primary or implementation file is set
-	if &operationDef.Implementation != nil && (operationDef.Implementation.Primary != "" || (&operationDef.Implementation.Artifact != nil && operationDef.Implementation.Artifact.File != "")) {
+	if isOperationImplemented(operationDef) {
 		return operationDef, nil
 	}
 
@@ -108,7 +107,7 @@ func getOperationForNodeType(ctx context.Context, deploymentID, nodeType, operat
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
-	if &operationDef.Implementation != nil && (operationDef.Implementation.Primary != "" || (&operationDef.Implementation.Artifact != nil && operationDef.Implementation.Artifact.File != "")) {
+	if isOperationImplemented(operationDef) {
 		return operationDef, nil
 	}
 
@@ -121,16 +120,11 @@ func getOperationForNodeType(ctx context.Context, deploymentID, nodeType, operat
 	return getOperationForNodeType(ctx, deploymentID, parentType, operationName)
 }
 
-// This function return the operation definition for given deploymentID, operation name
+// This function return the operation and interface definitions for given deploymentID, operation name
+// It returns nil if no operation definition is found
+// It returns nil if no interface definition is found
 // It handles the ways that implementation is a node template or a node type
 func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, nodeTemplate, nodeType, operationName string) (*tosca.OperationDefinition, *tosca.InterfaceDefinition, error) {
-	var typeOrNodeTemplate string
-	if nodeTemplate == "" {
-		typeOrNodeTemplate = nodeType
-	} else {
-		typeOrNodeTemplate = nodeTemplate
-	}
-
 	interfaceName := stringutil.GetAllExceptLastElement(operationName, ".")
 	if strings.HasPrefix(interfaceName, tosca.StandardInterfaceName) {
 		interfaceName = strings.Replace(interfaceName, tosca.StandardInterfaceName, tosca.StandardInterfaceShortName, 1)
@@ -155,15 +149,12 @@ func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, node
 		interfaceDef, exist = nodeT.Interfaces[interfaceName]
 	}
 
-	if !exist || &interfaceDef == nil {
-		return nil, nil, errors.Errorf("No interface found with name:%q for node template/type:%q, deployment:%q", interfaceName, typeOrNodeTemplate, deploymentID)
+	if exist && &interfaceDef != nil {
+		opeDef := interfaceDef.Operations[operationName]
+		return &opeDef, &interfaceDef, nil
 	}
 
-	opeDef, is := interfaceDef.Operations[operationName]
-	if !is || &opeDef == nil {
-		return nil, nil, errors.Errorf("No operation found with name:%q for interface:%q, node template/type:%q, deployment:%q,", operationName, interfaceName, typeOrNodeTemplate, deploymentID)
-	}
-	return &opeDef, &interfaceDef, nil
+	return nil, nil, nil
 }
 
 // GetRelationshipTypeImplementingAnOperation  returns the first (bottom-up) type in the type hierarchy of a given relationship that implements a given operation
@@ -243,6 +234,10 @@ func GetOperationImplementationType(ctx context.Context, deploymentID, nodeTempl
 	if err != nil {
 		return "", errors.Wrapf(err, "Fail to get the type of operation implementation for deploymentID:%q, operation name:%q, node/template:%q", deploymentID, operationName, nodeOrTypeImpl)
 	}
+	if !isOperationImplemented(operationDef) {
+		return "", errors.Errorf("Failed to resolve implementation for operation %q in node template/type %q", operationName, nodeOrTypeImpl)
+	}
+
 	if &operationDef.Implementation != nil && &operationDef.Implementation.Artifact != nil && operationDef.Implementation.Artifact.Type != "" {
 		return operationDef.Implementation.Artifact.Type, nil
 	}
@@ -268,7 +263,11 @@ func getOperationImplementation(ctx context.Context, deploymentID, nodeTemplateI
 	var res string
 	operationDef, _, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName)
 	if err != nil {
-		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
+		return "", errors.Wrap(err, "Fail to get operation implementation")
+	}
+
+	if !isOperationImplemented(operationDef) {
+		return "", nil
 	}
 
 	if &operationDef.Implementation == nil || &operationDef.Implementation.Artifact == nil {
@@ -426,22 +425,27 @@ func GetImplementationArtifactForOperation(ctx context.Context, deploymentID, no
 
 // GetOperationInputs returns the list of inputs names for a given operation
 func GetOperationInputs(ctx context.Context, deploymentID, nodeTemplateImpl, typeNameImpl, operationName string) ([]string, error) {
+	inputs := make([]string, 0)
 	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, nodeTemplateImpl, typeNameImpl, operationName)
 	if err != nil {
 		return nil, err
 	}
 	// First Get operation inputs
-	inputs := make([]string, len(operationDef.Inputs))
-	for k := range operationDef.Inputs {
-		inputs = append(inputs, k)
-	}
-
-	// Then Get global interface inputs
-	for k := range interfaceDef.Inputs {
-		if !collections.ContainsString(inputs, k) {
+	if operationDef != nil {
+		for k := range operationDef.Inputs {
 			inputs = append(inputs, k)
 		}
 	}
+
+	if interfaceDef != nil {
+		// Then Get global interface inputs
+		for k := range interfaceDef.Inputs {
+			if !collections.ContainsString(inputs, k) {
+				inputs = append(inputs, k)
+			}
+		}
+	}
+
 	return inputs, nil
 }
 
@@ -486,12 +490,18 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 		return nil, err
 	}
 
+	// Check operation input
 	var va *tosca.ValueAssignment
-	input, is := operationDef.Inputs[inputName]
-	if is && &input != nil {
-		va = input.ValueAssign
-	} else {
-		input, is = interfaceDef.Inputs[inputName]
+	if operationDef != nil {
+		input, is := operationDef.Inputs[inputName]
+		if is && &input != nil {
+			va = input.ValueAssign
+		}
+	}
+
+	// Check global interface input
+	if va == nil && interfaceDef != nil {
+		input, is := interfaceDef.Inputs[inputName]
 		if is && &input != nil {
 			va = input.ValueAssign
 		}
@@ -599,12 +609,18 @@ func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentI
 		return nil, err
 	}
 
+	// Check operation input
 	var va *tosca.ValueAssignment
-	input, is := operationDef.Inputs[inputName]
-	if is && &input != nil {
-		va = input.PropDef.Default
-	} else {
-		input, is = interfaceDef.Inputs[inputName]
+	if operationDef != nil {
+		input, is := operationDef.Inputs[inputName]
+		if is && &input != nil {
+			va = input.PropDef.Default
+		}
+	}
+
+	// Check global interface input
+	if va == nil && interfaceDef != nil {
+		input, is := interfaceDef.Inputs[inputName]
 		if is && &input != nil {
 			va = input.PropDef.Default
 		}
@@ -661,13 +677,18 @@ func IsOperationInputAPropertyDefinition(ctx context.Context, deploymentID, node
 	if err != nil {
 		return false, err
 	}
-	input, is := operationDef.Inputs[inputName]
-	if is {
-		return input.PropDef != nil, nil
+	if operationDef != nil {
+		input, is := operationDef.Inputs[inputName]
+		if is && &input != nil {
+			return input.PropDef != nil, nil
+		}
 	}
-	input, is = interfaceDef.Inputs[inputName]
-	if is {
-		return input.PropDef != nil, nil
+
+	if interfaceDef != nil {
+		input, is := interfaceDef.Inputs[inputName]
+		if is && &input != nil {
+			return input.PropDef != nil, nil
+		}
 	}
 	return false, errors.Errorf("failed to find input with name:%q for operation:%q and node template/type:%q", inputName, operationName, typeOrNodeTemplate)
 }
@@ -689,6 +710,9 @@ func GetOperationHostFromTypeOperationByName(ctx context.Context, deploymentID, 
 	operationDef, _, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, "", typeName, operationName)
 	if err != nil {
 		return "", err
+	}
+	if !isOperationImplemented(operationDef) {
+		return "", nil
 	}
 	return operationDef.Implementation.OperationHost, nil
 }
@@ -729,7 +753,7 @@ func IsOperationImplemented(ctx context.Context, deploymentID, nodeName, operati
 }
 
 func isOperationImplemented(operationDefinition *tosca.OperationDefinition) bool {
-	if &operationDefinition.Implementation != nil && (operationDefinition.Implementation.Primary != "" || (&operationDefinition.Implementation.Artifact != nil && operationDefinition.Implementation.Artifact.File != "")) {
+	if &operationDefinition != nil && &operationDefinition.Implementation != nil && (operationDefinition.Implementation.Primary != "" || (&operationDefinition.Implementation.Artifact != nil && operationDefinition.Implementation.Artifact.File != "")) {
 		return true
 	}
 	return false
