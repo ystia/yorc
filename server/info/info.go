@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package info
 
 // YorcVersion is the used version of YORC
 var YorcVersion = "Must Be defined by MakeFile"
+
+// GitCommit is the commit name
+var GitCommit = "Must Be defined by MakeFile"

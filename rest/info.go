@@ -15,11 +15,11 @@
 package rest
 
 import (
-	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/server/info"
 	"net/http"
 )
 
 func (s *Server) getInfoHandler(w http.ResponseWriter, r *http.Request) {
-	version := config.YorcVersion
-	encodeJSONResponse(w, r, version)
+	info := Info{info.YorcVersion, info.GitCommit}
+	encodeJSONResponse(w, r, info)
 }
