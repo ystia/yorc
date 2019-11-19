@@ -57,7 +57,7 @@ func testLocationsHandlers(t *testing.T, client *api.Client, srv *testutil.TestS
 		testUpdateLocation(t, client, srv)
 	})
 	t.Run("testUpdateNoDataLocation", func(t *testing.T) {
-		testUpdateLocation(t, client, srv)
+		testUpdateNoDataLocation(t, client, srv)
 	})
 	cleanUpKV(client)
 }
@@ -226,5 +226,5 @@ func testUpdateNoDataLocation(t *testing.T, client *api.Client, srv *testutil.Te
 
 	require.Nil(t, err, "unexpected error reading body response")
 	require.NotNil(t, resp, "unexpected nil response")
-	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
