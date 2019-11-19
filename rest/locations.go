@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/locations"
-	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/log"
 )
 
@@ -108,7 +107,7 @@ func (s *Server) updateLocationHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, newBadRequestError(errors.Errorf("Cannot update location %s as it does not exist", lConfig.Name)))
 			return
 		}
-		if adapter.IsBadRequestError(err) {
+		if locations.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(errors.Errorf("Cannot update location %s as its not correctly defined", lConfig.Name)))
 			return
 
