@@ -146,6 +146,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/health", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHealthHandler))
 	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Put("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
+	s.router.Patch("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.updateDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))
 	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
 	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
