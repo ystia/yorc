@@ -25,11 +25,9 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulDeploymentsPackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
+	srv, client := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
-	t.Skip()
 	t.Run("groupDeployments", func(t *testing.T) {
-		//t.Skip()
 		//t.Run("testArtifacts", func(t *testing.T) {
 		//	testArtifacts(t, srv)
 		//})
@@ -42,9 +40,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		//t.Run("testDeploymentNodes", func(t *testing.T) {
 		//	testDeploymentNodes(t, srv)
 		//})
-		//t.Run("testRequirements", func(t *testing.T) {
-		//	testRequirements(t, srv)
-		//})
+		t.Run("testRequirements", func(t *testing.T) {
+			testRequirements(t, srv)
+		})
 		//t.Run("testResolver", func(t *testing.T) {
 		//	testResolver(t)
 		//})
@@ -96,34 +94,34 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		//t.Run("TestOperationHost", func(t *testing.T) {
 		//	testOperationHost(t)
 		//})
-		//t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
-		//	testIssueGetEmptyPropOnRelationship(t)
-		//})
-		//
-		//t.Run("testTopologyUpdate", func(t *testing.T) {
-		//	testTopologyUpdate(t)
-		//})
-		//t.Run("testTopologyBadUpdate", func(t *testing.T) {
-		//	testTopologyBadUpdate(t)
-		//})
-		//t.Run("testRepositories", func(t *testing.T) {
-		//	testRepositories(t)
-		//})
-		//t.Run("testPurgedDeployments", func(t *testing.T) {
-		//	testPurgedDeployments(t, client)
-		//})
-		//t.Run("testDeleteDeployment", func(t *testing.T) {
-		//	testDeleteDeployment(t)
-		//})
-		//t.Run("testDeleteInstance", func(t *testing.T) {
-		//	testDeleteInstance(t)
-		//})
-		//t.Run("testDeleteAllInstances", func(t *testing.T) {
-		//	testDeleteAllInstances(t)
-		//})
-		//t.Run("testDeleteRelationshipInstance", func(t *testing.T) {
-		//	testDeleteRelationshipInstance(t)
-		//})
+		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
+			testIssueGetEmptyPropOnRelationship(t)
+		})
+
+		t.Run("testTopologyUpdate", func(t *testing.T) {
+			testTopologyUpdate(t)
+		})
+		t.Run("testTopologyBadUpdate", func(t *testing.T) {
+			testTopologyBadUpdate(t)
+		})
+		t.Run("testRepositories", func(t *testing.T) {
+			testRepositories(t)
+		})
+		t.Run("testPurgedDeployments", func(t *testing.T) {
+			testPurgedDeployments(t, client)
+		})
+		t.Run("testDeleteDeployment", func(t *testing.T) {
+			testDeleteDeployment(t)
+		})
+		t.Run("testDeleteInstance", func(t *testing.T) {
+			testDeleteInstance(t)
+		})
+		t.Run("testDeleteAllInstances", func(t *testing.T) {
+			testDeleteAllInstances(t)
+		})
+		t.Run("testDeleteRelationshipInstance", func(t *testing.T) {
+			testDeleteRelationshipInstance(t)
+		})
 	})
 
 	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {

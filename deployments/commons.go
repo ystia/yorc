@@ -16,9 +16,22 @@ package deployments
 
 import (
 	"context"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"net/url"
+	"path"
+	"strings"
 
 	"github.com/ystia/yorc/v4/tosca"
 )
+
+func urlEscapeAll(keys []string) []string {
+	t := make([]string, len(keys))
+	for i, k := range keys {
+		t[i] = url.QueryEscape(k)
+	}
+	return t
+}
 
 func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex string, va, vaDef *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, error) {
 	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, vaDef, nestedKeys...)
@@ -29,7 +42,7 @@ func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceNam
 
 }
 
-func resolveComplexVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...string) *TOSCAValue {
+func readComplexVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...string) *TOSCAValue {
 	if len(nestedKeys) == 0 {
 		return &TOSCAValue{Value: va.Value}
 	}
@@ -38,7 +51,7 @@ func resolveComplexVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys
 		if ok {
 			v, ok := m[nestedKeys[0]].(tosca.ValueAssignment)
 			if ok {
-				return resolveComplexVA(ctx, &v, nestedKeys[1:]...)
+				return readComplexVA(ctx, &v, nestedKeys[1:]...)
 			}
 			return &TOSCAValue{Value: m[nestedKeys[0]]}
 		}
@@ -56,7 +69,7 @@ func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.Valu
 			return &TOSCAValue{Value: va.Value}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			if len(nestedKeys) > 0 {
-				return resolveComplexVA(ctx, va, nestedKeys...), false, nil
+				return readComplexVA(ctx, va, nestedKeys...), false, nil
 			}
 			return &TOSCAValue{Value: va.Value}, false, nil
 		}
@@ -70,12 +83,39 @@ func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.Valu
 	return nil, false, nil
 }
 
-func readComplexVA(ctx context.Context, vaType tosca.ValueAssignmentType, deploymentID, keyPath, baseDatatype string, nestedKeys ...string) (interface{}, error) {
-	return nil, nil
-}
 func getValueAssignmentWithDataType(ctx context.Context, deploymentID, vaPath, nodeName, instanceName, requirementIndex, baseDatatype string, nestedKeys ...string) (*TOSCAValue, error) {
-	return nil, nil
+	value, isFunction, err := getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, vaPath, baseDatatype, nestedKeys...)
+	if err != nil || value == nil || !isFunction {
+		return value, err
+	}
+	return resolveValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, value, nestedKeys...)
 }
+
 func getValueAssignmentWithoutResolveDeprecated(ctx context.Context, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (*TOSCAValue, bool, error) {
+	keyPath := path.Join(vaPath, path.Join(urlEscapeAll(nestedKeys)...))
+	kvp, _, err := consulutil.GetKV().Get(keyPath, nil)
+	if err != nil {
+		return nil, false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		vat := tosca.ValueAssignmentType(kvp.Flags)
+		switch vat {
+		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
+			return &TOSCAValue{Value: string(kvp.Value)}, vat == tosca.ValueAssignmentFunction, nil
+		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
+			//res, err := readComplexVA(ctx, vat, deploymentID, keyPath, baseDatatype, nestedKeys...)
+			//if err != nil {
+			//	return nil, false, err
+			//}
+			return &TOSCAValue{Value: ""}, false, nil
+		}
+	}
+	if baseDatatype != "" && !strings.HasPrefix(baseDatatype, "list:") && !strings.HasPrefix(baseDatatype, "map:") && len(nestedKeys) > 0 {
+		result, isFunc, err := getTypeDefaultProperty(ctx, deploymentID, baseDatatype, "data", nestedKeys[0], nestedKeys[1:]...)
+		if err != nil || result != nil {
+			return result, isFunc, err
+		}
+	}
+	// not found
 	return nil, false, nil
 }

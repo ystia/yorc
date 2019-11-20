@@ -24,8 +24,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
-
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -126,35 +124,51 @@ func getOperationForNodeType(ctx context.Context, deploymentID, nodeType, operat
 // It handles the ways that implementation is a node template or a node type
 func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, nodeTemplate, nodeType, operationName string) (*tosca.OperationDefinition, *tosca.InterfaceDefinition, error) {
 	interfaceName := stringutil.GetAllExceptLastElement(operationName, ".")
-	if strings.HasPrefix(interfaceName, tosca.StandardInterfaceName) {
-		interfaceName = strings.Replace(interfaceName, tosca.StandardInterfaceName, tosca.StandardInterfaceShortName, 1)
-	} else if strings.HasPrefix(interfaceName, tosca.ConfigureInterfaceName) {
-		interfaceName = strings.Replace(interfaceName, tosca.ConfigureInterfaceName, tosca.ConfigureInterfaceShortName, 1)
-	}
+	operationNameShort := stringutil.GetLastElement(operationName, ".")
 
-	var interfaceDef tosca.InterfaceDefinition
-	var exist bool
+	var interfaceDef *tosca.InterfaceDefinition
 	if nodeTemplate != "" {
 		node, err := getNodeTemplateStruct(ctx, deploymentID, nodeTemplate)
 		if err != nil {
 			return nil, nil, err
 		}
-		interfaceDef, exist = node.Interfaces[interfaceName]
+		interfaceDef = getInterface(interfaceName, node.Interfaces)
 	} else if nodeType != "" {
 		nodeT := new(tosca.NodeType)
 		err := getTypeStruct(deploymentID, nodeType, nodeT)
 		if err != nil {
 			return nil, nil, err
 		}
-		interfaceDef, exist = nodeT.Interfaces[interfaceName]
+		//interfaceDef, exist = nodeT.Interfaces[interfaceName]
+		interfaceDef = getInterface(interfaceName, nodeT.Interfaces)
 	}
 
-	if exist && &interfaceDef != nil {
-		opeDef := interfaceDef.Operations[operationName]
-		return &opeDef, &interfaceDef, nil
+	if interfaceDef != nil {
+		opeDef := interfaceDef.Operations[operationNameShort]
+		return &opeDef, interfaceDef, nil
 	}
 
 	return nil, nil, nil
+}
+
+func getInterface(key string, m map[string]tosca.InterfaceDefinition) *tosca.InterfaceDefinition {
+
+	for k, v := range m {
+		if strings.ToLower(normalizeInterfaceName(k)) == strings.ToLower(normalizeInterfaceName(key)) {
+			return &v
+		}
+	}
+
+	return nil
+}
+
+func normalizeInterfaceName(name string) string {
+	if strings.HasPrefix(name, tosca.StandardInterfaceName) {
+		return strings.Replace(name, tosca.StandardInterfaceName, tosca.StandardInterfaceShortName, 1)
+	} else if strings.HasPrefix(name, tosca.ConfigureInterfaceName) {
+		return strings.Replace(name, tosca.ConfigureInterfaceName, tosca.ConfigureInterfaceShortName, 1)
+	}
+	return name
 }
 
 // GetRelationshipTypeImplementingAnOperation  returns the first (bottom-up) type in the type hierarchy of a given relationship that implements a given operation
@@ -533,11 +547,6 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 			}
 			return results, nil
 		}
-		va := &tosca.ValueAssignment{}
-		err = yaml.Unmarshal([]byte(res.RawString()), va)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to unmarshal TOSCA Function definition %q", res)
-		}
 		f := va.GetFunction()
 		var hasAttrOnTarget bool
 		var hasAttrOnSrcOrSelf bool
@@ -753,7 +762,7 @@ func IsOperationImplemented(ctx context.Context, deploymentID, nodeName, operati
 }
 
 func isOperationImplemented(operationDefinition *tosca.OperationDefinition) bool {
-	if &operationDefinition != nil && &operationDefinition.Implementation != nil && (operationDefinition.Implementation.Primary != "" || (&operationDefinition.Implementation.Artifact != nil && operationDefinition.Implementation.Artifact.File != "")) {
+	if operationDefinition != nil && &operationDefinition.Implementation != nil && (operationDefinition.Implementation.Primary != "" || (&operationDefinition.Implementation.Artifact != nil && operationDefinition.Implementation.Artifact.File != "")) {
 		return true
 	}
 	return false

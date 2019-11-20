@@ -36,6 +36,11 @@ func getRepository(ctx context.Context, deploymentID, repoName string) (bool, *t
 	repository := new(tosca.Repository)
 	repoPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories", repoName)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(repoPath, repository)
+
+	// Default repository token is password
+	if repository.Credit.TokenType == "" {
+		repository.Credit.TokenType = "password"
+	}
 	return exist, repository, err
 }
 

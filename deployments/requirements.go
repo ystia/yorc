@@ -18,6 +18,8 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
@@ -31,13 +33,24 @@ type Requirement struct {
 	Index string
 }
 
-func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error) {
-	reqs := make([]Requirement, 0)
+func getRequirements(ctx context.Context, deploymentID, nodeName string) ([]tosca.RequirementAssignmentMap, error){
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
+		if IsNodeNotFoundError(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
-	for i, reqList := range node.Requirements {
+	return node.Requirements, nil
+}
+
+func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error) {
+	reqs := make([]Requirement, 0)
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return nil, err
+	}
+	for i, reqList := range reqMap {
 		for name, reqAssignment := range reqList {
 			// Search matching with name or type_requirement
 			if name == requirementType || reqAssignment.TypeRequirement == requirementType {
@@ -50,11 +63,11 @@ func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, r
 
 // GetRequirementIndexByNameForNode returns the requirement index which name match with defined requirementName for a given node name
 func GetRequirementIndexByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
 		return "", err
 	}
-	for i, req := range node.Requirements {
+	for i, req := range reqMap {
 		for name := range req {
 			if requirementName == name {
 				return strconv.Itoa(i), nil
@@ -66,24 +79,24 @@ func GetRequirementIndexByNameForNode(ctx context.Context, deploymentID, nodeNam
 
 // GetRequirementNameByIndexForNode returns the requirement name for a given node and requirement index
 func GetRequirementNameByIndexForNode(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
+	if requirementIndex == "" {
+		return "", nil
+	}
 	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil {
+	if err != nil || req == nil {
 		return "", err
 	}
-	if req != nil {
-		return name, nil
-	}
-	return "", nil
+	return name, nil
 }
 
 // GetRequirementsIndexes returns the list of requirements indexes for a given node
 func GetRequirementsIndexes(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
 	indexes := make([]string, 0)
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
 		return nil, err
 	}
-	for i := range node.Requirements {
+	for i := range reqMap {
 		indexes = append(indexes, strconv.Itoa(i))
 	}
 	return indexes, nil
@@ -91,58 +104,61 @@ func GetRequirementsIndexes(ctx context.Context, deploymentID, nodeName string) 
 
 // GetNbRequirementsForNode returns the number of requirements declared for the given node
 func GetNbRequirementsForNode(ctx context.Context, deploymentID, nodeName string) (int, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
 		return 0, err
 	}
-	return len(node.Requirements), err
+	return len(reqMap), err
 }
 
 // GetRelationshipForRequirement returns the relationship associated with a given requirementIndex for the given nodeName.
 //
 // If there is no relationship defined for this requirement then an empty string is returned.
 func GetRelationshipForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
+	if requirementIndex == "" {
+		return "", nil
+	}
 	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil {
+	if err != nil || req == nil {
 		return "", err
 	}
-	if req != nil {
-		return req.Relationship, nil
-	}
-	return "", nil
+	return req.Relationship, nil
 }
 
 // GetCapabilityForRequirement returns the capability associated with a given requirementIndex for the given nodeName.
 //
 // If there is no capability defined for this requirement then an empty string is returned.
 func GetCapabilityForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
+	if requirementIndex == "" {
+		return "", nil
+	}
 	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil {
+	if err != nil || req == nil {
 		return "", err
 	}
-	if req != nil {
-		return req.Capability, nil
-	}
-	return "", nil
+	return req.Capability, nil
 }
 
 // GetTargetNodeForRequirement returns the target node associated with a given requirementIndex for the given nodeName.
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
+	if requirementIndex == "" {
+		return "", nil
+	}
 	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil {
+	if err != nil || req == nil {
 		return "", err
 	}
-	if req != nil {
-		return req.Node, nil
-	}
-	return "", nil
+	return req.Node, nil
 }
 
 func getRequirementByIndex(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, *tosca.RequirementAssignment, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	if requirementIndex == "" {
+		return "", nil, nil
+	}
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
 		return "", nil, err
 	}
 
@@ -151,15 +167,15 @@ func getRequirementByIndex(ctx context.Context, deploymentID, nodeName, requirem
 		return "", nil, errors.Wrapf(err, "requirement index %q is not a valid index", requirementIndex)
 	}
 
-	if ind+1 > len(node.Requirements) {
-		return "", nil, errors.Wrapf(err, "requirement index %q is not a valid index as node with name %q has only %d requirements", requirementIndex, nodeName, len(node.Requirements))
+	if ind+1 > len(reqMap) {
+		return "", nil, errors.Wrapf(err, "requirement index %q is not a valid index as node with name %q has only %d requirements", requirementIndex, nodeName, len(reqMap))
 	}
 
 	// Only one requirement Assignment is expected
-	if len(node.Requirements[ind]) > 1 {
+	if len(reqMap[ind]) > 1 {
 		return "", nil, errors.Wrapf(err, "more than one requirement assignment for node:%q, index:%q", nodeName, requirementIndex)
 	}
-	for name, req := range node.Requirements[ind] {
+	for name, req := range reqMap[ind] {
 		return name, &req, nil
 	}
 	return "", nil, nil
@@ -181,14 +197,15 @@ func GetTargetInstanceForRequirement(ctx context.Context, deploymentID, nodeName
 		return "", nil, nil
 	}
 
-	exist, value, err := consulutil.GetStringValue(path.Join(targetPrefix, "instances"))
+	value := new(string)
+	exist, err = storage.GetStore(types.StoreTypeDeployment).Get(path.Join(targetPrefix, "instances"), value)
 	if err != nil {
 		return "", nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if !exist || value == "" {
+	if !exist || *value == "" {
 		return "", nil, nil
 	}
-	instanceIds := strings.Split(value, ",")
+	instanceIds := strings.Split(*value, ",")
 	return targetNodeName, instanceIds, nil
 }
 
@@ -196,12 +213,12 @@ func GetTargetInstanceForRequirement(ctx context.Context, deploymentID, nodeName
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirementByName(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
 		return "", err
 	}
 
-	for _, reqList := range node.Requirements {
+	for _, reqList := range reqMap {
 		req, exist := reqList[requirementName]
 		if exist {
 			return req.Node, nil
@@ -210,48 +227,45 @@ func GetTargetNodeForRequirementByName(ctx context.Context, deploymentID, nodeNa
 	return "", nil
 }
 
-// HasAnyRequirementCapability returns true and the the related node name addressing the capability
-// if node with name nodeName has the requirement with the capability type equal or derived from the provided type
+// HasAnyRequirementCapability returns true and the related target node name addressing the capability
+// if node with name nodeName has the requirement requirement with the capability type equal or derived from the provided type
 // otherwise it returns false and empty string
 func HasAnyRequirementCapability(ctx context.Context, deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	reqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, requirement)
+	if err != nil || reqs == nil {
 		return false, "", err
 	}
-	for _, reqList := range node.Requirements {
-		for _, req := range reqList {
-			if req.Capability == capabilityType {
-				return true, req.Node, nil
-			}
-			is, err := IsTypeDerivedFrom(ctx, deploymentID, req.Capability, capabilityType)
-			if err != nil {
-				return false, "", err
-			}
-			if is {
-				return true, req.Node, nil
-			}
+	for _, req := range reqs {
+		if req.Capability == capabilityType {
+			return true, req.Node, nil
+		}
+		is, err := IsTypeDerivedFrom(ctx, deploymentID, req.Capability, capabilityType)
+		if err != nil {
+			return false, "", err
+		}
+		if is {
+			return true, req.Node, nil
 		}
 	}
 	return false, "", nil
 }
 
-// HasAnyRequirementFromNodeType returns true and the the related node name addressing the capability
+// HasAnyRequirementFromNodeType returns true and the related node name addressing the capability
 // if node with name nodeName has the requirement with the node type equal or derived from the provided type
 // otherwise it returns false and empty string
 func HasAnyRequirementFromNodeType(ctx context.Context, deploymentID, nodeName, requirement, nodeType string) (bool, string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
-	if err != nil {
+	reqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, requirement)
+	if err != nil || reqs == nil {
 		return false, "", err
 	}
-	for _, reqList := range node.Requirements {
-		for _, req := range reqList {
-			if req.Capability != "" {
-				is, err := IsNodeDerivedFrom(ctx, deploymentID, req.Node, nodeType)
-				if err != nil {
-					return false, "", err
-				} else if is {
-					return is, req.Node, nil
-				}
+
+	for _, req := range reqs {
+		if req.Capability != "" {
+			is, err := IsNodeDerivedFrom(ctx, deploymentID, req.Node, nodeType)
+			if err != nil {
+				return false, "", err
+			} else if is {
+				return is, req.Node, nil
 			}
 		}
 	}

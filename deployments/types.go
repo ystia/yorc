@@ -69,7 +69,7 @@ func getTypeStruct(deploymentID, typeName string, typ interface{}) error {
 		return err
 	}
 	if !exist {
-		return errors.Errorf("No type found with name:%q", typeName)
+		return typeMissingError{deploymentID: deploymentID, name:typeName}
 	}
 	return nil
 }

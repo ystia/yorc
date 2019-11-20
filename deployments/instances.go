@@ -16,13 +16,14 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -199,7 +200,7 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Then look at global node level (not instance-scoped)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
+	result, err := getNodeAttributeValue(ctx, deploymentID, nodeName, attributeName, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
 	}
@@ -250,23 +251,27 @@ func SetInstanceListAttributes(ctx context.Context, attributes []*AttributeData)
 // SetInstanceAttributeComplex sets an instance attribute that may be a literal or a complex data type
 func SetInstanceAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	_, errGrp, store := consulutil.WithContext(context.Background())
-	internal.StoreComplexType(store, attrPath, attributeValue)
-	err := notifyAndPublishAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
 	if err != nil {
 		return err
 	}
-	return errGrp.Wait()
+	err = notifyAndPublishAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetInstanceListAttributesComplex sets an instance list of attributes that may be a literal or a complex data type
 // All attributes are stored together
 // Then all notifications are published
 func SetInstanceListAttributesComplex(ctx context.Context, attributes []*AttributeData) error {
-	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, attribute := range attributes {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
-		internal.StoreComplexType(store, attrPath, attribute.Value)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attribute.Value)
+		if err != nil {
+			return err
+		}
 	}
 	for _, attribute := range attributes {
 		err := notifyAndPublishAttributeValueChange(ctx, attribute.DeploymentID, attribute.NodeName, attribute.InstanceName, attribute.Name, attribute.Value)
@@ -274,7 +279,7 @@ func SetInstanceListAttributesComplex(ctx context.Context, attributes []*Attribu
 			return err
 		}
 	}
-	return errGrp.Wait()
+	return nil
 }
 
 // SetAttributeForAllInstances sets the same attribute value to all instances of a given node.
@@ -294,15 +299,18 @@ func SetAttributeComplexForAllInstances(ctx context.Context, deploymentID, nodeN
 	if err != nil {
 		return err
 	}
-	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
-		internal.StoreComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
+		if err != nil {
+			return err
+		}
+
 		err = notifyAndPublishAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
 	}
-	return errGrp.Wait()
+	return nil
 }
 
 func notifyAndPublishAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {

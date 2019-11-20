@@ -29,9 +29,9 @@ import (
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it
 func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
 	var (
-		implementingType, implementingNode, requirementIndex string
-		err                                                  error
-		isRelationshipOp, isNodeImplOpe                      bool
+		implementingType, implementingNode, requirementIndex, targetNodeName string
+		err                                                                  error
+		isRelationshipOp, isNodeImplOpe                                      bool
 	)
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
@@ -42,6 +42,13 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	}
 	if isRelationshipOp {
 		implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName, requirementIndex)
+		if err != nil {
+			return prov.Operation{}, err
+		}
+		targetNodeName, err = deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return prov.Operation{}, err
+		}
 	} else {
 		isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
 		if err != nil {
@@ -57,10 +64,6 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 		return prov.Operation{}, err
 	}
 	implArt, err := deployments.GetImplementationArtifactForOperation(ctx, deploymentID, nodeName, operationName, isNodeImplOpe, isRelationshipOp, requirementIndex)
-	if err != nil {
-		return prov.Operation{}, err
-	}
-	targetNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
 	if err != nil {
 		return prov.Operation{}, err
 	}

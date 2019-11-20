@@ -14,7 +14,10 @@
 
 package deployments
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 //go:generate go-enum --noprefix -f=structs.go
 
@@ -58,6 +61,13 @@ func (v *TOSCAValue) String() string {
 func (v *TOSCAValue) RawString() string {
 	switch t := v.Value.(type) {
 	case string:
+		if isQuoted(t) {
+			var err error
+			t, err = strconv.Unquote(t)
+			if err != nil {
+				return err.Error()
+			}
+		}
 		return t
 	default:
 		b, err := json.Marshal(t)

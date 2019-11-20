@@ -16,6 +16,7 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"path"
@@ -55,7 +56,8 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 		return nil, err
 	}
 	if !exist {
-		return nil, errors.Errorf("No workflow found with name %q for deployment %q", workflowName, deploymentID)
+		log.Debugf("No workflow found with name %q for deployment %q", workflowName, deploymentID)
+		return nil, nil
 	}
 
 	return wf, nil
@@ -71,6 +73,9 @@ func enhanceWorkflows(ctx context.Context, consulStore consulutil.ConsulStore, d
 	wf, err := GetWorkflow(ctx, deploymentID, "run")
 	if err != nil {
 		return err
+	}
+	if wf == nil {
+		return nil
 	}
 	var wasUpdated bool
 	for sn, s := range wf.Steps {

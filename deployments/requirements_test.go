@@ -16,6 +16,10 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
@@ -28,57 +32,61 @@ import (
 func testRequirements(t *testing.T, srv1 *testutil.TestServer) {
 	log.SetDebug(true)
 
-	srv1.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/type":                            []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/0/name":             []byte("network"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/1/name":             []byte("host"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/2/name":             []byte("network_1"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/2/type_requirement": []byte("network"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/3/name":             []byte("host_1"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/3/type_requirement": []byte("host"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/4/name":             []byte("network_2"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/4/type_requirement": []byte("network"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/5/name":             []byte("storage"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/6/name":             []byte("storage_other"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/6/type_requirement": []byte("storage"),
+	node := tosca.NodeTemplate{Type: "tosca.nodes.Compute"}
+	node.Requirements = []tosca.RequirementAssignmentMap{
+		{"network": tosca.RequirementAssignment{Node: "TNode1"}},
+		{"host": tosca.RequirementAssignment{Node: "TNode1"}},
+		{"network_1": tosca.RequirementAssignment{Node: "TNode2", TypeRequirement:"network"}},
+		{"host_1": tosca.RequirementAssignment{Node: "TNode2", TypeRequirement:"host"}},
+		{"network_2": tosca.RequirementAssignment{Node: "TNode3", TypeRequirement:"network"}},
+		{"storage": tosca.RequirementAssignment{Node: "TNode4"}},
+		{"storage_other": tosca.RequirementAssignment{Node: "TNode5", TypeRequirement:"storage", Relationship: "my_relationship", Capability: "yorc.capabilities.Assignable"}},
+	}
 
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/0/node": []byte("TNode1"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/1/node": []byte("TNode1"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/2/node": []byte("TNode2"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/3/node": []byte("TNode2"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/4/node": []byte("TNode3"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/5/node": []byte("TNode4"),
-		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/6/node": []byte("TNode5"),
-	})
+	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1", node)
+	require.Nil(t, err)
+
+	node2 := tosca.NodeTemplate{Type: "yorc.nodes.google.Compute"}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/t1/topology/nodes/TNode5", node2)
+	require.Nil(t, err)
 
 	t.Run("groupDeploymentsRequirements", func(t *testing.T) {
-		t.Run("TestGetRequirementsKeysByTypeForNode", func(t *testing.T) {
-			testGetRequirementsKeysByTypeForNode(t)
-		})
-		t.Run("TestGetRequirementKeyByNameForNode", func(t *testing.T) {
-			testGetRequirementKeyByNameForNode(t)
-		})
 		t.Run("TestGetNbRequirementsForNode", func(t *testing.T) {
 			testGetNbRequirementsForNode(t)
 		})
+		t.Run("testGetRequirementsByTypeForNode", func(t *testing.T) {
+			testGetRequirementsByTypeForNode(t)
+		})
+		t.Run("testGetRequirementIndexByNameForNode", func(t *testing.T) {
+			testGetRequirementIndexByNameForNode(t)
+		})
+		t.Run("testGetRequirementNameByIndexForNode", func(t *testing.T) {
+			testGetRequirementNameByIndexForNode(t)
+		})
+		t.Run("testGetRequirementsIndexes", func(t *testing.T) {
+			testGetRequirementsIndexes(t)
+		})
+		t.Run("testGetRelationshipForRequirement", func(t *testing.T) {
+			testGetRelationshipForRequirement(t)
+		})
+		t.Run("testGetCapabilityForRequirement", func(t *testing.T) {
+			testGetCapabilityForRequirement(t)
+		})
+		t.Run("testGetTargetNodeForRequirementByName", func(t *testing.T) {
+			testGetTargetNodeForRequirementByName(t)
+		})
+		t.Run("testHasAnyRequirementCapability", func(t *testing.T) {
+			testHasAnyRequirementCapability(t)
+		})
+		t.Run("testHasAnyRequirementFromNodeType", func(t *testing.T) {
+			testHasAnyRequirementFromNodeType(t)
+		})
 	})
-}
-
-func testGetRequirementKeyByNameForNode(t *testing.T) {
-	// t.Parallel()
-	ctx := context.Background()
-	key, err := GetRequirementKeyByNameForNode(ctx, "t1", "Compute1", "host_1")
-	require.Nil(t, err)
-	require.Equal(t, key, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/3")
-
-	key, err = GetRequirementKeyByNameForNode(ctx, "t1", "Compute1", "do_not_exits")
-	require.Nil(t, err)
-	require.Equal(t, "", key)
 }
 
 func testGetNbRequirementsForNode(t *testing.T) {
 	ctx := context.Background()
-	// t.Parallel()
+	t.Parallel()
 	reqNb, err := GetNbRequirementsForNode(ctx, "t1", "Compute1")
 	require.Nil(t, err)
 	require.Equal(t, 7, reqNb)
@@ -89,30 +97,187 @@ func testGetNbRequirementsForNode(t *testing.T) {
 
 }
 
-func testGetRequirementsKeysByTypeForNode(t *testing.T) {
+func testGetRequirementsByTypeForNode(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
-	// t.Parallel()
-	keys, err := GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "network")
-	require.Nil(t, err)
-	require.Len(t, keys, 3)
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/0")
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/2")
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/4")
+	tests := []struct{
+		name string
+		typ string
+		expected []Requirement
+	}{
+		{
+			name:     "getHostRequirements",
+			typ:      "host",
+			expected: []Requirement{{Name: "host", Index: "1",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode1"}},
+								    {Name: "host_1", Index: "3",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode2", TypeRequirement: "host"}}},
+		},
+		{
+			name:     "getNetworkRequirements",
+			typ:      "network",
+			expected: []Requirement{{Name: "network", Index: "0",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode1"}},
+				{Name: "network_1", Index: "2",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode2", TypeRequirement: "network"}},
+				{Name: "network_2", Index: "4",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode3", TypeRequirement: "network"}}},
+		},
+		{
+			name:     "getStorageRequirements",
+			typ:      "storage",
+			expected: []Requirement{{Name: "storage", Index: "5",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode4"}},
+				{Name: "storage_other", Index: "6",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode5", TypeRequirement: "storage", Relationship:"my_relationship", Capability: "yorc.capabilities.Assignable"},},},
+		},
+		{
+			name:     "getNotExistingRequirements",
+			typ:      "not_exists",
+			expected: []Requirement{},
+		},
 
-	keys, err = GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "host")
-	require.Nil(t, err)
-	require.Len(t, keys, 2)
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/1")
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/3")
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reqs, err := GetRequirementsByTypeForNode(ctx, "t1", "Compute1", tt.typ)
+			require.Nil(t, err)
+			require.Len(t, reqs, len(tt.expected), "unexpected nb of requirements of type %q", tt.typ)
+			if !reflect.DeepEqual(reqs, tt.expected) {
+				t.Errorf("GetRequirementsByTypeForNode = %v, want %v", reqs, tt.expected)
+			}
+		})
+	}
+}
 
-	keys, err = GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "storage")
-	require.Nil(t, err)
-	require.Len(t, keys, 2)
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/5")
-	require.Contains(t, keys, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/6")
 
-	keys, err = GetRequirementsKeysByTypeForNode(ctx, "t1", "Compute1", "dns")
-	require.Nil(t, err)
-	require.Len(t, keys, 0)
+func testGetRequirementIndexByNameForNode(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	tests := []struct{
+		nameTest string
+		name string
+		expected string
+	}{
+		{
+			nameTest: "IndexForReqHost",
+			name:     "host",
+			expected: "1",
+		},
+		{
+			nameTest: "IndexForReqNetwork",
+			name:     "network_2",
+			expected: "4",
+		},
+		{
+			nameTest: "IndexForUnknownName",
+			name:     "unknown",
+			expected: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.nameTest, func(t *testing.T) {
+			reqs, err := GetRequirementIndexByNameForNode(ctx, "t1", "Compute1", tt.name)
+			require.Nil(t, err)
+			if !reflect.DeepEqual(reqs, tt.expected) {
+				t.Errorf("GetRequirementIndexByNameForNode = %v, want %v", reqs, tt.expected)
+			}
+		})
+	}
+}
 
+func testGetRequirementNameByIndexForNode(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	tests := []struct{
+		nameTest string
+		index string
+		expected string
+	}{
+		{
+			nameTest: "NameForIndex2",
+			index:     "2",
+			expected: "network_1",
+		},
+		{
+			nameTest: "NameForIndex6",
+			index:     "6",
+			expected: "storage_other",
+		},
+		{
+			nameTest: "NameForIndex12",
+			index:     "12",
+			expected: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.nameTest, func(t *testing.T) {
+			reqs, err := GetRequirementNameByIndexForNode(ctx, "t1", "Compute1", tt.index)
+			require.Nil(t, err)
+			if !reflect.DeepEqual(reqs, tt.expected) {
+				t.Errorf("GetRequirementIndexByNameForNode = %v, want %v", reqs, tt.expected)
+			}
+		})
+	}
+}
+
+func testGetRequirementsIndexes(t *testing.T) {
+	ctx := context.Background()
+	t.Parallel()
+	indexes, err := GetRequirementsIndexes(ctx, "t1", "Compute1")
+	expected := []string{"0","1", "2", "3", "4", "5", "6"}
+	require.Nil(t, err)
+	require.Equal(t, 7, len(indexes))
+	if !reflect.DeepEqual(indexes, expected) {
+		t.Errorf("GetRequirementsIndexes = %v, want %v", indexes, expected)
+	}
+}
+
+func testGetRelationshipForRequirement(t *testing.T) {
+	ctx := context.Background()
+	t.Parallel()
+	relationship, err := GetRelationshipForRequirement(ctx, "t1", "Compute1", "6")
+	expected := "my_relationship"
+	require.Nil(t, err)
+	require.Equal(t, expected, relationship)
+}
+
+func testGetCapabilityForRequirement(t *testing.T) {
+	ctx := context.Background()
+	t.Parallel()
+	capability, err := GetCapabilityForRequirement(ctx, "t1", "Compute1", "6")
+	expected := "yorc.capabilities.Assignable"
+	require.Nil(t, err)
+	require.Equal(t, expected, capability)
+}
+
+func testGetTargetNodeForRequirementByName(t *testing.T) {
+	ctx := context.Background()
+	t.Parallel()
+	node, err := GetTargetNodeForRequirementByName(ctx, "t1", "Compute1", "storage_other")
+	expected := "TNode5"
+	require.Nil(t, err)
+	require.Equal(t, expected, node)
+}
+
+func testHasAnyRequirementCapability(t *testing.T) {
+	ctx := context.Background()
+	t.Parallel()
+	has, targetNode, err := HasAnyRequirementCapability(ctx, "t1", "Compute1", "storage_other", "yorc.capabilities.Assignable")
+	require.Nil(t, err)
+	require.Equal(t, true, has)
+	require.Equal(t, "TNode5", targetNode)
+
+	has, targetNode, err = HasAnyRequirementCapability(ctx, "t1", "Compute1", "storage_other", "tosca.capabilities.Root")
+	require.Nil(t, err)
+	require.Equal(t, true, has)
+	require.Equal(t, "TNode5", targetNode)
+
+}
+
+func testHasAnyRequirementFromNodeType(t *testing.T) {
+	ctx := context.Background()
+	t.Parallel()
+	has, targetNode, err := HasAnyRequirementFromNodeType(ctx, "t1", "Compute1", "storage_other", "yorc.nodes.Compute")
+	require.Nil(t, err)
+	require.Equal(t, true, has)
+	require.Equal(t, "TNode5", targetNode)
+
+	has, targetNode, err = HasAnyRequirementFromNodeType(ctx, "t1", "Compute1", "storage_other", "yorc.nodes.google.Subnetwork")
+	require.Nil(t, err)
+	require.Equal(t, false, has)
+	require.Equal(t, "", targetNode)
 }

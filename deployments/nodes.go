@@ -16,6 +16,7 @@ package deployments
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"sort"
 	"strconv"
@@ -32,12 +33,28 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
+type nodeNotFoundError struct {
+	name         string
+	deploymentID string
+}
+
+func (e nodeNotFoundError) Error() string {
+	return fmt.Sprintf("Looking for a node %q that do not exists in deployment %q.", e.name, e.deploymentID)
+}
+
+// IsTypeMissingError checks if the given error is a TypeMissing error
+func IsNodeNotFoundError(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(nodeNotFoundError)
+	return ok
+}
+
 func getNodeTemplateStruct(ctx context.Context, deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
 	node := new(tosca.NodeTemplate)
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(nodePath, node)
 	if !exist {
-		return nil, errors.Errorf("No node with name: %q found for deploymentID: %q", nodeName, deploymentID)
+		return nil, nodeNotFoundError{deploymentID: deploymentID, name: nodeName}
 	}
 	return node, err
 }
@@ -278,6 +295,43 @@ func GetNodesHostedOn(ctx context.Context, deploymentID, hostNode string) ([]str
 	return stackNodes, nil
 }
 
+func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the node template attribute is set and doesn't need to be resolved
+	va, is := node.Attributes[attributeName]
+	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
+		return readComplexVA(ctx, va, nestedKeys...), nil
+	}
+
+	// Retrieve related propertyDefinition with default property
+	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, node.Type, "node", attributeName)
+	if err != nil {
+		return nil, err
+	}
+	if attrDef != nil {
+		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, attrDef.Default, nestedKeys...)
+	}
+
+	// No default found in type hierarchy
+	// then traverse HostedOn relationships to find the value
+	host, err := GetHostedOnNode(ctx, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	if host != "" {
+		value, err := getNodeAttributeValue(ctx, deploymentID, host, attributeName, nestedKeys...)
+		if err != nil || value != nil {
+			return value, err
+		}
+	}
+	// Not found anywhere
+	return nil, nil
+}
+
 // GetNodePropertyValue retrieves the value for a given property in a given node
 //
 // It returns true if a value is found false otherwise as first return parameter.
@@ -292,7 +346,7 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 	// Check if the node template property is set and doesn't need to be resolved
 	va, is := node.Properties[propertyName]
 	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-		return resolveComplexVA(ctx, va, nestedKeys...), nil
+		return readComplexVA(ctx, va, nestedKeys...), nil
 	}
 
 	// Retrieve related propertyDefinition with default property
@@ -532,6 +586,11 @@ func GetNodeAttributesNames(ctx context.Context, deploymentID, nodeName string) 
 	log.Debugf("Found attributes %v for %s, %s", attributesList, deploymentID, nodeName)
 
 	return attributesList, nil
+}
+
+// GetTypeAttributesNames returns the list of attributes names found in the type hierarchy
+func GetTypeAttributesNames(ctx context.Context, deploymentID, typeName string) ([]string, error) {
+	return GetTypeAttributes(ctx, deploymentID, typeName, "node", true)
 }
 
 // storeSubKeysInSet store Consul keys directly living under parentPath into the given set.

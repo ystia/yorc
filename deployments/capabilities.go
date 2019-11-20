@@ -17,12 +17,13 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -134,7 +135,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 	if is && &ca != nil {
 		va, is = ca.Properties[propertyName]
 		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-			return resolveComplexVA(ctx, va, nestedKeys...), nil
+			return readComplexVA(ctx, va, nestedKeys...), nil
 		}
 	}
 
@@ -145,7 +146,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 			return nil, err
 		}
 		if va != nil && va.Type != tosca.ValueAssignmentFunction {
-			return resolveComplexVA(ctx, va, nestedKeys...), nil
+			return readComplexVA(ctx, va, nestedKeys...), nil
 		}
 	}
 
@@ -354,13 +355,16 @@ func SetInstanceCapabilityAttribute(ctx context.Context, deploymentID, nodeName,
 // SetInstanceCapabilityAttributeComplex sets an instance capability attribute that may be a literal or a complex data type
 func SetInstanceCapabilityAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-	_, errGrp, store := consulutil.WithContext(context.Background())
-	internal.StoreComplexType(store, attrPath, attributeValue)
-	err := notifyAndPublishCapabilityAttributeValueChange(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
 	if err != nil {
 		return err
 	}
-	return errGrp.Wait()
+
+	err = notifyAndPublishCapabilityAttributeValueChange(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetCapabilityAttributeForAllInstances sets the same capability attribute value to all instances of a given node.
@@ -380,16 +384,18 @@ func SetCapabilityAttributeComplexForAllInstances(ctx context.Context, deploymen
 	if err != nil {
 		return err
 	}
-	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-		internal.StoreComplexType(store, attrPath, attributeValue)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
+		if err != nil {
+			return err
+		}
 		err = notifyAndPublishCapabilityAttributeValueChange(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
 	}
-	return errGrp.Wait()
+	return nil
 }
 
 // GetNodeCapabilityType retrieves the type of a node template capability identified by its name
