@@ -52,7 +52,7 @@ build: test
 	 -X $(YORC_PACKAGE)/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
 	 -X $(YORC_PACKAGE)/commands/bootstrap.alien4cloudVersion=$(ALIEN4CLOUD_VERSION) \
 	 -X $(YORC_PACKAGE)/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
-	 -X $(YORC_PACKAGE)/server/info.YorcVersion=$(YORC_VERSION) \
+	 -X $(YORC_PACKAGE)/server/info.YorcVersion=$(VERSION) \
 	 -X $(YORC_PACKAGE)/server/info.GitCommit=$(COMMIT_HASH) \
 	 "
 	 @rm -f ./build/embeddedResources.zip
