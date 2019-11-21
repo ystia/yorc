@@ -16,18 +16,33 @@ package internal
 
 import (
 	"context"
+	"path"
+	"strings"
+
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"path"
 )
 
 // StoreWorkflow stores a workflow
 func StoreWorkflow(ctx context.Context, deploymentID, workflowName string, workflow *tosca.Workflow) error {
 	wfPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName)
+
+	for _, step := range workflow.Steps {
+		for _, activity := range step.Activities {
+			if activity.CallOperation != "" {
+				// Preserve case for requirement and target node name in case of relationship operation
+				opSlice := strings.SplitN(activity.CallOperation, "/", 2)
+				opSlice[0] = strings.ToLower(opSlice[0])
+				activity.CallOperation = strings.Join(opSlice, "/")
+			}
+		}
+	}
+
 	return storage.GetStore(types.StoreTypeDeployment).Set(wfPrefix, workflow)
 }
 

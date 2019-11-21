@@ -25,11 +25,6 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-// TypeExistsFlagName is the name of a Consul key that is used to prove the existence of a TOSCA type
-//
-// This key doesn't contain any value and allow to detect types even if there is no other values stored for them into consul
-const TypeExistsFlagName = ".existFlag"
-
 // StoreAllTypes stores all types of a given topology
 func StoreAllTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
 	storeDataTypes(ctx, consulStore, topology, topologyPrefix, importPath)

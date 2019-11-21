@@ -144,9 +144,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("TestNotifyAttributeOnValueChange", func(t *testing.T) {
 			testNotifyAttributeOnValueChange(t, deploymentID)
 		})
-		//t.Run("TestImportTopologyTemplate", func(t *testing.T) {
-		//	testImportTopologyTemplate(t, deploymentID)
-		//})
+		t.Run("TestImportTopologyTemplate", func(t *testing.T) {
+			testImportTopologyTemplateNodeMetadata(t, deploymentID)
+		})
 		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
 			testTopologyTemplateMetadata(t, deploymentID)
 		})

@@ -29,6 +29,10 @@ func StoreRepositories(ctx context.Context, consulStore consulutil.ConsulStore, 
 	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
 	for repositoryName, repo := range topology.Repositories {
 		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
+		// Default repository token is password
+		if repo.Credit.TokenType == "" {
+			repo.Credit.TokenType = "password"
+		}
 		err := storage.GetStore(types.StoreTypeDeployment).Set(repoPrefix, repo)
 		if err != nil {
 			return err

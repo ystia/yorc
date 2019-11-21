@@ -978,23 +978,15 @@ func testCheckCycleInNestedWorkflows(t *testing.T) {
 
 // Testing a Deployment Definition where one of the imports
 // contains a topology template
-func testImportTopologyTemplate(t *testing.T, deploymentID string) {
-	// t.Parallel()
+func testImportTopologyTemplateNodeMetadata(t *testing.T, deploymentID string) {
+	t.Parallel()
 
-	// Check the stored compute node and network have the expected type
-	expectedKeyValuePairs := map[string]string{
-		"topology/nodes/TestCompute/type":                              "yorc.nodes.openstack.Compute",
-		"topology/nodes/TestCompute/metadata/monitoring_time_interval": "30",
-		"topology/nodes/Network/type":                                  "yorc.nodes.openstack.Network",
-	}
-
-	for key, expectedValue := range expectedKeyValuePairs {
-		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		exist, value, err := consulutil.GetStringValue(consulKey)
-		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.True(t, exist, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
-	}
+	node, err := getNodeTemplateStruct(context.Background(), deploymentID, "TestCompute")
+	require.NoError(t, err, "Error getting node template")
+	require.NotNil(t, node, "node TestCompute should not be nil")
+	require.NotNil(t, node.Metadata, "node TestCompute should not be nil")
+	require.Len(t, node.Metadata, 1, "a metadata entry is expected")
+	require.Equal(t, "30", node.Metadata["monitoring_time_interval"], "monitoring time interval is expected in metadata")
 }
 
 // Testing topology template metadata
