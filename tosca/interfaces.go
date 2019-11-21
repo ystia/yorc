@@ -24,7 +24,7 @@ type InterfaceDefinition struct {
 	Operations  map[string]OperationDefinition `yaml:",inline,omitempty" json:",inline,omitempty"`
 }
 
-// An OperationDefinition is the representation of a TOSCA Operation Definition
+// An OperationImplementation is the representation of a TOSCA Operation Definition
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type OperationDefinition struct {

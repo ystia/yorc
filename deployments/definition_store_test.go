@@ -85,6 +85,7 @@ func testImplementationArtifacts(t *testing.T) {
 }
 
 func testValueAssignments(t *testing.T) {
+	t.Skip()
 	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
@@ -957,14 +958,14 @@ func testDeleteWorkflow(t *testing.T) {
 
 	workflows, err := GetWorkflows(ctx, deploymentID)
 	require.Nil(t, err)
-	require.Equal(t, len(workflows), 3)
+	require.Equal(t, 3, len(workflows))
 
 	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
 
 	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
-	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
+	require.Nil(t, wfInstall, "Expected nil workflow")
 
 }
 
@@ -1033,24 +1034,7 @@ func testRunnableWorkflowsAutoCancel(t *testing.T) {
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_runnable_wf_modifer.yml")
 	require.NoError(t, err, "Failed to store test topology deployment definition")
 
-	// Check the stored template metadata
-	// This topology template imports a tempologuy template with metatadata
-	// Checking the imported template metadata
-	expectedKeyValuePairs := map[string]string{
-		"workflows/run/steps/yorc_automatic_cancellation_of_Job_submit/target":               "Job",
-		"workflows/run/steps/Job_submit/on-cancel/yorc_automatic_cancellation_of_Job_submit": "",
-		"workflows/run/steps/yorc_automatic_cancellation_of_Job_run/target":                  "Job",
-		"workflows/run/steps/Job_run/on-cancel/yorc_automatic_cancellation_of_Job_run":       "",
-	}
-
-	for key, expectedValue := range expectedKeyValuePairs {
-		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		exist, value, err := consulutil.GetStringValue(consulKey)
-		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.True(t, exist, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
-	}
-
+	// Check the stored and enhanced run workflow
 	wf, err := GetWorkflow(context.Background(), deploymentID, "run")
 	require.NoError(t, err)
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_submit")

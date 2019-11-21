@@ -90,12 +90,14 @@ func GetCapabilitiesOfType(ctx context.Context, deploymentID, typeName, capabili
 // It returns false if there is no such property
 func GetCapabilityPropertyType(ctx context.Context, deploymentID, nodeName, capabilityName, propertyName string) (bool, string, error) {
 	capType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
-	if err != nil {
+	if err != nil || capType == "" {
 		return false, "", err
 	}
-
 	propDef, err := getCapabilityPropertyDefinition(ctx, deploymentID, capType, propertyName)
-	return propDef == nil, propDef.Type, err
+	if err != nil || propDef == nil {
+		return false, "", err
+	}
+	return true, propDef.Type, err
 }
 
 func getCapabilityPropertyDefinition(ctx context.Context, deploymentID, capabilityTypeName, propertyName string) (*tosca.PropertyDefinition, error) {
@@ -155,13 +157,14 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 	if err != nil {
 		return nil, err
 	}
-
-	propDef, err := getCapabilityPropertyDefinition(ctx, deploymentID, capabilityType, propertyName)
-	if err != nil {
-		return nil, err
-	}
-	if propDef != nil {
-		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+	if capabilityType != "" {
+		propDef, err := getCapabilityPropertyDefinition(ctx, deploymentID, capabilityType, propertyName)
+		if err != nil {
+			return nil, err
+		}
+		if propDef != nil {
+			return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+		}
 	}
 
 	// No default found in type hierarchy
@@ -176,6 +179,41 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 			return value, err
 		}
 	}
+
+	hasProp, propDataType, err := GetCapabilityPropertyType(ctx, deploymentID, nodeName, capabilityName, propertyName)
+	if err != nil {
+		return nil, err
+	}
+	if hasProp && capabilityType != "" {
+		// Check if the whole property is optional
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, capabilityType, "capability", propertyName)
+		if err != nil {
+			return nil, err
+		}
+		if !isRequired {
+			// For backward compatibility
+			// TODO this doesn't look as a good idea to me
+			return &TOSCAValue{Value: ""}, nil
+		}
+
+		if len(nestedKeys) > 1 && propDataType != "" {
+			// Check if nested type is optional
+			nestedKeyType, err := GetNestedDataType(ctx, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			if err != nil {
+				return nil, err
+			}
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, "data", nestedKeys[len(nestedKeys)-1])
+			if err != nil {
+				return nil, err
+			}
+			if !isRequired {
+				// For backward compatibility
+				// TODO this doesn't look as a good idea to me
+				return &TOSCAValue{Value: ""}, nil
+			}
+		}
+	}
+
 	// Not found anywhere
 	return nil, nil
 }

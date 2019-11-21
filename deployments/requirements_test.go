@@ -36,18 +36,18 @@ func testRequirements(t *testing.T, srv1 *testutil.TestServer) {
 	node.Requirements = []tosca.RequirementAssignmentMap{
 		{"network": tosca.RequirementAssignment{Node: "TNode1"}},
 		{"host": tosca.RequirementAssignment{Node: "TNode1"}},
-		{"network_1": tosca.RequirementAssignment{Node: "TNode2", TypeRequirement:"network"}},
-		{"host_1": tosca.RequirementAssignment{Node: "TNode2", TypeRequirement:"host"}},
-		{"network_2": tosca.RequirementAssignment{Node: "TNode3", TypeRequirement:"network"}},
+		{"network_1": tosca.RequirementAssignment{Node: "TNode2", TypeRequirement: "network"}},
+		{"host_1": tosca.RequirementAssignment{Node: "TNode2", TypeRequirement: "host"}},
+		{"network_2": tosca.RequirementAssignment{Node: "TNode3", TypeRequirement: "network"}},
 		{"storage": tosca.RequirementAssignment{Node: "TNode4"}},
-		{"storage_other": tosca.RequirementAssignment{Node: "TNode5", TypeRequirement:"storage", Relationship: "my_relationship", Capability: "yorc.capabilities.Assignable"}},
+		{"storage_other": tosca.RequirementAssignment{Node: "TNode5", TypeRequirement: "storage", Relationship: "my_relationship", Capability: "yorc.capabilities.Assignable"}},
 	}
 
-	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1", node)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1", node)
 	require.Nil(t, err)
 
 	node2 := tosca.NodeTemplate{Type: "yorc.nodes.google.Compute"}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/t1/topology/nodes/TNode5", node2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/t1/topology/nodes/TNode5", node2)
 	require.Nil(t, err)
 
 	t.Run("groupDeploymentsRequirements", func(t *testing.T) {
@@ -100,36 +100,35 @@ func testGetNbRequirementsForNode(t *testing.T) {
 func testGetRequirementsByTypeForNode(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	tests := []struct{
-		name string
-		typ string
+	tests := []struct {
+		name     string
+		typ      string
 		expected []Requirement
 	}{
 		{
-			name:     "getHostRequirements",
-			typ:      "host",
-			expected: []Requirement{{Name: "host", Index: "1",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode1"}},
-								    {Name: "host_1", Index: "3",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode2", TypeRequirement: "host"}}},
+			name: "getHostRequirements",
+			typ:  "host",
+			expected: []Requirement{{Name: "host", Index: "1", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode1"}},
+				{Name: "host_1", Index: "3", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode2", TypeRequirement: "host"}}},
 		},
 		{
-			name:     "getNetworkRequirements",
-			typ:      "network",
-			expected: []Requirement{{Name: "network", Index: "0",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode1"}},
-				{Name: "network_1", Index: "2",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode2", TypeRequirement: "network"}},
-				{Name: "network_2", Index: "4",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode3", TypeRequirement: "network"}}},
+			name: "getNetworkRequirements",
+			typ:  "network",
+			expected: []Requirement{{Name: "network", Index: "0", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode1"}},
+				{Name: "network_1", Index: "2", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode2", TypeRequirement: "network"}},
+				{Name: "network_2", Index: "4", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode3", TypeRequirement: "network"}}},
 		},
 		{
-			name:     "getStorageRequirements",
-			typ:      "storage",
-			expected: []Requirement{{Name: "storage", Index: "5",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode4"}},
-				{Name: "storage_other", Index: "6",  RequirementAssignment: tosca.RequirementAssignment{Node:"TNode5", TypeRequirement: "storage", Relationship:"my_relationship", Capability: "yorc.capabilities.Assignable"},},},
+			name: "getStorageRequirements",
+			typ:  "storage",
+			expected: []Requirement{{Name: "storage", Index: "5", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode4"}},
+				{Name: "storage_other", Index: "6", RequirementAssignment: tosca.RequirementAssignment{Node: "TNode5", TypeRequirement: "storage", Relationship: "my_relationship", Capability: "yorc.capabilities.Assignable"}}},
 		},
 		{
 			name:     "getNotExistingRequirements",
 			typ:      "not_exists",
 			expected: []Requirement{},
 		},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,13 +142,12 @@ func testGetRequirementsByTypeForNode(t *testing.T) {
 	}
 }
 
-
 func testGetRequirementIndexByNameForNode(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	tests := []struct{
+	tests := []struct {
 		nameTest string
-		name string
+		name     string
 		expected string
 	}{
 		{
@@ -182,24 +180,24 @@ func testGetRequirementIndexByNameForNode(t *testing.T) {
 func testGetRequirementNameByIndexForNode(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	tests := []struct{
+	tests := []struct {
 		nameTest string
-		index string
+		index    string
 		expected string
 	}{
 		{
 			nameTest: "NameForIndex2",
-			index:     "2",
+			index:    "2",
 			expected: "network_1",
 		},
 		{
 			nameTest: "NameForIndex6",
-			index:     "6",
+			index:    "6",
 			expected: "storage_other",
 		},
 		{
 			nameTest: "NameForIndex12",
-			index:     "12",
+			index:    "12",
 			expected: "",
 		},
 	}
@@ -218,7 +216,7 @@ func testGetRequirementsIndexes(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 	indexes, err := GetRequirementsIndexes(ctx, "t1", "Compute1")
-	expected := []string{"0","1", "2", "3", "4", "5", "6"}
+	expected := []string{"0", "1", "2", "3", "4", "5", "6"}
 	require.Nil(t, err)
 	require.Equal(t, 7, len(indexes))
 	if !reflect.DeepEqual(indexes, expected) {

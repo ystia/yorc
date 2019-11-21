@@ -33,7 +33,7 @@ type Requirement struct {
 	Index string
 }
 
-func getRequirements(ctx context.Context, deploymentID, nodeName string) ([]tosca.RequirementAssignmentMap, error){
+func getRequirements(ctx context.Context, deploymentID, nodeName string) ([]tosca.RequirementAssignmentMap, error) {
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		if IsNodeNotFoundError(err) {

@@ -67,16 +67,21 @@ func (inf inputNotFound) Error() string {
 
 const implementationArtifactsExtensionsPath = "implementation_artifacts_extensions"
 
-// GetOperationForNodeOrNodeType traverses the type hierarchy to find an operation matching the given operationName.
+// GetOperationImplementation traverses the type hierarchy to find an operation matching the given operationName.
 //
 // First, it checks the node template if operation implementation is present
 // Next it gets down to types hierarchy
 // Once found it returns the path to the operation and the value of its primary implementation.
 // If the operation is not found in the node template or in the type hierarchy then empty strings are returned.
-func GetOperationForNodeOrNodeType(ctx context.Context, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (*tosca.OperationDefinition, error) {
-	var typeOrNodeTemplate string
+// For coherence with Tosca specification, if primary is not set, we set it with implementation file
+func GetOperationImplementation(ctx context.Context, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (*tosca.Implementation, error) {
+	var importPath, typeOrNodeTemplate string
 	var err error
 	if nodeTemplateImpl == "" {
+		importPath, err = GetTypeImportPath(ctx, deploymentID, nodeTypeImpl)
+		if err != nil {
+			return nil, err
+		}
 		typeOrNodeTemplate = nodeTypeImpl
 	} else {
 		typeOrNodeTemplate = nodeTemplateImpl
@@ -87,7 +92,7 @@ func GetOperationForNodeOrNodeType(ctx context.Context, deploymentID, nodeTempla
 		return nil, errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on template/type %q", operationName, typeOrNodeTemplate)
 	}
 	if isOperationImplemented(operationDef) {
-		return operationDef, nil
+		return normalizeImplementation(&operationDef.Implementation, importPath), nil
 	}
 
 	// Not found here check the type hierarchy
@@ -96,17 +101,33 @@ func GetOperationForNodeOrNodeType(ctx context.Context, deploymentID, nodeTempla
 		return nil, err
 	}
 
-	return getOperationForNodeType(ctx, deploymentID, parentType, operationName)
+	return getNodeTypeOperationImplementation(ctx, deploymentID, parentType, operationName)
 }
 
-func getOperationForNodeType(ctx context.Context, deploymentID, nodeType, operationName string) (*tosca.OperationDefinition, error) {
+func normalizeImplementation(impl *tosca.Implementation, importPath string) *tosca.Implementation {
+	// For coherence with Tosca specification, if primary is not set, we set it with implementation file
+	// Add import path to have relative path to artifact location
+	if &impl.Artifact != nil && impl.Artifact.File != "" {
+		impl.Artifact.File = path.Join(importPath, impl.Artifact.File)
+	}
+	if impl.Primary == "" {
+		impl.Primary = impl.Artifact.File
+	}
+	return impl
+}
+
+func getNodeTypeOperationImplementation(ctx context.Context, deploymentID, nodeType, operationName string) (*tosca.Implementation, error) {
 	// First check if operation exists in current nodeType
 	operationDef, _, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, "", nodeType, operationName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if isOperationImplemented(operationDef) {
-		return operationDef, nil
+		importPath, err := GetTypeImportPath(ctx, deploymentID, nodeType)
+		if err != nil {
+			return nil, err
+		}
+		return normalizeImplementation(&operationDef.Implementation, importPath), nil
 	}
 
 	// Not found here check the type hierarchy
@@ -115,7 +136,7 @@ func getOperationForNodeType(ctx context.Context, deploymentID, nodeType, operat
 		return nil, err
 	}
 
-	return getOperationForNodeType(ctx, deploymentID, parentType, operationName)
+	return getNodeTypeOperationImplementation(ctx, deploymentID, parentType, operationName)
 }
 
 // This function return the operation and interface definitions for given deploymentID, operation name

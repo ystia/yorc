@@ -67,9 +67,9 @@ func testOperationImplementationArtifactPrimary(t *testing.T, deploymentID strin
 			implType, err := GetOperationImplementationType(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.implementationType, implType)
-			op, err := GetOperationForNodeOrNodeType(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
+			opImpl, err := GetOperationImplementation(ctx, deploymentID, "", tt.args.typeName, tt.args.operation)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want.primary, op.Implementation.Primary)
+			assert.Equal(t, tt.want.primary, opImpl.Primary)
 		})
 	}
 

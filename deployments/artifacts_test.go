@@ -16,6 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"strings"
 	"testing"
 
@@ -33,9 +36,14 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer) {
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/artifacts.yaml")
 	require.Nil(t, err)
 
-	srv1.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/yorc.types.A/importPath": []byte("path/to/typeA"),
-	})
+	// Update the type with importPath (not in Tosca specifications)
+	typeName := "yorc.types.A"
+	typToUpdate := new(tosca.NodeType)
+	err = getTypeStruct(deploymentID, typeName, typToUpdate)
+	require.Nil(t, err)
+	typToUpdate.ImportPath = "path/to/typeA"
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.types.A", typToUpdate)
+	require.Nil(t, err)
 
 	t.Run("groupDeploymentArtifacts", func(t *testing.T) {
 		t.Run("TestGetArtifactsForType", func(t *testing.T) {
@@ -48,7 +56,7 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer) {
 }
 
 func testGetArtifactsForType(t *testing.T, deploymentID string) {
-	artifacts, err := GetArtifactsForType(context.Background(), deploymentID, "yorc.types.A")
+	artifacts, err := GetFileArtifactsForType(context.Background(), deploymentID, "yorc.types.A", "node")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 5)
@@ -63,7 +71,7 @@ func testGetArtifactsForType(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetArtifactsForType(context.Background(), deploymentID, "yorc.types.ParentA")
+	artifacts, err = GetFileArtifactsForType(context.Background(), deploymentID, "yorc.types.ParentA", "node")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 3)
@@ -74,14 +82,14 @@ func testGetArtifactsForType(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetArtifactsForType(context.Background(), deploymentID, "root")
+	artifacts, err = GetFileArtifactsForType(context.Background(), deploymentID, "root", "node")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)
 
 }
 func testGetArtifactsForNode(t *testing.T, deploymentID string) {
-	artifacts, err := GetArtifactsForNode(context.Background(), deploymentID, "NodeA")
+	artifacts, err := GetFileArtifactsForNode(context.Background(), deploymentID, "NodeA")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 6)
@@ -99,7 +107,7 @@ func testGetArtifactsForNode(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art6")
 	require.Equal(t, "path/to/typeA/TypeA", artifacts["art6"])
 
-	artifacts, err = GetArtifactsForNode(context.Background(), deploymentID, "NodeB")
+	artifacts, err = GetFileArtifactsForNode(context.Background(), deploymentID, "NodeB")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)

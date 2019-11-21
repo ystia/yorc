@@ -618,11 +618,9 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	if e.isSingularity {
 		e.Primary, err = deployments.GetOperationImplementationFile(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 	} else {
-		var operationDef *tosca.OperationDefinition
-		operationDef, err = deployments.GetOperationForNodeOrNodeType(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
-		if operationDef != nil && &operationDef.Implementation != nil {
-			e.Primary = operationDef.Implementation.Primary
-		}
+		var operationImpl *tosca.Implementation
+		operationImpl, err = deployments.GetOperationImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		e.Primary = operationImpl.Primary
 	}
 	if err != nil {
 		return err
@@ -680,7 +678,7 @@ func (e *executionCommon) resolveInputs(ctx context.Context) error {
 func (e *executionCommon) resolveArtifacts(ctx context.Context) error {
 	var err error
 	log.Debugf("Get artifacts for node:%q", e.NodeName)
-	e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.NodeName)
+	e.Artifacts, err = deployments.GetFileArtifactsForNode(ctx, e.deploymentID, e.NodeName)
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
 	return err
 }

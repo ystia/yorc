@@ -20,82 +20,90 @@ import (
 	"path"
 
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
-// GetArtifactsForType returns a map of artifact name / artifact file for the given type.
+func updateArtifactsForType(ctx context.Context, deploymentID, typeName, tType, importPath string, artifacts map[string]string) error {
+	var typ interface{}
+	switch tType {
+	case "node":
+		typ = new(tosca.NodeType)
+	case "relationship":
+		typ = new(tosca.RelationshipType)
+	default:
+		return errors.Errorf("the type:%q with name:%q is not expected to have artifacts", tType, typeName)
+	}
+
+	err := getTypeStruct(deploymentID, typeName, typ)
+	if err != nil {
+		return err
+	}
+	var artifactsMap tosca.ArtifactDefMap
+	switch t := typ.(type) {
+	case *tosca.NodeType:
+		artifactsMap = t.Artifacts
+	case *tosca.RelationshipType:
+		artifactsMap = t.Artifacts
+	}
+
+	for k, v := range artifactsMap {
+		if v.File != "" {
+			// TODO path is relative to the type and may not be the same as a child type
+			artifacts[k] = path.Join(importPath, v.File)
+		}
+	}
+
+	return nil
+}
+
+// GetFileArtifactsForType returns a map of artifact name / artifact file for the given type of type tType
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
-func GetArtifactsForType(ctx context.Context, deploymentID, typeName string) (map[string]string, error) {
+func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName, tType string) (map[string]string, error) {
 	parentType, err := GetParentType(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 	var artifacts map[string]string
 	if parentType != "" {
-		artifacts, err = GetArtifactsForType(ctx, deploymentID, parentType)
+		artifacts, err = GetFileArtifactsForType(ctx, deploymentID, parentType, tType)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		artifacts = make(map[string]string)
 	}
-	typePath, err := locateTypePath(deploymentID, typeName)
-	if err != nil {
-		return nil, err
-	}
 
-	artifactsPath := path.Join(typePath, "artifacts")
 	importPath, err := GetTypeImportPath(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
-	err = updateArtifactsFromPath(artifacts, artifactsPath, importPath)
+	err = updateArtifactsForType(ctx, deploymentID, typeName, tType, importPath, artifacts)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for type: %q", typeName)
 }
 
-// GetArtifactsForNode returns a map of artifact name / artifact file for the given node.
+// GetFileArtifactsForNode returns a map of artifact name / artifact file for the given node.
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It will first fetch artifacts from it node type and its parents and fetch artifacts for the node template itself.
 // This way artifacts from a parent type may be overridden by child types and artifacts from node type may be overridden by the node template
-func GetArtifactsForNode(ctx context.Context, deploymentID, nodeName string) (map[string]string, error) {
-	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
+func GetFileArtifactsForNode(ctx context.Context, deploymentID, nodeName string) (map[string]string, error) {
+	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
-	artifacts, err := GetArtifactsForType(ctx, deploymentID, nodeType)
+	artifacts, err := GetFileArtifactsForType(ctx, deploymentID, node.Type, "node")
 	if err != nil {
 		return nil, err
 	}
-	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "artifacts")
+
 	// No importPath for node templates as they will be CSAR root relative
-	err = updateArtifactsFromPath(artifacts, artifactsPath, "")
+	for k, v := range node.Artifacts {
+		if v.File != "" {
+			artifacts[k] = v.File
+		}
+	}
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for node: %q", nodeName)
-}
-
-// updateArtifactsFromPath returns a map of artifact name / artifact file for the given node or type denoted by the given artifactsPath.
-func updateArtifactsFromPath(artifacts map[string]string, artifactsPath, importPath string) error {
-	keys, err := consulutil.GetKeys(artifactsPath)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-
-	for _, artifactPath := range keys {
-		artifactName := path.Base(artifactPath)
-		exist, value, err := consulutil.GetStringValue(path.Join(artifactPath, "file"))
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" {
-			return errors.Errorf("Missing mandatory attribute \"file\" for artifact %q", path.Base(artifactPath))
-		}
-		// TODO path is relative to the type and may not be the same as a child type
-		artifacts[artifactName] = path.Join(importPath, value)
-	}
-	return nil
 }
 
 // GetArtifactTypeExtensions returns the extensions defined in this artifact type.

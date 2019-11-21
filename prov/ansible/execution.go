@@ -162,7 +162,7 @@ type executionCommon struct {
 	BasePrimary              string
 	Dependencies             []string
 	hosts                    map[string]*hostConnection
-	OperationDefinition      *tosca.OperationDefinition
+	OperationImplementation  *tosca.Implementation
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
@@ -264,27 +264,27 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	if e.operation.RelOp.IsRelationshipOperation {
 		operationNodeType = e.relationshipType
 	}
-	e.OperationDefinition, err = deployments.GetOperationForNodeOrNodeType(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
+	e.OperationImplementation, err = deployments.GetOperationImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
-	if e.OperationDefinition.Implementation.Primary == "" {
+	if e.OperationImplementation.Primary == "" {
 		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.operation.Name, e.NodeType, e.deploymentID)}
 	}
-	e.Primary = strings.TrimSpace(e.OperationDefinition.Implementation.Primary)
-	log.Debugf("Operation Definition: %+v, primary implementation: %q", e.OperationDefinition, e.Primary)
+	e.Primary = strings.TrimSpace(e.OperationImplementation.Primary)
+	log.Debugf("Operation Definition: %+v, primary implementation: %q", e.OperationImplementation, e.Primary)
 	e.BasePrimary = path.Base(e.Primary)
 
-	if e.OperationDefinition.Implementation.Dependencies != nil {
-		e.Dependencies = e.OperationDefinition.Implementation.Dependencies
+	if e.OperationImplementation.Dependencies != nil {
+		e.Dependencies = e.OperationImplementation.Dependencies
 	} else {
 		e.Dependencies = make([]string, 0)
 	}
 
 	// if operation_host is not overridden by requirement, we retrieve operation/implementation definition info
 	if e.operation.OperationHost == "" {
-		if &e.OperationDefinition.Implementation != nil && e.OperationDefinition.Implementation.OperationHost != "" {
-			e.operation.OperationHost = e.OperationDefinition.Implementation.OperationHost
+		if e.OperationImplementation.OperationHost != "" {
+			e.operation.OperationHost = e.OperationImplementation.OperationHost
 		}
 	}
 
@@ -312,19 +312,19 @@ func (e *executionCommon) resolveArtifacts(ctx context.Context) error {
 	if e.operation.RelOp.IsRelationshipOperation {
 		// First get linked node artifacts
 		if e.isRelationshipTargetNode {
-			e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.operation.RelOp.TargetNodeName)
+			e.Artifacts, err = deployments.GetFileArtifactsForNode(ctx, e.deploymentID, e.operation.RelOp.TargetNodeName)
 			if err != nil {
 				return err
 			}
 		} else {
-			e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.NodeName)
+			e.Artifacts, err = deployments.GetFileArtifactsForNode(ctx, e.deploymentID, e.NodeName)
 			if err != nil {
 				return err
 			}
 		}
 		// Then get relationship type artifacts
 		var arts map[string]string
-		arts, err = deployments.GetArtifactsForType(ctx, e.deploymentID, e.relationshipType)
+		arts, err = deployments.GetFileArtifactsForType(ctx, e.deploymentID, e.relationshipType, "relationship")
 		if err != nil {
 			return err
 		}
@@ -332,7 +332,7 @@ func (e *executionCommon) resolveArtifacts(ctx context.Context) error {
 			e.Artifacts[artName] = art
 		}
 	} else {
-		e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.NodeName)
+		e.Artifacts, err = deployments.GetFileArtifactsForNode(ctx, e.deploymentID, e.NodeName)
 		if err != nil {
 			return err
 		}

@@ -69,7 +69,7 @@ func getTypeStruct(deploymentID, typeName string, typ interface{}) error {
 		return err
 	}
 	if !exist {
-		return typeMissingError{deploymentID: deploymentID, name:typeName}
+		return typeMissingError{deploymentID: deploymentID, name: typeName}
 	}
 	return nil
 }
@@ -109,17 +109,17 @@ func getTypePropertyDefinitions(deploymentID, typeName, tType string) (map[strin
 
 	var mapProps map[string]tosca.PropertyDefinition
 	switch t := typ.(type) {
-	case tosca.NodeType:
+	case *tosca.NodeType:
 		mapProps = t.Properties
-	case tosca.RelationshipType:
+	case *tosca.RelationshipType:
 		mapProps = t.Properties
-	case tosca.CapabilityType:
+	case *tosca.CapabilityType:
 		mapProps = t.Properties
-	case tosca.DataType:
+	case *tosca.DataType:
 		mapProps = t.Properties
-	case tosca.ArtifactType:
+	case *tosca.ArtifactType:
 		mapProps = t.Properties
-	case tosca.PolicyType:
+	case *tosca.PolicyType:
 		mapProps = t.Properties
 	}
 

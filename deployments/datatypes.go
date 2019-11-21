@@ -66,6 +66,10 @@ func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeN
 		}
 	}
 
+	if dataType == "" {
+		return "", nil
+	}
+
 	if dataType == "map" || dataType == "list" {
 		if entrySchemaType == "" {
 			dataType += ":string"
