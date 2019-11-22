@@ -17,6 +17,9 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"testing"
 
 	ctu "github.com/hashicorp/consul/testutil"
@@ -29,105 +32,275 @@ import (
 func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 	log.SetDebug(true)
 
+	// Test testIsNodeTypeDerivedFrom
+	type1 := tosca.NodeType{
+		Type:         tosca.Type{
+			DerivedFrom: "yorc.type.2",
+		},
+	}
+	type2 := tosca.NodeType{
+		Type:         tosca.Type{
+			DerivedFrom: "yorc.type.3",
+		},
+	}
+	type3 := tosca.NodeType{
+		Type:         tosca.Type{
+			DerivedFrom: "tosca.relationships.HostedOn",
+		},
+	}
+
+	typeRelationshipHostedOn := tosca.RelationshipType{
+		Type:         tosca.Type{
+			DerivedFrom: "tosca.relationships.Root",
+		},
+	}
+
+	typeRelationshipRoot := tosca.RelationshipType{
+	}
+
+	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1", type1)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2", type2)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3", type3)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn", typeRelationshipHostedOn)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root", typeRelationshipRoot)
+	require.Nil(t, err)
+
+	// Test testGetNbInstancesForNode
+	// Default case type "tosca.nodes.Compute" default_instance specified
+	nodeCompute1 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.Compute",
+		Attributes: map[string]*tosca.ValueAssignment{"id": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "Not Used as it exists in instances",
+		}},
+		Capabilities: map[string]tosca.CapabilityAssignment{"scalable": tosca.CapabilityAssignment{
+			Properties: map[string]*tosca.ValueAssignment{"default_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "10",
+			},"max_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "20",
+			},"min_instances": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "2",
+		}}},
+		},
+	}
+	// Case type "tosca.nodes.Compute" default_instance not specified (1 assumed)
+	nodeCompute2 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.Compute",
+	}
+	// Error case default_instance specified but not an uint
+	nodeCompute3 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.Compute",
+		Attributes: map[string]*tosca.ValueAssignment{"id": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "Not Used as it exists in instances",
+		}},
+		Capabilities: map[string]tosca.CapabilityAssignment{"scalable": tosca.CapabilityAssignment{
+			Properties: map[string]*tosca.ValueAssignment{"default_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "-10",
+			},"max_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "-15",
+			},"min_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "-15",
+			}}},
+		},
+	}
+
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1", nodeCompute1)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute2", nodeCompute2)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3", nodeCompute3)
+	require.Nil(t, err)
+	// Case Node Hosted on another node
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.1", type1)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.2", type2)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.3", type3)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn", typeRelationshipHostedOn)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root", typeRelationshipRoot)
+	require.Nil(t, err)
+
+	typeCompute := tosca.NodeType{
+		Type: tosca.Type{
+			DerivedFrom: "yorc.type.2",
+		},
+		Attributes: map[string]tosca.AttributeDefinition{"id": tosca.AttributeDefinition{Default: &tosca.ValueAssignment{
+			Type:  0,
+			Value: "DefaultComputeTypeid",
+		}}, "ip": tosca.AttributeDefinition{Default:  &tosca.ValueAssignment{
+			Type:  0,
+			Value: "",
+		}}},
+		Capabilities: map[string]tosca.CapabilityDefinition{"scalable": tosca.CapabilityDefinition{Type:"tosca.capabilities.Scalable"}},
+	}
+
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute", typeCompute)
+	require.Nil(t, err)
+
+	scalableCap := tosca.NodeType{
+		Type: tosca.Type{
+		},
+	}
+
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable", scalableCap)
+	require.Nil(t, err)
+
+	derivedSC1 := tosca.NodeType{
+		Type: tosca.Type{
+			DerivedFrom: "tosca.nodes.SoftwareComponent",
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1", derivedSC1)
+	require.Nil(t, err)
+
+	derivedSC2 := tosca.NodeType{
+		Type: tosca.Type{
+			DerivedFrom: "tosca.nodes.SoftwareComponent",
+		},
+		Attributes:   map[string]tosca.AttributeDefinition{"dsc2": tosca.AttributeDefinition{
+			Default:     &tosca.ValueAssignment{Value: "yorc.type.DerivedSC2"},
+		}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2", derivedSC2)
+	require.Nil(t, err)
+
+	derivedSC3 := tosca.NodeType{
+		Type: tosca.Type{
+			DerivedFrom: "yorc.type.DerivedSC2",
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3", derivedSC3)
+	require.Nil(t, err)
+
+	derivedSC4 := tosca.NodeType{
+		Type: tosca.Type{
+			DerivedFrom: "yorc.type.DerivedSC3",
+		},
+		Properties:   nil,
+		Attributes:   map[string]tosca.AttributeDefinition{"dsc4": tosca.AttributeDefinition{
+			Default:     &tosca.ValueAssignment{Value: "yorc.type.DerivedSC4"},
+		}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4", derivedSC4)
+	require.Nil(t, err)
+
+	root := tosca.NodeType{
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Root", root)
+	require.Nil(t, err)
+
+	softwareComponent := tosca.NodeType{
+		Type: tosca.Type{
+			DerivedFrom: "tosca.nodes.Root",
+		},
+		Properties:   map[string]tosca.PropertyDefinition{"typeprop": tosca.PropertyDefinition{
+			Default:     &tosca.ValueAssignment{Value: "SoftwareComponentTypeProp"},
+		},
+		"parenttypeprop": tosca.PropertyDefinition{
+			Default:     &tosca.ValueAssignment{Value: "RootComponentTypeProp"},
+		}},
+		Attributes:   map[string]tosca.AttributeDefinition{"id": tosca.AttributeDefinition{
+			Default:     &tosca.ValueAssignment{Value: "DefaultSoftwareComponentTypeid"},
+		}, "type": tosca.AttributeDefinition{
+			Default:     &tosca.ValueAssignment{Value: "DefaultSoftwareComponentTypeid"},
+		}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent", softwareComponent)
+	require.Nil(t, err)
+
+	node1 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.SoftwareComponent",
+		Properties:   map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "simple",
+		}},
+		Attributes: map[string]*tosca.ValueAssignment{"id": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "Node1-id",
+		}},
+		Requirements: []tosca.RequirementAssignmentMap{
+			{"req1": tosca.RequirementAssignment{Relationship: "tosca.relationships.Root"}},
+			{"req2": tosca.RequirementAssignment{Relationship: "tosca.relationships.Root"}},
+			{"req3": tosca.RequirementAssignment{Relationship: "yorc.type.1", Node: "Node2"}},
+			{"req4": tosca.RequirementAssignment{Relationship: "tosca.relationships.Root"}},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1", node1)
+	require.Nil(t, err)
+
+	node2 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.SoftwareComponent",
+		Properties:   map[string]*tosca.ValueAssignment{"recurse": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "Node2",
+		}},
+		Requirements: []tosca.RequirementAssignmentMap{
+			{"req1": tosca.RequirementAssignment{Relationship: "tosca.relationships.Root"}},
+			{"req2": tosca.RequirementAssignment{Relationship: "tosca.relationships.HostedOn", Node: "Compute1"}},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2", node2)
+	require.Nil(t, err)
+
+	node3 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.SoftwareComponent",
+		Properties:   map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "simple",
+		}},
+		Attributes: map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
+			Type:  0,
+			Value: "simple",
+		}},
+		Requirements: []tosca.RequirementAssignmentMap{
+			{"req1": tosca.RequirementAssignment{Relationship: "yorc.type.3", Node: "Compute2"}},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3", node3)
+	require.Nil(t, err)
+	node4 := tosca.NodeTemplate{
+		Type:         "tosca.nodes.SoftwareComponent",
+		Requirements: []tosca.RequirementAssignmentMap{
+			{"host": tosca.RequirementAssignment{Relationship: "tosca.relationships.HostedOn", Node: "Node2"}},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node4", node4)
+	require.Nil(t, err)
+
+	// Test testDeleteNode
+	nodeCompute1ToDel := tosca.NodeTemplate{
+		Type:         "tosca.nodes.Compute",
+		Capabilities: map[string]tosca.CapabilityAssignment{"scalable": tosca.CapabilityAssignment{
+			Properties: map[string]*tosca.ValueAssignment{"default_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "10",
+			},"max_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "20",
+			},"min_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "2",
+			}}},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1", nodeCompute1ToDel)
+	require.Nil(t, err)
+
+	// Instancesz
 	srv1.PopulateKV(t, map[string][]byte{
-		// Test testIsNodeTypeDerivedFrom
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1/derived_from":                  []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1/name":                          []byte("yorc.type.1"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2/derived_from":                  []byte("yorc.type.3"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2/name":                          []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3/derived_from":                  []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3/name":                          []byte("yorc.type.3"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
-
-		// Test testGetNbInstancesForNode
-		// Default case type "tosca.nodes.Compute" default_instance specified
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/type":                                               []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/attributes/id":                                      []byte("Not Used as it exists in instances"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/capabilities/scalable/properties/default_instances": []byte("10"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/capabilities/scalable/properties/max_instances":     []byte("20"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/capabilities/scalable/properties/min_instances":     []byte("2"),
-		// Case type "tosca.nodes.Compute" default_instance not specified (1 assumed)
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute2/type": []byte("tosca.nodes.Compute"),
-		// Error case default_instance specified but not an uint
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/type":                                               []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/default_instances": []byte("-10"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/max_instances":     []byte("-15"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/min_instances":     []byte("-15"),
-		// Case Node Hosted on another node
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.1/derived_from":                  []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.1/name":                          []byte("yorc.type.1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.2/derived_from":                  []byte("yorc.type.3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.2/name":                          []byte("yorc.type.2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.3/derived_from":                  []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.3/name":                          []byte("yorc.type.3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/name":                       []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/id/default":      []byte("DefaultComputeTypeid"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/ip/default":      []byte(""),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable/name": []byte("tosca.capabilities.Scalable"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1/derived_from": []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1/name":         []byte("yorc.type.DerivedSC1"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2/derived_from":            []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2/name":                    []byte("yorc.type.DerivedSC2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2/attributes/dsc2/default": []byte("yorc.type.DerivedSC2"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3/derived_from": []byte("yorc.type.DerivedSC2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3/name":         []byte("yorc.type.DerivedSC3"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4/derived_from":            []byte("yorc.type.DerivedSC3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4/name":                    []byte("yorc.type.DerivedSC4"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4/attributes/dsc4/default": []byte("yorc.type.DerivedSC4"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Root/name":                                           []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/properties/parenttypeprop/default": []byte("RootComponentTypeProp"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/name":                        []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/derived_from":                []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/properties/typeprop/default": []byte("SoftwareComponentTypeProp"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/attributes/id/default":       []byte("DefaultSoftwareComponentTypeid"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/attributes/type/default":     []byte("DefaultSoftwareComponentTypeid"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/type":                        []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/0/relationship": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/0/name":         []byte("req1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/1/relationship": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/1/name":         []byte("req2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/relationship": []byte("yorc.type.1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/node":         []byte("Node2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/name":         []byte("req3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/3/relationship": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/3/name":         []byte("req4"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/properties/simple":           []byte("simple"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/attributes/id":               []byte("Node1-id"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/type":                        []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/requirements/0/relationship": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/requirements/0/name":         []byte("req1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/requirements/1/relationship": []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/requirements/1/node":         []byte("Compute1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/requirements/1/name":         []byte("req2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/properties/recurse":          []byte("Node2"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/type":                        []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/relationship": []byte("yorc.type.3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/node":         []byte("Compute2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/name":         []byte("req1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/attributes/simple":           []byte("simple"),
-
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node4/type":                        []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node4/requirements/0/relationship": []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node4/requirements/0/node":         []byte("Node2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node4/requirements/0/name":         []byte("host"),
-
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Compute1/0/attributes/id": []byte("Compute1-0"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Compute1/1/attributes/id": []byte("Compute1-1"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Compute1/2/attributes/id": []byte("Compute1-2"),
@@ -182,12 +355,6 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab20a/attributes/id": []byte("Node1-20"),
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab2/attributes/id":   []byte("Node1-2"),
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za3/attributes/id":   []byte("Node1-3"),
-		// Test testDeleteNode
-		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/type":                                               []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/attributes/id":                                      []byte("Not Used as it exists in instances"),
-		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/capabilities/scalable/properties/default_instances": []byte("10"),
-		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/capabilities/scalable/properties/max_instances":     []byte("20"),
-		consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1/capabilities/scalable/properties/min_instances":     []byte("2"),
 	})
 
 	t.Run("groupDeploymentsNodes", func(t *testing.T) {

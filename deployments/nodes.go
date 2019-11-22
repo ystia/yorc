@@ -307,8 +307,14 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, attribut
 		return readComplexVA(ctx, va, nestedKeys...), nil
 	}
 
+	// Check type if node is substitutable
+	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
+	if err != nil {
+		return nil, err
+	}
+
 	// Retrieve related propertyDefinition with default property
-	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, node.Type, "node", attributeName)
+	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, "node", attributeName)
 	if err != nil {
 		return nil, err
 	}
@@ -349,8 +355,14 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 		return readComplexVA(ctx, va, nestedKeys...), nil
 	}
 
+	// Check type if node is substitutable
+	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
+	if err != nil {
+		return nil, err
+	}
+
 	// Retrieve related propertyDefinition with default property
-	propDef, err := getTypePropertyDefinition(ctx, deploymentID, node.Type, "node", propertyName)
+	propDef, err := getTypePropertyDefinition(ctx, deploymentID, nodeType, "node", propertyName)
 	if err != nil {
 		return nil, err
 	}
@@ -521,6 +533,11 @@ func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, er
 	}
 
 	// If the corresponding node is substitutable, get its real node type
+	return checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, nodeType)
+}
+
+func checkTypeForSubstitutableNode(ctx context.Context, deploymentID, nodeName, nodeType string)  (string, error) {
+	// If the corresponding node is substitutable, get its real node type
 	substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return "", err
@@ -547,7 +564,12 @@ func GetNodeAttributesNames(ctx context.Context, deploymentID, nodeName string) 
 		attributesSet[k] = struct{}{}
 	}
 
-	typeAttrs, err := GetTypeAttributes(ctx, deploymentID, node.Type, "node", true)
+	// Check type if node is substitutable
+	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
+	if err != nil {
+		return nil, err
+	}
+	typeAttrs, err := GetTypeAttributes(ctx, deploymentID, nodeType, "node", true)
 	if err != nil {
 		return nil, err
 	}

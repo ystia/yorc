@@ -37,9 +37,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testDefinitionStore", func(t *testing.T) {
 			testDefinitionStore(t)
 		})
-		//t.Run("testDeploymentNodes", func(t *testing.T) {
-		//	testDeploymentNodes(t, srv)
-		//})
+		t.Run("testDeploymentNodes", func(t *testing.T) {
+			testDeploymentNodes(t, srv)
+		})
 		t.Run("testRequirements", func(t *testing.T) {
 			testRequirements(t, srv)
 		})
@@ -82,12 +82,12 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testSubstitutionServiceRequirementMappings", func(t *testing.T) {
 			testSubstitutionServiceRequirementMappings(t)
 		})
-		//t.Run("testSubstitutionClientDirective", func(t *testing.T) {
-		//	testSubstitutionClientDirective(t)
-		//})
-		//t.Run("testSubstitutionClientServiceInstance", func(t *testing.T) {
-		//	testSubstitutionClientServiceInstance(t)
-		//})
+		t.Run("testSubstitutionClientDirective", func(t *testing.T) {
+			testSubstitutionClientDirective(t)
+		})
+		t.Run("testSubstitutionClientServiceInstance", func(t *testing.T) {
+			testSubstitutionClientServiceInstance(t)
+		})
 		t.Run("TestOperationImplementationArtifact", func(t *testing.T) {
 			testOperationImplementationArtifact(t)
 		})
@@ -129,12 +129,12 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology.yml")
 		require.NoError(t, err)
 
-		//t.Run("TestNodeHasAttribute", func(t *testing.T) {
-		//	testNodeHasAttribute(t, deploymentID)
-		//})
-		//t.Run("TestNodeHasProperty", func(t *testing.T) {
-		//	testNodeHasProperty(t, deploymentID)
-		//})
+		t.Run("TestNodeHasAttribute", func(t *testing.T) {
+			testNodeHasAttribute(t, deploymentID)
+		})
+		t.Run("TestNodeHasProperty", func(t *testing.T) {
+			testNodeHasProperty(t, deploymentID)
+		})
 		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
 			testTopologyTemplateMetadata(t, deploymentID)
 		})
@@ -157,8 +157,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topology_substitution.yml")
 		require.NoError(t, err)
 
-		//t.Run("TestAddSubstitutionMappingAttributeHostNotification", func(t *testing.T) {
-		//	testAddSubstitutionMappingAttributeHostNotification(t, deploymentID)
-		//})
+		t.Run("TestAddSubstitutionMappingAttributeHostNotification", func(t *testing.T) {
+			testAddSubstitutionMappingAttributeHostNotification(t, deploymentID)
+		})
 	})
 }

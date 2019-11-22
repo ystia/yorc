@@ -314,12 +314,9 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Then look at global node level (not instance-scoped)
-	if value == nil {
-		vaPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName)
-		value, isFunction, err = getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, vaPath, attrDataType)
-		if err != nil || (value != nil && !isFunction) {
-			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-		}
+	value, err = getNodeAttributeValue(ctx, deploymentID, nodeName, attributeName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
 	}
 
 	// Not found look at node type

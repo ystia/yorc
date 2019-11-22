@@ -155,11 +155,11 @@ func getTypeAttributeDefinitions(deploymentID, typeName, tType string) (map[stri
 
 	var mapAttrs map[string]tosca.AttributeDefinition
 	switch t := typ.(type) {
-	case tosca.NodeType:
+	case *tosca.NodeType:
 		mapAttrs = t.Attributes
-	case tosca.RelationshipType:
+	case *tosca.RelationshipType:
 		mapAttrs = t.Attributes
-	case tosca.CapabilityType:
+	case *tosca.CapabilityType:
 		mapAttrs = t.Attributes
 	}
 
@@ -309,9 +309,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 			results = append(results, pResults...)
 		}
 	}
-
-	// Not found
-	return nil, nil
+	return results, nil
 }
 
 // TypeHasProperty returns true if the type has a property named propertyName defined

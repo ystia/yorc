@@ -16,6 +16,7 @@ package tosca
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,7 +25,7 @@ import (
 )
 
 // ValueAssignmentType defines the type of value for an assignment
-type ValueAssignmentType uint64
+type ValueAssignmentType uint
 
 const (
 	// ValueAssignmentLiteral defines an assignment of a literal
@@ -49,6 +50,31 @@ func (vat ValueAssignmentType) String() string {
 		return "map"
 	}
 	return "unsupported"
+}
+
+//UnmarshalJSON unmarshals json into a ValueAssignmentType
+func (vat *ValueAssignmentType) UnmarshalJSON(b []byte) error {
+
+	var i int
+	if err := json.Unmarshal(b, &i); err != nil {
+		return err
+	}
+
+	var v ValueAssignmentType
+	switch i {
+	case 0:
+		v = ValueAssignmentLiteral
+	case 1:
+		v = ValueAssignmentFunction
+	case 2:
+		v = ValueAssignmentList
+	case 3:
+		v = ValueAssignmentMap
+	default:
+		return errors.Errorf("unknown value of ValueAssignmentType:%d", i)
+	}
+	*vat = v
+	return nil
 }
 
 // ValueAssignmentTypeFromString converts a textual representation of a ValueAssignmentType into its value

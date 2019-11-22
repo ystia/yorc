@@ -141,9 +141,15 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 		}
 	}
 
+	// Check type if node is substitutable
+	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
+	if err != nil {
+		return nil, err
+	}
+
 	// Retrieve related va from node type
 	if va == nil {
-		va, err := GetNodeTypeCapabilityPropertyValueAssignment(ctx, deploymentID, node.Type, capabilityName, propertyName)
+		va, err := GetNodeTypeCapabilityPropertyValueAssignment(ctx, deploymentID, nodeType, capabilityName, propertyName)
 		if err != nil {
 			return nil, err
 		}

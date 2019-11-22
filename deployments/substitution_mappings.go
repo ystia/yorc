@@ -248,7 +248,7 @@ func getSubstitutableNodeType(ctx context.Context, deploymentID, nodeName, nodeT
 		return nodeType, nil
 	}
 
-	// Check subsitution mappings in this import
+	// Check substitution mappings in this import
 	mappings, err := getSubstitutionMappingFromStore(ctx, importTemplatePath)
 	if err == nil && mappings.NodeType != "" {
 		log.Debugf("Substituting type %s by type %s for %s %s", nodeType, mappings.NodeType, deploymentID, nodeName)
@@ -282,9 +282,5 @@ func getSubstitutionInstanceCapabilityAttribute(ctx context.Context, deploymentI
 	instanceName, capabilityName, attributeType, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	nodeAttrName := fmt.Sprintf(capabilityFormat, capabilityName, attributeName)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID,
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes",
-			nodeName, "attributes", nodeAttrName),
-		nodeName, instanceName, "", attributeType, nestedKeys...)
-	return result, errors.Wrapf(err, "Failed to get attribute %q for node %q", nodeAttrName, nodeName)
+	return getNodeAttributeValue(ctx, deploymentID, nodeName, nodeAttrName, nestedKeys...)
 }
