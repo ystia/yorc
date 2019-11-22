@@ -37,6 +37,12 @@ func (c *httpMockClientApply) NewRequest(method, path string, body io.Reader) (*
 }
 
 func (c *httpMockClientApply) Do(req *http.Request) (*http.Response, error) {
+
+	if req.Method == "POST" || req.Method == "PUT" {
+		res := httptest.ResponseRecorder{Code: 201}
+		return res.Result(), nil
+	}
+
 	w := httptest.NewRecorder()
 
 	if req.URL.Path == "/locations" {

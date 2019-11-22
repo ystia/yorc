@@ -36,6 +36,11 @@ func (c *httpMockClientAdd) NewRequest(method, path string, body io.Reader) (*ht
 }
 
 func (c *httpMockClientAdd) Do(req *http.Request) (*http.Response, error) {
+	if req.Method == "POST" || req.Method == "PUT" {
+		res := httptest.ResponseRecorder{Code: 201}
+		return res.Result(), nil
+	}
+
 	w := httptest.NewRecorder()
 
 	return w.Result(), nil
