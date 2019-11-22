@@ -17,13 +17,16 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/registry"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
@@ -31,6 +34,29 @@ import (
 
 // Test deployment ID
 const deploymentID string = "Test.Env"
+
+type mockInfraUsageCollector struct {
+	getUsageInfoCalled bool
+	ctx                context.Context
+	conf               config.Configuration
+	taskID             string
+	infraName          string
+	locationName       string
+	contextCancelled   bool
+	lof                events.LogOptionalFields
+}
+
+func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName, locationName string,
+	params map[string]string) (map[string]interface{}, error) {
+
+	var err error
+	if locationName != "testLocation" {
+		err = fmt.Errorf("Expected location testLocation got %q", locationName)
+	} else if params["myparam"] != "testValue" {
+		err = fmt.Errorf("Expected param myparam with value testValue, got %q", params["myparam"])
+	}
+	return nil, err
+}
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
 	srv.PopulateKV(t, testData(deploymentID))
@@ -78,6 +104,27 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, client *api.Client) {
 	require.True(t, len(kvps) == 1)
 }
 
+func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.Client) {
+
+	mock := new(mockInfraUsageCollector)
+	var reg = registry.GetRegistry()
+	reg.RegisterInfraUsageCollector("myInfraName", mock, "mock")
+
+	myWorker := &worker{
+		consulClient: client,
+		cfg: config.Configuration{
+			// Ensure we are not deleting filesystem files elsewhere
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+	var myTaskExecution taskExecution
+	myTaskExecution.cc = client
+	myTaskExecution.targetID = "infra_usage:myInfraName"
+	myTaskExecution.taskID = "tQuery"
+	err := myWorker.runQuery(context.Background(), &myTaskExecution)
+	require.NoError(t, err, "Unexpected error returned by runQuery()")
+}
+
 // Construct key/value to initialise KV before running test
 func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
@@ -92,6 +139,12 @@ func testData(deploymentID string) map[string][]byte {
 		// purge task
 		consulutil.TasksPrefix + "/t3/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t3/type":     []byte("4"),
+		// query task
+		consulutil.TasksPrefix + "/tQuery/targetId":          []byte("infra_usage:myInfraName"),
+		consulutil.TasksPrefix + "/tQuery/type":              []byte("7"),
+		consulutil.TasksPrefix + "/tQuery/data/locationName": []byte("testLocation"),
+		consulutil.TasksPrefix + "/tQuery/data/myparam":      []byte("testValue"),
+
 		// some events
 		// event should have "deploymentId":"Test-Env" and "type":"anyType but not purge"
 		consulutil.EventsPrefix + "/" + deploymentID + "/e1": []byte("aaaa"),

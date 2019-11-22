@@ -17,6 +17,7 @@ package rest
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -47,6 +48,12 @@ func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := make(map[string]string)
 	data["locationName"] = locationName
+
+	// Add as well query parameters to task data
+	values := r.URL.Query()
+	for k, v := range values {
+		data[k] = strings.Join(v, ",")
+	}
 	taskID, err := s.tasksCollector.RegisterTaskWithData(targetID, tasks.TaskTypeQuery, data)
 	if err != nil {
 		log.Panic(err)

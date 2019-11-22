@@ -53,6 +53,9 @@ func TestRunConsulWorkerTests(t *testing.T) {
 
 	populateKV(t, srv)
 
+	t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
+		testRunQueryInfraUsage(t, srv, client)
+	})
 	t.Run("TestRunPurge", func(t *testing.T) {
 		testRunPurge(t, srv, client)
 	})

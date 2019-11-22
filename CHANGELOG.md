@@ -4,7 +4,11 @@
 
 ### FEATURES
 
-Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
+* Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
+
+### ENHANCEMENTS
+
+* Allow to specify query parameters in infrastructure usage queries ([GH-543](https://github.com/ystia/yorc/issues/543))
 
 ### BUG FIXES
 

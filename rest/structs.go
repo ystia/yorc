@@ -326,3 +326,9 @@ type RegistryVaultsCollection struct {
 type RegistryInfraUsageCollectorsCollection struct {
 	InfraUsageCollectors []registry.InfraUsageCollector `json:"infrastructure_usage_collectors"`
 }
+
+// Info are the infos about the current YORC server
+type Info struct {
+	YorcVersion string
+	GitCommit   string
+}
