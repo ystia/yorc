@@ -177,6 +177,7 @@ func putLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConfig
 	if err != nil {
 		return locationName, err
 	}
+	defer response.Body.Close()
 
 	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusCreated)
 	return locationName, nil
@@ -200,6 +201,8 @@ func patchLocationConfig(client httputil.HTTPClient, locConfig rest.LocationConf
 	if err != nil {
 		return locationName, err
 	}
+	defer response.Body.Close()
+
 	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
 	return locationName, nil
 }
@@ -214,6 +217,8 @@ func deleteLocationConfig(client httputil.HTTPClient, locationName string) error
 	if err != nil {
 		return err
 	}
+	defer response.Body.Close()
+
 	httputil.HandleHTTPStatusCode(response, locationName, "locations", http.StatusOK)
 
 	return nil
