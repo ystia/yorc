@@ -311,11 +311,69 @@ For brevity ``locations`` supports the following aliases: ``locs``, ``loc`` and 
 List locations
 ~~~~~~~~~~~~~~
 
-This command allows to list all the locations with their complete definition: type and properties.
+This command allows to list all the locations with their complete definition: name, type and properties.
 
 .. code-block:: bash
 
      yorc locations list
+
+Get information on a specific location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Display information about a given location (its type and properties).
+
+.. code-block:: bash
+
+     yorc locations info <locationName>
+
+Add a location 
+~~~~~~~~~~~~~~
+
+Add a location defininition in JSON format.
+
+.. code-block:: bash
+
+     yorc locations add [flags]
+
+Flags:
+  * ``--data`` or ``-d`` :  Specify a JSON format for location definition to add.
+
+
+Update a location
+~~~~~~~~~~~~~~~~~
+
+Update a given location's definition.
+
+.. code-block:: bash
+
+     yorc locations update [flags]
+
+Flags:
+  * ``--data`` or ``-d`` :  Specify a JSON format for the location definition to update.
+
+Delete a location
+~~~~~~~~~~~~~~~~~
+
+Delete a given location.
+
+.. code-block:: bash
+
+     yorc locations delete <locationName>
+
+Apply a locations configuration file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Applies location configurations provided in a YAML or JSON file.
+This command will compare and display the differences between the current configurations and the configurations specified in the file.
+A user confirmation can be asked before proceeding.
+
+.. code-block:: bash
+
+     yorc locations apply <filename> [flags]
+
+Flags:
+  * ``--auto-approve``: Skip interactive approval before applying the new locations configuration.
+
 
 .. _yorc_cli_hostspool_section:
 
