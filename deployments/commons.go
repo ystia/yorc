@@ -16,13 +16,14 @@ package deployments
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tosca"
 	"net/url"
 	"path"
-	"strings"
-
-	"github.com/ystia/yorc/v4/tosca"
+	"strconv"
 )
 
 func urlEscapeAll(keys []string) []string {
@@ -55,6 +56,20 @@ func readComplexVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ..
 			}
 			return &TOSCAValue{Value: m[nestedKeys[0]]}
 		}
+	} else if va.Type == tosca.ValueAssignmentList {
+		l, ok := va.Value.([]interface{})
+		if ok {
+			ind, err := strconv.Atoi(nestedKeys[0])
+			if err != nil {
+				log.Printf("[ERROR] %q is not a valid array index", nestedKeys[0])
+				return nil
+			}
+			v, ok := l[ind].(tosca.ValueAssignment)
+			if ok {
+				return readComplexVA(ctx, &v, nestedKeys[1:]...)
+			}
+			return &TOSCAValue{Value: l[ind]}
+		}
 	}
 	return nil
 }
@@ -83,39 +98,19 @@ func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.Valu
 	return nil, false, nil
 }
 
-func getValueAssignmentWithDataType(ctx context.Context, deploymentID, vaPath, nodeName, instanceName, requirementIndex, baseDatatype string, nestedKeys ...string) (*TOSCAValue, error) {
-	value, isFunction, err := getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, vaPath, baseDatatype, nestedKeys...)
-	if err != nil || value == nil || !isFunction {
-		return value, err
-	}
-	return resolveValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, value, nestedKeys...)
-}
-
-func getValueAssignmentWithoutResolveDeprecated(ctx context.Context, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (*TOSCAValue, bool, error) {
+func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys ...string) (*TOSCAValue, error) {
 	keyPath := path.Join(vaPath, path.Join(urlEscapeAll(nestedKeys)...))
 	kvp, _, err := consulutil.GetKV().Get(keyPath, nil)
 	if err != nil {
-		return nil, false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil {
-		vat := tosca.ValueAssignmentType(kvp.Flags)
-		switch vat {
-		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
-			return &TOSCAValue{Value: string(kvp.Value)}, vat == tosca.ValueAssignmentFunction, nil
-		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
-			//res, err := readComplexVA(ctx, vat, deploymentID, keyPath, baseDatatype, nestedKeys...)
-			//if err != nil {
-			//	return nil, false, err
-			//}
-			return &TOSCAValue{Value: ""}, false, nil
+		var v interface{}
+		err := json.Unmarshal(kvp.Value, &v)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get instance value assignment from path:%q", vaPath)
 		}
+		return &TOSCAValue{Value: v}, nil
 	}
-	if baseDatatype != "" && !strings.HasPrefix(baseDatatype, "list:") && !strings.HasPrefix(baseDatatype, "map:") && len(nestedKeys) > 0 {
-		result, isFunc, err := getTypeDefaultProperty(ctx, deploymentID, baseDatatype, "data", nestedKeys[0], nestedKeys[1:]...)
-		if err != nil || result != nil {
-			return result, isFunc, err
-		}
-	}
-	// not found
-	return nil, false, nil
+	return nil, nil
 }

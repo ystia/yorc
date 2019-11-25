@@ -153,6 +153,7 @@ func GetTargetNodeForRequirement(ctx context.Context, deploymentID, nodeName, re
 	return req.Node, nil
 }
 
+// Return req name and requirement assignment
 func getRequirementByIndex(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, *tosca.RequirementAssignment, error) {
 	if requirementIndex == "" {
 		return "", nil, nil

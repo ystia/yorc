@@ -269,7 +269,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capAttrPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
+	result, err := getInstanceValueAssignment(ctx, capAttrPath, nestedKeys...)
 	if err != nil || result != nil {
 		// If there is an error or attribute was found
 		return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)

@@ -23,8 +23,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
-
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -294,42 +292,43 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 		return err
 	}
 
-	var attrDataType string
-	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, "node", attributeName, true)
+	// First look at node type as instance values can't contain functions
+	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
-		if err != nil {
-			return err
-		}
+
+	va, is := node.Attributes[attributeName]
+	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
+		return nil
 	}
 
-	// First look at instance-scoped attributes
-	vaPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	value, isFunction, err := getValueAssignmentWithoutResolveDeprecated(ctx, deploymentID, vaPath, attrDataType)
-	if err != nil || (value != nil && !isFunction) {
-		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-	}
-
-	// Then look at global node level (not instance-scoped)
-	value, err = getNodeAttributeValue(ctx, deploymentID, nodeName, attributeName)
+	// Check type if node is substitutable
+	nodeType, err = checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
+		return err
 	}
 
-	// Not found look at node type
-	if value == nil {
-		value, isFunction, err = getTypeDefaultAttribute(ctx, deploymentID, nodeType, "node", attributeName)
-		if err != nil {
+	// Retrieve related propertyDefinition with default property
+	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, "node", attributeName)
+	if err != nil {
+		return err
+	}
+	if attrDef != nil {
+		value, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, attrDef.Default)
+		if err != nil || (value != nil && !isFunction) {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
-		// Publish default value
-		if value != nil && !isFunction {
-			events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
-			return nil
-		}
+	}
+
+	value, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, "node", attributeName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
+	}
+	// Publish default value
+	if value != nil && !isFunction {
+		events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
+		return nil
 	}
 
 	if value == nil {
@@ -353,7 +352,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 			instanceName:  instanceName,
 			attributeName: attributeName,
 		}
-		err = notifiedAttr.parseFunction(ctx, value.RawString())
+		err = notifiedAttr.parseFunction(ctx, value)
 		if err != nil {
 			return err
 		}
@@ -363,15 +362,10 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 }
 
 // This is looking for Tosca get_attribute and get_operation_output functions
-func (notifiedAttr *notifiedAttribute) parseFunction(ctx context.Context, rawFunction string) error {
+func (notifiedAttr *notifiedAttribute) parseFunction(ctx context.Context, vaFunc *TOSCAValue) error {
 	// Function
-	va := &tosca.ValueAssignment{}
-	err := yaml.Unmarshal([]byte(rawFunction), va)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", rawFunction, notifiedAttr.nodeName)
-	}
+	va := &tosca.ValueAssignment{Type: tosca.ValueAssignmentFunction, Value: vaFunc.Value}
 	log.Debugf("function = %+v", va.GetFunction())
-
 	f := va.GetFunction()
 
 	fcts := f.GetFunctionsByOperator(tosca.GetAttributeOperator)

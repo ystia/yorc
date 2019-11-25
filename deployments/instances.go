@@ -167,18 +167,6 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 		return nil, err
 	}
 
-	var attrDataType string
-	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, "node", attributeName, true)
-	if err != nil {
-		return nil, err
-	}
-	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if !skipInstanceLevel {
 		// First look at instance-scoped attributes
 		// except if this is a substitutable node instance, in which case
@@ -189,9 +177,7 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 				return &TOSCAValue{Value: result}, nil
 			}
 		} else {
-			result, err := getValueAssignmentWithDataType(ctx, deploymentID,
-				path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
-				nodeName, instanceName, "", attrDataType, nestedKeys...)
+			result, err := getInstanceValueAssignment(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), nestedKeys...)
 			if err != nil || result != nil {
 				return result, errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)",
 					attributeName, nodeName, instanceName)

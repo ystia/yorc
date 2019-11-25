@@ -34,45 +34,44 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 
 	// Test testIsNodeTypeDerivedFrom
 	type1 := tosca.NodeType{
-		Type:         tosca.Type{
+		Type: tosca.Type{
 			DerivedFrom: "yorc.type.2",
 		},
 	}
 	type2 := tosca.NodeType{
-		Type:         tosca.Type{
+		Type: tosca.Type{
 			DerivedFrom: "yorc.type.3",
 		},
 	}
 	type3 := tosca.NodeType{
-		Type:         tosca.Type{
+		Type: tosca.Type{
 			DerivedFrom: "tosca.relationships.HostedOn",
 		},
 	}
 
 	typeRelationshipHostedOn := tosca.RelationshipType{
-		Type:         tosca.Type{
+		Type: tosca.Type{
 			DerivedFrom: "tosca.relationships.Root",
 		},
 	}
 
-	typeRelationshipRoot := tosca.RelationshipType{
-	}
+	typeRelationshipRoot := tosca.RelationshipType{}
 
-	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1", type1)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1", type1)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2", type2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2", type2)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3", type3)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3", type3)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn", typeRelationshipHostedOn)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn", typeRelationshipHostedOn)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root", typeRelationshipRoot)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root", typeRelationshipRoot)
 	require.Nil(t, err)
 
 	// Test testGetNbInstancesForNode
 	// Default case type "tosca.nodes.Compute" default_instance specified
 	nodeCompute1 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.Compute",
+		Type: "tosca.nodes.Compute",
 		Attributes: map[string]*tosca.ValueAssignment{"id": &tosca.ValueAssignment{
 			Type:  0,
 			Value: "Not Used as it exists in instances",
@@ -81,22 +80,22 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			Properties: map[string]*tosca.ValueAssignment{"default_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "10",
-			},"max_instances": &tosca.ValueAssignment{
+			}, "max_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "20",
-			},"min_instances": &tosca.ValueAssignment{
-			Type:  0,
-			Value: "2",
-		}}},
+			}, "min_instances": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "2",
+			}}},
 		},
 	}
 	// Case type "tosca.nodes.Compute" default_instance not specified (1 assumed)
 	nodeCompute2 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.Compute",
+		Type: "tosca.nodes.Compute",
 	}
 	// Error case default_instance specified but not an uint
 	nodeCompute3 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.Compute",
+		Type: "tosca.nodes.Compute",
 		Attributes: map[string]*tosca.ValueAssignment{"id": &tosca.ValueAssignment{
 			Type:  0,
 			Value: "Not Used as it exists in instances",
@@ -105,32 +104,32 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			Properties: map[string]*tosca.ValueAssignment{"default_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "-10",
-			},"max_instances": &tosca.ValueAssignment{
+			}, "max_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "-15",
-			},"min_instances": &tosca.ValueAssignment{
+			}, "min_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "-15",
 			}}},
 		},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1", nodeCompute1)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Compute1", nodeCompute1)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute2", nodeCompute2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Compute2", nodeCompute2)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3", nodeCompute3)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Compute3", nodeCompute3)
 	require.Nil(t, err)
 	// Case Node Hosted on another node
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.1", type1)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.1", type1)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.2", type2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.2", type2)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.3", type3)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.3", type3)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn", typeRelationshipHostedOn)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn", typeRelationshipHostedOn)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root", typeRelationshipRoot)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.relationships.Root", typeRelationshipRoot)
 	require.Nil(t, err)
 
 	typeCompute := tosca.NodeType{
@@ -140,22 +139,21 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 		Attributes: map[string]tosca.AttributeDefinition{"id": tosca.AttributeDefinition{Default: &tosca.ValueAssignment{
 			Type:  0,
 			Value: "DefaultComputeTypeid",
-		}}, "ip": tosca.AttributeDefinition{Default:  &tosca.ValueAssignment{
+		}}, "ip": tosca.AttributeDefinition{Default: &tosca.ValueAssignment{
 			Type:  0,
 			Value: "",
 		}}},
-		Capabilities: map[string]tosca.CapabilityDefinition{"scalable": tosca.CapabilityDefinition{Type:"tosca.capabilities.Scalable"}},
+		Capabilities: map[string]tosca.CapabilityDefinition{"scalable": tosca.CapabilityDefinition{Type: "tosca.capabilities.Scalable"}},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute", typeCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute", typeCompute)
 	require.Nil(t, err)
 
 	scalableCap := tosca.NodeType{
-		Type: tosca.Type{
-		},
+		Type: tosca.Type{},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable", scalableCap)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable", scalableCap)
 	require.Nil(t, err)
 
 	derivedSC1 := tosca.NodeType{
@@ -163,18 +161,18 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			DerivedFrom: "tosca.nodes.SoftwareComponent",
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1", derivedSC1)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1", derivedSC1)
 	require.Nil(t, err)
 
 	derivedSC2 := tosca.NodeType{
 		Type: tosca.Type{
 			DerivedFrom: "tosca.nodes.SoftwareComponent",
 		},
-		Attributes:   map[string]tosca.AttributeDefinition{"dsc2": tosca.AttributeDefinition{
-			Default:     &tosca.ValueAssignment{Value: "yorc.type.DerivedSC2"},
+		Attributes: map[string]tosca.AttributeDefinition{"dsc2": tosca.AttributeDefinition{
+			Default: &tosca.ValueAssignment{Value: "yorc.type.DerivedSC2"},
 		}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2", derivedSC2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2", derivedSC2)
 	require.Nil(t, err)
 
 	derivedSC3 := tosca.NodeType{
@@ -182,48 +180,47 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			DerivedFrom: "yorc.type.DerivedSC2",
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3", derivedSC3)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3", derivedSC3)
 	require.Nil(t, err)
 
 	derivedSC4 := tosca.NodeType{
 		Type: tosca.Type{
 			DerivedFrom: "yorc.type.DerivedSC3",
 		},
-		Properties:   nil,
-		Attributes:   map[string]tosca.AttributeDefinition{"dsc4": tosca.AttributeDefinition{
-			Default:     &tosca.ValueAssignment{Value: "yorc.type.DerivedSC4"},
+		Properties: nil,
+		Attributes: map[string]tosca.AttributeDefinition{"dsc4": tosca.AttributeDefinition{
+			Default: &tosca.ValueAssignment{Value: "yorc.type.DerivedSC4"},
 		}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4", derivedSC4)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4", derivedSC4)
 	require.Nil(t, err)
 
-	root := tosca.NodeType{
-	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Root", root)
+	root := tosca.NodeType{}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.nodes.Root", root)
 	require.Nil(t, err)
 
 	softwareComponent := tosca.NodeType{
 		Type: tosca.Type{
 			DerivedFrom: "tosca.nodes.Root",
 		},
-		Properties:   map[string]tosca.PropertyDefinition{"typeprop": tosca.PropertyDefinition{
-			Default:     &tosca.ValueAssignment{Value: "SoftwareComponentTypeProp"},
+		Properties: map[string]tosca.PropertyDefinition{"typeprop": tosca.PropertyDefinition{
+			Default: &tosca.ValueAssignment{Value: "SoftwareComponentTypeProp"},
 		},
-		"parenttypeprop": tosca.PropertyDefinition{
-			Default:     &tosca.ValueAssignment{Value: "RootComponentTypeProp"},
-		}},
-		Attributes:   map[string]tosca.AttributeDefinition{"id": tosca.AttributeDefinition{
-			Default:     &tosca.ValueAssignment{Value: "DefaultSoftwareComponentTypeid"},
+			"parenttypeprop": tosca.PropertyDefinition{
+				Default: &tosca.ValueAssignment{Value: "RootComponentTypeProp"},
+			}},
+		Attributes: map[string]tosca.AttributeDefinition{"id": tosca.AttributeDefinition{
+			Default: &tosca.ValueAssignment{Value: "DefaultSoftwareComponentTypeid"},
 		}, "type": tosca.AttributeDefinition{
-			Default:     &tosca.ValueAssignment{Value: "DefaultSoftwareComponentTypeid"},
+			Default: &tosca.ValueAssignment{Value: "DefaultSoftwareComponentTypeid"},
 		}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent", softwareComponent)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent", softwareComponent)
 	require.Nil(t, err)
 
 	node1 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.SoftwareComponent",
-		Properties:   map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
+		Type: "tosca.nodes.SoftwareComponent",
+		Properties: map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
 			Type:  0,
 			Value: "simple",
 		}},
@@ -238,12 +235,12 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			{"req4": tosca.RequirementAssignment{Relationship: "tosca.relationships.Root"}},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1", node1)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Node1", node1)
 	require.Nil(t, err)
 
 	node2 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.SoftwareComponent",
-		Properties:   map[string]*tosca.ValueAssignment{"recurse": &tosca.ValueAssignment{
+		Type: "tosca.nodes.SoftwareComponent",
+		Properties: map[string]*tosca.ValueAssignment{"recurse": &tosca.ValueAssignment{
 			Type:  0,
 			Value: "Node2",
 		}},
@@ -252,12 +249,12 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			{"req2": tosca.RequirementAssignment{Relationship: "tosca.relationships.HostedOn", Node: "Compute1"}},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2", node2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Node2", node2)
 	require.Nil(t, err)
 
 	node3 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.SoftwareComponent",
-		Properties:   map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
+		Type: "tosca.nodes.SoftwareComponent",
+		Properties: map[string]*tosca.ValueAssignment{"simple": &tosca.ValueAssignment{
 			Type:  0,
 			Value: "simple",
 		}},
@@ -269,34 +266,34 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 			{"req1": tosca.RequirementAssignment{Relationship: "yorc.type.3", Node: "Compute2"}},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3", node3)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Node3", node3)
 	require.Nil(t, err)
 	node4 := tosca.NodeTemplate{
-		Type:         "tosca.nodes.SoftwareComponent",
+		Type: "tosca.nodes.SoftwareComponent",
 		Requirements: []tosca.RequirementAssignmentMap{
 			{"host": tosca.RequirementAssignment{Relationship: "tosca.relationships.HostedOn", Node: "Node2"}},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node4", node4)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/nodes/Node4", node4)
 	require.Nil(t, err)
 
 	// Test testDeleteNode
 	nodeCompute1ToDel := tosca.NodeTemplate{
-		Type:         "tosca.nodes.Compute",
+		Type: "tosca.nodes.Compute",
 		Capabilities: map[string]tosca.CapabilityAssignment{"scalable": tosca.CapabilityAssignment{
 			Properties: map[string]*tosca.ValueAssignment{"default_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "10",
-			},"max_instances": &tosca.ValueAssignment{
+			}, "max_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "20",
-			},"min_instances": &tosca.ValueAssignment{
+			}, "min_instances": &tosca.ValueAssignment{
 				Type:  0,
 				Value: "2",
 			}}},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix + "/testDeleteNode/topology/nodes/Compute1", nodeCompute1ToDel)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/testDeleteNode/topology/nodes/Compute1", nodeCompute1ToDel)
 	require.Nil(t, err)
 
 	// Instancesz

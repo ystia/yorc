@@ -25,12 +25,10 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gocql/gocql v0.0.0-20191106222750-ae2f7fc85f32 // indirect
-	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/google/addlicense v0.0.0-20190107131845-2e5cf00261bf
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/uuid v1.1.1
-	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/goware/urlx v0.3.1
 	github.com/hashicorp/consul v1.2.3
@@ -40,10 +38,8 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/go-plugin v1.0.0
 	github.com/hashicorp/go-rootcerts v1.0.0
-	github.com/hashicorp/serf v0.8.5 // indirect
 	github.com/hashicorp/vault v0.9.0
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c
-	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/justinas/alice v0.0.0-20160512134231-052b8b6c18ed
@@ -74,7 +70,6 @@ require (
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.3
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
@@ -83,7 +78,6 @@ require (
 	k8s.io/api v0.0.0-20180628040859-072894a440bd
 	k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d
 	k8s.io/client-go v8.0.0+incompatible
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a // indirect
 	vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc
 )
 

@@ -23,7 +23,6 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulAnsiblePackageTests(t *testing.T) {
-	t.Skip()
 	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	log.SetDebug(true)

@@ -21,8 +21,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
-
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
@@ -322,13 +320,9 @@ func resolveValueAssignmentAsString(ctx context.Context, deploymentID, nodeName,
 func resolveValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex string, valueAssignment *TOSCAValue, nestedKeys ...string) (*TOSCAValue, error) {
 	// Function
 	fromSecret := valueAssignment.IsSecret
-	va := &tosca.ValueAssignment{}
-	err := yaml.Unmarshal([]byte(valueAssignment.RawString()), va)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", valueAssignment, nodeName)
-	}
+	va := &tosca.ValueAssignment{Type: tosca.ValueAssignmentFunction, Value: valueAssignment.Value}
 	r := resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(instanceName), withRequirementIndex(requirementIndex))
-	valueAssignment, err = r.resolveFunction(ctx, va.GetFunction())
+	valueAssignment, err := r.resolveFunction(ctx, va.GetFunction())
 	if err != nil {
 		return nil, err
 	}

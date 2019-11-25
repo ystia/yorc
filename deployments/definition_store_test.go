@@ -23,8 +23,10 @@ import (
 	stdlog "log"
 	"path"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
+	"vbom.ml/util/sortorder"
 
 	ctu "github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -85,7 +87,6 @@ func testImplementationArtifacts(t *testing.T) {
 }
 
 func testValueAssignments(t *testing.T) {
-	t.Skip()
 	ctx := context.Background()
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
@@ -854,7 +855,10 @@ func testGlobalInputs(t *testing.T) {
 	inputs, err := GetOperationInputs(ctx, deploymentID, "", giType, operationName)
 	require.Nil(t, err)
 	require.Len(t, inputs, 5)
-	require.Equal(t, []string{"L1", "L2", "G1", "G2", "G3"}, inputs)
+	expected := []string{"L1", "L2", "G1", "G2", "G3"}
+	sort.Sort(sortorder.Natural(expected))
+	sort.Sort(sortorder.Natural(inputs))
+	require.Equal(t, expected, inputs)
 
 	isPropDef, err := IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "L1")
 	require.Nil(t, err)

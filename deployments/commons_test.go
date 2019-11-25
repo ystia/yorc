@@ -16,13 +16,12 @@ package deployments
 
 import (
 	"context"
-	"path"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
@@ -31,10 +30,11 @@ func testReadComplexVA(t *testing.T) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
-
+	ctx := context.Background()
 	type args struct {
 		vaType     tosca.ValueAssignmentType
-		keyPath    string
+		nodeName   string
+		prop       string
 		vaDatatype string
 		nestedKeys []string
 	}
@@ -44,19 +44,19 @@ func testReadComplexVA(t *testing.T) {
 		want    interface{}
 		wantErr bool
 	}{
-		{"ReadComplexVASimpleCase", args{tosca.ValueAssignmentMap, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/VANode1/properties/map"), "map:string", nil}, map[string]interface{}{"one": "1", "two": "2"}, false},
-		{"ReadComplexVAAllSet", args{tosca.ValueAssignmentMap, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/VANode1/properties/complex"), "yorc.tests.datatypes.ComplexType", nil}, map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"}, false},
+		{"ReadComplexVASimpleCase", args{tosca.ValueAssignmentMap, "VANode1", "map", "map:string", nil}, map[string]interface{}{"one": "1", "two": "2"}, false},
+		{"ReadComplexVAAllSet", args{tosca.ValueAssignmentMap, "VANode1", "complex", "yorc.tests.datatypes.ComplexType", nil}, map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//got, err := readComplexVA(context.Background(), tt.args.vaType, deploymentID, tt.args.keyPath, tt.args.vaDatatype, tt.args.nestedKeys...)
-			//if (err != nil) != tt.wantErr {
-			//	t.Errorf("readComplexVA() error = %v, wantErr %v", err, tt.wantErr)
-			//	return
-			//}
-			//if !reflect.DeepEqual(got, tt.want) {
-			//	t.Errorf("readComplexVA() = %v, want %v", got, tt.want)
-			//}
+			got, err := GetNodePropertyValue(ctx, deploymentID, tt.args.nodeName, tt.args.prop)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetNodePropertyValue() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got.Value, tt.want) {
+				t.Errorf("GetNodePropertyValue() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

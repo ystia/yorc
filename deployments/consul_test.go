@@ -43,27 +43,27 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testRequirements", func(t *testing.T) {
 			testRequirements(t, srv)
 		})
-		//t.Run("testResolver", func(t *testing.T) {
-		//	testResolver(t)
-		//})
+		t.Run("testResolver", func(t *testing.T) {
+			testResolver(t)
+		})
 		t.Run("testGetTypePropertyDataType", func(t *testing.T) {
 			testGetTypePropertyDataType(t)
 		})
 		t.Run("testGetNestedDataType", func(t *testing.T) {
 			testGetNestedDataType(t)
 		})
-		//t.Run("testReadComplexVA", func(t *testing.T) {
-		//	testReadComplexVA(t)
-		//})
-		//t.Run("testIssueGetEmptyPropRel", func(t *testing.T) {
-		//	testIssueGetEmptyPropRel(t)
-		//})
+		t.Run("testReadComplexVA", func(t *testing.T) {
+			testReadComplexVA(t)
+		})
+		t.Run("testIssueGetEmptyPropRel", func(t *testing.T) {
+			testIssueGetEmptyPropRel(t)
+		})
 		t.Run("testRelationshipWorkflow", func(t *testing.T) {
 			testRelationshipWorkflow(t)
 		})
-		//t.Run("testGlobalInputs", func(t *testing.T) {
-		//	testGlobalInputs(t)
-		//})
+		t.Run("testGlobalInputs", func(t *testing.T) {
+			testGlobalInputs(t)
+		})
 		t.Run("testInlineWorkflow", func(t *testing.T) {
 			testInlineWorkflow(t)
 		})
@@ -94,9 +94,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("TestOperationHost", func(t *testing.T) {
 			testOperationHost(t)
 		})
-		//t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
-		//	testIssueGetEmptyPropOnRelationship(t)
-		//})
+		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
+			testIssueGetEmptyPropOnRelationship(t)
+		})
 
 		t.Run("testTopologyUpdate", func(t *testing.T) {
 			testTopologyUpdate(t)
@@ -138,9 +138,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
 			testTopologyTemplateMetadata(t, deploymentID)
 		})
-		//t.Run("TestAttributeNotifications", func(t *testing.T) {
-		//	testAttributeNotifications(t, deploymentID)
-		//})
+		t.Run("TestAttributeNotifications", func(t *testing.T) {
+			testAttributeNotifications(t, deploymentID)
+		})
 		t.Run("TestNotifyAttributeOnValueChange", func(t *testing.T) {
 			testNotifyAttributeOnValueChange(t, deploymentID)
 		})

@@ -536,7 +536,7 @@ func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, er
 	return checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, nodeType)
 }
 
-func checkTypeForSubstitutableNode(ctx context.Context, deploymentID, nodeName, nodeType string)  (string, error) {
+func checkTypeForSubstitutableNode(ctx context.Context, deploymentID, nodeName, nodeType string) (string, error) {
 	// If the corresponding node is substitutable, get its real node type
 	substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 	if err != nil {

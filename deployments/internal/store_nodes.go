@@ -17,13 +17,10 @@ package internal
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"os"
 	"path"
-	"path/filepath"
 )
 
 // storeNodes stores topology nodes
@@ -31,17 +28,6 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
-
-		for artName, artDef := range node.Artifacts {
-			artFile := filepath.Join(rootDefPath, filepath.FromSlash(path.Join(importPath, artDef.File)))
-			log.Debugf("Looking if artifact %q exists on filesystem", artFile)
-			if _, err := os.Stat(artFile); os.IsNotExist(err) {
-				log.Printf("Warning: Artifact %q for node %q with computed path %q doesn't exists on filesystem, ignoring it.", artName, nodeName, artFile)
-				continue
-			}
-			delete(node.Artifacts, artName)
-		}
-
 		err := storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, node)
 		if err != nil {
 			return errors.Wrapf(err, "failed to store node with name:%q and value:%+v", nodeName, node)

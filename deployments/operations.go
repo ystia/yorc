@@ -17,12 +17,6 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"path"
-	"path/filepath"
-	"strings"
-
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
@@ -30,7 +24,12 @@ import (
 	"github.com/ystia/yorc/v4/helper/stringutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
+	"path"
+	"path/filepath"
+	"strings"
 )
 
 // IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
@@ -480,7 +479,6 @@ func GetOperationInputs(ctx context.Context, deploymentID, nodeTemplateImpl, typ
 			}
 		}
 	}
-
 	return inputs, nil
 }
 
@@ -643,7 +641,7 @@ func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentI
 	var va *tosca.ValueAssignment
 	if operationDef != nil {
 		input, is := operationDef.Inputs[inputName]
-		if is && &input != nil {
+		if is && &input != nil && input.PropDef != nil {
 			va = input.PropDef.Default
 		}
 	}
@@ -651,7 +649,7 @@ func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentI
 	// Check global interface input
 	if va == nil && interfaceDef != nil {
 		input, is := interfaceDef.Inputs[inputName]
-		if is && &input != nil {
+		if is && &input != nil && input.PropDef != nil {
 			va = input.PropDef.Default
 		}
 	}

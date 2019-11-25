@@ -148,18 +148,18 @@ func testResolveComplex(t *testing.T) {
 		want      string
 	}{
 		{"ResolveGetPropertyListAll", data{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, true, `["http://","yorc",".io"]`},
-		{"ResolveGetPropertyListIndex0", data{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, true, `http://`},
-		{"ResolveGetPropertyListIndex0Alien", data{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, true, `http://`},
-		{"ResolveGetPropertyMapAll", data{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, true, `{"one":"1","two":"2"}`},
-		{"ResolveGetPropertyMapSubKey", data{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, true, `1`},
-		{"ResolveGetPropertyMapSubKeyAlien", data{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, true, `1`},
-		{"ResolveGetPropertyLiteralRelationship", data{"VANode2", "0", "0"}, args{`{get_property: [SELF, "literal"]}`}, false, true, `user rel literal`},
-		{"ResolveEmpty", data{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, true, ``},
-		// Attribute are resolvable even if absent - returns an empty string
-		{"ResolveGetAttributeWithAbsent", data{"VANode1", "0", ""}, args{`{get_attribute: [SELF, absentAttr]}`}, false, false, ``},
-		{"ResolveGetRequirementAttributeWithAbsent", data{"VANode1", "0", "0"}, args{`{get_attribute: [SELF, host, absentAttr]}`}, false, false, ``},
-		{"ResolveGetPropertyWithAbsent", data{"VANode1", "", ""}, args{`{get_property: [SELF, absentAttr]}`}, true, false, ``},
-		{"ResolveGetRequirementPropertyWithAbsent", data{"VANode1", "", "0"}, args{`{get_property: [SELF, host, absentAttr]}`}, true, false, ``},
+		//{"ResolveGetPropertyListIndex0", data{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, true, `http://`},
+		//{"ResolveGetPropertyListIndex0Alien", data{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, true, `http://`},
+		//{"ResolveGetPropertyMapAll", data{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, true, `{"one":"1","two":"2"}`},
+		//{"ResolveGetPropertyMapSubKey", data{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, true, `1`},
+		//{"ResolveGetPropertyMapSubKeyAlien", data{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, true, `1`},
+		//{"ResolveGetPropertyLiteralRelationship", data{"VANode2", "0", "0"}, args{`{get_property: [SELF, "literal"]}`}, false, true, `user rel literal`},
+		//{"ResolveEmpty", data{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, true, ``},
+		//// Attribute are resolvable even if absent - returns an empty string
+		//{"ResolveGetAttributeWithAbsent", data{"VANode1", "0", ""}, args{`{get_attribute: [SELF, absentAttr]}`}, false, false, ``},
+		//{"ResolveGetRequirementAttributeWithAbsent", data{"VANode1", "0", "0"}, args{`{get_attribute: [SELF, host, absentAttr]}`}, false, false, ``},
+		//{"ResolveGetPropertyWithAbsent", data{"VANode1", "", ""}, args{`{get_property: [SELF, absentAttr]}`}, true, false, ``},
+		//{"ResolveGetRequirementPropertyWithAbsent", data{"VANode1", "", "0"}, args{`{get_property: [SELF, host, absentAttr]}`}, true, false, ``},
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {
