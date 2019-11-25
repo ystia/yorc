@@ -28,7 +28,7 @@ func init() {
 	var jsonParam string
 
 	var updateCmd = &cobra.Command{
-		Use:   "update location",
+		Use:   "update ",
 		Short: "Update a location definition",
 		Long:  `Update a location definition by providing a JSON description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
