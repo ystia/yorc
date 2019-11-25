@@ -59,7 +59,7 @@ func testGetTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Tes
 	})
 
 	req := httptest.NewRequest("GET", "/infra_usage/myInfraName/myLocationName/tasks/task123", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
@@ -72,7 +72,7 @@ func testGetTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Tes
 
 func testGetTaskQueryHandlerWithTaskNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 	req := httptest.NewRequest("GET", "/infra_usage/myInfraName/myLocationName/tasks/taskNotFound", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
@@ -161,7 +161,7 @@ func testListTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Te
 	})
 
 	req := httptest.NewRequest("GET", "/infra_usage", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 
 	require.NotNil(t, resp, "unexpected nil response")

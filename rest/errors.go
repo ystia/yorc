@@ -77,3 +77,7 @@ func newBadRequestMessage(message string) *Error {
 func newConflictRequest(message string) *Error {
 	return &Error{"conflict", http.StatusConflict, "Conflict", message}
 }
+
+func newForbiddenRequest(message string) *Error {
+	return &Error{"forbidden", http.StatusForbidden, "Forbidden", message}
+}

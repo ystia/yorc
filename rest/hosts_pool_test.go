@@ -77,14 +77,14 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 	})
 
 	req := httptest.NewRequest("GET", "/hosts_pool/myHostsPoolLocationTest", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
-	require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+	require.Equal(t, mimeTypeApplicationJSON, resp.Header.Get("Content-Type"))
 
 	var collection HostsCollection
 	err = json.Unmarshal(body, &collection)
@@ -107,7 +107,7 @@ func testListNoHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestS
 	t.Parallel()
 
 	req := httptest.NewRequest("GET", "/hosts_pool/myHostsPoolLocationTest", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
@@ -127,7 +127,7 @@ func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, srv *tes
 		q.Add("filter", filters[i])
 	}
 	req.URL.RawQuery = q.Encode()
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
@@ -182,7 +182,7 @@ func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	tmp, err := json.Marshal(hostRequest)
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host11", bytes.NewBuffer([]byte(string(tmp))))
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
@@ -201,7 +201,7 @@ func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, sr
 	tmp, err := json.Marshal(hostRequest)
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host12", bytes.NewBuffer([]byte(string(tmp))))
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
@@ -222,7 +222,7 @@ func testNewHostInPoolWithoutPrivateKeyOrPassword(t *testing.T, client *api.Clie
 	tmp, err := json.Marshal(hostRequest)
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host11", bytes.NewBuffer([]byte(string(tmp))))
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
@@ -241,7 +241,7 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	})
 
 	req := httptest.NewRequest("GET", "/hosts_pool/myHostsPoolLocationTest/host17", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
@@ -251,7 +251,7 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	require.Nil(t, err, "unexpected error reading body response")
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
-	require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+	require.Equal(t, mimeTypeApplicationJSON, resp.Header.Get("Content-Type"))
 
 	var host Host
 	err = json.Unmarshal(body, &host)
@@ -279,14 +279,14 @@ func testListHostsPoolLocations(t *testing.T, client *api.Client, srv *testutil.
 	})
 
 	req := httptest.NewRequest("GET", "/hosts_pool", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
-	require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+	require.Equal(t, mimeTypeApplicationJSON, resp.Header.Get("Content-Type"))
 
 	var hostsPoolLocations HostsPoolLocations
 	err = json.Unmarshal(body, &hostsPoolLocations)
@@ -306,7 +306,7 @@ func testApplyHostsPoolConfiguration(t *testing.T, client *api.Client, srv *test
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest", bytes.NewBuffer([]byte(string(tmp))))
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")

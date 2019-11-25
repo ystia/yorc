@@ -24,9 +24,7 @@ In this case you should use a `POST` method.
 In this case you should use a `PUT` method. There are some constraints on submitting a deployment with a given ID:
 
 * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
-* If this ID  is already in use, the behavior depends on the Yorc version, premium or open source :
-  * in the premium version, a deployment update will be performed as described in next section below,
-  * in the open source version, a `409 Conflict` error is returned.
+* This ID should not already be in used (otherwise a `409 Conflict` error is returned)
 
 `PUT /deployments/<deployment_id>`
 
@@ -49,10 +47,7 @@ A critical note is that the deployment is proceeded asynchronously and a success
 
 Updates a deployment by uploading an updated CSAR. 'Content-Type' header should be set to 'application/zip'.
 
-`PUT /deployments/<deployment_id>`
-
-If the given ID doesn't correspond to the ID of an existing deployment, this call
-won't perform an update, but will create a new deployment as described in the previous section.
+`PATCH /deployments/<deployment_id>`
 
 **Result**:
 
@@ -68,7 +63,7 @@ Content-Length: 0
 
 This endpoint produces no content except in case of error.
 As the ability to update a deployment is a premium feature, attempting to perform
-a deployment update using the open source version of Yorc will return the error `409 Conflict`.
+a deployment update using the open source version of Yorc will return the error `403 Forbidden`.
 
 ### List deployments <a name="list-deps"></a>
 
@@ -678,7 +673,7 @@ This endpoint will failed with an error "400 Bad Request" if:
 ### Execute a workflow <a name="workflow-exec"></a>
 
 Submit a custom workflow for a given deployment.
-By adding the optional 'continueOnError' url parameter to your request, 
+By adding the optional 'continueOnError' url parameter to your request,
 workflow will not stop at the first encountered error and will run to its end.
 
 By default the execution of the workflow's steps take place on all the instances of the workflow's nodes.

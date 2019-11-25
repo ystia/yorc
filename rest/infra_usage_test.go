@@ -59,7 +59,7 @@ func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.T
 	reg.RegisterInfraUsageCollector("myInfraName", mock, "mock")
 
 	req := httptest.NewRequest("POST", "/infra_usage/myInfraName/myLocationName?myparam=success", nil)
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
@@ -77,7 +77,7 @@ func testPostInfraUsageHandlerError(t *testing.T, client *api.Client, srv *testu
 	reg.RegisterInfraUsageCollector("myInfraName", mock, "mock")
 
 	req := httptest.NewRequest("POST", "/infra_usage/myInfraError/myLocationName?myparam=failure", nil)
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
