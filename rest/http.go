@@ -148,7 +148,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 
 func (s *Server) registerHandlers() {
 	commonHandlers := alice.New(telemetryHandler, loggingHandler, recoverHandler)
-  s.router.Get("/server/info", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getInfoHandler))
+	s.router.Get("/server/info", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getInfoHandler))
 	s.router.Get("/health", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getHealthHandler))
 	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationZip)).ThenFunc(s.newDeploymentHandler))
 	s.router.Put("/deployments/:id", commonHandlers.Append(contentTypeHandler(mimeTypeApplicationZip)).ThenFunc(s.newDeploymentHandler))
