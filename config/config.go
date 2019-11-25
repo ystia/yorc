@@ -261,19 +261,34 @@ type TemplateResolver interface {
 	SetTemplatesFunctions(fm template.FuncMap)
 	// ResolveValueWithTemplates resolves a template
 	ResolveValueWithTemplates(key string, value interface{}) interface{}
+	Disable()
+	Enable()
 }
 
 type configTemplateResolver struct {
 	templateFunctions template.FuncMap
+	disable           bool
 }
 
 func (ctr *configTemplateResolver) SetTemplatesFunctions(fm template.FuncMap) {
 	ctr.templateFunctions = fm
 }
 
+func (ctr *configTemplateResolver) Disable() {
+	ctr.disable = false
+}
+
+func (ctr *configTemplateResolver) Enable() {
+	ctr.disable = false
+}
+
 func (ctr *configTemplateResolver) ResolveValueWithTemplates(key string, value interface{}) interface{} {
 	if value == nil {
 		return nil
+	}
+	// if template disabled return the value as it is
+	if ctr.disable {
+		return value
 	}
 	// templates should be strings
 	s, err := cast.ToStringE(value)

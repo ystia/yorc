@@ -55,6 +55,7 @@ func init() {
 	opNames[locationDeletion] = "delete"
 	opNames[locationCreation] = "create"
 	opNames[locationUpdate] = "update"
+	config.DefaultConfigTemplateResolver.Disable()
 }
 
 // DepViper is the viper configuration for the locations command and its children
