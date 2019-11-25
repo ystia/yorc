@@ -1292,7 +1292,9 @@ Content-Type: application/json
 
 ### List locations
 
-List all the existent location definitions. 'Content-Type' header should be set to 'application/json'.
+List all the existent location definitions. 
+
+'Content-Type' header should be set to 'application/json'.
 
 `GET    /locations`
 
@@ -1307,19 +1309,42 @@ Content-Type: application/json
 {
   "locations":[
     {
-      "name":"location1",
-      "type":"openstack",
-      "properties": {
-        "auth_url":"http://openstack:5000/v2.0",
-        "os_default_security_groups":["default","lax"],
-        "password":"StPass","private_network_name":"private-test",
-        "public_network_name":"not_supported","region":"RegionOne",
-        "tenant_id":"use_tid_or_tname",
-        "tenant_name":"Tname",
-        "user_name":"Starlings"
-      }
+      "rel": "location",
+      "href": "/locations/location1",
+      "type": "application/json"
     }
   ]
+}
+```
+
+### Get location
+
+Get an existent location's definitions. 
+
+'Content-Type' header should be set to 'application/json'.
+
+`GET    /locations/location1`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "location1",
+  "type": "openstack",
+  "properties": {
+    "auth_url":"http://openstack:5000/v2.0",
+    "os_default_security_groups":["default","lax"],
+    "password":"StPass","private_network_name":"private-test",
+    "public_network_name":"not_supported","region":"RegionOne",
+    "tenant_id":"use_tid_or_tname",
+    "tenant_name":"Tname",
+    "user_name":"Starlings"
+  }
 }
 ```
 
