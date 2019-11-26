@@ -26,7 +26,7 @@ import (
 )
 
 // ValueAssignmentType defines the type of value for an assignment
-type ValueAssignmentType uint
+type ValueAssignmentType uint64
 
 const (
 	// ValueAssignmentLiteral defines an assignment of a literal
@@ -114,25 +114,17 @@ func (p ValueAssignment) GetLiteral() string {
 	return ""
 }
 
-// GetFunction retruns the TOSCA Function of a this ValueAssignment
+// GetFunction returns the TOSCA Function of a this ValueAssignment
 //
-// If ValueAssignment.Type is not ValueAssignmentFunction or if
+// If ValueAssignment.Type is not ValueAssignmentFunction then nil is returned
 func (p ValueAssignment) GetFunction() *Function {
 	if p.Type == ValueAssignmentFunction && p.Value != nil {
-		f, ok := p.Value.(*Function)
-		if ok {
-			return f
+		f, err := ParseFunction(p.String())
+		if err != nil {
+			log.Printf("err:%+v", err)
+			return nil
 		}
-
-		m, ok := p.Value.(map[string]interface{})
-		if ok {
-			f, err := parseJSONFunction(m)
-			if err != nil {
-				log.Println("[Error] fail to get function from map value assignment (%+v)", p.Value)
-			}
-			return f
-		}
-
+		return f
 	}
 	return nil
 
@@ -239,7 +231,8 @@ func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) e
 	// Not a List try a TOSCA function
 	f := &Function{}
 	if err := unmarshal(f); err == nil && IsOperator(string(f.Operator)) {
-		p.Value = f
+		// function are stored in string representation
+		p.Value = f.String()
 		p.Type = ValueAssignmentFunction
 		return nil
 	}

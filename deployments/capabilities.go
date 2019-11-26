@@ -169,7 +169,10 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 			return nil, err
 		}
 		if propDef != nil {
-			return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+			value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+			if err != nil || value != nil {
+				return value, err
+			}
 		}
 	}
 

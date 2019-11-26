@@ -105,12 +105,20 @@ func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys .
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil {
-		var v interface{}
-		err := json.Unmarshal(kvp.Value, &v)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get instance value assignment from path:%q", vaPath)
+		s := string(kvp.Value)
+		if isQuoted(s) {
+			s, err = strconv.Unquote(s)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to unquote value assignment:%q", s)
+			}
 		}
-		return &TOSCAValue{Value: v}, nil
+		var js json.RawMessage
+		err := json.Unmarshal([]byte(s), &js)
+		if err != nil {
+			// Not a valid JSON, lets return string
+			return &TOSCAValue{Value: s}, nil
+		}
+		return &TOSCAValue{Value: js}, nil
 	}
 	return nil, nil
 }

@@ -23,6 +23,7 @@ require (
 	github.com/dustin/go-humanize v0.0.0-20160623014021-fef948f2d241
 	github.com/fatih/color v1.7.0
 	github.com/fsnotify/fsnotify v1.4.7
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gocql/gocql v0.0.0-20191106222750-ae2f7fc85f32 // indirect
 	github.com/google/addlicense v0.0.0-20190107131845-2e5cf00261bf

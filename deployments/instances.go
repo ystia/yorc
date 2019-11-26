@@ -186,7 +186,7 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Then look at global node level (not instance-scoped)
-	result, err := getNodeAttributeValue(ctx, deploymentID, nodeName, attributeName, nestedKeys...)
+	result, err := getNodeAttributeValue(ctx, deploymentID, nodeName, instanceName, attributeName, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
 	}

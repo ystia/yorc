@@ -16,8 +16,8 @@ package tosca
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -105,8 +105,8 @@ func (l LiteralOperand) String() string {
 //
 // A Function is composed by an Operator and a list of Operand
 type Function struct {
-	Operator Operator  `mapstructure:"operator"  json:"operator,omitempty"`
-	Operands []Operand `mapstructure:"operands"  json:"operands,omitempty"`
+	Operator Operator
+	Operands []Operand
 }
 
 // IsLiteral allows to know if an Operand is a LiteralOperand (true) or a TOSCA Function (false)
@@ -152,27 +152,8 @@ func (f *Function) GetFunctionsByOperator(o Operator) []*Function {
 
 // UnmarshalYAML unmarshal a yaml into a Function
 func (f *Function) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var m map[string]interface{}
+	var m map[interface{}]interface{}
 	if err := unmarshal(&m); err != nil {
-		return err
-	}
-	if len(m) != 1 {
-		return errors.Errorf("Not a TOSCA function")
-	}
-
-	fn, err := parseFunction(m)
-	if err != nil {
-		return err
-	}
-	f.Operator = fn.Operator
-	f.Operands = fn.Operands
-	return nil
-}
-
-// UnmarshalYAML unmarshal a yaml into a Function
-func (f *Function) UnmarshalJSON(b []byte) error {
-	var m map[string]interface{}
-	if err := json.Unmarshal(b, &m); err != nil {
 		return err
 	}
 	if len(m) != 1 {
@@ -201,7 +182,7 @@ func parseFunctionOperands(value interface{}) ([]Operand, error) {
 			}
 			ops[i] = o[0]
 		}
-	case map[string]interface{}:
+	case map[interface{}]interface{}:
 		log.Debugf("Found map value %v %T", v, v)
 		f, err := parseFunction(v)
 		if err != nil {
@@ -217,7 +198,7 @@ func parseFunctionOperands(value interface{}) ([]Operand, error) {
 	return ops, nil
 }
 
-func parseFunction(f map[string]interface{}) (*Function, error) {
+func parseFunction(f map[interface{}]interface{}) (*Function, error) {
 	log.Debugf("parsing TOSCA function %+v", f)
 	for k, v := range f {
 		operator, err := parseOperator(fmt.Sprint(k))
@@ -234,18 +215,12 @@ func parseFunction(f map[string]interface{}) (*Function, error) {
 	return nil, errors.Errorf("Not a TOSCA function")
 }
 
-func parseJSONFunction(m map[string]interface{}) (*Function, error) {
-	log.Debugf("parsing JSON TOSCA function %+v", m)
-
-	operator, err := parseOperator(fmt.Sprint(m["operator"]))
+// ParseFunction allows to cast a string function representation in Function struct
+func ParseFunction(rawFunction string) (*Function, error) {
+	f := &Function{}
+	err := yaml.Unmarshal([]byte(rawFunction), f)
 	if err != nil {
-		return nil, errors.Wrap(err, "Not a TOSCA function")
+		return nil, errors.Wrapf(err, "Failed to parse TOSCA function %q", rawFunction)
 	}
-
-	ops, err := parseFunctionOperands(m["operands"])
-	if err != nil {
-		return nil, err
-	}
-
-	return &Function{Operator: operator, Operands: ops}, nil
+	return f, nil
 }

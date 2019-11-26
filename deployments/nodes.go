@@ -295,7 +295,7 @@ func GetNodesHostedOn(ctx context.Context, deploymentID, hostNode string) ([]str
 	return stackNodes, nil
 }
 
-func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
@@ -319,7 +319,10 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, attribut
 		return nil, err
 	}
 	if attrDef != nil {
-		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, attrDef.Default, nestedKeys...)
+		value, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", va, attrDef.Default, nestedKeys...)
+		if err != nil || value != nil {
+			return value, err
+		}
 	}
 
 	// No default found in type hierarchy
@@ -329,7 +332,7 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, attribut
 		return nil, err
 	}
 	if host != "" {
-		value, err := getNodeAttributeValue(ctx, deploymentID, host, attributeName, nestedKeys...)
+		value, err := getNodeAttributeValue(ctx, deploymentID, host, instanceName, attributeName, nestedKeys...)
 		if err != nil || value != nil {
 			return value, err
 		}
@@ -367,7 +370,10 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 		return nil, err
 	}
 	if propDef != nil {
-		return getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+		value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+		if err != nil || value != nil {
+			return value, err
+		}
 	}
 
 	// No default found in type hierarchy
@@ -380,6 +386,45 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 		value, err := GetNodePropertyValue(ctx, deploymentID, host, propertyName, nestedKeys...)
 		if err != nil || value != nil {
 			return value, err
+		}
+	}
+
+	var propDataType string
+	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, "node", propertyName, true)
+	if err != nil {
+		return nil, err
+	}
+	if hasProp {
+		propDataType, err = GetTypePropertyDataType(ctx, deploymentID, nodeType, propertyName)
+		if err != nil {
+			return nil, err
+		}
+		// Check if the whole property is optional
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, nodeType, "node", propertyName)
+		if err != nil {
+			return nil, err
+		}
+		if !isRequired {
+			// For backward compatibility
+			// TODO this doesn't look as a good idea to me
+			return &TOSCAValue{Value: ""}, nil
+		}
+
+		if len(nestedKeys) > 1 && propDataType != "" {
+			// Check if nested type is optional
+			nestedKeyType, err := GetNestedDataType(ctx, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			if err != nil {
+				return nil, err
+			}
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, "data", nestedKeys[len(nestedKeys)-1])
+			if err != nil {
+				return nil, err
+			}
+			if !isRequired {
+				// For backward compatibility
+				// TODO this doesn't look as a good idea to me
+				return &TOSCAValue{Value: ""}, nil
+			}
 		}
 	}
 	// Not found anywhere

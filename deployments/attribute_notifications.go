@@ -352,7 +352,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 			instanceName:  instanceName,
 			attributeName: attributeName,
 		}
-		err = notifiedAttr.parseFunction(ctx, value)
+		err = notifiedAttr.parseFunction(ctx, value.RawString())
 		if err != nil {
 			return err
 		}
@@ -362,12 +362,13 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 }
 
 // This is looking for Tosca get_attribute and get_operation_output functions
-func (notifiedAttr *notifiedAttribute) parseFunction(ctx context.Context, vaFunc *TOSCAValue) error {
+func (notifiedAttr *notifiedAttribute) parseFunction(ctx context.Context, rawFunction string) error {
 	// Function
-	va := &tosca.ValueAssignment{Type: tosca.ValueAssignmentFunction, Value: vaFunc.Value}
-	log.Debugf("function = %+v", va.GetFunction())
-	f := va.GetFunction()
-
+	f, err := tosca.ParseFunction(rawFunction)
+	if err != nil {
+		return err
+	}
+	log.Debugf("function = %+v", f)
 	fcts := f.GetFunctionsByOperator(tosca.GetAttributeOperator)
 	for _, fct := range fcts {
 		// Find related notifier
