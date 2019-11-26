@@ -93,7 +93,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, location
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locationMgr.RemoveLocation(t.Name(), infrastructureType)
+		locationMgr.RemoveLocation(t.Name())
 	}()
 
 	var cfg config.Configuration

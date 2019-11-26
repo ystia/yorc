@@ -844,7 +844,7 @@ Locations configuration
 -----------------------------
 
 A location allows Yorc to connect to an infrastructure. A location is identified uniquely by its ``name`` property.
-Its ``type`` property describes the infrastructure related to this location. Yorc can handle multiple locations of the same infrastructure.
+Its ``type`` property Specifies the infrastructure related to this location. Yorc can handle multiple locations of the same infrastructure.
 
 Its ``properties`` property contains a map with all required information for the infrastructure connection.
 

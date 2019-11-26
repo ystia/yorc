@@ -28,10 +28,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"github.com/ystia/yorc/v4/tasks/collector"
 )
+
+// LOCATIONS is the URI for locations requests
+const LOCATIONS = "/locations"
+
+// LOCATIONURI is the URI for a particular location request
+const LOCATIONURI = LOCATIONS + "/:locationName"
 
 const (
 	mimeTypeApplicationZip  = "application/zip"
@@ -89,6 +96,7 @@ type Server struct {
 	tasksCollector *collector.Collector
 	config         config.Configuration
 	hostsPoolMgr   hostspool.Manager
+	locationMgr    locations.Manager
 }
 
 // Shutdown stops the HTTP server
@@ -127,6 +135,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		tasksCollector: collector.NewCollector(client),
 		config:         configuration,
 		hostsPoolMgr:   hostspool.NewManager(client),
+		locationMgr:    locations.NewManager(client),
 	}
 
 	httpServer.registerHandlers()
@@ -200,6 +209,12 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/hosts_pool/:location", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listHostsInPool))
 	s.router.Get("/hosts_pool/:location/:host", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getHostInPool))
 	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listHostsPoolLocations))
+
+	s.router.Get(LOCATIONS, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listLocationsHandler))
+	s.router.Get(LOCATIONURI, commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getLocationHandler))
+	s.router.Put(LOCATIONURI, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.createLocationHandler))
+	s.router.Patch(LOCATIONURI, commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateLocationHandler))
+	s.router.Delete(LOCATIONURI, commonHandlers.ThenFunc(s.deleteLocationHandler))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
