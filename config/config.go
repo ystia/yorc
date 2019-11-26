@@ -261,7 +261,9 @@ type TemplateResolver interface {
 	SetTemplatesFunctions(fm template.FuncMap)
 	// ResolveValueWithTemplates resolves a template
 	ResolveValueWithTemplates(key string, value interface{}) interface{}
+	// Disable allows to disable configuration templates usage
 	Disable()
+	// Enable allows to enable configuration templates usage
 	Enable()
 }
 
