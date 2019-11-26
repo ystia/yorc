@@ -51,6 +51,7 @@ func storePolicyTypes(ctx context.Context, consulStore consulutil.ConsulStore, t
 	for policyName, policyType := range topology.PolicyTypes {
 		key := path.Join(topologyPrefix, "types", policyName)
 		policyType.ImportPath = importPath
+		policyType.Base = "policy"
 		err := storage.GetStore(types.StoreTypeDeployment).Set(key, policyType)
 		if err != nil {
 			return err
@@ -65,6 +66,7 @@ func storeDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 	for dataTypeName, dataType := range topology.DataTypes {
 		dtPrefix := path.Join(dataTypesPrefix, dataTypeName)
 		dataType.ImportPath = importPath
+		dataType.Base = "data"
 		err := storage.GetStore(types.StoreTypeDeployment).Set(dtPrefix, dataType)
 		if err != nil {
 			return err
@@ -80,6 +82,7 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
 		nodeType.ImportPath = importPath
+		nodeType.Base = "node"
 		err := storage.GetStore(types.StoreTypeDeployment).Set(nodeTypePrefix, nodeType)
 		if err != nil {
 			return err
@@ -93,6 +96,7 @@ func storeRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulSt
 	for relationName, relationType := range topology.RelationshipTypes {
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		relationType.ImportPath = importPath
+		relationType.Base = "relationship"
 		err := storage.GetStore(types.StoreTypeDeployment).Set(relationTypePrefix, relationType)
 		if err != nil {
 			return err
@@ -106,6 +110,7 @@ func storeCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStor
 	for capabilityTypeName, capabilityType := range topology.CapabilityTypes {
 		capabilityTypePrefix := path.Join(topologyPrefix, "types", capabilityTypeName)
 		capabilityType.ImportPath = importPath
+		capabilityType.Base = "capability"
 		err := storage.GetStore(types.StoreTypeDeployment).Set(capabilityTypePrefix, capabilityType)
 		if err != nil {
 			return err
@@ -127,6 +132,7 @@ func storeArtifactTypes(ctx context.Context, consulStore consulutil.ConsulStore,
 
 		artTypePrefix := path.Join(typesPrefix, artTypeName)
 		artType.ImportPath = importPath
+		artType.Base = "artifact"
 		err := storage.GetStore(types.StoreTypeDeployment).Set(artTypePrefix, artType)
 		if err != nil {
 			return err

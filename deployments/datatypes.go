@@ -45,7 +45,7 @@ func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeN
 	var dataType string
 	var entrySchemaType string
 	if isProp {
-		def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, "data", propertyName)
+		def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, propertyName)
 		if err != nil {
 			return "", err
 		}
@@ -56,7 +56,7 @@ func getTypePropertyOrAttributeDataType(ctx context.Context, deploymentID, typeN
 			}
 		}
 	} else {
-		def, err := getTypeAttributeDefinition(ctx, deploymentID, typeName, "data", propertyName)
+		def, err := getTypeAttributeDefinition(ctx, deploymentID, typeName, propertyName)
 		if err != nil {
 			return "", err
 		}

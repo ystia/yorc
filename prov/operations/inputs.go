@@ -185,7 +185,7 @@ func GetTargetCapabilityPropertiesAndAttributesValues(ctx context.Context, deplo
 }
 
 func setCapabilityProperties(ctx context.Context, deploymentID, capabilityName, capabilityType string, op prov.Operation, isFirst bool, props map[string]*deployments.TOSCAValue) error {
-	capProps, err := deployments.GetTypeProperties(ctx, deploymentID, capabilityType, "capability", true)
+	capProps, err := deployments.GetTypeProperties(ctx, deploymentID, capabilityType, true)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func setCapabilityProperties(ctx context.Context, deploymentID, capabilityName, 
 }
 
 func setCapabilityAttributes(ctx context.Context, deploymentID, capabilityName, capabilityType string, op prov.Operation, targetInstances []string, isFirst bool, props map[string]*deployments.TOSCAValue) error {
-	capAttrs, err := deployments.GetTypeAttributes(ctx, deploymentID, capabilityType, "capability", true)
+	capAttrs, err := deployments.GetTypeAttributes(ctx, deploymentID, capabilityType, true)
 	if err != nil {
 		return err
 	}

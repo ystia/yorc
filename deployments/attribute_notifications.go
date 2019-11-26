@@ -167,7 +167,7 @@ func nodeHasAttributeOrCapabilityAttribute(ctx context.Context, deploymentID, no
 		if err != nil || capabilityType == "" {
 			return false, err
 		}
-		return TypeHasAttribute(ctx, deploymentID, capabilityType, "capability", attributeName, true)
+		return TypeHasAttribute(ctx, deploymentID, capabilityType, attributeName, true)
 	}
 	return NodeHasAttribute(ctx, deploymentID, nodeName, attributeName, true)
 }
@@ -304,27 +304,25 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Check type if node is substitutable
-	nodeType, err = checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
+	nodeType, err = checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, nodeType)
 	if err != nil {
 		return err
 	}
 
 	// Retrieve related propertyDefinition with default property
-	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, "node", attributeName)
+	var value *TOSCAValue
+	var isFunction bool
+	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, attributeName)
 	if err != nil {
 		return err
 	}
 	if attrDef != nil {
-		value, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, attrDef.Default)
+		value, isFunction, err = getValueAssignmentWithoutResolve(ctx, va, attrDef.Default)
 		if err != nil || (value != nil && !isFunction) {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
 	}
 
-	value, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, "node", attributeName)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-	}
 	// Publish default value
 	if value != nil && !isFunction {
 		events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")

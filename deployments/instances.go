@@ -192,7 +192,7 @@ func getInstanceAttributeValue(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Not found look at node type
-	defaultValue, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, "node", attributeName, nestedKeys...)
+	defaultValue, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName, nestedKeys...)
 	if err != nil {
 		return nil, err
 	}

@@ -114,7 +114,7 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 	}
 
 	// Retrieve related propertyDefinition with default property
-	propDef, err := getTypePropertyDefinition(ctx, deploymentID, policy.Type, "policy", propertyName)
+	propDef, err := getTypePropertyDefinition(ctx, deploymentID, policy.Type, propertyName)
 	if err != nil {
 		return nil, err
 	}

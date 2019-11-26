@@ -195,7 +195,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 	}
 	if hasProp && capabilityType != "" {
 		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, capabilityType, "capability", propertyName)
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, capabilityType, propertyName)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +211,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 			if err != nil {
 				return nil, err
 			}
-			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, "data", nestedKeys[len(nestedKeys)-1])
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
 				return nil, err
 			}
@@ -240,7 +240,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	var attrDataType string
 	if capabilityType != "" {
-		hasProp, err := TypeHasAttribute(ctx, deploymentID, capabilityType, "capability", attributeName, true)
+		hasProp, err := TypeHasAttribute(ctx, deploymentID, capabilityType, attributeName, true)
 		if err != nil {
 			return nil, err
 		}
@@ -298,7 +298,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	// Now look at capability type for default
 	if capabilityType != "" {
-		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, capabilityType, "capability", attributeName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, capabilityType, attributeName, nestedKeys...)
 		if err != nil {
 			return nil, err
 		}
@@ -390,7 +390,7 @@ func GetNodeCapabilityAttributeNames(ctx context.Context, deploymentID, nodeName
 	if err != nil {
 		return nil, err
 	}
-	return GetTypeAttributes(ctx, deploymentID, capabilityType, "capability", exploreParents)
+	return GetTypeAttributes(ctx, deploymentID, capabilityType, exploreParents)
 
 }
 

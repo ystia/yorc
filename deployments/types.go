@@ -74,14 +74,23 @@ func getTypeStruct(deploymentID, typeName string, typ interface{}) error {
 	return nil
 }
 
-func getTypePropertyDefinitions(deploymentID, typeName, tType string) (map[string]tosca.PropertyDefinition, error) {
+func getTypePropertyDefinitions(deploymentID, typeName string) (map[string]tosca.PropertyDefinition, error) {
 	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 
+	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
+	exist, typBase, err := getTypeBase(typePath)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("No type found with name:%q", typeName)
+	}
+
 	var typ interface{}
-	switch tType {
+	switch typBase.Base {
 	case "node":
 		typ = new(tosca.NodeType)
 	case "capability":
@@ -95,11 +104,11 @@ func getTypePropertyDefinitions(deploymentID, typeName, tType string) (map[strin
 	case "data":
 		typ = new(tosca.DataType)
 	default:
-		return nil, errors.Errorf("Unknown type:%q", tType)
+		return nil, errors.Errorf("Unknown type:%q", typBase.Base)
 
 	}
 
-	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	exist, err = storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
 	if err != nil {
 		return nil, err
 	}
@@ -126,14 +135,23 @@ func getTypePropertyDefinitions(deploymentID, typeName, tType string) (map[strin
 	return mapProps, nil
 }
 
-func getTypeAttributeDefinitions(deploymentID, typeName, tType string) (map[string]tosca.AttributeDefinition, error) {
+func getTypeAttributeDefinitions(deploymentID, typeName string) (map[string]tosca.AttributeDefinition, error) {
 	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 
+	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
+	exist, typBase, err := getTypeBase(typePath)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("No type found with name:%q", typeName)
+	}
+
 	var typ interface{}
-	switch tType {
+	switch typBase.Base {
 	case "node":
 		typ = new(tosca.NodeType)
 	case "capability":
@@ -141,11 +159,11 @@ func getTypeAttributeDefinitions(deploymentID, typeName, tType string) (map[stri
 	case "relationship":
 		typ = new(tosca.RelationshipType)
 	default:
-		return nil, errors.Errorf("Unknown type:%q", tType)
+		return nil, errors.Errorf("Unknown type:%q", typBase.Base)
 
 	}
 
-	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	exist, err = storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
 	if err != nil {
 		return nil, err
 	}
@@ -259,18 +277,18 @@ func GetTypes(ctx context.Context, deploymentID string) ([]string, error) {
 // GetTypeProperties returns the list of properties defined for a given type nam of the specified type tType
 // tType can be "node", "relationship", "capability", "artifact", "data", policy"
 // It lists only properties defined in the given type not in its parent types.
-func GetTypeProperties(ctx context.Context, deploymentID, typeName, tType string, exploreParents bool) ([]string, error) {
-	return getTypeAttributesOrProperties(ctx, deploymentID, typeName, tType, "properties", exploreParents)
+func GetTypeProperties(ctx context.Context, deploymentID, typeName string, exploreParents bool) ([]string, error) {
+	return getTypeAttributesOrProperties(ctx, deploymentID, typeName, "properties", exploreParents)
 }
 
 // GetTypeAttributes returns the list of attributes defined for a given type name of the specified type tType
 // tType can be "node", "relationship", "capability"
 // It lists only attributes defined in the given type not in its parent types.
-func GetTypeAttributes(ctx context.Context, deploymentID, typeName, tType string, exploreParents bool) ([]string, error) {
-	return getTypeAttributesOrProperties(ctx, deploymentID, typeName, tType, "attributes", exploreParents)
+func GetTypeAttributes(ctx context.Context, deploymentID, typeName string, exploreParents bool) ([]string, error) {
+	return getTypeAttributesOrProperties(ctx, deploymentID, typeName, "attributes", exploreParents)
 }
 
-func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, tType, paramType string, exploreParents bool) ([]string, error) {
+func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, paramType string, exploreParents bool) ([]string, error) {
 	if tosca.IsBuiltinType(typeName) {
 		return nil, nil
 	}
@@ -278,7 +296,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 	results := make([]string, 0)
 
 	if paramType == "properties" {
-		mapProps, err := getTypePropertyDefinitions(deploymentID, typeName, tType)
+		mapProps, err := getTypePropertyDefinitions(deploymentID, typeName)
 		if err != nil {
 			return nil, err
 		}
@@ -286,7 +304,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 			results = append(results, k)
 		}
 	} else {
-		mapAttrs, err := getTypeAttributeDefinitions(deploymentID, typeName, tType)
+		mapAttrs, err := getTypeAttributeDefinitions(deploymentID, typeName)
 		if err != nil {
 			return nil, err
 		}
@@ -302,7 +320,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 		}
 		// Check parent
 		if parent != "" {
-			pResults, err := getTypeAttributesOrProperties(ctx, deploymentID, parent, tType, paramType, exploreParents)
+			pResults, err := getTypeAttributesOrProperties(ctx, deploymentID, parent, paramType, exploreParents)
 			if err != nil {
 				return nil, err
 			}
@@ -313,10 +331,9 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 }
 
 // TypeHasProperty returns true if the type has a property named propertyName defined
-// tType can be "node", "relationship", "capability", "artifact", "data", policy"
 // exploreParents switch enable property check on parent types
-func TypeHasProperty(ctx context.Context, deploymentID, typeName, tType, propertyName string, exploreParents bool) (bool, error) {
-	props, err := GetTypeProperties(ctx, deploymentID, typeName, tType, exploreParents)
+func TypeHasProperty(ctx context.Context, deploymentID, typeName, propertyName string, exploreParents bool) (bool, error) {
+	props, err := GetTypeProperties(ctx, deploymentID, typeName, exploreParents)
 	if err != nil {
 		return false, err
 	}
@@ -324,10 +341,9 @@ func TypeHasProperty(ctx context.Context, deploymentID, typeName, tType, propert
 }
 
 // TypeHasAttribute returns true if the type has a attribute named attributeName defined
-// tType can be "node", "relationship", "capability"
 // exploreParents switch enable attribute check on parent types
-func TypeHasAttribute(ctx context.Context, deploymentID, typeName, tType, attributeName string, exploreParents bool) (bool, error) {
-	attrs, err := GetTypeAttributes(ctx, deploymentID, typeName, tType, exploreParents)
+func TypeHasAttribute(ctx context.Context, deploymentID, typeName, attributeName string, exploreParents bool) (bool, error) {
+	attrs, err := GetTypeAttributes(ctx, deploymentID, typeName, exploreParents)
 	if err != nil {
 		return false, err
 	}
@@ -335,31 +351,29 @@ func TypeHasAttribute(ctx context.Context, deploymentID, typeName, tType, attrib
 }
 
 // getTypeDefaultProperty checks if a type has a default value for a given property.
-// tType can be "node", "relationship", "capability", "artifact", "data", policy"
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultProperty(ctx context.Context, deploymentID, typeName, tType, propertyName string, nestedKeys ...string) (*TOSCAValue, bool, error) {
-	return getTypeDefaultAttributeOrProperty(ctx, deploymentID, typeName, tType, propertyName, true, nestedKeys...)
+func getTypeDefaultProperty(ctx context.Context, deploymentID, typeName, propertyName string, nestedKeys ...string) (*TOSCAValue, bool, error) {
+	return getTypeDefaultAttributeOrProperty(ctx, deploymentID, typeName, propertyName, true, nestedKeys...)
 }
 
 // getTypeDefaultAttribute checks if a node type has a default value for a given attribute.
-// tType can be "node", "relationship", "capability"
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultAttribute(ctx context.Context, deploymentID, typeName, tType, attributeName string, nestedKeys ...string) (*TOSCAValue, bool, error) {
-	return getTypeDefaultAttributeOrProperty(ctx, deploymentID, typeName, tType, attributeName, false, nestedKeys...)
+func getTypeDefaultAttribute(ctx context.Context, deploymentID, typeName, attributeName string, nestedKeys ...string) (*TOSCAValue, bool, error) {
+	return getTypeDefaultAttributeOrProperty(ctx, deploymentID, typeName, attributeName, false, nestedKeys...)
 }
 
 // getTypeDefaultProperty checks if a type has a default value for a given property or attribute.
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeName, tType, propertyName string, isProperty bool, nestedKeys ...string) (*TOSCAValue, bool, error) {
+func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeName, propertyName string, isProperty bool, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	var vaDef *tosca.ValueAssignment
 	if isProperty {
-		def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, tType, propertyName)
+		def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, propertyName)
 		if err != nil {
 			return nil, false, err
 		}
@@ -367,7 +381,7 @@ func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeNa
 			vaDef = def.Default
 		}
 	} else {
-		def, err := getTypeAttributeDefinition(ctx, deploymentID, typeName, tType, propertyName)
+		def, err := getTypeAttributeDefinition(ctx, deploymentID, typeName, propertyName)
 		if err != nil {
 			return nil, false, err
 		}
@@ -383,14 +397,14 @@ func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeNa
 //
 // As per the TOSCA specification a property is considered as required by default.
 // An error is returned if the given type doesn't define the given property.
-func IsTypePropertyRequired(ctx context.Context, deploymentID, typeName, tType, propertyName string) (bool, error) {
-	return isTypePropertyRequired(ctx, deploymentID, typeName, tType, propertyName)
+func IsTypePropertyRequired(ctx context.Context, deploymentID, typeName, propertyName string) (bool, error) {
+	return isTypePropertyRequired(ctx, deploymentID, typeName, propertyName)
 }
 
-func isTypePropertyRequired(ctx context.Context, deploymentID, typeName, tType, propertyName string) (bool, error) {
+func isTypePropertyRequired(ctx context.Context, deploymentID, typeName, propertyName string) (bool, error) {
 	// Required is true by default
 	required := true
-	def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, tType, propertyName)
+	def, err := getTypePropertyDefinition(ctx, deploymentID, typeName, propertyName)
 	if err != nil {
 		return false, err
 	}
@@ -401,8 +415,8 @@ func isTypePropertyRequired(ctx context.Context, deploymentID, typeName, tType, 
 	return required, nil
 }
 
-func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, tType, propertyName string) (*tosca.PropertyDefinition, error) {
-	mapProps, err := getTypePropertyDefinitions(deploymentID, typeName, tType)
+func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, propertyName string) (*tosca.PropertyDefinition, error) {
+	mapProps, err := getTypePropertyDefinitions(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -418,14 +432,14 @@ func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, tTyp
 		return nil, err
 	}
 	if parent != "" {
-		return getTypePropertyDefinition(ctx, deploymentID, parent, tType, propertyName)
+		return getTypePropertyDefinition(ctx, deploymentID, parent, propertyName)
 	}
 
 	// Not found
 	return nil, nil
 }
 
-func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, tType, attributeName string) (*tosca.AttributeDefinition, error) {
+func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, attributeName string) (*tosca.AttributeDefinition, error) {
 	typ := new(tosca.NodeType)
 	err := getTypeStruct(deploymentID, typeName, typ)
 	if err != nil {
@@ -439,7 +453,7 @@ func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, tTy
 
 	// Check parent
 	if typ.DerivedFrom != "" {
-		return getTypeAttributeDefinition(ctx, deploymentID, typ.DerivedFrom, tType, attributeName)
+		return getTypeAttributeDefinition(ctx, deploymentID, typ.DerivedFrom, attributeName)
 	}
 
 	// Not found

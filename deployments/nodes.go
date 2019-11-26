@@ -314,7 +314,7 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instance
 	}
 
 	// Retrieve related propertyDefinition with default property
-	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, "node", attributeName)
+	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, attributeName)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +365,7 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 	}
 
 	// Retrieve related propertyDefinition with default property
-	propDef, err := getTypePropertyDefinition(ctx, deploymentID, nodeType, "node", propertyName)
+	propDef, err := getTypePropertyDefinition(ctx, deploymentID, nodeType, propertyName)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 	}
 
 	var propDataType string
-	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, "node", propertyName, true)
+	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 			return nil, err
 		}
 		// Check if the whole property is optional
-		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, nodeType, "node", propertyName)
+		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, nodeType, propertyName)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +416,7 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 			if err != nil {
 				return nil, err
 			}
-			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, "data", nestedKeys[len(nestedKeys)-1])
+			isRequired, err = IsTypePropertyRequired(ctx, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
 				return nil, err
 			}
@@ -614,7 +614,7 @@ func GetNodeAttributesNames(ctx context.Context, deploymentID, nodeName string) 
 	if err != nil {
 		return nil, err
 	}
-	typeAttrs, err := GetTypeAttributes(ctx, deploymentID, nodeType, "node", true)
+	typeAttrs, err := GetTypeAttributes(ctx, deploymentID, nodeType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -657,7 +657,7 @@ func GetNodeAttributesNames(ctx context.Context, deploymentID, nodeName string) 
 
 // GetTypeAttributesNames returns the list of attributes names found in the type hierarchy
 func GetTypeAttributesNames(ctx context.Context, deploymentID, typeName string) ([]string, error) {
-	return GetTypeAttributes(ctx, deploymentID, typeName, "node", true)
+	return GetTypeAttributes(ctx, deploymentID, typeName, true)
 }
 
 // storeSubKeysInSet store Consul keys directly living under parentPath into the given set.
@@ -861,7 +861,7 @@ func NodeHasAttribute(ctx context.Context, deploymentID, nodeName, attributeName
 	if err != nil {
 		return false, err
 	}
-	return TypeHasAttribute(ctx, deploymentID, typeName, "node", attributeName, exploreParents)
+	return TypeHasAttribute(ctx, deploymentID, typeName, attributeName, exploreParents)
 }
 
 // NodeHasProperty returns true if the node type has a property named propertyName defined
@@ -874,7 +874,7 @@ func NodeHasProperty(ctx context.Context, deploymentID, nodeName, propertyName s
 	if err != nil {
 		return false, err
 	}
-	return TypeHasProperty(ctx, deploymentID, typeName, "node", propertyName, exploreParents)
+	return TypeHasProperty(ctx, deploymentID, typeName, propertyName, exploreParents)
 }
 
 // DeleteNode deletes the given node from the Consul store
