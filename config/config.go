@@ -275,7 +275,7 @@ func (ctr *configTemplateResolver) SetTemplatesFunctions(fm template.FuncMap) {
 }
 
 func (ctr *configTemplateResolver) Disable() {
-	ctr.disable = false
+	ctr.disable = true
 }
 
 func (ctr *configTemplateResolver) Enable() {
