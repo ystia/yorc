@@ -91,47 +91,47 @@ func getInstanceBastionHostFromEndpoint(ctx context.Context, deploymentID, nodeN
 	return b, nil
 }
 
-func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, nodeName, reqIdx string) (b *sshutil.BastionHostConfig, err error) {
+func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, nodeName, reqIdx string) (*sshutil.BastionHostConfig, error) {
 	bastNode, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIdx)
 	if err != nil {
-		return
+		return nil, err
 	}
 	bastHostNode, err := deployments.GetHostedOnNode(ctx, deploymentID, bastNode)
 	if err != nil {
-		return
+		return nil, err
 	}
 	ip, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, bastHostNode, "0", "ip_address")
 	if err != nil {
-		return
+		return nil, err
 	}
 	port, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, bastionCapabilityName, "port")
 	if err != nil {
-		return
+		return nil, err
 	}
 	creds, err := getBastionHostInstanceCredentials(ctx, deploymentID, bastNode, bastHostNode)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	b = &sshutil.BastionHostConfig{Host: ip.String(), Port: port.String(), User: creds.User}
+	b := &sshutil.BastionHostConfig{Host: ip.String(), Port: port.String(), User: creds.User}
 	if creds.TokenType == "password" {
 		b.Password = creds.Token
 	}
 	keys, err := sshutil.GetKeysFromCredentialsDataType(&creds)
 	if err != nil {
-		return
+		return b, err
 	}
 	b.PrivateKeys = keys
 	if b.Port == "" {
 		b.Port = "22"
 	}
-	return
+	return b, nil
 }
 
-func getBastionHostInstanceCredentials(ctx context.Context, deploymentID, bastNode, bastHostNode string) (creds types.Credential, err error) {
+func getBastionHostInstanceCredentials(ctx context.Context, deploymentID, bastNode, bastHostNode string) (types.Credential, error) {
 	useHostCreds, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, "bastion", "use_host_credentials")
 	if err != nil {
-		return
+		return types.Credential{}, err
 	}
 	n := bastNode
 	c := bastionCapabilityName
@@ -141,11 +141,12 @@ func getBastionHostInstanceCredentials(ctx context.Context, deploymentID, bastNo
 	}
 	credsRaw, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, n, c, "credentials")
 	if err != nil {
-		return
+		return types.Credential{}, err
 	}
 	if credsRaw.RawString() == "" {
-		return
+		return types.Credential{}, err
 	}
+	creds := types.Credential{}
 	err = json.Unmarshal([]byte(credsRaw.RawString()), &creds)
-	return
+	return creds, err
 }
