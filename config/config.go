@@ -270,18 +270,22 @@ type configTemplateResolver struct {
 	disable           bool
 }
 
+// SetTemplatesFunctions allows to set configuration templates
 func (ctr *configTemplateResolver) SetTemplatesFunctions(fm template.FuncMap) {
 	ctr.templateFunctions = fm
 }
 
+// Disable allows to disable configuration templates usage
 func (ctr *configTemplateResolver) Disable() {
 	ctr.disable = true
 }
 
+// Enable allows to enable configuration templates usage
 func (ctr *configTemplateResolver) Enable() {
 	ctr.disable = false
 }
 
+// ResolveValueWithTemplates returns a value corresponding to some template if the templates usage is not disabled
 func (ctr *configTemplateResolver) ResolveValueWithTemplates(key string, value interface{}) interface{} {
 	if value == nil {
 		return nil
