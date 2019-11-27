@@ -73,7 +73,7 @@ or use environment variables. Following special variables are recognized:
 In addition any environment variable that starts with ``CONSUL_ENV_`` will be added to a dedicated consul configuration file.
 The format is ``CONSUL_ENV_<option_name>=<config_snippet>``. Here are some examples to make it clear:
 
-``docker run -e 'CONSUL_ENV_ui=true' -e 'CONSUL_ENV_watches=[{"type":"checks","handler":"/usr/bin/health-check-handler.sh"}]' -e 'CONSUL_ENV_datacenter="east-aws"' ystia/yorc``
+``docker run -e 'CONSUL_ENV_ui=true' -e 'CONSUL_ENV_watches=[{"type":"checks","handler":"/usr/bin/server/health-check-handler.sh"}]' -e 'CONSUL_ENV_datacenter="east-aws"' ystia/yorc``
 
 Will result in the following configuration file:
 
@@ -81,7 +81,7 @@ Will result in the following configuration file:
 
   {
     "ui": true,
-    "watches": [{"type":"checks","handler":"/usr/bin/health-check-handler.sh"}],
+    "watches": [{"type":"checks","handler":"/usr/bin/server/health-check-handler.sh"}],
     "datacenter": "east-aws"
   }
 
