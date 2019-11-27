@@ -12,20 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !premium
-
 package rest
 
 import (
-	"fmt"
 	"net/http"
-
-	"github.com/ystia/yorc/v4/log"
+	"net/http/httptest"
+	"testing"
 )
 
-// updateDeployment updates a deployment
-func (s *Server) updateDeployment(w http.ResponseWriter, r *http.Request, id string) {
-	msg := fmt.Sprintf("Trying to update deployment %q on an open source version. Updates are supported only on premium versions.", id)
-	log.Printf("[ERROR]: %s", msg)
-	writeError(w, r, newForbiddenRequest(msg))
+func TestGetInfoHandler(t *testing.T) {
+	req := httptest.NewRequest("GET", "/server/info", nil)
+	req.Header.Add("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	ts := &Server{}
+
+	ts.getInfoHandler(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	expected := "{\"YorcVersion\":\"Must Be defined by MakeFile\",\"GitCommit\":\"Must Be defined by MakeFile\"}\n"
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %q want %q",
+			rr.Body.String(), expected)
+	}
 }

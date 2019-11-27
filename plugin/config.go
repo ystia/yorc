@@ -157,6 +157,16 @@ func (c *ConfigTemplateResolverClient) SetTemplatesFunctions(fm template.FuncMap
 	// Not Implemented
 }
 
+// Disable allows to disable configuration templates usage
+func (c *ConfigTemplateResolverClient) Disable() {
+	// Not implemented
+}
+
+// Enable allows to enable configuration templates usage
+func (c *ConfigTemplateResolverClient) Enable() {
+	// Not implemented
+}
+
 // ConfigTemplateResolverResolveValueWithTemplatesArgs is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type ConfigTemplateResolverResolveValueWithTemplatesArgs struct {

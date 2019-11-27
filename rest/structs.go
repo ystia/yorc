@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/prov/hostspool"
 	"github.com/ystia/yorc/v4/registry"
@@ -45,6 +46,8 @@ const (
 	LinkRelWorkflow string = "workflow"
 	// LinkRelHost defines the AtomLink Rel attribute for relationships of the "host" (for hostspool)
 	LinkRelHost string = "host"
+	// LinkRelLocation defines the AtomLink Rel attribute for relationships of the "location"
+	LinkRelLocation string = "location"
 )
 
 const (
@@ -70,12 +73,30 @@ type AtomLink struct {
 }
 
 func newAtomLink(rel, href string) AtomLink {
-	return AtomLink{Rel: rel, Href: href, LinkType: "application/json"}
+	return AtomLink{Rel: rel, Href: href, LinkType: mimeTypeApplicationJSON}
 }
 
 // Health of a Yorc instance
 type Health struct {
 	Value string `json:"value"`
+}
+
+// LocationRequest represents a request for creating or updating a location
+type LocationRequest struct {
+	Type       string            `json:"type"`
+	Properties config.DynamicMap `json:"properties"`
+}
+
+// LocationConfiguration contains the data for a location definition
+type LocationConfiguration struct {
+	Name       string            `json:"name"`
+	Type       string            `json:"type"`
+	Properties config.DynamicMap `json:"properties"`
+}
+
+// LocationsCollection represents all the existent location definitions, of any type
+type LocationsCollection struct {
+	Locations []LocationConfiguration
 }
 
 // Deployment is the representation of a Yorc deployment
@@ -274,6 +295,13 @@ type Host struct {
 	Links []AtomLink `json:"links"`
 }
 
+// LocationCollection is a collection of locations
+//
+// Links are all of type LinkRelLocation.
+type LocationCollection struct {
+	Locations []AtomLink `json:"locations"`
+}
+
 // RegistryDelegatesCollection is the collection of Delegates executors registered in the Yorc registry
 type RegistryDelegatesCollection struct {
 	Delegates []registry.DelegateMatch `json:"delegates"`
@@ -297,4 +325,10 @@ type RegistryVaultsCollection struct {
 // RegistryInfraUsageCollectorsCollection is the collection of infrastructure usage collectors registered in the Yorc registry
 type RegistryInfraUsageCollectorsCollection struct {
 	InfraUsageCollectors []registry.InfraUsageCollector `json:"infrastructure_usage_collectors"`
+}
+
+// Info are the infos about the current YORC server
+type Info struct {
+	YorcVersion string
+	GitCommit   string
 }

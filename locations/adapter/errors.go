@@ -12,20 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !premium
-
-package rest
+package adapter
 
 import (
-	"fmt"
-	"net/http"
-
-	"github.com/ystia/yorc/v4/log"
+	"github.com/pkg/errors"
 )
 
-// updateDeployment updates a deployment
-func (s *Server) updateDeployment(w http.ResponseWriter, r *http.Request, id string) {
-	msg := fmt.Sprintf("Trying to update deployment %q on an open source version. Updates are supported only on premium versions.", id)
-	log.Printf("[ERROR]: %s", msg)
-	writeError(w, r, newForbiddenRequest(msg))
+type badRequestError struct {
+	msg string
+}
+
+func (e badRequestError) Error() string {
+	return e.msg
+}
+
+// IsBadRequestError checks if an error is an error due to a bad input
+func IsBadRequestError(err error) bool {
+	_, ok := errors.Cause(err).(badRequestError)
+	return ok
 }

@@ -2,6 +2,31 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
+
+### BREAKING CHANGES
+
+#### Changes on the REST API
+
+Until now deployments updates (which is a premium feature) were made on the same API operation than submitting a deployment with a given identifier:
+`PUT /deployments/<deployment_id>`.
+The decision on updating a deployment or creating a new one was based on the existence or not of a deployment with the given identifier.
+
+This was confusing and makes error handling on clients difficult. So we decided to split those operations on two different API endpoints.
+Submitting a deployment with a given identifier remain as it was, but updating a deployment is now available on the `PATCH /deployments/<deployment_id>` endpoint.
+
+Trying to update a deployment on an OSS version will now result in a `401 Forbiden` error instead of a `409 Conflict` error previously.
+Submitting a deployment with an identifier that is already used will still result in a `409 Conflict` error but without an informative message indicating that a
+premium version is required to perform a deployment update.
+
+This is tracked on ([GH-547: Refactor Deployment updates API](https://github.com/ystia/yorc/issues/547)).
+
+### ENHANCEMENTS
+
+* Allow to specify query parameters in infrastructure usage queries ([GH-543](https://github.com/ystia/yorc/issues/543))
+
 ### BUG FIXES
 
 * Duplicate SLURM job info log in case of failure ([GH-545](https://github.com/ystia/yorc/issues/545))

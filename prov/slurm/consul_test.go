@@ -57,7 +57,7 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locationMgr.RemoveLocation(t.Name(), infrastructureType)
+		locationMgr.RemoveLocation(t.Name())
 	}()
 
 	t.Run("groupSlurm", func(t *testing.T) {

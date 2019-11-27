@@ -503,11 +503,13 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) error {
 			return err
 		}
 
-		locationName, err := tasks.GetTaskData(t.taskID, "locationName")
+		params, err := tasks.GetAllTaskData(t.taskID)
 		if err != nil {
 			return err
 		}
-		res, err := collector.GetUsageInfo(ctx, w.cfg, t.taskID, target, locationName)
+		locationName := params["locationName"]
+		delete(params, "locationName")
+		res, err := collector.GetUsageInfo(ctx, w.cfg, t.taskID, target, locationName, params)
 		if err != nil {
 			return err
 		}

@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !premium
-
 package rest
 
 import (
-	"fmt"
+	"github.com/ystia/yorc/v4/server/info"
 	"net/http"
-
-	"github.com/ystia/yorc/v4/log"
 )
 
-// updateDeployment updates a deployment
-func (s *Server) updateDeployment(w http.ResponseWriter, r *http.Request, id string) {
-	msg := fmt.Sprintf("Trying to update deployment %q on an open source version. Updates are supported only on premium versions.", id)
-	log.Printf("[ERROR]: %s", msg)
-	writeError(w, r, newForbiddenRequest(msg))
+func (s *Server) getInfoHandler(w http.ResponseWriter, r *http.Request) {
+	info := Info{info.YorcVersion, info.GitCommit}
+	encodeJSONResponse(w, r, info)
 }

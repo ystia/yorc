@@ -24,9 +24,7 @@ In this case you should use a `POST` method.
 In this case you should use a `PUT` method. There are some constraints on submitting a deployment with a given ID:
 
 * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
-* If this ID  is already in use, the behavior depends on the Yorc version, premium or open source :
-  * in the premium version, a deployment update will be performed as described in next section below,
-  * in the open source version, a `409 Conflict` error is returned.
+* This ID should not already be in used (otherwise a `409 Conflict` error is returned)
 
 `PUT /deployments/<deployment_id>`
 
@@ -49,10 +47,7 @@ A critical note is that the deployment is proceeded asynchronously and a success
 
 Updates a deployment by uploading an updated CSAR. 'Content-Type' header should be set to 'application/zip'.
 
-`PUT /deployments/<deployment_id>`
-
-If the given ID doesn't correspond to the ID of an existing deployment, this call
-won't perform an update, but will create a new deployment as described in the previous section.
+`PATCH /deployments/<deployment_id>`
 
 **Result**:
 
@@ -68,7 +63,7 @@ Content-Length: 0
 
 This endpoint produces no content except in case of error.
 As the ability to update a deployment is a premium feature, attempting to perform
-a deployment update using the open source version of Yorc will return the error `409 Conflict`.
+a deployment update using the open source version of Yorc will return the error `403 Forbidden`.
 
 ### List deployments <a name="list-deps"></a>
 
@@ -678,7 +673,7 @@ This endpoint will failed with an error "400 Bad Request" if:
 ### Execute a workflow <a name="workflow-exec"></a>
 
 Submit a custom workflow for a given deployment.
-By adding the optional 'continueOnError' url parameter to your request, 
+By adding the optional 'continueOnError' url parameter to your request,
 workflow will not stop at the first encountered error and will run to its end.
 
 By default the execution of the workflow's steps take place on all the instances of the workflow's nodes.
@@ -1172,9 +1167,11 @@ Content-Type: application/json
 ### Execute a query to retrieve infrastructure usage for a defined infrastructure usage collector <a name="infra-usage-query-exec"></a>
 
 Submit a query for a given infrastructure and a given location to retrieve usage information.
+Query parameters can be specified, depending on the infrastructure usage collector implementation.
+
 'Content-Type' header should be set to 'application/json'.
 
-`POST    /infra_usage/<infra_name>/<location_name>`
+`POST    /infra_usage/<infra_name>/<location_name>[?param1=value1&param2=value2...]`
 
 **Response**:
 
@@ -1286,3 +1283,139 @@ Content-Type: application/json
  ]
 }
 ```
+## Locations ##
+
+### List locations
+
+List all the existent location definitions. 
+
+'Content-Type' header should be set to 'application/json'.
+
+`GET    /locations`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "locations":[
+    {
+      "rel": "location",
+      "href": "/locations/location1",
+      "type": "application/json"
+    }
+  ]
+}
+```
+
+### Get location
+
+Get an existent location's definitions. 
+
+'Content-Type' header should be set to 'application/json'.
+
+`GET    /locations/location1`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "location1",
+  "type": "openstack",
+  "properties": {
+    "auth_url":"http://openstack:5000/v2.0",
+    "os_default_security_groups":["default","lax"],
+    "password":"StPass","private_network_name":"private-test",
+    "public_network_name":"not_supported","region":"RegionOne",
+    "tenant_id":"use_tid_or_tname",
+    "tenant_name":"Tname",
+    "user_name":"Starlings"
+  }
+}
+```
+
+### Create location <a name="location-create"></a>
+
+Create a new location.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PUT /locations/<location_name>`
+
+**Request body**:
+
+```json
+{
+  "type": "slurm",
+  "properties": {
+		"user_name":   "slurmuser1",
+		"private_key": "/path/to/key",
+		"url":         "10.1.2.3",
+		"port":        22
+  }
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 201 Created
+```
+
+Other possible response response code is `400` if a location with the same `<location_name>` already exists.
+
+### Update location
+
+Update an existent location.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PATCH /locations/<location_name>`
+
+**Request body**:
+
+```json
+{
+  "type": "slurm",
+  "properties": {
+		"user_name":   "slurmuser2",
+		"private_key": "/path/to/key",
+		"url":         "10.1.2.3",
+		"port":        22
+  }
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+```
+
+Other possible response response code is `400` if a location with the `<location_name>` does not exist.
+
+### Remove location
+
+Remove a location with a given name.
+
+'Content-Type' header should be set to 'application/json'.
+
+`DELETE /locations/<location_name>`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+```
+
+Other possible response response code is `400` if a location with the name `<location_name>` does not exist.
+

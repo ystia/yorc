@@ -1,4 +1,4 @@
-// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+// Copyright 2019 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !premium
+package info
 
-package rest
+// YorcVersion is the used version of YORC
+var YorcVersion = "Must Be defined by MakeFile"
 
-import (
-	"fmt"
-	"net/http"
-
-	"github.com/ystia/yorc/v4/log"
-)
-
-// updateDeployment updates a deployment
-func (s *Server) updateDeployment(w http.ResponseWriter, r *http.Request, id string) {
-	msg := fmt.Sprintf("Trying to update deployment %q on an open source version. Updates are supported only on premium versions.", id)
-	log.Printf("[ERROR]: %s", msg)
-	writeError(w, r, newForbiddenRequest(msg))
-}
+// GitCommit is the commit name
+var GitCommit = "Must Be defined by MakeFile"
