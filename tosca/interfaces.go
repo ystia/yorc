@@ -28,9 +28,10 @@ type InterfaceDefinition struct {
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type OperationDefinition struct {
-	Inputs         map[string]Input `yaml:"inputs,omitempty" json:"inputs,omitempty"`
-	Description    string           `yaml:"description,omitempty" json:"description,omitempty"`
-	Implementation Implementation   `yaml:"implementation,omitempty" json:"implementation,omitempty"`
+	Outputs        map[string]Output `yaml:"outputs,omitempty" json:"outputs,omitempty"`
+	Inputs         map[string]Input  `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Description    string            `yaml:"description,omitempty" json:"description,omitempty"`
+	Implementation Implementation    `yaml:"implementation,omitempty" json:"implementation,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an InterfaceDefinition

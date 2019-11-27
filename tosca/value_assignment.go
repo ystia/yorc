@@ -194,9 +194,34 @@ func (p ValueAssignment) String() string {
 	}
 }
 
+// ToValueAssignment builds a ValueAssignment from a value by deducing its type
+func ToValueAssignment(value interface{}) (*ValueAssignment, error) {
+	va := ValueAssignment{}
+	switch v := value.(type) {
+	case string:
+		// Check if it's a function
+		f, err := ParseFunction(v)
+		if err == nil {
+			va.Value = f
+			va.Type = ValueAssignmentFunction
+			break
+		}
+		va.Value = v
+		va.Type = ValueAssignmentLiteral
+	case []interface{}:
+		va.Value = v
+		va.Type = ValueAssignmentList
+	case map[string]interface{}:
+		va.Value = v
+		va.Type = ValueAssignmentMap
+	}
+
+	return &va, nil
+}
+
 // UnmarshalYAML unmarshals a yaml into a ValueAssignment
 func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	if err := p.unmarshalYAMLJSON(unmarshal); err == nil {
+	if err := p.unmarshalYAML(unmarshal); err == nil {
 		return nil
 	}
 
@@ -213,8 +238,8 @@ func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error
 
 }
 
-// unmarshalYAMLJSON unmarshals yaml or json into a ValueAssignment
-func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) error {
+// unmarshalYAML unmarshals yaml into a ValueAssignment
+func (p *ValueAssignment) unmarshalYAML(unmarshal func(interface{}) error) error {
 	// Value assignment could be:
 	//   - a List
 	//   - a TOSCA function

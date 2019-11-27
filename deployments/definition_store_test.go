@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	stdlog "log"
 	"path"
@@ -93,15 +94,41 @@ func testValueAssignments(t *testing.T) {
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
 	// First test operation outputs detection
-	vaTypePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/yorc.tests.nodes.ValueAssignmentNode")
-	exist, value, err := consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/create/outputs/SELF/CREATE_OUTPUT/expression"))
+	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/yorc.tests.nodes.ValueAssignmentNode")
+	nodeType := new(tosca.NodeType)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, nodeType)
 	require.Nil(t, err)
 	require.True(t, exist)
-	require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", value)
-	exist, value, err = consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/configure/outputs/SELF/PARTITION_NAME/expression"))
-	require.Nil(t, err)
+
+	interfaceDef, exist := nodeType.Interfaces["Standard"]
 	require.True(t, exist)
-	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", value)
+
+	operationDef, exist := interfaceDef.Operations["create"]
+	require.True(t, exist)
+
+	output, exist := operationDef.Outputs["CREATE_OUTPUT"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", output.ValueAssign.Value)
+
+	//exist, value, err := consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/create/outputs/SELF/CREATE_OUTPUT/expression"))
+	//require.Nil(t, err)
+	//require.True(t, exist)
+	//require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", value)
+	//exist, value, err = consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/configure/outputs/SELF/PARTITION_NAME/expression"))
+	//require.Nil(t, err)
+	//require.True(t, exist)
+	//require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", value)
+
+	operationDef, exist = interfaceDef.Operations["configure"]
+	require.True(t, exist)
+
+	output, exist = operationDef.Outputs["PARTITION_NAME"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", output.ValueAssign.Value)
 
 	// Then test node properties
 	type nodePropArgs struct {

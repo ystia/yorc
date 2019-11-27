@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -237,118 +238,161 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 func fixGetOperationOutputForHost(ctx context.Context, deploymentID, nodeName string) error {
 	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
-		typePath, err := locateTypePath(deploymentID, nodeType)
+		typ := new(tosca.NodeType)
+		err := getTypeStruct(deploymentID, nodeType, typ)
 		if err != nil {
 			return err
 		}
-		interfacesPrefix := path.Join(typePath, "interfaces")
-		interfacesNamesPaths, err := consulutil.GetKeys(interfacesPrefix)
-		if err != nil {
-			return err
-		}
-		for _, interfaceNamePath := range interfacesNamesPaths {
-			operationsPaths, err := consulutil.GetKeys(interfaceNamePath)
-			if err != nil {
-				return err
-			}
-			for _, operationPath := range operationsPaths {
-				outputsPrefix := path.Join(operationPath, "outputs", "HOST")
-				outputsNamesPaths, err := consulutil.GetKeys(outputsPrefix)
-				if err != nil {
-					return err
-				}
-				if outputsNamesPaths == nil || len(outputsNamesPaths) == 0 {
-					continue
-				}
-				for _, outputNamePath := range outputsNamesPaths {
-					hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
-					if err != nil {
-						return nil
-					} else if hostedOn == "" {
-						return errors.New("Fail to get the hostedOn to fix the output")
+		for _, interfaceDef := range typ.Interfaces {
+			for _, operationDef := range interfaceDef.Operations {
+				for _, inputDef := range operationDef.Inputs {
+					if inputDef.ValueAssign == nil || inputDef.ValueAssign.Type != tosca.ValueAssignmentFunction {
+						continue
 					}
-					if hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
-						hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
-						if err != nil {
-							return err
-						}
-						consulutil.StoreConsulKeyAsString(path.Join(hostedTypePath, "interfaces", path.Base(interfaceNamePath), path.Base(operationPath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationPath)+","+path.Base(outputNamePath)+"]")
-					}
-				}
-			}
-		}
-	}
-	if err != nil {
-		return err
-	}
+					f := inputDef.ValueAssign.GetFunction()
+					if f != nil {
+						opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+						for _, oof := range opOutputFuncs {
+							if len(oof.Operands) != 4 {
+								return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
+							}
+							entityName := url.QueryEscape(oof.Operands[0].String())
+							if entityName == "HOST" {
+								hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
+								if err != nil {
+									return nil
+								} else if hostedOn == "" {
+									return errors.New("Fail to get the hostedOn to fix the output")
+								}
 
+								hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn)
+								if err != nil {
+									return err
+								}
+
+								hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
+								if err != nil {
+									return err
+								}
+								hostTyp := new(tosca.NodeType)
+								err = getTypeStruct(deploymentID, nodeType, typ)
+								if err != nil {
+									return err
+								}
+
+								interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
+								operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
+								outputVariableName := url.QueryEscape(oof.Operands[3].String())
+
+								output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
+									Type:  tosca.ValueAssignmentFunction,
+									Value: oof.String(),
+								}}
+								hostTyp.Interfaces[interfaceName].Operations[operationName].Outputs[outputVariableName] = output
+								return storage.GetStore(storageTypes.StoreTypeDeployment).Set(hostedTypePath, hostTyp)
+
+							}
+						}
+					}
+				}
+			}
+		}
+
+	}
 	return nil
 }
 
 // This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
 // Ex: To get an variable from a past operation or a future operation
 func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string) error {
-	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
-	reqName, err := consulutil.GetKeys(reqPath)
+	requirements, err := getRequirements(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	for _, reqKeyIndex := range reqName {
-		relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, path.Base(reqKeyIndex))
+	if requirements == nil {
+		return nil
+	}
+
+	for reqIndex := range requirements {
+		relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, strconv.Itoa(reqIndex))
 		if err != nil {
 			return err
 		}
 		if relationshipType == "" {
 			continue
 		}
-		relTypePath, err := locateTypePath(deploymentID, relationshipType)
+
+		rType := new(tosca.RelationshipType)
+		err = getTypeStruct(deploymentID, relationshipType, rType)
 		if err != nil {
 			return err
 		}
-		relationshipPrefix := path.Join(relTypePath, "interfaces")
-		interfaceNamesPaths, err := consulutil.GetKeys(relationshipPrefix)
-		if err != nil {
-			return err
-		}
-		for _, interfaceNamePath := range interfaceNamesPaths {
-			operationsNamesPaths, err := consulutil.GetKeys(interfaceNamePath + "/")
-			if err != nil {
-				return err
-			}
-			for _, operationNamePath := range operationsNamesPaths {
-				modEntityNamesPaths, err := consulutil.GetKeys(operationNamePath + "/outputs")
-				if err != nil {
-					return err
-				}
-				for _, modEntityNamePath := range modEntityNamesPaths {
-					outputsNamesPaths, err := consulutil.GetKeys(modEntityNamePath)
-					if err != nil {
-						return err
+		for _, interfaceDef := range rType.Interfaces {
+			for _, operationDef := range interfaceDef.Operations {
+				for _, inputDef := range operationDef.Inputs {
+					if inputDef.ValueAssign == nil || inputDef.ValueAssign.Type != tosca.ValueAssignmentFunction {
+						continue
 					}
-					for _, outputNamePath := range outputsNamesPaths {
-						if path.Base(modEntityNamePath) != "SOURCE" || path.Base(modEntityNamePath) != "TARGET" {
-							continue
-						}
-						var nodeType string
-						if path.Base(modEntityNamePath) == "SOURCE" {
-							nodeType, _ = GetNodeType(ctx, deploymentID, nodeName)
-						} else if path.Base(modEntityNamePath) == "TARGET" {
-							targetNode, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqKeyIndex)
+					f := inputDef.ValueAssign.GetFunction()
+					if f != nil {
+						opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+						for _, oof := range opOutputFuncs {
+							if len(oof.Operands) != 4 {
+								return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
+							}
+							entityName := url.QueryEscape(oof.Operands[0].String())
+							if entityName != "SOURCE" && entityName != "TARGET" {
+								continue
+							}
+							var nodeTypeName string
+							if entityName == "SOURCE" {
+								nodeTypeName, err = GetNodeType(ctx, deploymentID, nodeName)
+								if err != nil {
+									return err
+								}
+							} else if entityName == "TARGET" {
+								targetNode, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, strconv.Itoa(reqIndex))
+								if err != nil {
+									return err
+								}
+								nodeTypeName, err = GetNodeType(ctx, deploymentID, targetNode)
+								if err != nil {
+									return err
+								}
+							}
+
+							typePath, err := locateTypePath(deploymentID, nodeTypeName)
 							if err != nil {
 								return err
 							}
-							nodeType, _ = GetNodeType(ctx, deploymentID, targetNode)
+
+							// Copy the original interface with modification on related node type
+							nodeType := new(tosca.NodeType)
+							err = getTypeStruct(deploymentID, nodeTypeName, nodeType)
+							if err != nil {
+								return err
+							}
+
+							interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
+							operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
+							outputVariableName := url.QueryEscape(oof.Operands[3].String())
+
+							output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
+								Type:  tosca.ValueAssignmentFunction,
+								Value: oof.String(),
+							}}
+
+							op := nodeType.Interfaces[interfaceName].Operations[operationName]
+							if &op == nil {
+								op.Outputs = make(map[string]tosca.Output)
+							}
+							op.Outputs[outputVariableName] = output
+							return storage.GetStore(storageTypes.StoreTypeDeployment).Set(typePath, nodeType)
 						}
-						typePath, err := locateTypePath(deploymentID, nodeType)
-						if err != nil {
-							return err
-						}
-						consulutil.StoreConsulKeyAsString(path.Join(typePath, "interfaces", path.Base(interfaceNamePath), path.Base(operationNamePath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationNamePath)+","+path.Base(outputNamePath)+"]")
 					}
 				}
 			}
 		}
-
 	}
 	return nil
 }
@@ -394,7 +438,7 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 				return err
 			}
 			nodePrefix := path.Join(consulutil.DeploymentKVPrefix, "topology", "nodes", computeNodeName)
-			storage.GetStore(storageTypes.StoreTypeDeployment).Set(nodePrefix, node)
+			return storage.GetStore(storageTypes.StoreTypeDeployment).Set(nodePrefix, node)
 		}
 	}
 
