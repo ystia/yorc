@@ -38,6 +38,11 @@ func getParameterDefinitionStruct(ctx context.Context, deploymentID, parameterNa
 
 // GetTopologyOutputValue returns the value of a given topology output
 func GetTopologyOutputValue(ctx context.Context, deploymentID, outputName string, nestedKeys ...string) (*TOSCAValue, error) {
+	dataType, err := GetTopologyOutputType(ctx, deploymentID, outputName)
+	if err != nil {
+		return nil, err
+	}
+
 	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, outputName, "outputs")
 	if err != nil || !exist {
 		return nil, err
@@ -45,7 +50,12 @@ func GetTopologyOutputValue(ctx context.Context, deploymentID, outputName string
 	// TODO this is not clear in the specification but why do we return a single value in this context as in case of attributes and multi-instances
 	// we can have different results.
 	// We have to improve this.
-	return getValueAssignment(ctx, deploymentID, "", "0", "", paramDef.Value, paramDef.Default, nestedKeys...)
+	res, err := getValueAssignment(ctx, deploymentID, "", "0", "", dataType, paramDef.Value, nestedKeys...)
+	if err != nil || res != nil {
+		return res, err
+	}
+	// check the default
+	return getValueAssignment(ctx, deploymentID, "", "0", "", dataType, paramDef.Default, nestedKeys...)
 }
 
 // GetTopologyOutputsNames returns the list of outputs for the deployment

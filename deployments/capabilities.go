@@ -131,30 +131,37 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 		return nil, err
 	}
 
-	// Check if the capability property is set at node template level and doesn't need to be resolved
-	var va *tosca.ValueAssignment
-	ca, is := node.Capabilities[capabilityName]
-	if is && &ca != nil {
-		va, is = ca.Properties[propertyName]
-		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-			return readComplexVA(ctx, va, nestedKeys...), nil
-		}
-	}
-
-	// Check type if node is substitutable
-	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
+	hasProp, propDataType, err := GetCapabilityPropertyType(ctx, deploymentID, nodeName, capabilityName, propertyName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Retrieve related va from node type
-	if va == nil {
-		va, err := GetNodeTypeCapabilityPropertyValueAssignment(ctx, deploymentID, nodeType, capabilityName, propertyName)
-		if err != nil {
-			return nil, err
+	// Check if the capability property is set at node template level
+	var va *tosca.ValueAssignment
+	ca, is := node.Capabilities[capabilityName]
+	if is && &ca != nil {
+		va, is = ca.Properties[propertyName]
+		if is && va != nil {
+			value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
+			if err != nil || value != nil {
+				return value, err
+			}
 		}
-		if va != nil && va.Type != tosca.ValueAssignmentFunction {
-			return readComplexVA(ctx, va, nestedKeys...), nil
+	}
+
+	// Retrieve related va from node type
+	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	va, err = GetNodeTypeCapabilityPropertyValueAssignment(ctx, deploymentID, nodeType, capabilityName, propertyName)
+	if err != nil {
+		return nil, err
+	}
+	if va != nil {
+		value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
+		if err != nil || value != nil {
+			return value, err
 		}
 	}
 
@@ -169,7 +176,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 			return nil, err
 		}
 		if propDef != nil {
-			value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+			value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, propDef.Default, nestedKeys...)
 			if err != nil || value != nil {
 				return value, err
 			}
@@ -189,10 +196,6 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 		}
 	}
 
-	hasProp, propDataType, err := GetCapabilityPropertyType(ctx, deploymentID, nodeName, capabilityName, propertyName)
-	if err != nil {
-		return nil, err
-	}
 	if hasProp && capabilityType != "" {
 		// Check if the whole property is optional
 		isRequired, err := IsTypePropertyRequired(ctx, deploymentID, capabilityType, propertyName)
@@ -288,7 +291,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 	if is && &ca != nil {
 		va, is := ca.Attributes[attributeName]
 		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-			result, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", va, nil, nestedKeys...)
+			result, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
 			if err != nil || result != nil {
 				// If there is an error or attribute was found
 				return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)

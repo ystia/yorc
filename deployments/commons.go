@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 )
 
 func urlEscapeAll(keys []string) []string {
@@ -34,8 +35,8 @@ func urlEscapeAll(keys []string) []string {
 	return t
 }
 
-func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex string, va, vaDef *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, error) {
-	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, vaDef, nestedKeys...)
+func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, baseDataType string, va *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, error) {
+	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, va, baseDataType, nestedKeys...)
 	if err != nil || value == nil || !isFunction {
 		return value, err
 	}
@@ -43,39 +44,108 @@ func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceNam
 
 }
 
-func readComplexVA(ctx context.Context, va *tosca.ValueAssignment, nestedKeys ...string) *TOSCAValue {
-	if len(nestedKeys) == 0 {
-		return &TOSCAValue{Value: va.Value}
-	}
-	if va.Type == tosca.ValueAssignmentMap {
-		m, ok := va.Value.(map[string]interface{})
-		if ok {
-			v, ok := m[nestedKeys[0]].(tosca.ValueAssignment)
-			if ok {
-				return readComplexVA(ctx, &v, nestedKeys[1:]...)
-			}
-			return &TOSCAValue{Value: m[nestedKeys[0]]}
-		}
-	} else if va.Type == tosca.ValueAssignmentList {
-		l, ok := va.Value.([]interface{})
-		if ok {
-			ind, err := strconv.Atoi(nestedKeys[0])
+func readNestedValue(value interface{}, nestedKeys ...string) interface{} {
+	for _, nk := range nestedKeys {
+		switch v := value.(type) {
+		case []interface{}:
+			ind, err := strconv.Atoi(nk)
+			// Check the slice index is valid
 			if err != nil {
-				log.Printf("[ERROR] %q is not a valid array index", nestedKeys[0])
+				log.Printf("[ERROR] %q is not a valid array index", nk)
 				return nil
 			}
-			v, ok := l[ind].(tosca.ValueAssignment)
-			if ok {
-				return readComplexVA(ctx, &v, nestedKeys[1:]...)
-			}
-			return &TOSCAValue{Value: l[ind]}
+			value = v[ind]
+		case map[string]interface{}:
+			value = v[nk]
 		}
 	}
-	return nil
+	return value
 }
 
-func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, bool, error) {
-	// Get value if not nil
+func readComplexVA(ctx context.Context, deploymentID string, va *tosca.ValueAssignment, baseDataType string, nestedKeys ...string) (interface{}, error) {
+	var result interface{}
+	if len(nestedKeys) == 0 {
+		result = va.Value
+	} else {
+		switch va.Type {
+		case tosca.ValueAssignmentMap:
+			m, ok := va.Value.(map[string]interface{})
+			if ok {
+				// Check the key exists
+				_, ok := m[nestedKeys[0]]
+				if !ok {
+					// Not found
+					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
+					return nil, nil
+				}
+				// Check the value is a va and needs to be retrieved
+				v, ok := m[nestedKeys[0]].(tosca.ValueAssignment)
+				if ok {
+					return readComplexVA(ctx, deploymentID, &v, baseDataType, nestedKeys[1:]...)
+				}
+				// result is a  nested value
+				result = readNestedValue(m[nestedKeys[0]], nestedKeys[1:]...)
+			}
+		case tosca.ValueAssignmentList:
+			l, ok := va.Value.([]interface{})
+			if ok {
+				ind, err := strconv.Atoi(nestedKeys[0])
+				// Check the slice index is valid
+				if err != nil {
+					log.Printf("[ERROR] %q is not a valid array index", nestedKeys[0])
+					return nil, nil
+				}
+				if ind+1 > len(l) {
+					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
+					return nil, nil
+				}
+				// Check the value is a va and needs to be retrieved
+				v, ok := l[ind].(tosca.ValueAssignment)
+				if ok {
+					return readComplexVA(ctx, deploymentID, &v, baseDataType, nestedKeys[1:]...)
+				}
+				// result is a  nested value
+				result = readNestedValue(l[ind], nestedKeys[1:]...)
+			}
+		}
+	}
+
+	if result != nil && baseDataType != "" && baseDataType != "map:string" && va.Type == tosca.ValueAssignmentMap {
+		currentDatatype, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys...)
+		if err != nil {
+			return nil, err
+		}
+		castedResult, ok := result.(map[string]interface{})
+		if ok {
+			for currentDatatype != "" {
+				dtProps, err := GetTypeProperties(ctx, deploymentID, currentDatatype, false)
+				if err != nil {
+					return nil, err
+				}
+				for _, prop := range dtProps {
+					if _, ok := castedResult[prop]; !ok {
+						// not found check default
+						result, _, err := getTypeDefaultProperty(ctx, deploymentID, currentDatatype, prop)
+						if err != nil {
+							return nil, err
+						}
+						if result != nil {
+							// TODO: should we get the /fmt.Stringer/ wrapped value or the original value?????
+							castedResult[prop] = result.Value
+						}
+					}
+				}
+				currentDatatype, err = GetParentType(ctx, deploymentID, currentDatatype)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return result, nil
+}
+
+func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, va *tosca.ValueAssignment, baseDataType string, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	if va != nil && va.Value != nil {
 		switch va.Type {
 		case tosca.ValueAssignmentFunction:
@@ -83,17 +153,22 @@ func getValueAssignmentWithoutResolve(ctx context.Context, va, vaDef *tosca.Valu
 		case tosca.ValueAssignmentLiteral:
 			return &TOSCAValue{Value: va.Value}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
-			if len(nestedKeys) > 0 {
-				return readComplexVA(ctx, va, nestedKeys...), false, nil
+			res, err := readComplexVA(ctx, deploymentID, va, baseDataType, nestedKeys...)
+			if err != nil {
+				return nil, false, err
 			}
-			return &TOSCAValue{Value: va.Value}, false, nil
+			return &TOSCAValue{Value: res}, false, nil
 		}
 	}
 
-	// Get default property otherwise
-	if vaDef != nil {
-		return &TOSCAValue{Value: vaDef.Value}, vaDef.Type == tosca.ValueAssignmentFunction, nil
+	// Check default value in data type
+	if baseDataType != "" && !strings.HasPrefix(baseDataType, "list:") && !strings.HasPrefix(baseDataType, "map:") && len(nestedKeys) > 0 {
+		result, isFunc, err := getTypeDefaultProperty(ctx, deploymentID, baseDataType, nestedKeys[0], nestedKeys[1:]...)
+		if err != nil || result != nil {
+			return result, isFunc, err
+		}
 	}
+
 	// not found
 	return nil, false, nil
 }

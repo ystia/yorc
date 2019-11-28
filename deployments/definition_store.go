@@ -17,6 +17,7 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/log"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -206,11 +207,7 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
 
 	var isCompute bool
-	err := fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName)
-	if err != nil {
-		return isCompute, err
-	}
-	err = fixGetOperationOutputForHost(ctx, deploymentID, nodeName)
+	err := fixGetOperationOutputs(ctx, deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
@@ -234,167 +231,247 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 	return isCompute, err
 }
 
-// In this function we iterate over all node to know which node need to have a HOST output and search for this HOST and tell him to export this output
-func fixGetOperationOutputForHost(ctx context.Context, deploymentID, nodeName string) error {
-	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
-	if nodeType != "" && err == nil {
-		typ := new(tosca.NodeType)
-		err := getTypeStruct(deploymentID, nodeType, typ)
+func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) error {
+	nodeTypeName, err := GetNodeType(ctx, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	nodeType := new(tosca.NodeType)
+	err = getTypeStruct(deploymentID, nodeTypeName, nodeType)
+	if err != nil {
+		return err
+	}
+
+	// Check attributes definitions
+	for _, attributeDef := range nodeType.Attributes {
+		err := addOperationOutputOnNodeType(ctx, deploymentID, nodeName, nodeTypeName, attributeDef.Default)
 		if err != nil {
 			return err
 		}
-		for _, interfaceDef := range typ.Interfaces {
+	}
+
+	// Check input value assignments
+	for _, interfaceDef := range nodeType.Interfaces {
+		for _, operationDef := range interfaceDef.Operations {
+			for _, inputDef := range operationDef.Inputs {
+				err := addOperationOutputOnNodeType(ctx, deploymentID, nodeName, nodeTypeName, inputDef.ValueAssign)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Check requirements
+	for reqIndex := range nodeType.Requirements {
+		ind := strconv.Itoa(reqIndex)
+		relationshipTypeName, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, ind)
+		if err != nil {
+			return err
+		}
+		if relationshipTypeName == "" {
+			continue
+		}
+		rType := new(tosca.RelationshipType)
+		err = getTypeStruct(deploymentID, relationshipTypeName, rType)
+		if err != nil {
+			return err
+		}
+
+		// Check attributes definitions
+		for _, attributeDef := range rType.Attributes {
+			err := addOperationOutputOnRelationshipType(ctx, deploymentID, nodeName, nodeTypeName, ind, attributeDef.Default)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Check input value assignments
+		for _, interfaceDef := range rType.Interfaces {
 			for _, operationDef := range interfaceDef.Operations {
 				for _, inputDef := range operationDef.Inputs {
-					if inputDef.ValueAssign == nil || inputDef.ValueAssign.Type != tosca.ValueAssignmentFunction {
-						continue
-					}
-					f := inputDef.ValueAssign.GetFunction()
-					if f != nil {
-						opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-						for _, oof := range opOutputFuncs {
-							if len(oof.Operands) != 4 {
-								return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-							}
-							entityName := url.QueryEscape(oof.Operands[0].String())
-							if entityName == "HOST" {
-								hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
-								if err != nil {
-									return nil
-								} else if hostedOn == "" {
-									return errors.New("Fail to get the hostedOn to fix the output")
-								}
-
-								hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn)
-								if err != nil {
-									return err
-								}
-
-								hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
-								if err != nil {
-									return err
-								}
-								hostTyp := new(tosca.NodeType)
-								err = getTypeStruct(deploymentID, nodeType, typ)
-								if err != nil {
-									return err
-								}
-
-								interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-								operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-								outputVariableName := url.QueryEscape(oof.Operands[3].String())
-
-								output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
-									Type:  tosca.ValueAssignmentFunction,
-									Value: oof.String(),
-								}}
-								hostTyp.Interfaces[interfaceName].Operations[operationName].Outputs[outputVariableName] = output
-								return storage.GetStore(storageTypes.StoreTypeDeployment).Set(hostedTypePath, hostTyp)
-
-							}
-						}
+					err := addOperationOutputOnRelationshipType(ctx, deploymentID, nodeName, nodeTypeName, ind, inputDef.ValueAssign)
+					if err != nil {
+						return err
 					}
 				}
 			}
 		}
+	}
 
+	return nil
+}
+
+func addOperationOutputOnNodeType(ctx context.Context, deploymentID, nodeName, nodeTypeName string, va *tosca.ValueAssignment) error {
+	if va == nil || va.Type != tosca.ValueAssignmentFunction {
+		return nil
+	}
+	f := va.GetFunction()
+	if f != nil {
+		opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+		for _, oof := range opOutputFuncs {
+			if len(oof.Operands) != 4 {
+				return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
+			}
+			entityName := url.QueryEscape(oof.Operands[0].String())
+			interfaceName := oof.Operands[1].String()
+			operationName := oof.Operands[2].String()
+			outputName := oof.Operands[3].String()
+
+			output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
+				Type:  tosca.ValueAssignmentFunction,
+				Value: oof.String(),
+			}}
+			switch entityName {
+			case "SELF":
+				return storeOperationOutputOnNodeType(ctx, deploymentID, nodeTypeName, interfaceName, operationName, outputName, &output)
+			case "HOST":
+				hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
+				if err != nil {
+					return nil
+				} else if hostedOn == "" {
+					return errors.New("Fail to get the hostedOn to fix the output")
+				}
+
+				hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn)
+				if err != nil {
+					return err
+				}
+				return storeOperationOutputOnNodeType(ctx, deploymentID, hostedNodeType, interfaceName, operationName, outputName, &output)
+			default:
+				log.Printf("[WARNING] The entity name:%q for operation output on node is not handled", entityName)
+			}
+		}
 	}
 	return nil
 }
 
-// This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
-// Ex: To get an variable from a past operation or a future operation
-func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string) error {
-	requirements, err := getRequirements(ctx, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-	if requirements == nil {
+func addOperationOutputOnRelationshipType(ctx context.Context, deploymentID, nodeName, nodeTypeName, reqIndex string, va *tosca.ValueAssignment) error {
+	if va == nil || va.Type != tosca.ValueAssignmentFunction {
 		return nil
 	}
+	f := va.GetFunction()
+	if f != nil {
+		opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+		for _, oof := range opOutputFuncs {
+			if len(oof.Operands) != 4 {
+				return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
+			}
+			entityName := url.QueryEscape(oof.Operands[0].String())
+			interfaceName := oof.Operands[1].String()
+			operationName := oof.Operands[2].String()
+			outputName := oof.Operands[3].String()
 
-	for reqIndex := range requirements {
-		relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, strconv.Itoa(reqIndex))
-		if err != nil {
-			return err
-		}
-		if relationshipType == "" {
-			continue
-		}
-
-		rType := new(tosca.RelationshipType)
-		err = getTypeStruct(deploymentID, relationshipType, rType)
-		if err != nil {
-			return err
-		}
-		for _, interfaceDef := range rType.Interfaces {
-			for _, operationDef := range interfaceDef.Operations {
-				for _, inputDef := range operationDef.Inputs {
-					if inputDef.ValueAssign == nil || inputDef.ValueAssign.Type != tosca.ValueAssignmentFunction {
-						continue
-					}
-					f := inputDef.ValueAssign.GetFunction()
-					if f != nil {
-						opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-						for _, oof := range opOutputFuncs {
-							if len(oof.Operands) != 4 {
-								return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-							}
-							entityName := url.QueryEscape(oof.Operands[0].String())
-							if entityName != "SOURCE" && entityName != "TARGET" {
-								continue
-							}
-							var nodeTypeName string
-							if entityName == "SOURCE" {
-								nodeTypeName, err = GetNodeType(ctx, deploymentID, nodeName)
-								if err != nil {
-									return err
-								}
-							} else if entityName == "TARGET" {
-								targetNode, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, strconv.Itoa(reqIndex))
-								if err != nil {
-									return err
-								}
-								nodeTypeName, err = GetNodeType(ctx, deploymentID, targetNode)
-								if err != nil {
-									return err
-								}
-							}
-
-							typePath, err := locateTypePath(deploymentID, nodeTypeName)
-							if err != nil {
-								return err
-							}
-
-							// Copy the original interface with modification on related node type
-							nodeType := new(tosca.NodeType)
-							err = getTypeStruct(deploymentID, nodeTypeName, nodeType)
-							if err != nil {
-								return err
-							}
-
-							interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-							operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-							outputVariableName := url.QueryEscape(oof.Operands[3].String())
-
-							output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
-								Type:  tosca.ValueAssignmentFunction,
-								Value: oof.String(),
-							}}
-
-							op := nodeType.Interfaces[interfaceName].Operations[operationName]
-							if &op == nil {
-								op.Outputs = make(map[string]tosca.Output)
-							}
-							op.Outputs[outputVariableName] = output
-							return storage.GetStore(storageTypes.StoreTypeDeployment).Set(typePath, nodeType)
-						}
-					}
+			output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
+				Type:  tosca.ValueAssignmentFunction,
+				Value: oof.String(),
+			}}
+			switch entityName {
+			case "SOURCE":
+				return storeOperationOutputOnRelationshipType(ctx, deploymentID, nodeTypeName, interfaceName, operationName, outputName, &output)
+			case "TARGET":
+				targetNodeName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIndex)
+				if err != nil {
+					return err
 				}
+				targetNodeTypeName, err := GetNodeType(ctx, deploymentID, targetNodeName)
+				if err != nil {
+					return err
+				}
+				return storeOperationOutputOnRelationshipType(ctx, deploymentID, targetNodeTypeName, interfaceName, operationName, outputName, &output)
+			default:
+				log.Printf("[WARNING] The entity name:%q for operation output on relationship is not handled", entityName)
 			}
 		}
 	}
 	return nil
+}
+
+func storeOperationOutputOnNodeType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output) error {
+	// Retrieve the node type in hierarchy which implements the operation
+	typeNameImpl, err := GetTypeImplementingAnOperation(ctx, deploymentID, typeName, fmt.Sprintf("%s.%s", interfaceName, operationName))
+	if err != nil {
+		return nil
+	}
+
+	nodeType := new(tosca.NodeType)
+	err = getTypeStruct(deploymentID, typeNameImpl, nodeType)
+	if err != nil {
+		return err
+	}
+
+	if !operationExists(nodeType.Interfaces, interfaceName, operationName) {
+		log.Printf("{WARNING] interface (%s) - operation (%s) not found for type:%+v", interfaceName, operationName, nodeType)
+		return nil
+	}
+
+	op := nodeType.Interfaces[interfaceName].Operations[operationName]
+	if op.Outputs == nil {
+		op.Outputs = make(map[string]tosca.Output)
+	}
+
+	op.Outputs[outputName] = *output
+	nodeType.Interfaces[interfaceName].Operations[operationName] = op
+
+	typePath, err := locateTypePath(deploymentID, typeNameImpl)
+	if err != nil {
+		return err
+	}
+	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(typePath, nodeType)
+}
+
+func operationExists(interfaces map[string]tosca.InterfaceDefinition, interfaceName, operationName string) bool {
+	if interfaces == nil {
+		return false
+	}
+
+	i, exist := interfaces[interfaceName]
+	if !exist {
+		return false
+	}
+
+	if i.Operations == nil {
+		return false
+	}
+
+	_, exist = i.Operations[operationName]
+	if !exist {
+		return false
+	}
+	return true
+}
+
+func storeOperationOutputOnRelationshipType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output) error {
+	// Retrieve the node type in hierarchy which implements the operation
+	typeNameImpl, err := GetTypeImplementingAnOperation(ctx, deploymentID, typeName, fmt.Sprintf("%s.%s", interfaceName, operationName))
+	if err != nil {
+		return nil
+	}
+
+	relationshipType := new(tosca.RelationshipType)
+	err = getTypeStruct(deploymentID, typeNameImpl, relationshipType)
+	if err != nil {
+		return err
+	}
+
+	if !operationExists(relationshipType.Interfaces, interfaceName, operationName) {
+		log.Printf("{WARNING] interface (%s) - operation (%s) not found for type:%+v", interfaceName, operationName, relationshipType)
+		return nil
+	}
+
+	op := relationshipType.Interfaces[interfaceName].Operations[operationName]
+	if op.Outputs == nil {
+		op.Outputs = make(map[string]tosca.Output)
+	}
+
+	op.Outputs[outputName] = *output
+	relationshipType.Interfaces[interfaceName].Operations[operationName] = op
+
+	typePath, err := locateTypePath(deploymentID, typeNameImpl)
+	if err != nil {
+		return err
+	}
+	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(typePath, relationshipType)
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification

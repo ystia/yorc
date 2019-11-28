@@ -17,8 +17,6 @@ package deployments
 import (
 	"context"
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // GetInputValue tries to retrieve the value of the given input name.
@@ -26,15 +24,19 @@ import (
 // GetInputValue first checks if a non-empty field value exists for this input, if it doesn't then it checks for a non-empty field default.
 // If none of them exists then it returns an empty string.
 func GetInputValue(ctx context.Context, deploymentID, inputName string, nestedKeys ...string) (string, error) {
+	dataType, err := GetTopologyInputType(ctx, deploymentID, inputName)
+	if err != nil {
+		return "", err
+	}
 	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, inputName, "inputs")
 	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return "", err
 	}
 	if !exist {
 		return "", nil
 	}
 
-	result, err := getValueAssignment(ctx, deploymentID, "", "", "", paramDef.Value, paramDef.Default, nestedKeys...)
+	result, err := getValueAssignment(ctx, deploymentID, "", "", "", dataType, paramDef.Value, nestedKeys...)
 	if err != nil {
 		return "", err
 	}

@@ -310,19 +310,10 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// Retrieve related propertyDefinition with default property
-	var value *TOSCAValue
-	var isFunction bool
-	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, attributeName)
+	value, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName)
 	if err != nil {
 		return err
 	}
-	if attrDef != nil {
-		value, isFunction, err = getValueAssignmentWithoutResolve(ctx, va, attrDef.Default)
-		if err != nil || (value != nil && !isFunction) {
-			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-		}
-	}
-
 	// Publish default value
 	if value != nil && !isFunction {
 		events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
@@ -338,7 +329,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
 		if host != "" {
-			addAttributeNotifications(ctx, deploymentID, host, instanceName, attributeName)
+			return addAttributeNotifications(ctx, deploymentID, host, instanceName, attributeName)
 		}
 	}
 

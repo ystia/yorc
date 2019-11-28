@@ -16,10 +16,8 @@ package internal
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
-	"net/url"
 	"path"
 	"strings"
 
@@ -82,25 +80,6 @@ func storeDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
-		// Check operation outputs on attributes
-		for _, attributeDef := range nodeType.Attributes {
-			err := addOperationOutput(attributeDef.Default, nodeType.Interfaces)
-			if err != nil {
-				return err
-			}
-		}
-		// Check operation outputs on interfaces
-		for _, interfaceDef := range nodeType.Interfaces {
-			for _, operationDef := range interfaceDef.Operations {
-				for _, inputDef := range operationDef.Inputs {
-					err := addOperationOutput(inputDef.ValueAssign, nodeType.Interfaces)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
 		nodeType.ImportPath = importPath
 		nodeType.Base = "node"
@@ -112,114 +91,9 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 	return nil
 }
 
-func addOperationOutput(va *tosca.ValueAssignment, interfaces map[string]tosca.InterfaceDefinition) error {
-	if va == nil || va.Type != tosca.ValueAssignmentFunction {
-		return nil
-	}
-	f := va.GetFunction()
-	if f != nil {
-		opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-		for _, oof := range opOutputFuncs {
-			if len(oof.Operands) != 4 {
-				return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-			}
-			entityName := url.QueryEscape(oof.Operands[0].String())
-
-			// Only SELF operation output are handled here
-			// HOST, SOURCE and TARGET operation outputs are managed next in fixGetOperationOutputForHost/fixGetOperationOutputForRelationship
-			if entityName == "SELF" {
-				interfaceName := oof.Operands[1].String()
-				operationName := oof.Operands[2].String()
-				outputName := oof.Operands[3].String()
-
-				output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
-					Type:  tosca.ValueAssignmentFunction,
-					Value: oof.String(),
-				}}
-
-				_, exist := interfaces[interfaceName]
-				if !exist {
-					ops := make(map[string]tosca.OperationDefinition)
-					interfaces[interfaceName] = tosca.InterfaceDefinition{Operations: ops}
-				}
-
-				if interfaces[interfaceName].Operations == nil {
-					//ops := make(map[string]tosca.OperationDefinition)
-					//interfaces[interfaceName].Operations = ops
-				}
-
-				op, exist := interfaces[interfaceName].Operations[operationName]
-				if !exist {
-
-				}
-				if op.Outputs == nil {
-					op.Outputs = make(map[string]tosca.Output)
-				}
-				op.Outputs[outputName] = output
-				interfaces[interfaceName].Operations[operationName] = op
-			}
-		}
-	}
-	return nil
-}
-
-func storeSelfOperationOutputsOnInterfaces(ctx context.Context, interfaceDefs map[string]tosca.InterfaceDefinition) error {
-	for _, interfaceDef := range interfaceDefs {
-		for _, operationDef := range interfaceDef.Operations {
-			for _, inputDef := range operationDef.Inputs {
-				if inputDef.ValueAssign == nil || inputDef.ValueAssign.Type != tosca.ValueAssignmentFunction {
-					continue
-				}
-				f := inputDef.ValueAssign.GetFunction()
-				if f != nil {
-					opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-					for _, oof := range opOutputFuncs {
-						if len(oof.Operands) != 4 {
-							return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-						}
-						entityName := url.QueryEscape(oof.Operands[0].String())
-
-						// Only SELF operation output are handled here
-						// HOST, SOURCE and TARGET operation outputs are managed next in fixGetOperationOutputForHost/fixGetOperationOutputForRelationship
-						if entityName == "SELF" {
-							interfaceName := oof.Operands[1].String()
-							operationName := oof.Operands[2].String()
-							outputName := oof.Operands[3].String()
-
-							output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
-								Type:  tosca.ValueAssignmentFunction,
-								Value: oof.String(),
-							}}
-
-							op := interfaceDefs[interfaceName].Operations[operationName]
-							if op.Outputs == nil {
-								op.Outputs = make(map[string]tosca.Output)
-							}
-							op.Outputs[outputName] = output
-							interfaceDefs[interfaceName].Operations[operationName] = op
-						}
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // storeRelationshipTypes stores topology relationships types
 func storeRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
 	for relationName, relationType := range topology.RelationshipTypes {
-		// Check operation outputs on interfaces
-		for _, interfaceDef := range relationType.Interfaces {
-			for _, operationDef := range interfaceDef.Operations {
-				for _, inputDef := range operationDef.Inputs {
-					err := addOperationOutput(inputDef.ValueAssign, relationType.Interfaces)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		relationType.ImportPath = importPath
 		relationType.Base = "relationship"

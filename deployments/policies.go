@@ -107,10 +107,22 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 		return nil, err
 	}
 
-	// Check if the node template property is set and doesn't need to be resolved
+	var propDataType string
+	hasProp, err := TypeHasProperty(ctx, deploymentID, policy.Type, propertyName, true)
+	if err != nil {
+		return nil, err
+	}
+	if hasProp {
+		propDataType, err = GetTypePropertyDataType(ctx, deploymentID, policy.Type, propertyName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Check  at policy template level
 	va, is := policy.Properties[propertyName]
-	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-		return readComplexVA(ctx, va, nestedKeys...), nil
+	if is && va != nil {
+		return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, va, nestedKeys...)
 	}
 
 	// Retrieve related propertyDefinition with default property
@@ -119,7 +131,7 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 		return nil, err
 	}
 	if propDef != nil {
-		return getValueAssignment(ctx, deploymentID, policyName, "", "", va, propDef.Default, nestedKeys...)
+		return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, propDef.Default, nestedKeys...)
 	}
 
 	// Not found anywhere

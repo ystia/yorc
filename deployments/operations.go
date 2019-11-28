@@ -544,7 +544,7 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 		return nil, errors.Errorf("Input %q for operation %v is a property definition we can't resolve it without a task input", inputName, operation)
 	}
 
-	res, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, nil, "")
+	res, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, va, "")
 	if err != nil {
 		return nil, err
 	}
@@ -658,7 +658,7 @@ func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentI
 		return nil, errors.Errorf("Input %q for operation %v is not a property definition we can't resolve its default value", inputName, operation)
 	}
 
-	res, isFunction, err := getValueAssignmentWithoutResolve(ctx, va, nil, "")
+	res, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, va, "")
 	if err != nil {
 		return nil, err
 	}

@@ -59,7 +59,7 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 	if req != nil {
 		va, is := req.RelationshipProps[propertyName]
 		if is && va != nil {
-			result, err := getValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, va, nil, nestedKeys...)
+			result, err := getValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, propDataType, va, nestedKeys...)
 			if err != nil || result != nil {
 				return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
 			}
@@ -295,9 +295,7 @@ func DeleteRelationshipInstance(ctx context.Context, deploymentID, nodeName, ins
 	}
 
 	// now delete from targets in relationships instances
-	addOrRemoveInstanceFromTargetRelationship(ctx, deploymentID, nodeName, instanceName, false)
-
-	return nil
+	return addOrRemoveInstanceFromTargetRelationship(ctx, deploymentID, nodeName, instanceName, false)
 }
 
 func publishRelationshipAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {

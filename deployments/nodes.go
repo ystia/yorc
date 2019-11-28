@@ -301,28 +301,43 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instance
 		return nil, err
 	}
 
-	// Check if the node template attribute is set and doesn't need to be resolved
-	va, is := node.Attributes[attributeName]
-	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-		return readComplexVA(ctx, va, nestedKeys...), nil
-	}
-
 	// Check type if node is substitutable
 	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
 	if err != nil {
 		return nil, err
 	}
 
-	// Retrieve related propertyDefinition with default property
-	attrDef, err := getTypeAttributeDefinition(ctx, deploymentID, nodeType, attributeName)
+	var attrDataType string
+	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, attributeName, true)
 	if err != nil {
 		return nil, err
 	}
-	if attrDef != nil {
-		value, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", va, attrDef.Default, nestedKeys...)
+	if hasAttr {
+		attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Check if the node attribute value can be retrieved at node template level
+	va, is := node.Attributes[attributeName]
+	if is && va != nil {
+		value, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
 		if err != nil || value != nil {
 			return value, err
 		}
+	}
+
+	// Not found look at node type
+	value, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName, nestedKeys...)
+	if err != nil {
+		return nil, err
+	}
+	if value != nil {
+		if !isFunction {
+			return value, nil
+		}
+		return resolveValueAssignment(ctx, deploymentID, nodeName, instanceName, "", value, nestedKeys...)
 	}
 
 	// No default found in type hierarchy
@@ -352,28 +367,43 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 		return nil, err
 	}
 
-	// Check if the node template property is set and doesn't need to be resolved
-	va, is := node.Properties[propertyName]
-	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-		return readComplexVA(ctx, va, nestedKeys...), nil
-	}
-
 	// Check type if node is substitutable
 	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
 	if err != nil {
 		return nil, err
 	}
 
-	// Retrieve related propertyDefinition with default property
-	propDef, err := getTypePropertyDefinition(ctx, deploymentID, nodeType, propertyName)
+	var propDataType string
+	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
 	if err != nil {
 		return nil, err
 	}
-	if propDef != nil {
-		value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", va, propDef.Default, nestedKeys...)
+	if hasProp {
+		propDataType, err = GetTypePropertyDataType(ctx, deploymentID, nodeType, propertyName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Check if the node property value can be retrieved at node template level
+	va, is := node.Properties[propertyName]
+	if is && va != nil {
+		value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
 		if err != nil || value != nil {
 			return value, err
 		}
+	}
+
+	// Not found look at node type
+	value, isFunction, err := getTypeDefaultProperty(ctx, deploymentID, nodeType, propertyName, nestedKeys...)
+	if err != nil {
+		return nil, err
+	}
+	if value != nil {
+		if !isFunction {
+			return value, nil
+		}
+		return resolveValueAssignment(ctx, deploymentID, nodeName, "", "", value, nestedKeys...)
 	}
 
 	// No default found in type hierarchy
@@ -389,11 +419,6 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 		}
 	}
 
-	var propDataType string
-	hasProp, err := TypeHasProperty(ctx, deploymentID, nodeType, propertyName, true)
-	if err != nil {
-		return nil, err
-	}
 	if hasProp {
 		propDataType, err = GetTypePropertyDataType(ctx, deploymentID, nodeType, propertyName)
 		if err != nil {

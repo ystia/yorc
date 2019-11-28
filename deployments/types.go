@@ -390,7 +390,12 @@ func getTypeDefaultAttributeOrProperty(ctx context.Context, deploymentID, typeNa
 		}
 	}
 
-	return getValueAssignmentWithoutResolve(ctx, vaDef, nil, nestedKeys...)
+	baseDataType, err := getTypePropertyOrAttributeDataType(ctx, deploymentID, typeName, propertyName, isProperty)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return getValueAssignmentWithoutResolve(ctx, deploymentID, vaDef, baseDataType, nestedKeys...)
 }
 
 // IsTypePropertyRequired checks if a property defined in a given type is required.

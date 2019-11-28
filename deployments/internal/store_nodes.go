@@ -27,12 +27,8 @@ import (
 func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath, rootDefPath string) error {
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
-		err := storeSelfOperationOutputsOnInterfaces(ctx, node.Interfaces)
-		if err != nil {
-			return err
-		}
 		nodePrefix := nodesPrefix + "/" + nodeName
-		err = storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, node)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, node)
 		if err != nil {
 			return errors.Wrapf(err, "failed to store node with name:%q and value:%+v", nodeName, node)
 		}
