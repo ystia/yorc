@@ -320,12 +320,14 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instance
 	}
 
 	// Check if the node attribute value can be retrieved at node template level
-	va, is := node.Attributes[attributeName]
-	if is && va != nil {
-		value, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
-		if err != nil || value != nil {
-			return value, err
-		}
+	var va *tosca.ValueAssignment
+	if node.Attributes != nil {
+		va = node.Attributes[attributeName]
+	}
+
+	value, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
+	if err != nil || value != nil {
+		return value, err
 	}
 
 	// Not found look at node type
@@ -386,12 +388,14 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 	}
 
 	// Check if the node property value can be retrieved at node template level
-	va, is := node.Properties[propertyName]
-	if is && va != nil {
-		value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
-		if err != nil || value != nil {
-			return value, err
-		}
+	var va *tosca.ValueAssignment
+	if node.Properties != nil {
+		va = node.Properties[propertyName]
+	}
+
+	value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
+	if err != nil || value != nil {
+		return value, err
 	}
 
 	// Not found look at node type

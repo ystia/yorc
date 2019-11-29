@@ -452,7 +452,7 @@ func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, att
 	}
 
 	attrDef, is := typ.Attributes[attributeName]
-	if is {
+	if is && attrDef.Default != nil {
 		return &attrDef, nil
 	}
 

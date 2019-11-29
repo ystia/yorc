@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strings"
 
@@ -56,14 +57,14 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 	if err != nil {
 		return nil, err
 	}
-	if req != nil {
-		va, is := req.RelationshipProps[propertyName]
-		if is && va != nil {
-			result, err := getValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, propDataType, va, nestedKeys...)
-			if err != nil || result != nil {
-				return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
-			}
-		}
+
+	var va *tosca.ValueAssignment
+	if req != nil && req.RelationshipProps != nil {
+		va = req.RelationshipProps[propertyName]
+	}
+	result, err := getValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, propDataType, va, nestedKeys...)
+	if err != nil || result != nil {
+		return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
 	}
 
 	// Look at the relationship type to find a default value

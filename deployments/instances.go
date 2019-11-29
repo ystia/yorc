@@ -254,6 +254,7 @@ func SetInstanceAttributeComplex(ctx context.Context, deploymentID, nodeName, in
 func SetInstanceListAttributesComplex(ctx context.Context, attributes []*AttributeData) error {
 	for _, attribute := range attributes {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
+		//FIXME this must be done in another store
 		err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attribute.Value)
 		if err != nil {
 			return err

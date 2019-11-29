@@ -120,9 +120,14 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 	}
 
 	// Check  at policy template level
-	va, is := policy.Properties[propertyName]
-	if is && va != nil {
-		return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, va, nestedKeys...)
+	var va *tosca.ValueAssignment
+	if policy.Properties != nil {
+		va = policy.Properties[propertyName]
+	}
+
+	value, err := getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, va, nestedKeys...)
+	if err != nil || value != nil {
+		return value, err
 	}
 
 	// Retrieve related propertyDefinition with default property
@@ -130,12 +135,7 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 	if err != nil {
 		return nil, err
 	}
-	if propDef != nil {
-		return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, propDef.Default, nestedKeys...)
-	}
-
-	// Not found anywhere
-	return nil, nil
+	return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, propDef.Default, nestedKeys...)
 }
 
 // GetPolicyType returns the type of the policy

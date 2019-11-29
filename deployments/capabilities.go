@@ -138,15 +138,16 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 
 	// Check if the capability property is set at node template level
 	var va *tosca.ValueAssignment
-	ca, is := node.Capabilities[capabilityName]
-	if is && &ca != nil {
-		va, is = ca.Properties[propertyName]
-		if is && va != nil {
-			value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
-			if err != nil || value != nil {
-				return value, err
-			}
+	if node.Capabilities != nil {
+		ca, is := node.Capabilities[capabilityName]
+		if is && &ca != nil && ca.Properties != nil {
+			va = ca.Properties[propertyName]
 		}
+	}
+
+	value, err := getValueAssignment(ctx, deploymentID, nodeName, "", "", propDataType, va, nestedKeys...)
+	if err != nil || value != nil {
+		return value, err
 	}
 
 	// Retrieve related va from node type
@@ -287,16 +288,18 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 		return nil, err
 	}
 
+	var va *tosca.ValueAssignment
+	if node.Capabilities != nil {
+
+	}
 	ca, is := node.Capabilities[capabilityName]
-	if is && &ca != nil {
-		va, is := ca.Attributes[attributeName]
-		if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
-			result, err := getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
-			if err != nil || result != nil {
-				// If there is an error or attribute was found
-				return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
-			}
-		}
+	if is && &ca != nil && ca.Attributes != nil {
+		va = ca.Attributes[attributeName]
+	}
+	result, err = getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
+	if err != nil || result != nil {
+		// If there is an error or attribute was found
+		return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
 	}
 
 	// Now look at capability type for default

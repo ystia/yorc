@@ -22,7 +22,6 @@ import (
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 )
@@ -45,20 +44,23 @@ func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceNam
 }
 
 func readNestedValue(value interface{}, nestedKeys ...string) interface{} {
-	for _, nk := range nestedKeys {
-		switch v := value.(type) {
-		case []interface{}:
-			ind, err := strconv.Atoi(nk)
-			// Check the slice index is valid
-			if err != nil {
-				log.Printf("[ERROR] %q is not a valid array index", nk)
-				return nil
+	if len(nestedKeys) > 0 {
+		for _, nk := range nestedKeys {
+			switch v := value.(type) {
+			case []interface{}:
+				ind, err := strconv.Atoi(nk)
+				// Check the slice index is valid
+				if err != nil {
+					log.Printf("[ERROR] %q is not a valid array index", nk)
+					return nil
+				}
+				value = v[ind]
+			case map[string]interface{}:
+				value = v[nk]
 			}
-			value = v[ind]
-		case map[string]interface{}:
-			value = v[nk]
 		}
 	}
+
 	return value
 }
 
@@ -107,42 +109,64 @@ func readComplexVA(ctx context.Context, deploymentID string, va *tosca.ValueAssi
 				// result is a  nested value
 				result = readNestedValue(l[ind], nestedKeys[1:]...)
 			}
+		case tosca.ValueAssignmentLiteral:
+			result = va.Value.(string)
 		}
 	}
 
+	// Add defaults values for complex type
 	if result != nil && baseDataType != "" && baseDataType != "map:string" && va.Type == tosca.ValueAssignmentMap {
-		currentDatatype, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys...)
-		if err != nil {
-			return nil, err
-		}
-		castedResult, ok := result.(map[string]interface{})
-		if ok {
-			for currentDatatype != "" {
-				dtProps, err := GetTypeProperties(ctx, deploymentID, currentDatatype, false)
-				if err != nil {
-					return nil, err
-				}
-				for _, prop := range dtProps {
-					if _, ok := castedResult[prop]; !ok {
-						// not found check default
-						result, _, err := getTypeDefaultProperty(ctx, deploymentID, currentDatatype, prop)
-						if err != nil {
-							return nil, err
-						}
-						if result != nil {
-							// TODO: should we get the /fmt.Stringer/ wrapped value or the original value?????
-							castedResult[prop] = result.Value
-						}
-					}
-				}
-				currentDatatype, err = GetParentType(ctx, deploymentID, currentDatatype)
-				if err != nil {
-					return nil, err
+		switch values := result.(type) {
+		case []interface{}:
+			for _, value := range values {
+				mapValue, ok := value.(map[string]interface{})
+				if ok {
+					checkDefaultProperties(ctx, deploymentID, baseDataType, mapValue, nestedKeys...)
 				}
 			}
+		case map[string]interface{}:
+			checkDefaultProperties(ctx, deploymentID, baseDataType, values, nestedKeys...)
 		}
 	}
 	return result, nil
+}
+
+
+func checkDefaultProperties(ctx context.Context, deploymentID string, baseDataType string, values map[string]interface{}, nestedKeys ...string) error {
+	currentDatatype, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys...)
+	if err != nil {
+		return err
+	}
+
+	for currentDatatype != "" {
+		if strings.HasPrefix(currentDatatype, "list:") {
+			currentDatatype = currentDatatype[5:]
+		} else if strings.HasPrefix(currentDatatype, "map:") {
+			currentDatatype = currentDatatype[4:]
+		}
+		dtProps, err := GetTypeProperties(ctx, deploymentID, currentDatatype, false)
+		if err != nil {
+			return err
+		}
+		for _, prop := range dtProps {
+			if _, ok := values[prop]; !ok {
+				// not found check default
+				result, _, err := getTypeDefaultProperty(ctx, deploymentID, currentDatatype, prop)
+				if err != nil {
+					return err
+				}
+				if result != nil {
+					// TODO: should we get the /fmt.Stringer/ wrapped value or the original value?????
+					values[prop] = result.Value
+				}
+			}
+		}
+		currentDatatype, err = GetParentType(ctx, deploymentID, currentDatatype)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, va *tosca.ValueAssignment, baseDataType string, nestedKeys ...string) (*TOSCAValue, bool, error) {
@@ -154,7 +178,7 @@ func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, 
 			return &TOSCAValue{Value: va.Value}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			res, err := readComplexVA(ctx, deploymentID, va, baseDataType, nestedKeys...)
-			if err != nil {
+			if err != nil || res == nil  {
 				return nil, false, err
 			}
 			return &TOSCAValue{Value: res}, false, nil
@@ -174,8 +198,7 @@ func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, 
 }
 
 func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys ...string) (*TOSCAValue, error) {
-	keyPath := path.Join(vaPath, path.Join(urlEscapeAll(nestedKeys)...))
-	kvp, _, err := consulutil.GetKV().Get(keyPath, nil)
+	kvp, _, err := consulutil.GetKV().Get(vaPath, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -187,13 +210,21 @@ func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys .
 				return nil, errors.Wrapf(err, "failed to unquote value assignment:%q", s)
 			}
 		}
-		var js json.RawMessage
-		err := json.Unmarshal([]byte(s), &js)
-		if err != nil {
-			// Not a valid JSON, lets return string
-			return &TOSCAValue{Value: s}, nil
+
+		// let's try to unmarshall value into list, map or simply return string
+		var m map[string]interface{}
+		err := json.Unmarshal([]byte(s), &m)
+		if err == nil {
+			return &TOSCAValue{Value: readNestedValue(m, nestedKeys...)}, nil
 		}
-		return &TOSCAValue{Value: js}, nil
+
+		var l []interface{}
+		err = json.Unmarshal([]byte(s), &l)
+		if err == nil {
+			return &TOSCAValue{Value: readNestedValue(l, nestedKeys...)}, nil
+		}
+
+		return &TOSCAValue{Value: s}, nil
 	}
 	return nil, nil
 }
