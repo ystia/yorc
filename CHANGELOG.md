@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 4.0.0-M7 (November 29, 2019)
 
 ### BREAKING CHANGES
