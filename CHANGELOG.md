@@ -2,10 +2,11 @@
 
 ## UNRELEASED
 
-
 ### BREAKING CHANGES
 
 #### Changes on the REST API
+
+##### Deployment updates
 
 Until now deployments updates (which is a premium feature) were made on the same API operation than submitting a deployment with a given identifier:
 `PUT /deployments/<deployment_id>`.
@@ -20,10 +21,14 @@ premium version is required to perform a deployment update.
 
 This is tracked on ([GH-547: Refactor Deployment updates API](https://github.com/ystia/yorc/issues/547)).
 
+#### Others
+
+* API /health changed to /server/health ([GH-551](https://github.com/ystia/yorc/issues/551))
+
 ### FEATURES
 
 * Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
-* Loading bar while bootstrap ([GH-254](https://github.com/ystia/yorc/issues/254)) 
+* Loading bar while bootstrap ([GH-254](https://github.com/ystia/yorc/issues/254))
 
 ### ENHANCEMENTS
 
