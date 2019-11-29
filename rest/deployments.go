@@ -157,7 +157,9 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panicf("%v", err)
 		}
 		if dExits {
-			s.updateDeployment(w, r, id)
+			mess := fmt.Sprintf("Deployment with id %q already exists", id)
+			log.Debugf("[ERROR]: %s", mess)
+			writeError(w, r, newConflictRequest(mess))
 			return
 		}
 		uid = id
@@ -197,6 +199,26 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", uid, taskID))
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) updateDeploymentHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	id := params.ByName("id")
+	id, err := url.QueryUnescape(id)
+	if err != nil {
+		log.Panicf("%v", errors.Wrapf(err, "Failed to unescape given deployment id %q", id))
+	}
+	dExits, err := deployments.DoesDeploymentExists(ctx, id)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+	s.updateDeployment(w, r, id)
 }
 
 func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request) {

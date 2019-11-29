@@ -17,9 +17,7 @@ package rest
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/tasks"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -33,6 +31,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tasks"
+	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
 
 func testDeploymentHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -47,6 +50,9 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, srv *testutil.Test
 	})
 	t.Run("testListDeploymentHandler", func(t *testing.T) {
 		testListDeploymentHandler(t, client, srv)
+	})
+	t.Run("testUpdateDeploymentsOSS", func(t *testing.T) {
+		testUpdateDeploymentsOSS(t, client, srv)
 	})
 }
 
@@ -220,14 +226,14 @@ func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.Te
 		//	{"getDeploymentWithBadID", "badDeploymentID", &result{statusCode: http.StatusNotFound, errors: &Errors{[]*Error{errNotFound}}}},
 		{"getDeployment", "getDeployment", &result{statusCode: http.StatusOK, errors: nil,
 			deployment: &Deployment{ID: "getDeployment", Status: "DEPLOYED",
-				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "self", LinkType: "application/json"},
-					{Href: "/deployments/getDeployment/nodes/Compute", Rel: "node", LinkType: "application/json"}}}}},
+				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "self", LinkType: mimeTypeApplicationJSON},
+					{Href: "/deployments/getDeployment/nodes/Compute", Rel: "node", LinkType: mimeTypeApplicationJSON}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prepareTest(t, tt.name, client, srv)
 			req := httptest.NewRequest("GET", "/deployments/"+tt.deploymentID, nil)
-			req.Header.Set("Accept", "application/json")
+			req.Header.Set("Accept", mimeTypeApplicationJSON)
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
@@ -272,7 +278,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 	}{
 		{"getDeployment", &result{statusCode: http.StatusOK, errors: nil,
 			deployments: &DeploymentsCollection{[]Deployment{{ID: "getDeployment", Status: "DEPLOYED",
-				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "deployment", LinkType: "application/json"}}}}}}},
+				Links: []AtomLink{{Href: "/deployments/getDeployment", Rel: "deployment", LinkType: mimeTypeApplicationJSON}}}}}}},
 		{"noDeployment", &result{statusCode: http.StatusNoContent, errors: nil,
 			deployments: nil}},
 	}
@@ -280,7 +286,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 		t.Run(tt.name, func(t *testing.T) {
 			prepareTest(t, tt.name, client, srv)
 			req := httptest.NewRequest("GET", "/deployments", nil)
-			req.Header.Set("Accept", "application/json")
+			req.Header.Set("Accept", mimeTypeApplicationJSON)
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
@@ -306,6 +312,49 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 				}
 			}
 			cleanTest(tt.name, "")
+		})
+	}
+}
+
+func testUpdateDeploymentsOSS(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	depID := ytestutil.BuildDeploymentID(t)
+
+	type result struct {
+		statusCode int
+		errors     *Errors
+	}
+
+	tests := []struct {
+		name         string
+		deploymentID string
+		want         *result
+	}{
+		{"updateExistingDep", depID, &result{statusCode: http.StatusForbidden, errors: &Errors{[]*Error{newForbiddenRequest(fmt.Sprintf("Trying to update deployment %q on an open source version. Updates are supported only on premium versions.", depID))}}}},
+		{"updateNotExistingDep", "noDeployment", &result{statusCode: http.StatusNotFound, errors: &Errors{[]*Error{errNotFound}}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prepareTest(t, tt.deploymentID, client, srv)
+
+			req := httptest.NewRequest("PATCH", "/deployments/"+tt.deploymentID, nil)
+			req.Header.Set("Content-Type", mimeTypeApplicationZip)
+			resp := newTestHTTPRouter(client, req)
+			require.NotNil(t, resp, "unexpected nil response")
+			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
+
+			body, err := ioutil.ReadAll(resp.Body)
+			require.Nil(t, err, "unexpected error reading body response")
+
+			if tt.want.errors != nil {
+				var errorsFound Errors
+				err := json.Unmarshal(body, &errorsFound)
+				require.Nil(t, err, "unexpected error unmarshalling json body")
+				if !reflect.DeepEqual(errorsFound, *tt.want.errors) {
+					t.Errorf("errors = %v, want %v", errorsFound, *tt.want.errors)
+				}
+			}
+			cleanTest(tt.deploymentID, "")
 		})
 	}
 }

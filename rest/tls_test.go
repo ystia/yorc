@@ -93,7 +93,7 @@ func testSSLEnabledNoServerVerify(t *testing.T, client *api.Client, srv *testuti
 	defer httpsSrv.Shutdown()
 
 	req, _ := http.NewRequest("GET", url+"/deployments", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 
 	hclient := makeSSLtestClient("", "", "", false)
 	resp, err := hclient.Do(req)
@@ -119,7 +119,7 @@ func testSSLEnabledServerVerifyUnsignedClientCerts(t *testing.T, client *api.Cli
 	defer httpsSrv.Shutdown()
 
 	req, _ := http.NewRequest("GET", url+"/deployments", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 
 	hclient := makeSSLtestClient("testdata/unsigned-cert.pem", "testdata/unsigned-key.pem", "", false)
 	resp, err := hclient.Do(req)
@@ -141,7 +141,7 @@ func testSSLEnabledServerVerifyNoClientCerts(t *testing.T, client *api.Client, s
 	defer httpsSrv.Shutdown()
 
 	req, _ := http.NewRequest("GET", url+"/deployments", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 
 	hclient := makeSSLtestClient("", "", "", false)
 	resp, err := hclient.Do(req)
@@ -163,7 +163,7 @@ func testSSLEnabledServerVerifySignedClientCerts(t *testing.T, client *api.Clien
 	defer httpsSrv.Shutdown()
 
 	req, _ := http.NewRequest("GET", url+"/deployments", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 
 	hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "", false)
 	resp, err := hclient.Do(req)
@@ -190,7 +190,7 @@ func testSSLEnabledClientVerifyUnsignedServerCerts(t *testing.T, client *api.Cli
 	defer httpsSrv.Shutdown()
 
 	req, _ := http.NewRequest("GET", url+"/deployments", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 
 	hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
 	resp, err := hclient.Do(req)
@@ -212,7 +212,7 @@ func testSSLEnabledMutualVerification(t *testing.T, client *api.Client, srv *tes
 	defer httpsSrv.Shutdown()
 
 	req, _ := http.NewRequest("GET", url+"/deployments", nil)
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
 
 	hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
 	resp, err := hclient.Do(req)

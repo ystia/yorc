@@ -24,6 +24,7 @@ import (
 )
 
 func TestConfigMap_Get(t *testing.T) {
+	DefaultConfigTemplateResolver.Enable()
 	t.Parallel()
 	type args struct {
 		name string
