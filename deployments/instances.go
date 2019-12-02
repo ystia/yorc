@@ -16,8 +16,7 @@ package deployments
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
+	"encoding/json"
 	"path"
 	"strings"
 	"time"
@@ -237,10 +236,16 @@ func SetInstanceListAttributes(ctx context.Context, attributes []*AttributeData)
 // SetInstanceAttributeComplex sets an instance attribute that may be a literal or a complex data type
 func SetInstanceAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
+	data, err := json.Marshal(attributeValue)
 	if err != nil {
 		return err
 	}
+
+	err = consulutil.StoreConsulKey(attrPath, data)
+	if err != nil {
+		return err
+	}
+
 	err = notifyAndPublishAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attributeName, attributeValue)
 	if err != nil {
 		return err
@@ -254,8 +259,12 @@ func SetInstanceAttributeComplex(ctx context.Context, deploymentID, nodeName, in
 func SetInstanceListAttributesComplex(ctx context.Context, attributes []*AttributeData) error {
 	for _, attribute := range attributes {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
-		//FIXME this must be done in another store
-		err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attribute.Value)
+		data, err := json.Marshal(attribute.Value)
+		if err != nil {
+			return err
+		}
+
+		err = consulutil.StoreConsulKey(attrPath, data)
 		if err != nil {
 			return err
 		}
@@ -287,7 +296,13 @@ func SetAttributeComplexForAllInstances(ctx context.Context, deploymentID, nodeN
 		return err
 	}
 	for _, instanceName := range ids {
-		err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
+		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
+		data, err := json.Marshal(attributeValue)
+		if err != nil {
+			return err
+		}
+
+		err = consulutil.StoreConsulKey(attrPath, data)
 		if err != nil {
 			return err
 		}

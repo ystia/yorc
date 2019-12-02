@@ -43,14 +43,12 @@ import (
 func testDefinitionStore(t *testing.T) {
 	t.Run("groupDeploymentsDefinitionStore", func(t *testing.T) {
 		t.Run("TestImplementationArtifacts", func(t *testing.T) {
-			t.Skip()
 			testImplementationArtifacts(t)
 		})
 		t.Run("TestValueAssignments", func(t *testing.T) {
 			testValueAssignments(t)
 		})
 		t.Run("TestRunnableWorkflowsAutoCancel", func(t *testing.T) {
-			t.Skip()
 			testRunnableWorkflowsAutoCancel(t)
 		})
 	})
@@ -232,12 +230,12 @@ func testValueAssignments(t *testing.T) {
 	}{
 		{"TestNodeAttrListDef0", nodeAttrArgs{"VANode1", "0", "listDef", []string{"0"}}, false, true, `1`},
 		{"TestNodeAttrListDef1", nodeAttrArgs{"VANode1", "0", "listDef", []string{"1"}}, false, true, `2`},
-		{"TestNodeAttrListDefAll", nodeAttrArgs{"VANode1", "0", "listDef", nil}, false, true, `["1","2","3"]`},
+		{"TestNodeAttrListDefAll", nodeAttrArgs{"VANode1", "0", "listDef", nil}, false, true, `[1,2,3]`},
 		{"TestNodeAttrMapDefT2", nodeAttrArgs{"VANode1", "0", "mapDef", []string{"T2"}}, false, true, `1 TiB`},
 		{"TestNodeAttrMapDefT3", nodeAttrArgs{"VANode1", "0", "mapDef", []string{"T3"}}, false, true, `3 GB`},
 		{"TestNodeAttrMapDefAll", nodeAttrArgs{"VANode1", "0", "mapDef", nil}, false, true, `{"T1":"4 GiB","T2":"1 TiB","T3":"3 GB"}`},
 		{"TestNodeAttrLiteral", nodeAttrArgs{"VANode1", "0", "lit", nil}, false, true, `myLiteral`},
-		{"TestNodeAttrListAll", nodeAttrArgs{"VANode1", "0", "listAttr", nil}, false, true, `["42","43","44"]`},
+		{"TestNodeAttrListAll", nodeAttrArgs{"VANode1", "0", "listAttr", nil}, false, true, `[42,43,44]`},
 		{"TestNodeAttrListIndex0", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"0"}}, false, true, `42`},
 		{"TestNodeAttrListIndex1", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"1"}}, false, true, `43`},
 		{"TestNodeAttrListIndex2", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"2"}}, false, true, `44`},
@@ -253,20 +251,20 @@ func testValueAssignments(t *testing.T) {
 		{"TestAttrComplexDTNestedListOfString", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofstring"}}, false, true, `["VANode2L1","VANode2L2"]`},
 		{"TestAttrComplexDTNestedSubComplexLiteral", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "subcomplex", "literal"}}, false, true, `2`},
 		{"TestAttrComplexDTNestedSubComplexLiteralDefault", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "subcomplex", "literalDefault"}}, false, true, `ComplexDataTypeDefault`},
-		{"TestAttrComplexDTNestedSubComplexAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "subcomplex"}}, false, true, `{"literal":"2","literalDefault":"ComplexDataTypeDefault"}`},
+		{"TestAttrComplexDTNestedSubComplexAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "subcomplex"}}, false, true, `{"literal":2,"literalDefault":"ComplexDataTypeDefault"}`},
 		{"TestAttrComplexDTNestedListOfComplex0Literal", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "0", "literal"}}, false, true, `2`},
 		{"TestAttrComplexDTNestedListOfComplex0MyMap", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "0", "mymap"}}, false, true, `{"VANode2":1}`},
-		{"TestAttrComplexDTNestedListOfComplex0All", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "0"}}, false, true, `{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"1"}}`},
+		{"TestAttrComplexDTNestedListOfComplex0All", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "0"}}, false, true, `{"literal":2,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":1}}`},
 		{"TestAttrComplexDTNestedListOfComplex1Literal", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "1", "literal"}}, false, true, `3`},
-		{"TestAttrComplexDTNestedListOfComplex1MyMap", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "1", "mymap"}}, false, true, `{"VANode2":"2"}`},
-		{"TestAttrComplexDTNestedListOfComplex1All", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "1"}}, false, true, `{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"2"}}`},
-		{"TestAttrComplexDTNestedListOfComplexAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex"}}, false, true, `[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"2"}}]`},
+		{"TestAttrComplexDTNestedListOfComplex1MyMap", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "1", "mymap"}}, false, true, `{"VANode2":2}`},
+		{"TestAttrComplexDTNestedListOfComplex1All", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex", "1"}}, false, true, `{"literal":3,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":2}}`},
+		{"TestAttrComplexDTNestedListOfComplexAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofcomplex"}}, false, true, `[{"literal":2,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"1"}},{"literal":3,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":2}}]`},
 		{"TestAttrComplexDTNestedMapOfComplex1Literal", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex", "m1", "literal"}}, false, true, `4`},
-		{"TestAttrComplexDTNestedMapOfComplex1MyMap", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex", "m1", "mymap"}}, false, true, `{"VANode2":"3"}`},
-		{"TestAttrComplexDTNestedMapOfComplex1All", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex", "m1"}}, false, true, `{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"3"}}`},
-		{"TestAttrComplexDTNestedMapOfComplexAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex"}}, false, true, `{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"3"}}}`},
-		{"TestAttrComplexDTNestedAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType"}}, false, true, `{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"2"}}],"listofstring":["VANode2L1","VANode2L2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}`},
-		{"TestAttrComplexDTAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", nil}, false, true, `{"nestedType":{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"2"}}],"listofstring":["VANode2L1","VANode2L2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}}`},
+		{"TestAttrComplexDTNestedMapOfComplex1MyMap", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex", "m1", "mymap"}}, false, true, `{"VANode2":3}`},
+		{"TestAttrComplexDTNestedMapOfComplex1All", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex", "m1"}}, false, true, `{"literal":4,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":3}}`},
+		{"TestAttrComplexDTNestedMapOfComplexAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "mapofcomplex"}}, false, true, `{"m1":{"literal":4,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":3}}}`},
+		{"TestAttrComplexDTNestedAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType"}}, false, true, `{"listofcomplex":[{"literal":2,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":1}},{"literal":3,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":2}}],"listofstring":["VANode2L1","VANode2L2"],"mapofcomplex":{"m1":{"literal":4,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":3}}},"subcomplex":{"literal":2,"literalDefault":"ComplexDataTypeDefault"}}`},
+		{"TestAttrComplexDTAll", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", nil}, false, true, `{"nestedType":{"listofcomplex":[{"literal":2,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":1}},{"literal":3,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":2}}],"listofstring":["VANode2L1","VANode2L2"],"mapofcomplex":{"m1":{"literal":4,"literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":3}}},"subcomplex":{"literal":2,"literalDefault":"ComplexDataTypeDefault"}}}`},
 	}
 	for _, tt := range nodeAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -283,7 +281,7 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
-t.Skip()
+
 	// Then test relationship properties
 	type relPropArgs struct {
 		nodeName     string

@@ -43,7 +43,7 @@ func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceNam
 
 }
 
-func readNestedValue(value interface{}, nestedKeys ...string) interface{} {
+func getNestedValue(value interface{}, nestedKeys ...string) interface{} {
 	if len(nestedKeys) > 0 {
 		for _, nk := range nestedKeys {
 			switch v := value.(type) {
@@ -54,9 +54,19 @@ func readNestedValue(value interface{}, nestedKeys ...string) interface{} {
 					log.Printf("[ERROR] %q is not a valid array index", nk)
 					return nil
 				}
+				if ind+1 > len(v) {
+					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
+					return nil
+				}
 				value = v[ind]
 			case map[string]interface{}:
-				value = v[nk]
+				var ok bool
+				value, ok = v[nk]
+				if !ok {
+					// Not found
+					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
+					return nil
+				}
 			}
 		}
 	}
@@ -80,13 +90,8 @@ func readComplexVA(ctx context.Context, deploymentID string, va *tosca.ValueAssi
 					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
 					return nil, nil
 				}
-				// Check the value is a va and needs to be retrieved
-				v, ok := m[nestedKeys[0]].(tosca.ValueAssignment)
-				if ok {
-					return readComplexVA(ctx, deploymentID, &v, baseDataType, nestedKeys[1:]...)
-				}
 				// result is a  nested value
-				result = readNestedValue(m[nestedKeys[0]], nestedKeys[1:]...)
+				result = getNestedValue(m[nestedKeys[0]], nestedKeys[1:]...)
 			}
 		case tosca.ValueAssignmentList:
 			l, ok := va.Value.([]interface{})
@@ -101,57 +106,89 @@ func readComplexVA(ctx context.Context, deploymentID string, va *tosca.ValueAssi
 					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
 					return nil, nil
 				}
-				// Check the value is a va and needs to be retrieved
-				v, ok := l[ind].(tosca.ValueAssignment)
-				if ok {
-					return readComplexVA(ctx, deploymentID, &v, baseDataType, nestedKeys[1:]...)
-				}
 				// result is a  nested value
-				result = readNestedValue(l[ind], nestedKeys[1:]...)
+				result = getNestedValue(l[ind], nestedKeys[1:]...)
 			}
 		case tosca.ValueAssignmentLiteral:
 			result = va.Value.(string)
 		}
 	}
 
-	// Add defaults values for complex type
-	if result != nil && baseDataType != "" && baseDataType != "map:string" && va.Type == tosca.ValueAssignmentMap {
-		switch values := result.(type) {
-		case []interface{}:
-			for _, value := range values {
-				mapValue, ok := value.(map[string]interface{})
-				if ok {
-					checkDefaultProperties(ctx, deploymentID, baseDataType, mapValue, nestedKeys...)
-				}
-			}
-		case map[string]interface{}:
-			checkDefaultProperties(ctx, deploymentID, baseDataType, values, nestedKeys...)
-		}
+
+	//result = getNestedValue(va.Value, nestedKeys...)
+	err := checkForDefaultValuesInComplexTypes(ctx, deploymentID, baseDataType, "", result, nestedKeys...)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
-
-func checkDefaultProperties(ctx context.Context, deploymentID string, baseDataType string, values map[string]interface{}, nestedKeys ...string) error {
-	currentDatatype, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys...)
-	if err != nil {
-		return err
+func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID string, baseDataType, currentDataType string, values interface{}, nestedKeys ...string) error {
+	var err error
+	if values == nil || baseDataType == "" {
+		return nil
+	}
+	if currentDataType == "" {
+		currentDataType, err = GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys...)
+		if err != nil {
+			return err
+		}
+	}
+	var entrySchema string
+	if strings.HasPrefix(currentDataType, "list:") {
+		entrySchema = "list"
+	} else if strings.HasPrefix(currentDataType, "map:") {
+		entrySchema = "map"
 	}
 
-	for currentDatatype != "" {
-		if strings.HasPrefix(currentDatatype, "list:") {
-			currentDatatype = currentDatatype[5:]
-		} else if strings.HasPrefix(currentDatatype, "map:") {
-			currentDatatype = currentDatatype[4:]
+	switch entrySchema {
+	case "list":
+		propResult, ok := values.([]interface{})
+		if ok {
+			for _,v := range propResult {
+				item, ok := v.(map[string]interface{})
+				if ok {
+					addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
+				}
+			}
 		}
-		dtProps, err := GetTypeProperties(ctx, deploymentID, currentDatatype, false)
+	case "map":
+		propResult, ok := values.(map[string]interface{})
+		if ok {
+			for _,v := range propResult {
+				item, ok := v.(map[string]interface{})
+				if ok {
+					addTypeDefault(ctx, deploymentID, baseDataType,currentDataType,  item, nestedKeys...)
+				}
+			}
+
+		}
+	default:
+		// Check if result can be casted in map
+		propResult, ok := values.(map[string]interface{})
+		if ok {
+			addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, propResult, nestedKeys...)
+		}
+	}
+	return nil
+}
+
+
+func addTypeDefault(ctx context.Context, deploymentID string, baseDataType, currentDataType string, values map[string]interface{}, nestedKeys ...string) error {
+	for currentDataType != "" {
+		if strings.HasPrefix(currentDataType, "list:") {
+			currentDataType = currentDataType[5:]
+		} else if strings.HasPrefix(currentDataType, "map:") {
+			currentDataType = currentDataType[4:]
+		}
+		dtProps, err := GetTypeProperties(ctx, deploymentID, currentDataType, false)
 		if err != nil {
 			return err
 		}
 		for _, prop := range dtProps {
 			if _, ok := values[prop]; !ok {
 				// not found check default
-				result, _, err := getTypeDefaultProperty(ctx, deploymentID, currentDatatype, prop)
+				result, _, err := getTypeDefaultProperty(ctx, deploymentID, currentDataType, prop)
 				if err != nil {
 					return err
 				}
@@ -159,9 +196,20 @@ func checkDefaultProperties(ctx context.Context, deploymentID string, baseDataTy
 					// TODO: should we get the /fmt.Stringer/ wrapped value or the original value?????
 					values[prop] = result.Value
 				}
+			} else {
+				// Check recursively through complex types
+				typeProp, err := GetTypePropertyDataType(ctx, deploymentID, currentDataType, prop)
+				if err != nil {
+					return err
+				}
+				keys := append(nestedKeys, prop)
+				err = checkForDefaultValuesInComplexTypes(ctx, deploymentID, baseDataType, typeProp, values[prop], keys...)
+				if err != nil {
+					return err
+				}
 			}
 		}
-		currentDatatype, err = GetParentType(ctx, deploymentID, currentDatatype)
+		currentDataType, err = GetParentType(ctx, deploymentID, currentDataType)
 		if err != nil {
 			return err
 		}
@@ -215,13 +263,13 @@ func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys .
 		var m map[string]interface{}
 		err := json.Unmarshal([]byte(s), &m)
 		if err == nil {
-			return &TOSCAValue{Value: readNestedValue(m, nestedKeys...)}, nil
+			return &TOSCAValue{Value: getNestedValue(m, nestedKeys...)}, nil
 		}
 
 		var l []interface{}
 		err = json.Unmarshal([]byte(s), &l)
 		if err == nil {
-			return &TOSCAValue{Value: readNestedValue(l, nestedKeys...)}, nil
+			return &TOSCAValue{Value: getNestedValue(l, nestedKeys...)}, nil
 		}
 
 		return &TOSCAValue{Value: s}, nil
