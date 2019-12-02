@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/moby/moby/client"
+	"github.com/docker/engine/client"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"

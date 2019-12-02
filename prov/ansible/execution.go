@@ -31,8 +31,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/engine/client"
 	"github.com/mitchellh/mapstructure"
-	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"gopkg.in/yaml.v2"

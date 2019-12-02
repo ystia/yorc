@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/moby/moby/client"
+	"github.com/docker/engine/client"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -33,7 +33,7 @@ import (
 
 func newMockDockerClient(t *testing.T, doer func(*http.Request) (*http.Response, error)) *client.Client {
 	// this is hacky due to the way NewClient behave in this version (waiting for )
-	// will be improved soon https://github.com/moby/moby/blob/8bb5a28eed5eba5651c6e48eb401c03be938b4c1/client/client.go#L213 (v > v17.05.0)
+	// will be improved soon https://github.com/docker/engine/blob/8bb5a28eed5eba5651c6e48eb401c03be938b4c1/client/client.go#L213 (v > v17.05.0)
 	hc := &http.Client{
 		Transport: &http.Transport{},
 	}

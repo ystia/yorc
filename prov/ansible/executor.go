@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moby/moby/client"
+	"github.com/docker/engine/client"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
