@@ -19,6 +19,7 @@ VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
 VERSION:=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
+YORC_VERSION=$(VERSION)
 VERSION_META:=$(shell echo `echo $(BUILD_TAGS) | tr ' ' '.'`)
 VERSION:=$(if $(VERSION_META),$(VERSION)+$(VERSION_META),$(VERSION))
 COMMIT_HASH=$(shell git rev-parse HEAD)
@@ -30,7 +31,6 @@ TF_CONSUL_PLUGIN_VERSION=$(shell grep "tf_consul_plugin_version" versions.yaml |
 TF_AWS_PLUGIN_VERSION=$(shell grep "tf_aws_plugin_version" versions.yaml | awk '{print $$2}')
 TF_OPENSTACK_PLUGIN_VERSION=$(shell grep "tf_openstack_plugin_version" versions.yaml | awk '{print $$2}')
 TF_GOOGLE_PLUGIN_VERSION=$(shell grep "tf_google_plugin_version" versions.yaml | awk '{print $$2}')
-YORC_VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 
 # Should be updated when changing major version
 YORC_PACKAGE=github.com/ystia/yorc/v4
@@ -52,6 +52,7 @@ build: test
 	 -X $(YORC_PACKAGE)/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
 	 -X $(YORC_PACKAGE)/commands/bootstrap.alien4cloudVersion=$(ALIEN4CLOUD_VERSION) \
 	 -X $(YORC_PACKAGE)/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
+	 -X $(YORC_PACKAGE)/commands/bootstrap.yorcVersion=$(YORC_VERSION) \
 	 -X $(YORC_PACKAGE)/server/info.YorcVersion=$(VERSION) \
 	 -X $(YORC_PACKAGE)/server/info.GitCommit=$(COMMIT_HASH) \
 	 "
