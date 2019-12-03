@@ -121,6 +121,42 @@ func testValueAssignments(t *testing.T) {
 	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
 	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", output.ValueAssign.Value)
 
+	t.Run("groupDeploymentsDefinitionStoreValueAssignments", func(t *testing.T) {
+		t.Run("testValueAssignmentsWithNodeProperties", func(t *testing.T) {
+			testValueAssignmentsWithNodeProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithNodeAttributes", func(t *testing.T) {
+			testValueAssignmentsWithNodeAttributes(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipProperties", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipProperties", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipProperties", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipAttributes", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipAttributes(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithCapabilityProperties", func(t *testing.T) {
+			testValueAssignmentsWithCapabilityProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithCapabilityAttributes", func(t *testing.T) {
+			testValueAssignmentsWithCapabilityAttributes(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithTopologyInputs", func(t *testing.T) {
+			testValueAssignmentsWithTopologyInputs(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithTopologyOutputs", func(t *testing.T) {
+			testValueAssignmentsWithTopologyOutputs(t, ctx, deploymentID)
+		})
+	})
+
+}
+
+func testValueAssignmentsWithNodeProperties(t *testing.T, ctx context.Context, deploymentID string) {
 	// Then test node properties
 	type nodePropArgs struct {
 		nodeName     string
@@ -196,9 +232,11 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithNodeAttributes(t *testing.T, ctx context.Context, deploymentID string) {
 	// Then test node attributes
-	err = SetInstanceAttribute(ctx, deploymentID, "VANode1", "0", "lit", "myLiteral")
+	err := SetInstanceAttribute(ctx, deploymentID, "VANode1", "0", "lit", "myLiteral")
 	require.NoError(t, err)
 	err = SetInstanceAttributeComplex(ctx, deploymentID, "VANode1", "0", "listAttr", []int{42, 43, 44})
 	require.NoError(t, err)
@@ -281,7 +319,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithRelationshipProperties(t *testing.T, ctx context.Context, deploymentID string) {
 	// Then test relationship properties
 	type relPropArgs struct {
 		nodeName     string
@@ -353,9 +393,12 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithRelationshipAttributes(t *testing.T, ctx context.Context, deploymentID string) {
 
 	// Then test relationship attributes value assignment
-	err = SetInstanceRelationshipAttribute(ctx, deploymentID, "VANode2", "0", "0", "literalAttr", "user rel literal attr")
+	err := SetInstanceRelationshipAttribute(ctx, deploymentID, "VANode2", "0", "0", "literalAttr", "user rel literal attr")
 	require.NoError(t, err)
 	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "mapAttr", map[string]string{"U1": "V1", "U2": "V2"})
 	require.NoError(t, err)
@@ -450,6 +493,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithCapabilityProperties(t *testing.T, ctx context.Context, deploymentID string) {
 
 	// Then test capabilities properties value assignment
 	type capPropArgs struct {
@@ -535,9 +581,12 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithCapabilityAttributes(t *testing.T, ctx context.Context, deploymentID string) {
 
 	// Then test capabilities attributes value assignment
-	err = SetInstanceCapabilityAttribute(ctx, deploymentID, "VANode1", "0", "host", "literalAttr", "user cap literal attr")
+	err := SetInstanceCapabilityAttribute(ctx, deploymentID, "VANode1", "0", "host", "literalAttr", "user cap literal attr")
 	require.NoError(t, err)
 	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "mapAttr", map[string]string{"U1": "V1", "U2": "V2"})
 	require.NoError(t, err)
@@ -658,7 +707,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithTopologyInputs(t *testing.T, ctx context.Context, deploymentID string) {
 	type topoInputArgs struct {
 		inputName  string
 		nestedKeys []string
@@ -707,7 +758,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithTopologyOutputs(t *testing.T, ctx context.Context, deploymentID string) {
 	type topoOutputArgs struct {
 		OutputName string
 		nestedKeys []string
