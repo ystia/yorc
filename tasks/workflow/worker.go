@@ -155,6 +155,7 @@ func (w *worker) cleanupScaledDownNodes(ctx context.Context, t *taskExecution) e
 	return nil
 }
 
+// worker handle a taskExecution
 func (w *worker) handleExecution(t *taskExecution) {
 	log.Debugf("Handle task execution:%+v", t)
 	err := t.notifyStart()
@@ -178,11 +179,21 @@ func (w *worker) handleExecution(t *taskExecution) {
 		}
 	}()
 
-	if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus == tasks.TaskStatusINITIAL {
-		metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
+	taskExecutionLabelID := metrics.Label{
+		Name:  "TaskID",
+		Value: t.taskID,
 	}
+	taskExecutionLabelStep := metrics.Label{
+		Name:  "Step",
+		Value: t.step,
+	}
+	taskExecutionLabelDeployment := metrics.Label{
+		Name:  "Deployment",
+		Value: t.targetID,
+	}
+	taskExecutionLabels := []metrics.Label{taskExecutionLabelID, taskExecutionLabelStep, taskExecutionLabelDeployment}
+	metrics.MeasureSinceWithLabels([]string{"task", "wait"}, t.creationDate, taskExecutionLabels)
 
-	metrics.MeasureSince([]string{"TaskExecution", "wait"}, t.creationDate)
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
@@ -196,9 +207,15 @@ func (w *worker) handleExecution(t *taskExecution) {
 		return
 	}
 	defer func(t *taskExecution, start time.Time) {
+
 		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String(), taskStatus.String()}), 1)
-			metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String()}), start)
+			taskExecutionLabelType := metrics.Label{
+				Name:  "Type",
+				Value: t.taskType.String(),
+			}
+			taskExecutionLabels := []metrics.Label{taskExecutionLabelDeployment, taskExecutionLabelType, taskExecutionLabelID}
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"task", taskStatus.String()}), 1, taskExecutionLabels)
+			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"task", "duration"}), start, taskExecutionLabels)
 		}
 	}(t, time.Now())
 
@@ -314,19 +331,33 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	ctx = operations.SetOperationLogFields(ctx, op)
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName, events.OperationName: op.Name})
 
+	executorOperationLabelDeployment := metrics.Label{
+		Name:  "Deployment",
+		Value: t.targetID,
+	}
+	executorOperationLabelName := metrics.Label{
+		Name:  "Name",
+		Value: op.Name,
+	}
+	executorOperationLabelNode := metrics.Label{
+		Name:  "Node",
+		Value: nodeType,
+	}
+	executorOperationLabels := []metrics.Label{executorOperationLabelDeployment, executorOperationLabelName, executorOperationLabelNode}
+
 	err = func() error {
-		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name}), time.Now())
+		defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
 		return exec.ExecOperation(ctx, w.cfg, t.taskID, t.targetID, nodeName, op)
 	}()
 	if err != nil {
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "failures"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "failures"}), 1, executorOperationLabels)
 		err2 := setNodeStatus(ctx, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err2 != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("failed to update node %q state to error", nodeName)
 		}
 		return ctx, err
 	}
-	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
+	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "successes"}), 1, executorOperationLabels)
 	return ctx, err
 }
 

@@ -261,19 +261,33 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			// Need to publish INITIAL status before RUNNING one with operationName set
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
+
+		executorDelegateLabelDeployment := metrics.Label{
+			Name:  "Deployment",
+			Value: deploymentID,
+		}
+		executorDelegateLabelName := metrics.Label{
+			Name:  "Name",
+			Value: delegateOp,
+		}
+		executorDelegateLabelNode := metrics.Label{
+			Name:  "Node",
+			Value: nodeType,
+		}
+		executorDelegateLabels := []metrics.Label{executorDelegateLabelDeployment, executorDelegateLabelName, executorDelegateLabelNode}
 		err = func() error {
-			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
+			defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate"}), time.Now(), executorDelegateLabels)
 			return provisioner.ExecDelegate(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, delegateOp)
 		}()
 
 		if err != nil {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "failures"}), 1, executorDelegateLabels)
 			for _, instanceName := range instances {
 				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "successes"}), 1, executorDelegateLabels)
 		for _, instanceName := range instances {
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 		}
@@ -308,10 +322,24 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			// Need to publish INITIAL status before RUNNING one with operationName set
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
+		executorOperationLabelDeployment := metrics.Label{
+			Name:  "Deployment",
+			Value: deploymentID,
+		}
+		executorOperationLabelName := metrics.Label{
+			Name:  "Name",
+			Value: op.Name,
+		}
+		executorOperationLabelNode := metrics.Label{
+			Name:  "Node",
+			Value: nodeType,
+		}
+		executorOperationLabels := []metrics.Label{executorOperationLabelDeployment, executorOperationLabelName, executorOperationLabelNode}
+
 		// In function of the operation, the execution is sync or async
 		if s.Async {
 			err = func() error {
-				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
+				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
 				action, timeInterval, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op, s.Name)
 				if err != nil {
 					return err
@@ -339,18 +367,18 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			}()
 		} else {
 			err = func() error {
-				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
+				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
 				return exec.ExecOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op)
 			}()
 		}
 		if err != nil {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "failures"}), 1, executorOperationLabels)
 			for _, instanceName := range instances {
 				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "successes"}), 1, executorOperationLabels)
 		if !s.Async {
 			for _, instanceName := range instances {
 				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)

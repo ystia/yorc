@@ -54,30 +54,35 @@ func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *a
 	return dispatcher
 }
 
-func getNbAndMaxTasksWaitTimeMs() (float32, float64, error) {
+func getNbAndMaxTasksWaitTimeMs() (float32, float64, string, error) {
 	now := time.Now()
 	var max float64
 	var nb float32
+	var maxTaskID string
 	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
 	if err != nil {
-		return nb, max, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nb, max, maxTaskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
 		status, err := tasks.GetTaskStatus(taskID)
 		if err != nil {
-			return nb, max, err
+			return nb, max, maxTaskID, err
 		}
 		if status == tasks.TaskStatusINITIAL {
 			nb++
 			createDate, err := tasks.GetTaskCreationDate(path.Base(taskKey))
 			if err != nil {
-				return nb, max, err
+				return nb, max, maxTaskID, err
 			}
-			max = math.Max(max, float64(now.Sub(createDate)/time.Millisecond))
+			blockTime := float64(now.Sub(createDate) / time.Millisecond)
+			if blockTime > max {
+				max = math.Max(max, blockTime)
+				maxTaskID = taskID
+			}
 		}
 	}
-	return nb, max, nil
+	return nb, max, maxTaskID, nil
 }
 
 func (d *Dispatcher) emitTasksMetrics() {
@@ -89,7 +94,7 @@ func (d *Dispatcher) emitTasksMetrics() {
 			select {
 			case <-time.After(time.Second):
 				metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
-				nb, maxWait, err := getNbAndMaxTasksWaitTimeMs()
+				nb, maxWait, maxWaitTaskID, err := getNbAndMaxTasksWaitTimeMs()
 				if err != nil {
 					now := time.Now()
 					if now.Sub(lastWarn) > 5*time.Minute {
@@ -99,8 +104,15 @@ func (d *Dispatcher) emitTasksMetrics() {
 					}
 					continue
 				}
-				metrics.AddSample([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait))
-				metrics.SetGauge([]string{"tasks", "nbWaiting"}, nb)
+				taskID, err := tasks.GetTaskTarget(maxWaitTaskID)
+				taskLabelDeployment := metrics.Label{
+					Name:  "Deployment",
+					Value: taskID,
+				}
+				taskLabels := []metrics.Label{taskLabelDeployment}
+
+				metrics.AddSampleWithLabels([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait), taskLabels)
+				metrics.SetGaugeWithLabels([]string{"tasks", "nbWaiting"}, nb, taskLabels)
 			case <-d.shutdownCh:
 				return
 			}

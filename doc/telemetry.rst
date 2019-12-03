@@ -113,24 +113,29 @@ Yorc REST API metrics
 Yorc Workers & Tasks metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-|              Metric Name              |                               Description                                |      Unit       | Metric Type |
-|                                       |                                                                          |                 |             |
-+=======================================+==========================================================================+=================+=============+
-| ``yorc.workers.free``                 | This tracks the number of free Yorc workers.                             | number of free  | gauge       |
-|                                       |                                                                          | workers         |             |
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-| ``tasks.maxBlockTimeMs``              | This measures the highest duration since creation for all waiting tasks. | milliseconds    | timer       |
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-| ``tasks.nbWaiting``                   | This tracks the number of tasks waiting for being processed.             | number of       | gauge       |
-|                                       |                                                                          | tasks           |             |
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-| ``tasks.wait``                        | This measures the finally waited time for a task being processed.        | milliseconds    | timer       |
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-| ``task.<DepID>.<Type>.<FinalStatus>`` | This counts by deployment and task type the final status of a task.      | number of tasks | counter     |
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-| ``task.<DepID>.<Type>``               | This measures the task processing duration.                              | milliseconds    | timer       |
-+---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+|           Metric Name            |         Labels              |                Description                      |      Unit       | Metric Type |
+|                                  |                             |                                                 |                 |             |
++==================================+=============================+=================================================+=================+=============+
+| ``yorc.workers.free``            |                             | This tracks the number of free Yorc workers.    | number of free  | gauge       |
+|                                  |                             |                                                 | workers         |             |
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+| ``yorc.tasks.maxBlockTimeMs``    | Deployment                  |  Measures the highest duration since creation   | milliseconds    | timer       |
+|                                  |                             |  for all waiting tasks.                         |                 |             |
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+| ``yorc.tasks.nbWaiting``         | Deployment                  |  Tracks the number of tasks waiting for being   | number of       | gauge       |
+|                                  |                             |  processed.                                     | tasks           |             |
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+| ``yorc.task.wait``               | Deployment                  |  Measures the finally waited time for a task    | milliseconds    | timer       |
+|                                  | Step                        |  being processed.                               |                 |             |
+|                                  | TaskID                      |                                                 |                 |             |
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+| ``yorc.task.<FinalStatus>``      | Deployment                  | Counts the number of tasks ending in a status.  | number of tasks | counter     |
+|                                  | Type                        |                                                 |                 |             |
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+| ``yorc.task.duration``           | Deployment                  | Measures a task processing duration.            | milliseconds    | timer       |
+|                                  | Type                        |                                                 |                 |             |
++----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 
 
 Yorc Executors metrics
@@ -140,19 +145,28 @@ There are two types of executors in Yorc "delegates executors" and "operations e
 TOSCA nodes (like an Openstack compute for instance) while Operations executors handle implementations of an lifecycle operations provided as part of the TOSCA node
 definition (like a shell script or an ansible playbook).
 
-In the below table <ExecType> is the executor type, <DepID> the deployment ID, <NodeType> the fully qualified TOSCA node type where dots where replaced by
+In the below table <ExecType> is the executor type (operation or delegate).
+The Name label is set to the operation or delegate name.
+The Deployment label is set to the deployment ID, and the Node lable is set to the fully qualified TOSCA node type where dots where replaced by
 dashes and <OpName> the TOSCA operation name where dots where replaced by dashes.
 
-+--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
-|                            Metric Name                             |                   Description                    |        Unit         | Metric Type |
-|                                                                    |                                                  |                     |             |
-+====================================================================+==================================================+=====================+=============+
-| ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>``           | This measures the duration of an execution.      | milliseconds        | timer       |
-+--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
-| ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.failures``  | This counts the number of failed executions.     | number of failures  | counter     |
-+--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
-| ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.successes`` | This counts the number of successful executions. | number of successes | counter     |
-+--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
+
++----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
+|           Metric Name                  |         Labels        |                Description                     |      Unit           | Metric Type |
+|                                        |                       |                                                |                     |             |
++========================================+=======================+================================================+=====================+=============+
+| ``yorc.executor.<ExecType>``           | Deployment            | This measures the duration of an execution.    | milliseconds        | timer       |
+|                                        | Node                  |                                                |                     |             |
+|                                        | Name                  |                                                |                     |             |
++----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
+| ``yorc.executor.<ExecType>.failures``  | Deployment            | Counts the number of failed executions.        | number of failures  | counter     |
+|                                        | Node                  |                                                |                     |             |
+|                                        | Name                  |                                                |                     |             |
++----------------------------------------+-----------------------+-------------------------------------------------+--------------------+-------------+
+| ``yorc.executor.<ExecType>.successes`` | Deployment            | Counts the number of successful executions.    | number of successes | counter     |
+|                                        | Node                  |                                                |                     |             |
+|                                        | Name                  |                                                |                     |             |
++----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
 
 Yorc SSH connection pool
 ~~~~~~~~~~~~~~~~~~~~~~~~
