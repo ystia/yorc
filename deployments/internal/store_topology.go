@@ -17,7 +17,6 @@ package internal
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
@@ -29,7 +28,7 @@ import (
 // StoreTopology stores a given topology.
 //
 // The given topology may be an import in this case importPrefix and importPath should be specified
-func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errGroup *errgroup.Group, topology tosca.Topology, deploymentID, topologyPrefix, importPrefix, importPath, rootDefPath string) error {
+func StoreTopology(ctx context.Context, errGroup *errgroup.Group, topology tosca.Topology, deploymentID, topologyPrefix, importPrefix, importPath, rootDefPath string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -39,15 +38,15 @@ func StoreTopology(ctx context.Context, consulStore consulutil.ConsulStore, errG
 	if err := StoreTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix)); err != nil {
 		return errors.Wrapf(err, "failed to store top level topology key names")
 	}
-	if err := storeImports(ctx, consulStore, errGroup, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
+	if err := storeImports(ctx, errGroup, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
 		return errors.Wrapf(err, "failed to store topology imports")
 	}
 
-	if err := StoreAllTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+	if err := StoreAllTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return errors.Wrapf(err, "failed to store topology types")
 	}
 
-	if err := StoreRepositories(ctx, consulStore, topology, topologyPrefix); err != nil {
+	if err := StoreRepositories(ctx, topology, topologyPrefix); err != nil {
 		return errors.Wrapf(err, "failed to store topology repositories")
 	}
 

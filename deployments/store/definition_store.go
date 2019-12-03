@@ -16,6 +16,7 @@ package store
 
 import (
 	"context"
+	"golang.org/x/sync/errgroup"
 	"path"
 	"sync"
 
@@ -97,7 +98,7 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 	if err != nil {
 		return errors.Wrapf(err, "failed to unmarshal TOSCA definition %q", definitionName)
 	}
-	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
+	errGroup, ctx := errgroup.WithContext(ctx)
 	name := topology.Metadata["template_name"]
 	if name == "" {
 		return errors.Errorf("Can't store builtin TOSCA definition %q, template_name is missing", definitionName)
@@ -131,20 +132,19 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		return internal.StoreTopologyTopLevelKeyNames(ctx, topology, topologyPrefix)
 	})
 	errGroup.Go(func() error {
-		return internal.StoreRepositories(ctx, consulStore, topology, topologyPrefix)
+		return internal.StoreRepositories(ctx, topology, topologyPrefix)
 	})
 	errGroup.Go(func() error {
-		return internal.StoreAllTypes(ctx, consulStore, topology, topologyPrefix, "")
+		return internal.StoreAllTypes(ctx, topology, topologyPrefix, "")
 	})
 	return errGroup.Wait()
 }
 
 // Deployment stores a whole deployment.
 func Deployment(ctx context.Context, topology tosca.Topology, deploymentID, rootDefPath string) error {
-	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
-
+	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.Go(func() error {
-		return internal.StoreTopology(ctx, consulStore, errGroup, topology, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"), "", "", rootDefPath)
+		return internal.StoreTopology(ctx, errGroup, topology, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"), "", "", rootDefPath)
 	})
 
 	return errGroup.Wait()

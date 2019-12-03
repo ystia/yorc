@@ -20,12 +20,11 @@ import (
 	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
 // StoreRepositories store repositories
-func StoreRepositories(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) error {
+func StoreRepositories(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
 	for repositoryName, repo := range topology.Repositories {
 		repoPrefix := path.Join(repositoriesPrefix, repositoryName)

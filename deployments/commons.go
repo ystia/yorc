@@ -99,7 +99,7 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 	case "list":
 		propResult, ok := values.([]interface{})
 		if ok {
-			for _,v := range propResult {
+			for _, v := range propResult {
 				item, ok := v.(map[string]interface{})
 				if ok {
 					addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
@@ -109,10 +109,10 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 	case "map":
 		propResult, ok := values.(map[string]interface{})
 		if ok {
-			for _,v := range propResult {
+			for _, v := range propResult {
 				item, ok := v.(map[string]interface{})
 				if ok {
-					addTypeDefault(ctx, deploymentID, baseDataType,currentDataType,  item, nestedKeys...)
+					addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
 				}
 			}
 
@@ -126,7 +126,6 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 	}
 	return nil
 }
-
 
 func addTypeDefault(ctx context.Context, deploymentID string, baseDataType, currentDataType string, values map[string]interface{}, nestedKeys ...string) error {
 	for currentDataType != "" {
@@ -180,7 +179,7 @@ func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, 
 			return &TOSCAValue{Value: va.Value}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			res, err := readComplexVA(ctx, deploymentID, va.Value, baseDataType, nestedKeys...)
-			if err != nil || res == nil  {
+			if err != nil || res == nil {
 				return nil, false, err
 			}
 			return &TOSCAValue{Value: res}, false, nil

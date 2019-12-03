@@ -26,28 +26,28 @@ import (
 )
 
 // StoreAllTypes stores all types of a given topology
-func StoreAllTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
-	storeDataTypes(ctx, consulStore, topology, topologyPrefix, importPath)
-	if err := storeNodeTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+func StoreAllTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
+	storeDataTypes(ctx, topology, topologyPrefix, importPath)
+	if err := storeNodeTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
-	if err := storeRelationshipTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+	if err := storeRelationshipTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
-	if err := storeCapabilityTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+	if err := storeCapabilityTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
-	if err := storeArtifactTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+	if err := storeArtifactTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
-	if err := storePolicyTypes(ctx, consulStore, topology, topologyPrefix, importPath); err != nil {
+	if err := storePolicyTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
 	return nil
 }
 
 // storePolicyTypes stores topology policy types
-func storePolicyTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	for policyName, policyType := range topology.PolicyTypes {
 		key := path.Join(topologyPrefix, "types", policyName)
 		policyType.ImportPath = importPath
@@ -61,7 +61,7 @@ func storePolicyTypes(ctx context.Context, consulStore consulutil.ConsulStore, t
 }
 
 // storeDataTypes store data types
-func storeDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	dataTypesPrefix := path.Join(topologyPrefix, "types")
 	for dataTypeName, dataType := range topology.DataTypes {
 		dtPrefix := path.Join(dataTypesPrefix, dataTypeName)
@@ -77,7 +77,7 @@ func storeDataTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 }
 
 // storeNodeTypes stores topology types
-func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+func storeNodeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
@@ -92,7 +92,7 @@ func storeNodeTypes(ctx context.Context, consulStore consulutil.ConsulStore, top
 }
 
 // storeRelationshipTypes stores topology relationships types
-func storeRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	for relationName, relationType := range topology.RelationshipTypes {
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		relationType.ImportPath = importPath
@@ -106,7 +106,7 @@ func storeRelationshipTypes(ctx context.Context, consulStore consulutil.ConsulSt
 }
 
 // storeCapabilityTypes stores topology capabilities types
-func storeCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	for capabilityTypeName, capabilityType := range topology.CapabilityTypes {
 		capabilityTypePrefix := path.Join(topologyPrefix, "types", capabilityTypeName)
 		capabilityType.ImportPath = importPath
@@ -120,7 +120,7 @@ func storeCapabilityTypes(ctx context.Context, consulStore consulutil.ConsulStor
 }
 
 // storeArtifactTypes stores topology artifacts types
-func storeArtifactTypes(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix, importPath string) error {
+func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for artTypeName, artType := range topology.ArtifactTypes {
 		// TODO(loicalbertin): remove it when migrating to Alien 2.2. Currently alien-base-types has org.alien4cloud.artifacts.AnsiblePlaybook types that do not derives from tosca.artifacts.Implementation
