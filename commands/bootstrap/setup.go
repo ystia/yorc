@@ -32,6 +32,7 @@ import (
 	"github.com/blang/semver"
 	"gopkg.in/yaml.v2"
 
+	"github.com/cheggaaa/pb/v3"
 	"github.com/ystia/yorc/v4/commands/httputil"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/ziputil"
@@ -480,14 +481,20 @@ func download(url, fileName, destinationPath string, overwrite bool) (string, er
 		defer outputFile.Close()
 
 		response, err := http.Get(url)
+
+		//bar
+		bar := pb.Full.Start(int(response.ContentLength))
+		barReader := bar.NewProxyReader(response.Body)
+
 		if err != nil {
 			outputFile.Close()
 			return filePath, err
 		}
 		defer response.Body.Close()
 
-		_, err = io.Copy(outputFile, response.Body)
+		_, err = io.Copy(outputFile, barReader)
 		outputFile.Close()
+		bar.Finish()
 		if err != nil {
 			return filePath, err
 		}

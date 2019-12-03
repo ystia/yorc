@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package adapter
 
 import (
-	"github.com/ystia/yorc/v4/commands"
-	_ "github.com/ystia/yorc/v4/commands/bootstrap"
-	_ "github.com/ystia/yorc/v4/commands/deployments"
-	_ "github.com/ystia/yorc/v4/commands/deployments/tasks"
-	_ "github.com/ystia/yorc/v4/commands/deployments/workflows"
-	_ "github.com/ystia/yorc/v4/commands/hostspool"
-	_ "github.com/ystia/yorc/v4/commands/locations"
-	"github.com/ystia/yorc/v4/log"
+	"github.com/pkg/errors"
 )
 
-func main() {
-	if err := commands.RootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
-	log.Debug("Exiting main...")
+type badRequestError struct {
+	msg string
+}
+
+func (e badRequestError) Error() string {
+	return e.msg
+}
+
+// IsBadRequestError checks if an error is an error due to a bad input
+func IsBadRequestError(err error) bool {
+	_, ok := errors.Cause(err).(badRequestError)
+	return ok
 }
