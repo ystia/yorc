@@ -60,13 +60,7 @@ func getNestedValue(value interface{}, nestedKeys ...string) interface{} {
 				}
 				value = v[ind]
 			case map[string]interface{}:
-				var ok bool
-				value, ok = v[nk]
-				if !ok {
-					// Not found
-					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
-					return nil
-				}
+				value = v[nk]
 			}
 		}
 	}
@@ -74,48 +68,8 @@ func getNestedValue(value interface{}, nestedKeys ...string) interface{} {
 	return value
 }
 
-func readComplexVA(ctx context.Context, deploymentID string, va *tosca.ValueAssignment, baseDataType string, nestedKeys ...string) (interface{}, error) {
-	var result interface{}
-	if len(nestedKeys) == 0 {
-		result = va.Value
-	} else {
-		switch va.Type {
-		case tosca.ValueAssignmentMap:
-			m, ok := va.Value.(map[string]interface{})
-			if ok {
-				// Check the key exists
-				_, ok := m[nestedKeys[0]]
-				if !ok {
-					// Not found
-					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
-					return nil, nil
-				}
-				// result is a  nested value
-				result = getNestedValue(m[nestedKeys[0]], nestedKeys[1:]...)
-			}
-		case tosca.ValueAssignmentList:
-			l, ok := va.Value.([]interface{})
-			if ok {
-				ind, err := strconv.Atoi(nestedKeys[0])
-				// Check the slice index is valid
-				if err != nil {
-					log.Printf("[ERROR] %q is not a valid array index", nestedKeys[0])
-					return nil, nil
-				}
-				if ind+1 > len(l) {
-					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
-					return nil, nil
-				}
-				// result is a  nested value
-				result = getNestedValue(l[ind], nestedKeys[1:]...)
-			}
-		case tosca.ValueAssignmentLiteral:
-			result = va.Value.(string)
-		}
-	}
-
-
-	//result = getNestedValue(va.Value, nestedKeys...)
+func readComplexVA(ctx context.Context, deploymentID string, value interface{}, baseDataType string, nestedKeys ...string) (interface{}, error) {
+	result := getNestedValue(value, nestedKeys...)
 	err := checkForDefaultValuesInComplexTypes(ctx, deploymentID, baseDataType, "", result, nestedKeys...)
 	if err != nil {
 		return nil, err
@@ -225,7 +179,7 @@ func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, 
 		case tosca.ValueAssignmentLiteral:
 			return &TOSCAValue{Value: va.Value}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
-			res, err := readComplexVA(ctx, deploymentID, va, baseDataType, nestedKeys...)
+			res, err := readComplexVA(ctx, deploymentID, va.Value, baseDataType, nestedKeys...)
 			if err != nil || res == nil  {
 				return nil, false, err
 			}
@@ -245,11 +199,14 @@ func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, 
 	return nil, false, nil
 }
 
-func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys ...string) (*TOSCAValue, error) {
+func getInstanceValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, baseDataType, vaPath string, nestedKeys ...string) (*TOSCAValue, error) {
 	kvp, _, err := consulutil.GetKV().Get(vaPath, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+
+	var va *tosca.ValueAssignment
+	// Build a Value assignment from JSON and determine if it's literal, map or list
 	if kvp != nil {
 		s := string(kvp.Value)
 		if isQuoted(s) {
@@ -259,20 +216,24 @@ func getInstanceValueAssignment(ctx context.Context, vaPath string, nestedKeys .
 			}
 		}
 
-		// let's try to unmarshall value into list, map or simply return string
+		// let's try to unmarshall value into list, map, otherwise keep it as a string
 		var m map[string]interface{}
 		err := json.Unmarshal([]byte(s), &m)
 		if err == nil {
-			return &TOSCAValue{Value: getNestedValue(m, nestedKeys...)}, nil
+			va = &tosca.ValueAssignment{Type: tosca.ValueAssignmentMap, Value: m}
 		}
 
-		var l []interface{}
-		err = json.Unmarshal([]byte(s), &l)
-		if err == nil {
-			return &TOSCAValue{Value: getNestedValue(l, nestedKeys...)}, nil
+		if va == nil {
+			var l []interface{}
+			err = json.Unmarshal([]byte(s), &l)
+			if err == nil {
+				va = &tosca.ValueAssignment{Type: tosca.ValueAssignmentMap, Value: l}
+			}
 		}
 
-		return &TOSCAValue{Value: s}, nil
+		if va == nil {
+			va = &tosca.ValueAssignment{Type: tosca.ValueAssignmentLiteral, Value: s}
+		}
 	}
-	return nil, nil
+	return getValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, baseDataType, va, nestedKeys...)
 }

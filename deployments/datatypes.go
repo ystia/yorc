@@ -16,11 +16,10 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/tosca"
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // GetTypePropertyDataType returns the type of a property as defined in its property definition
@@ -123,20 +122,24 @@ func GetTopologyOutputType(ctx context.Context, deploymentID, outputName string)
 
 func getTopologyInputOrOutputType(ctx context.Context, deploymentID, parameterName, parameterType string) (string, error) {
 	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, parameterName, parameterType)
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	if err != nil || !exist {
+		return "", err
 	}
-	if !exist {
-		return "", nil
+	return getTopologyInputOrOutputTypeFromParamDefinition(ctx, paramDef), nil
+}
+
+func getTopologyInputOrOutputTypeFromParamDefinition(ctx context.Context, parameterDefinition *tosca.ParameterDefinition) string {
+	if parameterDefinition == nil {
+		return ""
 	}
 
-	iType := paramDef.Type
+	iType := parameterDefinition.Type
 	if iType == "list" || iType == "map" {
-		if paramDef.EntrySchema.Type != "" {
-			iType += ":" + paramDef.EntrySchema.Type
+		if parameterDefinition.EntrySchema.Type != "" {
+			iType += ":" + parameterDefinition.EntrySchema.Type
 		} else {
 			iType += ":string"
 		}
 	}
-	return iType, nil
+	return iType
 }

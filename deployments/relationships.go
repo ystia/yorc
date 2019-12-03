@@ -124,9 +124,23 @@ func GetRelationshipAttributeValueFromRequirement(ctx context.Context, deploymen
 		return nil, err
 	}
 
+	var attrDataType string
+	if relationshipType != "" {
+		hasProp, err := TypeHasAttribute(ctx, deploymentID, relationshipType, attributeName, true)
+		if err != nil {
+			return nil, err
+		}
+		if hasProp {
+			attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, relationshipType, attributeName)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	result, err := getInstanceValueAssignment(ctx, capAttrPath, nestedKeys...)
+	result, err := getInstanceValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, attrDataType, capAttrPath, nestedKeys...)
 	if err != nil || result != nil {
 		// If there is an error or attribute was found
 		return result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)

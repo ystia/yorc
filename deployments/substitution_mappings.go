@@ -282,5 +282,5 @@ func getSubstitutionInstanceCapabilityAttribute(ctx context.Context, deploymentI
 	instanceName, capabilityName, attributeType, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	nodeAttrName := fmt.Sprintf(capabilityFormat, capabilityName, attributeName)
-	return getNodeAttributeValue(ctx, deploymentID, nodeName, instanceName, nodeAttrName, nestedKeys...)
+	return getNodeAttributeValue(ctx, deploymentID, nodeName, instanceName, nodeAttrName, attributeType, nestedKeys...)
 }

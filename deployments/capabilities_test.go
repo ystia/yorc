@@ -38,7 +38,7 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer) {
 
 	srv1.PopulateKV(t, map[string][]byte{
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":       []byte("0.0.0.0"),
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/credentials/user": []byte("ubuntu"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/credentials": []byte("{\"user\":\"ubuntu\"}"),
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/private_address":                      []byte("10.0.0.1"),
 		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/public_address":                       []byte("10.1.0.1"),
 	})

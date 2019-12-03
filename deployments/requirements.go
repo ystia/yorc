@@ -18,8 +18,6 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
@@ -198,15 +196,14 @@ func GetTargetInstanceForRequirement(ctx context.Context, deploymentID, nodeName
 		return "", nil, nil
 	}
 
-	value := new(string)
-	exist, err = storage.GetStore(types.StoreTypeDeployment).Get(path.Join(targetPrefix, "instances"), value)
+	exist, value, err := consulutil.GetStringValue(path.Join(targetPrefix, "instances"))
 	if err != nil {
 		return "", nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if !exist || *value == "" {
+	if !exist || value == "" {
 		return "", nil, nil
 	}
-	instanceIds := strings.Split(*value, ",")
+	instanceIds := strings.Split(value, ",")
 	return targetNodeName, instanceIds, nil
 }
 

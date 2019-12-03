@@ -89,15 +89,26 @@ func GetCapabilitiesOfType(ctx context.Context, deploymentID, typeName, capabili
 // GetCapabilityPropertyType retrieves the type for a given property in a given node capability
 // It returns false if there is no such property
 func GetCapabilityPropertyType(ctx context.Context, deploymentID, nodeName, capabilityName, propertyName string) (bool, string, error) {
-	capType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
-	if err != nil || capType == "" {
+	capabilityType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
+	if err != nil {
 		return false, "", err
 	}
-	propDef, err := getCapabilityPropertyDefinition(ctx, deploymentID, capType, propertyName)
-	if err != nil || propDef == nil {
-		return false, "", err
+	var propDataType string
+	var hasProp bool
+	if capabilityType != "" {
+		hasProp, err = TypeHasProperty(ctx, deploymentID, capabilityType, propertyName, true)
+		if err != nil {
+			return false, "", err
+		}
+		if hasProp {
+			propDataType, err = GetTypePropertyDataType(ctx, deploymentID, capabilityType, propertyName)
+			if err != nil {
+				return true, "", err
+			}
+		}
 	}
-	return true, propDef.Type, err
+
+	return hasProp, propDataType, err
 }
 
 func getCapabilityPropertyDefinition(ctx context.Context, deploymentID, capabilityTypeName, propertyName string) (*tosca.PropertyDefinition, error) {
@@ -276,7 +287,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-	result, err := getInstanceValueAssignment(ctx, capAttrPath, nestedKeys...)
+	result, err := getInstanceValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, capAttrPath, nestedKeys...)
 	if err != nil || result != nil {
 		// If there is an error or attribute was found
 		return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
@@ -290,12 +301,12 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 
 	var va *tosca.ValueAssignment
 	if node.Capabilities != nil {
+		ca, is := node.Capabilities[capabilityName]
+		if is && &ca != nil && ca.Attributes != nil {
+			va = ca.Attributes[attributeName]
+		}
+	}
 
-	}
-	ca, is := node.Capabilities[capabilityName]
-	if is && &ca != nil && ca.Attributes != nil {
-		va = ca.Attributes[attributeName]
-	}
 	result, err = getValueAssignment(ctx, deploymentID, nodeName, instanceName, "", attrDataType, va, nestedKeys...)
 	if err != nil || result != nil {
 		// If there is an error or attribute was found

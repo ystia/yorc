@@ -194,62 +194,36 @@ func GetNodeInstancesIds(ctx context.Context, deploymentID, nodeName string) ([]
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
 func GetHostedOnNode(ctx context.Context, deploymentID, nodeName string) (string, error) {
+	node, _, err := getHostedOnNodeAInstance(ctx, deploymentID, nodeName, "")
+	return node, err
+}
+
+func getHostedOnNodeAInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
-	for _, reqList := range node.Requirements {
-		for k, req := range reqList {
-			log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, k)
-			if ok, err := IsTypeDerivedFrom(ctx, deploymentID, req.Relationship, "tosca.relationships.HostedOn"); err != nil {
-				return "", err
-			} else if ok {
-				return req.Node, nil
+	for index, reqList := range node.Requirements {
+		for _, req := range reqList {
+			if req.Node == "" {
+				continue
 			}
-		}
-	}
-	return "", nil
-}
-
-// GetHostedOnNodeInstance returns the node name and instance name of the instance
-// defined in the first found relationship derived from "tosca.relationships.HostedOn"
-//
-// If there is no HostedOn relationship for this node then it returns an empty string
-func GetHostedOnNodeInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	// Going through requirements to find hosted on relationships
-	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
-	if err != nil {
-		return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentID, nodeName, reqKVPs)
-	for _, reqKey := range reqKVPs {
-		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
-		// Check requirement relationship
-		exist, value, err := consulutil.GetStringValue(path.Join(reqKey, "relationship"))
-		if err != nil {
-			return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		// Is this "HostedOn" relationship ?
-		if exist && value != "" {
-			if ok, err := IsTypeDerivedFrom(ctx, deploymentID, value, "tosca.relationships.HostedOn"); err != nil {
+			log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, index)
+			ok, err := IsTypeDerivedFrom(ctx, deploymentID, req.Relationship, "tosca.relationships.HostedOn")
+			if err != nil {
 				return "", "", err
-			} else if ok {
-				// An HostedOn! Great! let inspect the target node.
-				exist, value, err := consulutil.GetStringValue(path.Join(reqKey, "node"))
-				if err != nil {
-					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-				}
-				if !exist || value == "" {
-					return "", "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
+			}
+			if ok {
+				if instanceName == "" {
+					return req.Node, "", err
 				}
 				// Get the corresponding target instances
-				hostNodeName, hostInstances, err := GetTargetInstanceForRequirement(ctx, deploymentID, nodeName, path.Base(reqKey), instanceName)
+				hostNodeName, hostInstances, err := GetTargetInstanceForRequirement(ctx, deploymentID, nodeName, strconv.Itoa(index), instanceName)
 				if err != nil {
-					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+					return "", "", err
 				}
 				if hostNodeName != "" && len(hostInstances) > 0 {
 					return hostNodeName, hostInstances[0], nil
@@ -258,6 +232,14 @@ func GetHostedOnNodeInstance(ctx context.Context, deploymentID, nodeName, instan
 		}
 	}
 	return "", "", nil
+}
+
+// GetHostedOnNodeInstance returns the node name and instance name of the instance
+// defined in the first found relationship derived from "tosca.relationships.HostedOn"
+//
+// If there is no HostedOn relationship for this node then it returns an empty string
+func GetHostedOnNodeInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
+	return getHostedOnNodeAInstance(ctx, deploymentID, nodeName, instanceName)
 }
 
 // IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy
@@ -295,7 +277,7 @@ func GetNodesHostedOn(ctx context.Context, deploymentID, hostNode string) ([]str
 	return stackNodes, nil
 }
 
-func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
+func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, attrDataType string, nestedKeys ...string) (*TOSCAValue, error) {
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
@@ -305,18 +287,6 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instance
 	nodeType, err := checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, node.Type)
 	if err != nil {
 		return nil, err
-	}
-
-	var attrDataType string
-	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, attributeName, true)
-	if err != nil {
-		return nil, err
-	}
-	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// Check if the node attribute value can be retrieved at node template level
@@ -349,7 +319,7 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instance
 		return nil, err
 	}
 	if host != "" {
-		value, err := getNodeAttributeValue(ctx, deploymentID, host, instanceName, attributeName, nestedKeys...)
+		value, err := getNodeAttributeValue(ctx, deploymentID, host, instanceName, attributeName, attrDataType, nestedKeys...)
 		if err != nil || value != nil {
 			return value, err
 		}

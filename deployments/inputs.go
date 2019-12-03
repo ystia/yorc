@@ -24,22 +24,24 @@ import (
 // GetInputValue first checks if a non-empty field value exists for this input, if it doesn't then it checks for a non-empty field default.
 // If none of them exists then it returns an empty string.
 func GetInputValue(ctx context.Context, deploymentID, inputName string, nestedKeys ...string) (string, error) {
-	dataType, err := GetTopologyInputType(ctx, deploymentID, inputName)
-	if err != nil {
-		return "", err
-	}
 	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, inputName, "inputs")
-	if err != nil {
+	if err != nil || !exist {
 		return "", err
 	}
-	if !exist {
-		return "", nil
-	}
-
+	dataType := getTopologyInputOrOutputTypeFromParamDefinition(ctx, paramDef)
+	// Check first value
 	result, err := getValueAssignment(ctx, deploymentID, "", "", "", dataType, paramDef.Value, nestedKeys...)
 	if err != nil {
 		return "", err
 	}
+	// Check next default value
+	if result == nil {
+		result, err = getValueAssignment(ctx, deploymentID, "", "", "", dataType, paramDef.Default, nestedKeys...)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	if result == nil {
 		return "", errors.Wrapf(err, "Failed to get input %q value", inputName)
 	}
