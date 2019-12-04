@@ -97,7 +97,7 @@ Go Runtime metrics
 +------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 
 Yorc REST API metrics
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 +----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
 |              Metric Name               |                                     Description                                     |        Unit        | Metric Type |
@@ -110,16 +110,27 @@ Yorc REST API metrics
 |                                        | , HTTP verb and URL path as described above.                                        |                    |             |
 +----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
 
-Yorc Workers & Tasks metrics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Yorc Workers metrics
+~~~~~~~~~~~~~~~~~~~~
+
++---------------------------------------+-------------------------------------------------------------------+------------------------+-------------+
+|              Metric Name              |                               Description                         |      Unit              | Metric Type |
+|                                       |                                                                   |                        |             |
++=======================================+================================================================== +========================+=============+
+| ``yorc.workers.free``                 | This tracks the number of free Yorc workers.                      | number of free workers | gauge       |
++---------------------------------------+-------------------------------------------------------------------+------------------------+-------------+
+
+Yorc Tasks metrics
+~~~~~~~~~~~~~~~~~~
+
+The **Deployment** label is set to the deployment ID.
+The **Step** label is set to the name of the step that is execuded by a task.
+The *Type** label is set the the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
 
 +----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 |           Metric Name            |         Labels              |                Description                      |      Unit       | Metric Type |
 |                                  |                             |                                                 |                 |             |
 +==================================+=============================+=================================================+=================+=============+
-| ``yorc.workers.free``            |                             | This tracks the number of free Yorc workers.    | number of free  | gauge       |
-|                                  |                             |                                                 | workers         |             |
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 | ``yorc.tasks.maxBlockTimeMs``    | Deployment                  |  Measures the highest duration since creation   | milliseconds    | timer       |
 |                                  |                             |  for all waiting tasks.                         |                 |             |
 +----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
@@ -141,14 +152,14 @@ Yorc Workers & Tasks metrics
 Yorc Executors metrics
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There are two types of executors in Yorc "delegates executors" and "operations executors". Delegates executors handle the deployment of Yorc natively supported
-TOSCA nodes (like an Openstack compute for instance) while Operations executors handle implementations of an lifecycle operations provided as part of the TOSCA node
+There are two types of executors in Yorc ``delegate`` executors and ``operation`` executors. Delegate executors handle the deployment of Yorc natively supported
+TOSCA nodes (like an Openstack compute for instance) while Operation executors handle implementations of an lifecycle operation provided as part of the TOSCA node
 definition (like a shell script or an ansible playbook).
 
-In the below table <ExecType> is the executor type (operation or delegate).
-The Name label is set to the operation or delegate name.
-The Deployment label is set to the deployment ID, and the Node lable is set to the fully qualified TOSCA node type where dots where replaced by
-dashes and <OpName> the TOSCA operation name where dots where replaced by dashes.
+In the below table <ExecType> is the executor type (``operation`` or ``delegate``).
+The **Deployment** label is set to the deployment ID, and the **Node** label is set to the fully qualified TOSCA node type where dots were replaced by
+dashes.
+The **Name** label is set to the TOSCA operation name where dots were replaced by dashes.
 
 
 +----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
