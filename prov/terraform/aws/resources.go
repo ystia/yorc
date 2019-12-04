@@ -50,3 +50,12 @@ type ElasticIPAssociation struct {
 	AllocationID string `json:"allocation_id,omitempty"`
 	PublicIP     string `json:"public_ip,omitempty"`
 }
+
+// EBSVolume represents an EBS Volume
+// see : https://www.terraform.io/docs/providers/aws/r/ebs_volume.html
+type EBSVolume struct {
+	AvailabilityZone string `json:"availability_zone,omitempty"`
+	Encrypted        string `json:"Encrypted,omitempty"`
+	Size             int    `json:"size,omitempty"`
+	// TODO: finish prop
+}

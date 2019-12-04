@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
@@ -70,6 +69,8 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
 			testGenerateTerraformInfraForAWSNode(t, cfg, locationMgr)
 		})
-
+		t.Run("simpleEBS", func(t *testing.T) {
+			testSimpleEBS(t, cfg)
+		})
 	})
 }

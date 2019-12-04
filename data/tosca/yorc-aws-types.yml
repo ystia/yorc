@@ -55,3 +55,17 @@ node_types:
 
   yorc.nodes.aws.PublicNetwork:
     derived_from: tosca.nodes.Network
+
+  yorc.nodes.aws.EBSVolume:
+    derived_from: tosca.nodes.BlockStorage
+    properties:
+      availability_zone:
+        type: string
+        description: The AZ where the EBS volume will exist.
+        required: true
+      encrypted:
+        type: boolean
+        description: If true, the disk will be encrypted.
+        required: false
+
+

@@ -1,0 +1,27 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: EBSVolume
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-aws-types.yml>
+
+topology_template:
+  node_templates:
+    EBSVolume:
+      type: yorc.nodes.aws.EBSVolume
+      properties:
+        availability_zone: "europe-west1-b"
+        size: "12 GB"
+        encrypted: true
+      requirements:
+        - attachToComputeAttach:
+            type_requirement: attachment
+            node: Comp
+            capability: tosca.capabilities.Attachment
+            relationship: tosca.relationships.AttachTo

@@ -78,34 +78,42 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 		return false, nil, nil, nil, err
 	}
 	outputs := make(map[string]string)
-	var instances []string
-	switch nodeType {
-	case "yorc.nodes.aws.Compute":
-		instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
+	if err != nil {
+		return false, nil, nil, nil, err
+	}
+
+	for instNb, instanceName := range instances {
+		instanceState, err := deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
 		if err != nil {
 			return false, nil, nil, nil, err
 		}
+		if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+			// Do not generate something for this node instance (will be deleted if exists)
+			continue
+		}
 
-		for _, instanceName := range instances {
-			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
+		switch nodeType {
+		case "yorc.nodes.aws.Compute":
+			instances, err = deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
-			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
-				// Do not generate something for this node instance (will be deleted if exists)
-				continue
-			}
+
 			err = g.generateAWSInstance(ctx, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
+		case "yorc.nodes.aws.PublicNetwork":
+			// Nothing to do
+		case "yorc.node.aws.EBSVolume":
+			err = g.generateEBS(ctx, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure)
+			if err != nil {
+				return false, nil, nil, nil, err
+			}
+		default:
+			return false, nil, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 		}
-
-	case "yorc.nodes.aws.PublicNetwork":
-		// Nothing to do
-	default:
-		return false, nil, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
