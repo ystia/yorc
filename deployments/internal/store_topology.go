@@ -35,58 +35,56 @@ func StoreTopology(ctx context.Context, errGroup *errgroup.Group, topology tosca
 	default:
 	}
 	log.Debugf("Storing topology with name %q (Import prefix %q)", topology.Metadata[tosca.TemplateName], importPrefix)
-	if err := StoreTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix)); err != nil {
-		return errors.Wrapf(err, "failed to store top level topology key names")
-	}
-	if err := storeImports(ctx, errGroup, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
-		return errors.Wrapf(err, "failed to store topology imports")
-	}
 
-	if err := StoreAllTypes(ctx, topology, topologyPrefix, importPath); err != nil {
-		return errors.Wrapf(err, "failed to store topology types")
-	}
-
-	if err := StoreRepositories(ctx, topology, topologyPrefix); err != nil {
-		return errors.Wrapf(err, "failed to store topology repositories")
-	}
+	errGroup.Go(func() error {
+		return errors.Wrapf(StoreTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix)), "failed to store top level topology key names")
+	})
+	errGroup.Go(func() error {
+		return errors.Wrapf(storeImports(ctx, errGroup, topology, deploymentID, topologyPrefix, importPath, rootDefPath), "failed to store topology imports")
+	})
+	errGroup.Go(func() error {
+		return errors.Wrapf(StoreAllTypes(ctx, topology, topologyPrefix, importPath), "failed to store topology types")
+	})
+	errGroup.Go(func() error {
+		return errors.Wrapf(StoreRepositories(ctx, topology, topologyPrefix), "failed to store topology repositories")
+	})
 
 	// There is no need to parse a topology template if this topology template
 	// is declared in an import.
 	// Parsing only the topology template declared in the root topology file
 	isRootTopologyTemplate := importPrefix == ""
 	if isRootTopologyTemplate {
-		if err := storeInputs(ctx, topology, topologyPrefix); err != nil {
-			return errors.Wrapf(err, "failed to store topology inputs")
-		}
-		if err := storeOutputs(ctx, topology, topologyPrefix); err != nil {
-			return errors.Wrapf(err, "failed to store topology outputs")
-		}
-		if err := storeSubstitutionMappings(ctx, topology, topologyPrefix); err != nil {
-			return errors.Wrapf(err, "failed to store substitution mapping")
-		}
-		if err := storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath); err != nil {
-			return errors.Wrapf(err, "failed to store topology nodes")
-		}
-		if err := storePolicies(ctx, topology, topologyPrefix); err != nil {
-			return errors.Wrapf(err, "failed to store topology policies")
-		}
+		errGroup.Go(func() error {
+			return errors.Wrapf(storeInputs(ctx, topology, topologyPrefix), "failed to store topology inputs")
+		})
+		errGroup.Go(func() error {
+			return errors.Wrapf(storeOutputs(ctx, topology, topologyPrefix), "failed to store topology outputs")
+		})
+		errGroup.Go(func() error {
+			return errors.Wrapf(storeSubstitutionMappings(ctx, topology, topologyPrefix), "failed to store substitution mapping")
+		})
+		errGroup.Go(func() error {
+			return errors.Wrapf(storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath), "failed to store topology nodes")
+		})
+		errGroup.Go(func() error {
+			return errors.Wrapf(storePolicies(ctx, topology, topologyPrefix), "failed to store topology policies")
+		})
 	} else {
 		// For imported templates, storing substitution mappings if any
 		// as they contain details on service to application/node type mapping
-		if err := storeSubstitutionMappings(ctx, topology, path.Join(topologyPrefix, importPrefix)); err != nil {
-			return errors.Wrapf(err, "failed to store substitution mapping")
-		}
-	}
-
-	// Detect potential cycles in inline workflows
-	if err := checkNestedWorkflows(topology); err != nil {
-		return err
+		errGroup.Go(func() error {
+			return errors.Wrapf(storeSubstitutionMappings(ctx, topology, path.Join(topologyPrefix, importPrefix)), "failed to store substitution mapping")
+		})
 	}
 
 	if isRootTopologyTemplate {
-		if err := storeWorkflows(ctx, topology, deploymentID); err != nil {
-			return err
-		}
+		errGroup.Go(func() error {
+			// Detect potential cycles in inline workflows
+			if err := checkNestedWorkflows(topology); err != nil {
+				return err
+			}
+			return errors.Wrapf(storeWorkflows(ctx, topology, deploymentID), "failed to store workflows")
+		})
 	}
 	return nil
 }
