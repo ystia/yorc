@@ -208,7 +208,7 @@ func getHostedOnNodeAInstance(ctx context.Context, deploymentID, nodeName, insta
 	// Lets inspect the requirements to found hosted on relationships
 	for index, reqList := range node.Requirements {
 		for _, req := range reqList {
-			if req.Node == "" {
+			if req.Node == "" || req.Relationship == "" {
 				continue
 			}
 			log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, index)
@@ -471,15 +471,15 @@ func GetBooleanNodeProperty(ctx context.Context, deploymentID, nodeName, propert
 // This function returns a nil array for an empty string property value
 func GetStringArrayNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) ([]string, error) {
 	var result []string
-	va, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
+	strValue, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
 	if err != nil {
 		return nil, err
 	}
 
-	if va != nil && va.Value != nil {
-		result, ok := va.Value.([]string)
-		if ok {
-			return result, nil
+	if strValue != nil && strValue.RawString() != "" {
+		values := strings.Split(strValue.RawString(), ",")
+		for _, val := range values {
+			result = append(result, strings.TrimSpace(val))
 		}
 	}
 

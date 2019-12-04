@@ -17,6 +17,9 @@ package openstack
 import (
 	"context"
 	"encoding/json"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	"os"
 	"path"
@@ -155,11 +158,19 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, location
 	require.Error(t, err, "Expected to get an error on wrong node type")
 
 	// Case where the floating IP is available as a property
-	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes")
+	FIPCompute := new(tosca.NodeTemplate)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes/FIPCompute"), FIPCompute)
+	require.Nil(t, err)
+	require.True(t, exist)
 
-	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(nodePrefix, "FIPCompute/properties/ip"): []byte("1.2.3.4"),
-	})
+	FIPCompute.Properties["ip"] = &tosca.ValueAssignment{
+		Type:  0,
+		Value: "1.2.3.4",
+	}
+
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes/FIPCompute"), FIPCompute)
+	require.Nil(t, err)
+
 	_, outputs, _, _, err = g.generateTerraformInfraForNode(context.Background(), cfg, depID, "FIPCompute", tempdir)
 	require.NoError(t, err, "Unexpected error generating FIPCompute terraform info")
 

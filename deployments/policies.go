@@ -135,7 +135,12 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 	if err != nil {
 		return nil, err
 	}
-	return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, propDef.Default, nestedKeys...)
+	if propDef != nil {
+		return getValueAssignment(ctx, deploymentID, policyName, "", "", propDataType, propDef.Default, nestedKeys...)
+	}
+
+	// Not found
+	return nil, nil
 }
 
 // GetPolicyType returns the type of the policy

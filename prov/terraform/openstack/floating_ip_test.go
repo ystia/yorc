@@ -16,6 +16,9 @@ package openstack
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strings"
 	"testing"
@@ -40,18 +43,20 @@ func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer) {
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	g := osGenerator{}
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	data := make(map[string][]byte)
-
 	nodeName := "NetworkFIP" + depID
+	nodeNetwork := tosca.NodeTemplate{
+		Type: "yorc.nodes.openstack.FloatingIP",
+		Properties: map[string]*tosca.ValueAssignment{
+			"floating_network_name": {
+				Type:  0,
+				Value: "Public_Network",
+			},
+		},
+	}
 
-	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
+	require.Nil(t, err)
 
-	data[nodePrefix+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
-	data[nodePrefix+"/properties/floating_network_name"] = []byte("Public_Network")
-
-	srv1.PopulateKV(t, data)
 	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "Public_Network", gia.Pool)
@@ -68,17 +73,20 @@ func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer) {
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	g := osGenerator{}
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	data := make(map[string][]byte)
 	nodeName := "NetworkFIP" + depID
+	nodeNetwork := tosca.NodeTemplate{
+		Type: "yorc.nodes.openstack.FloatingIP",
+		Properties: map[string]*tosca.ValueAssignment{
+			"ip": {
+				Type:  0,
+				Value: "10.0.0.2",
+			},
+		},
+	}
 
-	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
+	require.Nil(t, err)
 
-	data[nodePrefix+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
-	data[nodePrefix+"/properties/ip"] = []byte("10.0.0.2")
-
-	srv1.PopulateKV(t, data)
 	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.Pool)
@@ -95,16 +103,20 @@ func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer) {
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
 
 	g := osGenerator{}
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	data := make(map[string][]byte)
 	nodeName := "NetworkFIP" + depID
+	nodeNetwork := tosca.NodeTemplate{
+		Type: "yorc.nodes.openstack.FloatingIP",
+		Properties: map[string]*tosca.ValueAssignment{
+			"ip": {
+				Type:  0,
+				Value: "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6",
+			},
+		},
+	}
 
-	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
-	data[nodePrefix+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
-	data[nodePrefix+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
+	require.Nil(t, err)
 
-	srv1.PopulateKV(t, data)
 	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.Pool)

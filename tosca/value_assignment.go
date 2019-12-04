@@ -249,6 +249,7 @@ func (p *ValueAssignment) unmarshalYAML(unmarshal func(interface{}) error) error
 	// First try with a List
 	var l []interface{}
 	if err := unmarshal(&l); err == nil {
+		l := cleanUpInterfaceArray(l)
 		p.Value = l
 		p.Type = ValueAssignmentList
 		return nil

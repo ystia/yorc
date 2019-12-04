@@ -16,6 +16,9 @@ package openstack
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"testing"
 
@@ -316,13 +319,19 @@ func testOSInstanceWithServerGroup(t *testing.T, srv *testutil.TestServer) {
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
 
+	serverGroupNode := tosca.NodeTemplate{
+		Type: "yorc.nodes.openstack.ServerGroup",
+	}
+
+	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/ServerGroupPolicy_sg"), serverGroupNode)
+	require.Nil(t, err)
+
 	srv.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/ServerGroupPolicy_sg/type"):                []byte("yorc.nodes.openstack.ServerGroup"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/ServerGroupPolicy_sg/0/attributes/id"): []byte("my_sg_id"),
 	})
 
 	resourceTypes := getOpenstackResourceTypes(locationProps)
-	err := g.generateOSInstance(
+	err = g.generateOSInstance(
 		context.Background(),
 		osInstanceOptions{
 			cfg:            cfg,

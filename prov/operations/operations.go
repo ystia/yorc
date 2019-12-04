@@ -36,8 +36,12 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
 	if requirementName != "" {
+		requirementIndex, err = deployments.GetRequirementIndexByNameForNode(ctx, deploymentID, nodeName, requirementName)
+		if err != nil {
+			return prov.Operation{}, err
+		}
 		if requirementIndex == "" {
-			return prov.Operation{}, errors.Errorf("Unable to find requirement index for requirement name:%q", requirementName)
+			return prov.Operation{}, errors.Errorf("Unable to found requirement key for requirement name:%q", requirementName)
 		}
 	}
 	if isRelationshipOp {

@@ -17,6 +17,9 @@ package google
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	"path"
 	"testing"
@@ -124,16 +127,21 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, srv1 *testutil.TestServe
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 
+	nodeAddress := tosca.NodeTemplate{
+		Type: "yorc.nodes.google.Address",
+	}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/address_Compute"), nodeAddress)
+	require.Nil(t, err)
+
 	// Simulate the google address "ip_address" attribute registration
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/address_Compute/type"):                        []byte("yorc.nodes.google.Address"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/address_Compute/0/attributes/ip_address"): []byte("1.2.3.4"),
 	})
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	env := make([]string, 0)
-	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string), &env)
+	err = g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"

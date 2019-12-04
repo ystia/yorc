@@ -510,11 +510,16 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 			}
 
 			// Update the compute node with new requirement
-			node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+			node, err := getNodeTemplateStruct(ctx, deploymentID, computeNodeName)
 			if err != nil {
 				return err
 			}
-			nodePrefix := path.Join(consulutil.DeploymentKVPrefix, "topology", "nodes", computeNodeName)
+
+			reqMap := make(map[string]tosca.RequirementAssignment)
+			reqMap["local_storage"] = req
+
+			node.Requirements = append(node.Requirements, reqMap)
+			nodePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", computeNodeName)
 			return storage.GetStore(storageTypes.StoreTypeDeployment).Set(nodePrefix, node)
 		}
 	}

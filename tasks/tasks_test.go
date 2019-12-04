@@ -19,6 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"reflect"
 	"testing"
@@ -28,6 +31,14 @@ import (
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
+
+	node3 := tosca.NodeTemplate{
+		Type: "tosca.nodes.Compute",
+	}
+
+	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/id1/topology/nodes/node3", node3)
+	require.Nil(t, err)
+
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/t1/targetId": []byte("id1"),
 		consulutil.TasksPrefix + "/t1/status":   []byte("0"),
@@ -384,7 +395,7 @@ func testGetInstances(t *testing.T) {
 		{"TaskRelatedNodes", args{"t2", "id1", "node2"}, []string{"0", "1"}, false},
 		{"TaskDoesntExistDeploymentDoes", args{"TaskDoesntExist", "id1", "node2"}, []string{"0", "1"}, false},
 		{"TaskDoesntExistDeploymentDoesInstanceDont", args{"TaskDoesntExist", "id1", "node3"}, []string{}, false},
-		{"TaskDoesntExistDeploymentToo", args{"TaskDoesntExist", "idDoesntExist", "node2"}, []string{}, false},
+		{"TaskDoesntExistDeploymentToo", args{"TaskDoesntExist", "idDoesntExist", "node2"}, []string{}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

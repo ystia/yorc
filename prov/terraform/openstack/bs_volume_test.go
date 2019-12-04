@@ -16,6 +16,9 @@ package openstack
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
 	"testing"
@@ -58,15 +61,20 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer) 
 		{"volume1TB", "1 tb", 1000},
 		{"volume1TiB", "1 TiB", 1100},
 	}
-	nodesPrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes")
 	for i, tt := range testData {
-		t.Log("Registering Key")
-		// Create a test key/value pair
-		data := make(map[string][]byte)
-		data[path.Join(nodesPrefix, tt.nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
-		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
+		nodeBS := tosca.NodeTemplate{
+			Type: "yorc.nodes.openstack.BlockStorage",
+			Properties: map[string]*tosca.ValueAssignment{
+				"size": {
+					Type:  0,
+					Value: tt.inputSize,
+				},
+			},
+		}
 
-		srv1.PopulateKV(t, data)
+		err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", tt.nodeName), nodeBS)
+		require.Nil(t, err)
+
 		bsv, err := g.generateOSBSVolume(ctx, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
@@ -98,15 +106,20 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 		{"volume3", "M 1500"},
 		{"volume4", "GB"},
 	}
-	nodesPrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes")
 	for i, tt := range testData {
-		t.Log("Registering Key")
-		// Create a test key/value pair
-		data := make(map[string][]byte)
-		data[path.Join(nodesPrefix, tt.nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
-		data[path.Join(nodesPrefix, tt.nodeName, "properties/size")] = []byte(tt.inputSize)
+		nodeBS := tosca.NodeTemplate{
+			Type: "yorc.nodes.openstack.BlockStorage",
+			Properties: map[string]*tosca.ValueAssignment{
+				"size": {
+					Type:  0,
+					Value: tt.inputSize,
+				},
+			},
+		}
 
-		srv1.PopulateKV(t, data)
+		err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", tt.nodeName), nodeBS)
+		require.Nil(t, err)
+
 		_, err := g.generateOSBSVolume(ctx, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
@@ -126,17 +139,11 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer) 
 	var cfg config.Configuration
 	g := osGenerator{}
 
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	data := make(map[string][]byte)
 	nodeName := "volumeMissingSize"
 
-	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
-
-	srv1.PopulateKV(t, data)
 	_, err = g.generateOSBSVolume(ctx, cfg, locationProps, depID, nodeName, "0")
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
+	assert.Contains(t, err.Error(), "Can't get type for node")
 }
 
 func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer) {
@@ -152,15 +159,13 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer) {
 	locationProps := config.DynamicMap{"region": "Region_" + depID}
 	var cfg config.Configuration
 	g := osGenerator{}
-
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	data := make(map[string][]byte)
 	nodeName := "volumeWrongType"
+	nodeBS := tosca.NodeTemplate{
+		Type: "someorchestrator.nodes.openstack.BlockStorage",
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeBS)
+	require.Nil(t, err)
 
-	data[path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName, "type")] = []byte("someorchestrator.nodes.openstack.BlockStorage")
-
-	srv1.PopulateKV(t, data)
 	_, err = g.generateOSBSVolume(ctx, cfg, locationProps, depID, nodeName, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
@@ -183,16 +188,27 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	nodeName := "volumeOpts"
+	nodeBS := tosca.NodeTemplate{
+		Type: "yorc.nodes.openstack.BlockStorage",
+		Properties: map[string]*tosca.ValueAssignment{
+			"size": {
+				Type:  0,
+				Value: "1 GB",
+			},
+			"availability_zone": {
+				Type:  0,
+				Value: "az1",
+			},
+			"region": {
+				Type:  0,
+				Value: "Region2",
+			},
+		},
+	}
 
-	nodePrefix := path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeBS)
+	require.Nil(t, err)
 
-	data := make(map[string][]byte)
-	data[path.Join(nodePrefix, "type")] = []byte("yorc.nodes.openstack.BlockStorage")
-	data[path.Join(nodePrefix, "properties/size")] = []byte("1 GB")
-	data[path.Join(nodePrefix, "properties/availability_zone")] = []byte("az1")
-	data[path.Join(nodePrefix, "properties/region")] = []byte("Region2")
-
-	srv1.PopulateKV(t, data)
 	bsv, err := g.generateOSBSVolume(ctx, cfg, locationProps, depID, nodeName, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
