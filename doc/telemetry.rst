@@ -183,20 +183,23 @@ Yorc SSH connection pool
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-|                            Metric Name                             |                             Description                              |         Unit         | Metric Type |
-|                                                                    |                                                                      |                      |             |
-+====================================================================+======================================================================+======================+=============+
-| ``yorc.ssh-connections-pool.<connection_id>.sessions.open-failed`` | This tracks the number of failures when opening an SSH session       | number of            | counter     |
-|                                                                    | (multiplexed on top of an existing connection).                      | failures             |             |
-+--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.<connection_id>.sessions.creations``   | This measures the number of sessions created for a given connection. | number of sessions   | counter     |
-+--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.<connection_id>.sessions.closes``      | This measures the number of sessions closed for a given connection.  | number of sessions   | counter     |
-+--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.<connection_id>.sessions.open``        | This tracks the number of currently open sessions per connection     | number of sessions   | gauge       |
-|                                                                    |                                                                      |                      |             |
-+--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.creations.<connection_id>``            | This measures the number of created connections.                     | number of connection | counter     |
-+--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.closes.<connection_id>``               | This measures the number of closed connections.                      | number of connection | counter     |
-+--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+|                            Metric Name            |    Labels      |                             Description                              |         Unit         | Metric Type |
+|                                                   |                |                                                                      |                      |             |
++===================================================+================+======================================================================+======================+=============+
+| ``yorc.ssh-connections-pool.sessions.open-failed``| ConnectionName | This tracks the number of failures when opening an SSH session       | number of open sess  | counter     |
+|                                                   |                | (multiplexed on top of an existing connection).                      | failures             |             |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.sessions.creations``  | ConnectionName | This measures the number of sessions created for a given connection. | number of sessions   | counter     |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.sessions.closes``     | ConnectionName | This measures the number of sessions closed for a given connection.  | number of sessions   | counter     |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.sessions.open``       | ConnectionName | This tracks the number of currently open sessions per connection     | number of sessions   | gauge       |
+|                                                   |                |                                                                      |                      |             |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.creations``           |                | This measures the number of created connections.                     | number of connection | counter     |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.create-failed``       |                | This measures the number of failed create connections.               | number of conn create| counter     |
+|                                                   |                |                                                                      | failures             |             |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.closes``              |                | This measures the number of closed connections.                      | number of connection | counter     |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
