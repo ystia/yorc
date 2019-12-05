@@ -31,7 +31,7 @@ import (
 
 func testCapabilities(t *testing.T, srv1 *testutil.TestServer) {
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/capabilities.yaml")
 	require.Nil(t, err)
@@ -48,7 +48,7 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer) {
 	typ.Capabilities = map[string]tosca.CapabilityDefinition{
 		"undef": {Type: "yorc.capabilities.Undefined"},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.type.WithUndefCap", typ)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.type.WithUndefCap", typ)
 	require.Nil(t, err)
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {

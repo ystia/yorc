@@ -48,79 +48,86 @@ func StoreAllTypes(ctx context.Context, topology tosca.Topology, topologyPrefix,
 
 // storePolicyTypes stores topology policy types
 func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
+	kv := make([]*types.KeyValue, 0)
 	for policyName, policyType := range topology.PolicyTypes {
 		key := path.Join(topologyPrefix, "types", policyName)
 		policyType.ImportPath = importPath
 		policyType.Base = "policy"
-		err := storage.GetStore(types.StoreTypeDeployment).Set(key, policyType)
-		if err != nil {
-			return err
-		}
+
+		kv = append(kv, &types.KeyValue{
+			Key:   key,
+			Value: policyType,
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }
 
 // storeDataTypes store data types
 func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	dataTypesPrefix := path.Join(topologyPrefix, "types")
+	kv := make([]*types.KeyValue, 0)
 	for dataTypeName, dataType := range topology.DataTypes {
 		dtPrefix := path.Join(dataTypesPrefix, dataTypeName)
 		dataType.ImportPath = importPath
 		dataType.Base = "data"
-		err := storage.GetStore(types.StoreTypeDeployment).Set(dtPrefix, dataType)
-		if err != nil {
-			return err
-		}
+		kv = append(kv, &types.KeyValue{
+			Key:   dtPrefix,
+			Value: dataType,
+		})
 	}
 
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }
 
 // storeNodeTypes stores topology types
 func storeNodeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
+	kv := make([]*types.KeyValue, 0)
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
 		nodeType.ImportPath = importPath
 		nodeType.Base = "node"
-		err := storage.GetStore(types.StoreTypeDeployment).Set(nodeTypePrefix, nodeType)
-		if err != nil {
-			return err
-		}
+		kv = append(kv, &types.KeyValue{
+			Key:   nodeTypePrefix,
+			Value: nodeType,
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }
 
 // storeRelationshipTypes stores topology relationships types
 func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
+	kv := make([]*types.KeyValue, 0)
 	for relationName, relationType := range topology.RelationshipTypes {
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		relationType.ImportPath = importPath
 		relationType.Base = "relationship"
-		err := storage.GetStore(types.StoreTypeDeployment).Set(relationTypePrefix, relationType)
-		if err != nil {
-			return err
-		}
+		kv = append(kv, &types.KeyValue{
+			Key:   relationTypePrefix,
+			Value: relationType,
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }
 
 // storeCapabilityTypes stores topology capabilities types
 func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
+	kv := make([]*types.KeyValue, 0)
 	for capabilityTypeName, capabilityType := range topology.CapabilityTypes {
 		capabilityTypePrefix := path.Join(topologyPrefix, "types", capabilityTypeName)
 		capabilityType.ImportPath = importPath
 		capabilityType.Base = "capability"
-		err := storage.GetStore(types.StoreTypeDeployment).Set(capabilityTypePrefix, capabilityType)
-		if err != nil {
-			return err
-		}
+		kv = append(kv, &types.KeyValue{
+			Key:   capabilityTypePrefix,
+			Value: capabilityType,
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }
 
 // storeArtifactTypes stores topology artifacts types
 func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
+	kv := make([]*types.KeyValue, 0)
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for artTypeName, artType := range topology.ArtifactTypes {
 		// TODO(loicalbertin): remove it when migrating to Alien 2.2. Currently alien-base-types has org.alien4cloud.artifacts.AnsiblePlaybook types that do not derives from tosca.artifacts.Implementation
@@ -133,10 +140,10 @@ func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPr
 		artTypePrefix := path.Join(typesPrefix, artTypeName)
 		artType.ImportPath = importPath
 		artType.Base = "artifact"
-		err := storage.GetStore(types.StoreTypeDeployment).Set(artTypePrefix, artType)
-		if err != nil {
-			return err
-		}
+		kv = append(kv, &types.KeyValue{
+			Key:   artTypePrefix,
+			Value: artType,
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }

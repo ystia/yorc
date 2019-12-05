@@ -63,7 +63,7 @@ func Test_addOutput(t *testing.T) {
 func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, locationMgr locations.Manager) {
 	t.Parallel()
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	depID := path.Base(t.Name())
 	yamlName := "testdata/topology_test.yaml"
 	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
@@ -168,7 +168,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, location
 		Value: "1.2.3.4",
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes/FIPCompute"), FIPCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes/FIPCompute"), FIPCompute)
 	require.Nil(t, err)
 
 	_, outputs, _, _, err = g.generateTerraformInfraForNode(context.Background(), cfg, depID, "FIPCompute", tempdir)

@@ -14,7 +14,10 @@
 
 package storage
 
-import "github.com/ystia/yorc/v4/storage/types"
+import (
+	"context"
+	"github.com/ystia/yorc/v4/storage/types"
+)
 
 // Store is an abstraction for different key-value store implementations.
 // A store must be able to store, retrieve and delete key-value pairs,
@@ -25,7 +28,13 @@ type Store interface {
 	// The implementation automatically marshalls the value.
 	// The marshalling format depends on the implementation. It can be JSON, gob etc.
 	// The key must not be "" and the value must not be nil.
-	Set(k string, v interface{}) error
+	Set(ctx context.Context, k string, v interface{}) error
+	// set a collection of key-values
+	// The implementation automatically marshalls the value.
+	// The marshalling format depends on the implementation. It can be JSON, gob etc.
+	// It's the implementation concern to define storage mode (ie concurrently or serial)
+	// ctx is the context provided for eventually cancelling a storage action
+	SetCollection(ctx context.Context, keyValues []*types.KeyValue) error
 	// Get retrieves the value for the given key.
 	// The implementation automatically unmarshalls the value.
 	// The unmarshalling source depends on the implementation. It can be JSON, gob etc.
@@ -46,7 +55,7 @@ type Store interface {
 	// Deleting a non-existing key-value pair does NOT lead to an error.
 	// The key must not be "".
 	// If recursive is true, all sub-keys are deleted too.
-	Delete(k string, recursive bool) error
+	Delete(ctx context.Context, k string, recursive bool) error
 	// Types defines all the Store types concerned by this store.
 	Types() []types.StoreType
 }

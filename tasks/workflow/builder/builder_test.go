@@ -28,7 +28,7 @@ import (
 
 func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
-
+	ctx := context.Background()
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
@@ -52,7 +52,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 			},
 		},
 	}}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(prefix, wf)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
 	require.Nil(t, err)
 	time.Sleep(1 * time.Second)
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
@@ -76,7 +76,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 
 func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
-
+	ctx := context.Background()
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
@@ -98,7 +98,7 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 			},
 		},
 	}}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(prefix, wf)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
 	require.Nil(t, err)
 
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
@@ -114,7 +114,7 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 
 func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
-
+	ctx := context.Background()
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
@@ -130,7 +130,7 @@ func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServe
 			},
 		},
 	}}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(prefix, wf)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
 	require.Nil(t, err)
 
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
@@ -142,7 +142,7 @@ func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServe
 func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	t.Log("Registering Keys")
-
+	ctx := context.Background()
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
@@ -190,7 +190,7 @@ func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer) {
 			},
 		},
 	}}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(prefix, wf)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
 	require.Nil(t, err)
 
 	steps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)

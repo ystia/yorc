@@ -352,6 +352,7 @@ func Test_execution_scale_resources(t *testing.T) {
 
 func Test_execution_del_resources(t *testing.T) {
 	t.Skip()
+	ctx := context.Background()
 	srv, _ := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	deploymentID := "Dep-ID"
@@ -370,11 +371,10 @@ func Test_execution_del_resources(t *testing.T) {
 	testNode := tosca.NodeTemplate{
 		Type: "fakeType",
 	}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/fakeType"), testNodeType)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/fakeType"), testNodeType)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/testNode"), testNode)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/testNode"), testNode)
 	require.Nil(t, err)
-	ctx := context.Background()
 	wantErr := false
 	k8s := newTestK8s()
 	operationType := k8sDeleteOperation
@@ -676,9 +676,9 @@ func Test_execution_manageNamespaceDeletion(t *testing.T) {
 			},
 		},
 	}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/fakeType"), testNodeType)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/fakeType"), testNodeType)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/testNode"), testNode)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/testNode"), testNode)
 	require.Nil(t, err)
 	//Setup
 	// One ns "default", 0 controler

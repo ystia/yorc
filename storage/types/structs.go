@@ -22,3 +22,8 @@ package types
 // Event
 // )
 type StoreType int
+
+type KeyValue struct {
+	Key   string
+	Value interface{}
+}

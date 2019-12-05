@@ -211,7 +211,6 @@ func getHostedOnNodeAInstance(ctx context.Context, deploymentID, nodeName, insta
 			if req.Node == "" || req.Relationship == "" {
 				continue
 			}
-			log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, index)
 			ok, err := IsTypeDerivedFrom(ctx, deploymentID, req.Relationship, "tosca.relationships.HostedOn")
 			if err != nil {
 				return "", "", err
@@ -878,5 +877,5 @@ func NodeHasProperty(ctx context.Context, deploymentID, nodeName, propertyName s
 
 // DeleteNode deletes the given node from the Consul store
 func DeleteNode(ctx context.Context, deploymentID, nodeName string) error {
-	return storage.GetStore(types.StoreTypeDeployment).Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", true)
+	return storage.GetStore(types.StoreTypeDeployment).Delete(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", true)
 }

@@ -93,7 +93,7 @@ func StoreTopology(ctx context.Context, errGroup *errgroup.Group, topology tosca
 //
 // This may be done under the import path in case of imports.
 func StoreTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
-	return storage.GetStore(types.StoreTypeDeployment).Set(topologyPrefix+"/metadata", topology.Metadata)
+	return storage.GetStore(types.StoreTypeDeployment).Set(ctx, topologyPrefix+"/metadata", topology.Metadata)
 }
 
 // storeOutputs stores topology outputs
@@ -109,7 +109,7 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 func storeParameterDefinition(ctx context.Context, paramsPrefix string, paramDefsMap map[string]tosca.ParameterDefinition) error {
 	for paramName, paramDef := range paramDefsMap {
 		paramDefPrefix := path.Join(paramsPrefix, paramName)
-		err := storage.GetStore(types.StoreTypeDeployment).Set(paramDefPrefix, paramDef)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, paramDefPrefix, paramDef)
 		if err != nil {
 			return err
 		}

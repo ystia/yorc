@@ -31,7 +31,10 @@ import (
 // StoreWorkflow stores a workflow
 func StoreWorkflow(ctx context.Context, deploymentID, workflowName string, workflow *tosca.Workflow) error {
 	wfPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", workflowName)
+	return storage.GetStore(types.StoreTypeDeployment).Set(ctx, wfPrefix, *transformedWorkflow(workflow))
+}
 
+func transformedWorkflow(workflow *tosca.Workflow) *tosca.Workflow {
 	for _, step := range workflow.Steps {
 		for _, activity := range step.Activities {
 			if activity.CallOperation != "" {
@@ -42,19 +45,20 @@ func StoreWorkflow(ctx context.Context, deploymentID, workflowName string, workf
 			}
 		}
 	}
-
-	return storage.GetStore(types.StoreTypeDeployment).Set(wfPrefix, workflow)
+	return workflow
 }
 
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) error {
+	kv := make([]*types.KeyValue, 0)
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
-		err := StoreWorkflow(ctx, deploymentID, wfName, &workflow)
-		if err != nil {
-			return err
-		}
+		wfPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName)
+		kv = append(kv, &types.KeyValue{
+			Key:   wfPrefix,
+			Value: *transformedWorkflow(&workflow),
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }
 
 // checkNestedWorkflows detect potential cycle in all nested workflows

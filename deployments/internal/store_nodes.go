@@ -16,22 +16,29 @@ package internal
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
+	"path/filepath"
 )
 
 // storeNodes stores topology nodes
 func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath, rootDefPath string) error {
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
+
+	kv := make([]*types.KeyValue, 0)
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
-		err := storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, node)
-		if err != nil {
-			return errors.Wrapf(err, "failed to store node with name:%q and value:%+v", nodeName, node)
+		for _, artDef := range node.Artifacts {
+			artFile := filepath.Join(rootDefPath, filepath.FromSlash(path.Join(importPath, artDef.File)))
+			artDef.File = artFile
 		}
+
+		kv = append(kv, &types.KeyValue{
+			Key:   nodePrefix,
+			Value: node,
+		})
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }

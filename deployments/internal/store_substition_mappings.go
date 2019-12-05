@@ -26,7 +26,7 @@ func storeSubstitutionMappings(ctx context.Context, topology tosca.Topology, top
 	substitutionPrefix := path.Join(topologyPrefix, "substitution_mappings")
 	substitution := topology.TopologyTemplate.SubstitionMappings
 	if substitution != nil {
-		return storage.GetStore(types.StoreTypeDeployment).Set(substitutionPrefix, substitution)
+		return storage.GetStore(types.StoreTypeDeployment).Set(ctx, substitutionPrefix, substitution)
 	}
 	return nil
 }

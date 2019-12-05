@@ -26,17 +26,17 @@ import (
 // StoreRepositories store repositories
 func StoreRepositories(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
+	kv := make([]*types.KeyValue, 0)
 	for repositoryName, repo := range topology.Repositories {
 		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
 		// Default repository token is password
 		if repo.Credit.TokenType == "" {
 			repo.Credit.TokenType = "password"
 		}
-		err := storage.GetStore(types.StoreTypeDeployment).Set(repoPrefix, repo)
-		if err != nil {
-			return err
-		}
+		kv = append(kv, &types.KeyValue{
+			Key:   repoPrefix,
+			Value: repo,
+		})
 	}
-
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }

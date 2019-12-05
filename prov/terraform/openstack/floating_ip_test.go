@@ -35,7 +35,7 @@ import (
 func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	depID := path.Base(t.Name())
 
 	yamlName := "testdata/OSBaseImports.yaml"
@@ -54,7 +54,7 @@ func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer) {
 		},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
 	require.Nil(t, err)
 
 	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
@@ -66,7 +66,7 @@ func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer) {
 func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
 	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
@@ -84,7 +84,7 @@ func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer) {
 		},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
 	require.Nil(t, err)
 
 	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")
@@ -96,7 +96,7 @@ func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer) {
 func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	depID := path.Base(t.Name())
 	yamlName := "testdata/OSBaseImports.yaml"
 	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
@@ -114,7 +114,7 @@ func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer) {
 		},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeNetwork)
 	require.Nil(t, err)
 
 	gia, err := g.generateFloatingIP(context.Background(), depID, nodeName, "0")

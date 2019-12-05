@@ -31,7 +31,7 @@ import (
 
 func testRequirements(t *testing.T, srv1 *testutil.TestServer) {
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	node := tosca.NodeTemplate{Type: "tosca.nodes.Compute"}
 	node.Requirements = []tosca.RequirementAssignmentMap{
 		{"network": tosca.RequirementAssignment{Node: "TNode1"}},
@@ -43,11 +43,11 @@ func testRequirements(t *testing.T, srv1 *testutil.TestServer) {
 		{"storage_other": tosca.RequirementAssignment{Node: "TNode5", TypeRequirement: "storage", Relationship: "my_relationship", Capability: "yorc.capabilities.Assignable"}},
 	}
 
-	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1", node)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1", node)
 	require.Nil(t, err)
 
 	node2 := tosca.NodeTemplate{Type: "yorc.nodes.google.Compute"}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/t1/topology/nodes/TNode5", node2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/TNode5", node2)
 	require.Nil(t, err)
 
 	t.Run("groupDeploymentsRequirements", func(t *testing.T) {

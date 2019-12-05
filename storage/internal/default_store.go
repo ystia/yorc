@@ -15,10 +15,10 @@
 package internal
 
 import (
+	"context"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/storage/types"
-
 	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/types"
 )
 
 type consulStore struct {
@@ -29,7 +29,7 @@ func NewStore() *consulStore {
 	return &consulStore{encoding.JSON}
 }
 
-func (c *consulStore) Set(k string, v interface{}) error {
+func (c *consulStore) Set(ctx context.Context, k string, v interface{}) error {
 	if err := CheckKeyAndValue(k, v); err != nil {
 		return err
 	}
@@ -40,6 +40,26 @@ func (c *consulStore) Set(k string, v interface{}) error {
 	}
 
 	return consulutil.StoreConsulKey(k, data)
+}
+
+func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyValue) error {
+	if keyValues == nil || len(keyValues) == 0 {
+		return nil
+	}
+	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
+	for _, kv := range keyValues {
+		if err := CheckKeyAndValue(kv.Key, kv.Value); err != nil {
+			return err
+		}
+
+		data, err := c.codec.Marshal(kv.Value)
+		if err != nil {
+			return err
+		}
+
+		consulStore.StoreConsulKey(kv.Key, data)
+	}
+	return errGroup.Wait()
 }
 
 func (c *consulStore) Get(k string, v interface{}) (bool, error) {
@@ -71,7 +91,7 @@ func (c *consulStore) Keys(k string) ([]string, error) {
 	return consulutil.GetKeys(k)
 }
 
-func (c *consulStore) Delete(k string, recursive bool) error {
+func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) error {
 	return consulutil.Delete(k, recursive)
 }
 

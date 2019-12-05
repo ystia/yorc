@@ -126,11 +126,11 @@ func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, cfg config
 func testSimpleComputeInstanceWithAddress(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-
+	ctx := context.Background()
 	nodeAddress := tosca.NodeTemplate{
 		Type: "yorc.nodes.google.Address",
 	}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/address_Compute"), nodeAddress)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/address_Compute"), nodeAddress)
 	require.Nil(t, err)
 
 	// Simulate the google address "ip_address" attribute registration

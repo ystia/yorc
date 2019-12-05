@@ -31,12 +31,12 @@ import (
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
-
+	ctx := context.Background()
 	node3 := tosca.NodeTemplate{
 		Type: "tosca.nodes.Compute",
 	}
 
-	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/id1/topology/nodes/node3", node3)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/id1/topology/nodes/node3", node3)
 	require.Nil(t, err)
 
 	srv.PopulateKV(t, map[string][]byte{

@@ -15,6 +15,7 @@
 package monitoring
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
@@ -29,7 +30,7 @@ import (
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
-
+	ctx := context.Background()
 	cfg := config.Configuration{
 		HTTPAddress: "localhost",
 		ServerID:    "0",
@@ -60,9 +61,9 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 			"time_interval": &tosca.ValueAssignment{Type: 0, Value: "1s"},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring1/topology/policies/TCPMonitoring", policy1)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/policies/TCPMonitoring", policy1)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring5/topology/policies/TCPMonitoring", policy1)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring5/topology/policies/TCPMonitoring", policy1)
 	require.Nil(t, err)
 
 	policy2 := tosca.Policy{
@@ -73,7 +74,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 			"time_interval": &tosca.ValueAssignment{Type: 0, Value: "1s"},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring1/topology/policies/HTTPMonitoring", policy2)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/policies/HTTPMonitoring", policy2)
 	require.Nil(t, err)
 
 	policy3 := tosca.Policy{
@@ -84,21 +85,21 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 			"time_interval": &tosca.ValueAssignment{Type: 0, Value: "1s"},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring3/topology/policies/HTTPMonitoring", policy3)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring3/topology/policies/HTTPMonitoring", policy3)
 	require.Nil(t, err)
 
 	nodeCompute := tosca.NodeTemplate{
 		Type: "yorc.nodes.openstack.Compute",
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring1/topology/nodes/Compute1", nodeCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/nodes/Compute1", nodeCompute)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring1/topology/nodes/Compute2", nodeCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/nodes/Compute2", nodeCompute)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring2/topology/nodes/Compute1", nodeCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring2/topology/nodes/Compute1", nodeCompute)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring3/topology/nodes/Compute1", nodeCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring3/topology/nodes/Compute1", nodeCompute)
 	require.Nil(t, err)
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/monitoring5/topology/nodes/Compute1", nodeCompute)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring5/topology/nodes/Compute1", nodeCompute)
 	require.Nil(t, err)
 
 	srv.PopulateKV(t, map[string][]byte{

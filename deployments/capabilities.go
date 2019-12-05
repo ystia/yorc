@@ -419,7 +419,7 @@ func SetInstanceCapabilityAttribute(ctx context.Context, deploymentID, nodeName,
 // SetInstanceCapabilityAttributeComplex sets an instance capability attribute that may be a literal or a complex data type
 func SetInstanceCapabilityAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-	err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, attrPath, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -450,7 +450,7 @@ func SetCapabilityAttributeComplexForAllInstances(ctx context.Context, deploymen
 	}
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-		err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, attrPath, attributeValue)
 		if err != nil {
 			return err
 		}

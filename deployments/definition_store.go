@@ -156,7 +156,7 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 	}
 
 	if len(extensionsMap) > 0 {
-		return storage.GetStore(storageTypes.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath), extensionsMap)
+		return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath), extensionsMap)
 	}
 
 	return nil
@@ -417,7 +417,7 @@ func storeOperationOutputOnNodeType(ctx context.Context, deploymentID, typeName,
 	if err != nil {
 		return err
 	}
-	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(typePath, nodeType)
+	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, typePath, nodeType)
 }
 
 func operationExists(interfaces map[string]tosca.InterfaceDefinition, interfaceName, operationName string) bool {
@@ -471,7 +471,7 @@ func storeOperationOutputOnRelationshipType(ctx context.Context, deploymentID, t
 	if err != nil {
 		return err
 	}
-	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(typePath, relationshipType)
+	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, typePath, relationshipType)
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
@@ -520,7 +520,7 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 
 			node.Requirements = append(node.Requirements, reqMap)
 			nodePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", computeNodeName)
-			return storage.GetStore(storageTypes.StoreTypeDeployment).Set(nodePrefix, node)
+			return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, nodePrefix, node)
 		}
 	}
 

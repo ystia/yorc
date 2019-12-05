@@ -72,7 +72,7 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer) 
 			},
 		}
 
-		err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", tt.nodeName), nodeBS)
+		err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", tt.nodeName), nodeBS)
 		require.Nil(t, err)
 
 		bsv, err := g.generateOSBSVolume(ctx, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
@@ -117,7 +117,7 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 			},
 		}
 
-		err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", tt.nodeName), nodeBS)
+		err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", tt.nodeName), nodeBS)
 		require.Nil(t, err)
 
 		_, err := g.generateOSBSVolume(ctx, cfg, locationProps, depID, tt.nodeName, strconv.Itoa(i))
@@ -163,7 +163,7 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer) {
 	nodeBS := tosca.NodeTemplate{
 		Type: "someorchestrator.nodes.openstack.BlockStorage",
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeBS)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeBS)
 	require.Nil(t, err)
 
 	_, err = g.generateOSBSVolume(ctx, cfg, locationProps, depID, nodeName, "0")
@@ -206,7 +206,7 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 		},
 	}
 
-	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeBS)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes", nodeName), nodeBS)
 	require.Nil(t, err)
 
 	bsv, err := g.generateOSBSVolume(ctx, cfg, locationProps, depID, nodeName, "0")

@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"context"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -50,7 +51,7 @@ func handleGetError(t *testing.T, err error, found bool) {
 func testStore(t *testing.T, srv1 *testutil.TestServer) {
 	store := &consulStore{encoding.JSON}
 	key := strconv.FormatInt(rand.Int63(), 10)
-
+	ctx := context.Background()
 	// Initially the key shouldn't exist
 	found, err := store.Get(key, new(Foo))
 	if err != nil {
@@ -61,7 +62,7 @@ func testStore(t *testing.T, srv1 *testutil.TestServer) {
 	}
 
 	// Deleting a non-existing key-value pair should NOT lead to an error
-	err = store.Delete(key, false)
+	err = store.Delete(ctx, key, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -70,13 +71,13 @@ func testStore(t *testing.T, srv1 *testutil.TestServer) {
 	val := Foo{
 		Bar: "baz",
 	}
-	err = store.Set(key, val)
+	err = store.Set(ctx, key, val)
 	if err != nil {
 		t.Error(err)
 	}
 
 	// Storing it again should not lead to an error but just overwrite it
-	err = store.Set(key, val)
+	err = store.Set(ctx, key, val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -97,7 +98,7 @@ func testStore(t *testing.T, srv1 *testutil.TestServer) {
 	}
 
 	// Delete
-	err = store.Delete(key, false)
+	err = store.Delete(ctx, key, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -113,7 +114,7 @@ func testStore(t *testing.T, srv1 *testutil.TestServer) {
 
 func testTypes(t *testing.T, srv1 *testutil.TestServer) {
 	store := &consulStore{encoding.JSON}
-
+	ctx := context.Background()
 	boolVar := true
 	// Omit byte
 	// Omit error - it's a Go builtin type but marshalling and then unmarshalling doesn't lead to equal objects
@@ -312,7 +313,7 @@ func testTypes(t *testing.T, srv1 *testutil.TestServer) {
 	for _, testVal := range testVals {
 		t.Run(testVal.subTestName, func(t2 *testing.T) {
 			key := strconv.FormatInt(rand.Int63(), 10)
-			err := store.Set(key, testVal.val)
+			err := store.Set(ctx, key, testVal.val)
 			if err != nil {
 				t.Error(err)
 			}

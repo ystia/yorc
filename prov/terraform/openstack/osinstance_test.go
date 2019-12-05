@@ -308,7 +308,7 @@ func testFipOSInstanceNotAllowed(t *testing.T, srv *testutil.TestServer) {
 func testOSInstanceWithServerGroup(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-
+	ctx := context.Background()
 	locationProps := config.DynamicMap{
 		"provisioning_over_fip_allowed": false,
 		"private_network_name":          "test",
@@ -323,7 +323,7 @@ func testOSInstanceWithServerGroup(t *testing.T, srv *testutil.TestServer) {
 		Type: "yorc.nodes.openstack.ServerGroup",
 	}
 
-	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/ServerGroupPolicy_sg"), serverGroupNode)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/ServerGroupPolicy_sg"), serverGroupNode)
 	require.Nil(t, err)
 
 	srv.PopulateKV(t, map[string][]byte{

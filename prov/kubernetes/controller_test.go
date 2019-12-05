@@ -30,13 +30,13 @@ import (
 
 func testsController(t *testing.T, srv *ctu.TestServer) {
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	typeDeploymentResource := tosca.NodeType{
 		Type: tosca.Type{
 			Base: "node",
 		},
 	}
-	err := storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource", typeDeploymentResource)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource", typeDeploymentResource)
 	require.Nil(t, err)
 
 	typeSimpleResource := tosca.NodeType{
@@ -44,7 +44,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			Base: "node",
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.SimpleResource", typeSimpleResource)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.SimpleResource", typeSimpleResource)
 	require.Nil(t, err)
 
 	typeServiceResource := tosca.NodeType{
@@ -52,7 +52,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			Base: "node",
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.ServiceResource", typeServiceResource)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.ServiceResource", typeServiceResource)
 	require.Nil(t, err)
 
 	typeStatefulSetResource := tosca.NodeType{
@@ -60,7 +60,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			Base: "node",
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource", typeStatefulSetResource)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource", typeStatefulSetResource)
 	require.Nil(t, err)
 
 	nodeDeploy := tosca.NodeTemplate{
@@ -70,13 +70,13 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			"resource_spec":              &tosca.ValueAssignment{Type: 0, Value: "{}"},
 			"service_dependency_lookups": &tosca.ValueAssignment{Type: 0, Value: ""}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-deploy", nodeDeploy)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-deploy", nodeDeploy)
 	require.Nil(t, err)
 
 	nodeDeployNoRes := tosca.NodeTemplate{
 		Type: "yorc.nodes.kubernetes.api.types.DeploymentResource",
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-deploy-nores-props", nodeDeployNoRes)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-deploy-nores-props", nodeDeployNoRes)
 	require.Nil(t, err)
 
 	nodeService := tosca.NodeTemplate{
@@ -85,7 +85,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			"resource_type": &tosca.ValueAssignment{Type: 0, Value: ""},
 			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-service", nodeService)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-service", nodeService)
 	require.Nil(t, err)
 
 	nodeSimpleResource := tosca.NodeTemplate{
@@ -95,7 +95,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"},
 		},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-simpleresource", nodeSimpleResource)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-simpleresource", nodeSimpleResource)
 	require.Nil(t, err)
 
 	nodeBadResource := tosca.NodeTemplate{
@@ -107,7 +107,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			},
 			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-simpleresource-badresource", nodeBadResource)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-simpleresource-badresource", nodeBadResource)
 	require.Nil(t, err)
 
 	nodeStatefulSetResource := tosca.NodeTemplate{
@@ -116,10 +116,8 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 			"resource_type": &tosca.ValueAssignment{Type: 0, Value: ""},
 			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"}},
 	}
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-statefulset", nodeStatefulSetResource)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-statefulset", nodeStatefulSetResource)
 	require.Nil(t, err)
-
-	ctx := context.Background()
 	k8s := newTestK8s()
 	tests := []struct {
 		name     string

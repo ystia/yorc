@@ -25,15 +25,16 @@ import (
 // storePolicies stores topology policies
 func storePolicies(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	nodesPrefix := path.Join(topologyPrefix, "policies")
+	kv := make([]*types.KeyValue, 0)
 	for _, policyMap := range topology.TopologyTemplate.Policies {
 		for policyName, policy := range policyMap {
 			nodePrefix := nodesPrefix + "/" + policyName
 
-			err := storage.GetStore(types.StoreTypeDeployment).Set(nodePrefix, policy)
-			if err != nil {
-				return err
-			}
+			kv = append(kv, &types.KeyValue{
+				Key:   nodePrefix,
+				Value: policy,
+			})
 		}
 	}
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }

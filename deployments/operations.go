@@ -105,12 +105,14 @@ func GetOperationImplementation(ctx context.Context, deploymentID, nodeTemplateI
 
 func normalizeImplementation(impl *tosca.Implementation, importPath string) *tosca.Implementation {
 	// For coherence with Tosca specification, if primary is not set, we set it with implementation file
-	// Add import path to have relative path to artifact location
+	// Add import path to have relative path to artifact location for artifact type only (importPath is "" for node template)
 	if &impl.Artifact != nil && impl.Artifact.File != "" {
 		impl.Artifact.File = path.Join(importPath, impl.Artifact.File)
 	}
 	if impl.Primary == "" {
 		impl.Primary = impl.Artifact.File
+	} else {
+		impl.Primary = path.Join(importPath, impl.Primary)
 	}
 	return impl
 }

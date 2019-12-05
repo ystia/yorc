@@ -170,7 +170,7 @@ func SetInstanceRelationshipAttribute(ctx context.Context, deploymentID, nodeNam
 // SetInstanceRelationshipAttributeComplex sets an instance relationship attribute that may be a literal or a complex data type
 func SetInstanceRelationshipAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, attrPath, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func SetRelationshipAttributeComplexForAllInstances(ctx context.Context, deploym
 	}
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-		err := storage.GetStore(types.StoreTypeDeployment).Set(attrPath, attributeValue)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, attrPath, attributeValue)
 		if err != nil {
 			return err
 		}
