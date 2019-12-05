@@ -17,12 +17,16 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
+	"path"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
@@ -356,10 +360,20 @@ func Test_execution_del_resources(t *testing.T) {
 		deploymentID: deploymentID,
 		nodeName:     "testNode",
 	}
-	srv.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/nodes/testNode/type":       []byte("fakeType"),
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/fakeType/.existFlag": []byte(""),
-	})
+
+	testNodeType := tosca.NodeType{
+		Type: tosca.Type{
+			Base:        "node",
+			DerivedFrom: "tosca.nodes.Root",
+		},
+	}
+	testNode := tosca.NodeTemplate{
+		Type: "fakeType",
+	}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/fakeType"), testNodeType)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/testNode"), testNode)
+	require.Nil(t, err)
 	ctx := context.Background()
 	wantErr := false
 	k8s := newTestK8s()
@@ -647,11 +661,25 @@ func Test_execution_manageNamespaceDeletion(t *testing.T) {
 		deploymentID: deploymentID,
 		nodeName:     "testNode",
 	}
-	srv.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/nodes/testNode/type":       []byte("fakeType"),
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/fakeType/.existFlag": []byte(""),
-	})
-	deployments.SetNodeProperty(context.Background(), deploymentID, "testNode", "volumeDeletable", "true")
+	testNodeType := tosca.NodeType{
+		Type: tosca.Type{
+			Base:        "node",
+			DerivedFrom: "tosca.nodes.Root",
+		},
+	}
+	testNode := tosca.NodeTemplate{
+		Type: "fakeType",
+		Properties: map[string]*tosca.ValueAssignment{
+			"volumeDeletable": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "true",
+			},
+		},
+	}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/fakeType"), testNodeType)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/testNode"), testNode)
+	require.Nil(t, err)
 	//Setup
 	// One ns "default", 0 controler
 	k8s := newTestSimpleK8s()

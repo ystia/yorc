@@ -880,8 +880,3 @@ func NodeHasProperty(ctx context.Context, deploymentID, nodeName, propertyName s
 func DeleteNode(ctx context.Context, deploymentID, nodeName string) error {
 	return storage.GetStore(types.StoreTypeDeployment).Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)+"/", true)
 }
-
-// SetNodeProperty sets a node property
-func SetNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName, propertyValue string) error {
-	return nil
-}
