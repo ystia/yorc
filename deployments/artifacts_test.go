@@ -35,14 +35,14 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/artifacts.yaml")
 	require.Nil(t, err)
-
+	ctx := context.Background()
 	// Update the type with importPath (not in Tosca specifications)
 	typeName := "yorc.types.A"
 	typToUpdate := new(tosca.NodeType)
 	err = getTypeStruct(deploymentID, typeName, typToUpdate)
 	require.Nil(t, err)
 	typToUpdate.ImportPath = "path/to/typeA"
-	err = storage.GetStore(types.StoreTypeDeployment).Set(consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.types.A", typToUpdate)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.types.A", typToUpdate)
 	require.Nil(t, err)
 
 	t.Run("groupDeploymentArtifacts", func(t *testing.T) {
