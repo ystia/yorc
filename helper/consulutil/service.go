@@ -36,10 +36,10 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chS
 
 	var httpString string
 	if sslEnabled {
-		httpString = fmt.Sprintf("https://localhost:%d/health", cfg.HTTPPort)
+		httpString = fmt.Sprintf("https://localhost:%d/server/health", cfg.HTTPPort)
 		log.Debugf("Register Yorc service with HTTPS check: %s", httpString)
 	} else {
-		httpString = fmt.Sprintf("http://localhost:%d/health", cfg.HTTPPort)
+		httpString = fmt.Sprintf("http://localhost:%d/server/health", cfg.HTTPPort)
 		log.Debugf("Register Yorc service with HTTP check: %s", httpString)
 	}
 

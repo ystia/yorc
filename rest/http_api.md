@@ -763,7 +763,7 @@ This request si made by Consul to check the Yorc service is alive
 
 'Accept' header should be set to 'application/json'.
 
-`GET /health`
+`GET /server/health`
 
 **Response**:
 
