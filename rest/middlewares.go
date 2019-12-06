@@ -102,10 +102,15 @@ func telemetryHandler(next http.Handler) http.Handler {
 		} else {
 			endpointPath = r.URL.Path[1:]
 		}
-		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"http", r.Method, endpointPath}), time.Now())
+		labels := []metrics.Label{
+			metrics.Label{Name: "method", Value: r.Method},
+			metrics.Label{Name: "path", Value: endpointPath},
+		}
+		defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"http", "duration"}), time.Now(), labels)
 		writer := &statusRecorderResponseWriter{ResponseWriter: w}
 		next.ServeHTTP(writer, r)
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"http", fmt.Sprint(writer.status), r.Method, endpointPath}), 1)
+		labels = append(labels, metrics.Label{Name: "status", Value: fmt.Sprint(writer.status)})
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"http", "total"}), 1, labels)
 	}
 
 	return http.HandlerFunc(fn)

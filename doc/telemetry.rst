@@ -99,16 +99,21 @@ Go Runtime metrics
 Yorc REST API metrics
 ~~~~~~~~~~~~~~~~~~~~~
 
-+----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
-|              Metric Name               |                                     Description                                     |        Unit        | Metric Type |
-|                                        |                                                                                     |                    |             |
-+========================================+=====================================================================================+====================+=============+
-| ``yorc.http.<Method>.<Path>``          | This measures the duration of an API call. <Method> is the HTTP verb and <Path> the | milliseconds       | timer       |
-|                                        | Path part of the URL where slashes are replaced by dashes.                          |                    |             |
-+----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
-| ``yorc.http.<Status>.<Method>.<Path>`` | This counts the number of API calls by HTTP status codes (ie: 200, 404, 500, ...)   | number of requests | counter     |
-|                                        | , HTTP verb and URL path as described above.                                        |                    |             |
-+----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
+The **method** lablel represents the HTTP verb
+The **path** lablel corresponds to the request URL where slashes are replaced by dashes
+The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...)
+
++------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
+|       Metric Name      |        Labels      |              Description                             |        Unit        | Metric Type |
+|                        |                    |                                                      |                    |             |
++========================+====================+======================================================+====================+=============+
+| ``yorc.http.duration`` | method             | This measures the duration of an API call.           | milliseconds       | timer       |
+|                        | path               |                                                      |                    |             |
++------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
+| ``yorc.http.total``    | method             |  This counts the number of API calls                 | number of requests | counter     |
+|                        | path               |                                                      |                    |             |
+|                        | status             |                                                      |                    |             |
++------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
 
 Yorc Workers metrics
 ~~~~~~~~~~~~~~~~~~~~
