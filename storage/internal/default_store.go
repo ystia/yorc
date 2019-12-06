@@ -25,6 +25,7 @@ type consulStore struct {
 	codec encoding.Codec
 }
 
+// NewStore returns a new Consul store
 func NewStore() *consulStore {
 	return &consulStore{encoding.JSON}
 }

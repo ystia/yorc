@@ -76,6 +76,7 @@ func LoadStores() error {
 	return nil
 }
 
+// GetStore returns the store related to a defined store type
 func GetStore(typ types.StoreType) Store {
 	return stores[typ]
 }

@@ -500,6 +500,9 @@ func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capa
 	return GetNodeTypeCapabilityType(ctx, deploymentID, parentType, capabilityName)
 }
 
+// GetNodeTypeCapabilityPropertyValueAssignment returns a Tosca value assignment
+// related to the capability property default value for the defined node type.
+// Its descends hierarchy and returns nil if no default value is found
 func GetNodeTypeCapabilityPropertyValueAssignment(ctx context.Context, deploymentID, nodeType, capabilityName, propertyName string) (*tosca.ValueAssignment, error) {
 	typ := new(tosca.NodeType)
 	err := getTypeStruct(deploymentID, nodeType, typ)

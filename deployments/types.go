@@ -27,12 +27,6 @@ import (
 	"path"
 )
 
-//RAF refactoring:
-
-// outputs ????
-//definition store enhancements
-//attributes notifications
-
 type typeMissingError struct {
 	name         string
 	deploymentID string

@@ -617,14 +617,19 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	// Only operation file is required for Singularity execution
 	if e.isSingularity {
 		e.Primary, err = deployments.GetOperationImplementationFile(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+		if err != nil {
+			return err
+		}
 	} else {
-		var operationImpl *tosca.Implementation
-		operationImpl, err = deployments.GetOperationImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
-		e.Primary = operationImpl.Primary
+		operationImpl, err := deployments.GetOperationImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		if err != nil {
+			return err
+		}
+		if operationImpl != nil {
+			e.Primary = operationImpl.Primary
+		}
 	}
-	if err != nil {
-		return err
-	}
+
 	e.Primary = strings.TrimSpace(e.Primary)
 	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
 		e.Primary = ""
@@ -632,7 +637,6 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 
 	// Get operation implementation file for upload purpose
 	if !e.isSingularity && e.Primary != "" {
-		var err error
 		e.PrimaryFile, err = deployments.GetOperationImplementationFile(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 		if err != nil {
 			return err

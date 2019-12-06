@@ -42,6 +42,7 @@ func getRequirements(ctx context.Context, deploymentID, nodeName string) ([]tosc
 	return node.Requirements, nil
 }
 
+// GetRequirementsByTypeForNode returns requirements for a defined type for a defined node.
 func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error) {
 	reqs := make([]Requirement, 0)
 	reqMap, err := getRequirements(ctx, deploymentID, nodeName)

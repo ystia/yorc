@@ -17,22 +17,14 @@ package deployments
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
-	"net/url"
 	"strconv"
 	"strings"
 )
-
-func urlEscapeAll(keys []string) []string {
-	t := make([]string, len(keys))
-	for i, k := range keys {
-		t[i] = url.QueryEscape(k)
-	}
-	return t
-}
 
 func getValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, baseDataType string, va *tosca.ValueAssignment, nestedKeys ...string) (*TOSCAValue, error) {
 	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, va, baseDataType, nestedKeys...)
@@ -102,7 +94,10 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 			for _, v := range propResult {
 				item, ok := v.(map[string]interface{})
 				if ok {
-					addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
+					err = addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -112,16 +107,18 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 			for _, v := range propResult {
 				item, ok := v.(map[string]interface{})
 				if ok {
-					addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
+					err = addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, item, nestedKeys...)
+					if err != nil {
+						return err
+					}
 				}
 			}
-
 		}
 	default:
 		// Check if result can be casted in map
 		propResult, ok := values.(map[string]interface{})
 		if ok {
-			addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, propResult, nestedKeys...)
+			return addTypeDefault(ctx, deploymentID, baseDataType, currentDataType, propResult, nestedKeys...)
 		}
 	}
 	return nil
@@ -176,13 +173,13 @@ func getValueAssignmentWithoutResolve(ctx context.Context, deploymentID string, 
 		case tosca.ValueAssignmentFunction:
 			return &TOSCAValue{Value: va.Value}, true, nil
 		case tosca.ValueAssignmentLiteral:
-			return &TOSCAValue{Value: va.Value}, false, nil
+			return &TOSCAValue{Value: fmt.Sprintf("%v", va.Value)}, false, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			res, err := readComplexVA(ctx, deploymentID, va.Value, baseDataType, nestedKeys...)
 			if err != nil || res == nil {
 				return nil, false, err
 			}
-			return &TOSCAValue{Value: res}, false, nil
+			return &TOSCAValue{Value: stringifyValue(res)}, false, nil
 		}
 	}
 
@@ -235,4 +232,25 @@ func getInstanceValueAssignment(ctx context.Context, deploymentID, nodeName, ins
 		}
 	}
 	return getValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, baseDataType, va, nestedKeys...)
+}
+
+func stringifyValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case []interface{}:
+		result := make([]interface{}, len(v))
+		for i, val := range v {
+			result[i] = stringifyValue(val)
+		}
+		return result
+	case map[string]interface{}:
+		result := make(map[string]interface{})
+		for key, val := range v {
+			result[key] = stringifyValue(val)
+		}
+		return result
+	default:
+		result := fmt.Sprintf("%v", v)
+		return result
+	}
+
 }
