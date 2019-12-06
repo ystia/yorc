@@ -150,7 +150,7 @@ The *Type** label is set the the task type (``Deploy``, ``Undeploy``, ``Purge``,
 
 
 Yorc Executors metrics
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 There are two types of executors in Yorc ``delegate`` executors and ``operation`` executors. Delegate executors handle the deployment of Yorc natively supported
 TOSCA nodes (like an Openstack compute for instance) while Operation executors handle implementations of an lifecycle operation provided as part of the TOSCA node
@@ -177,6 +177,23 @@ The **Name** label is set to the TOSCA operation name where dots were replaced b
 | ``yorc.executor.<ExecType>.successes`` | Deployment            | Counts the number of successful executions.    | number of successes | counter     |
 |                                        | Node                  |                                                |                     |             |
 |                                        | Name                  |                                                |                     |             |
++----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
+
+Yorc Actions scheduling metrics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If an action schedule misses because another task is already executing it, the TaskID label contains this task's ID.
+
++----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
+|           Metric Name                  |         Labels        |                Description                     |      Unit           | Metric Type |
+|                                        |                       |                                                |                     |             |
++========================================+=======================+================================================+=====================+=============+
+| ``yorc.scheduling.ticks``              |  ActionType           | Counts the number of action schedulings.       | number of schedules | counter     |
+|                                        |  ActionID             |                                                |                     |             |
++----------------------------------------+-----------------------+-------------------------------------------------+--------------------+-------------+
+| ``yorc.scheduling.misses``             | ActionType            | Counts the number of missed trigger due to     | number of missed    | counter     |
+|                                        | ActionID              | another execution already planned or running   | schedules           |             |
+|                                        | TaskID                |                                                |                     |             |
 +----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
 
 Yorc SSH connection pool
