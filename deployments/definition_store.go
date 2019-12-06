@@ -244,7 +244,7 @@ func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) e
 
 	// Check attributes definitions
 	for _, attributeDef := range nodeType.Attributes {
-		err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, "", attributeDef.Default, nodeType)
+		err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, "", attributeDef.Default, "node")
 		if err != nil {
 			return err
 		}
@@ -254,7 +254,7 @@ func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) e
 	for _, interfaceDef := range nodeType.Interfaces {
 		for _, operationDef := range interfaceDef.Operations {
 			for _, inputDef := range operationDef.Inputs {
-				err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, "", inputDef.ValueAssign, nodeType)
+				err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, "", inputDef.ValueAssign, "node")
 				if err != nil {
 					return err
 				}
@@ -263,10 +263,10 @@ func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) e
 	}
 
 	// Check requirements
-	return fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName, nodeTypeName, nodeType)
+	return fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName, nodeType)
 }
 
-func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName, nodeTypeName string, nodeType *tosca.NodeType) error {
+func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string, nodeType *tosca.NodeType) error {
 	// Check requirements
 	for reqIndex := range nodeType.Requirements {
 		ind := strconv.Itoa(reqIndex)
@@ -285,7 +285,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 
 		// Check attributes definitions
 		for _, attributeDef := range rType.Attributes {
-			err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, ind, attributeDef.Default, rType)
+			err := addOperationOutputOnType(ctx, deploymentID, nodeName, relationshipTypeName, ind, attributeDef.Default, "relationship")
 			if err != nil {
 				return err
 			}
@@ -295,7 +295,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 		for _, interfaceDef := range rType.Interfaces {
 			for _, operationDef := range interfaceDef.Operations {
 				for _, inputDef := range operationDef.Inputs {
-					err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, ind, inputDef.ValueAssign, rType)
+					err := addOperationOutputOnType(ctx, deploymentID, nodeName, relationshipTypeName, ind, inputDef.ValueAssign, "relationship")
 					if err != nil {
 						return err
 					}
@@ -307,7 +307,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 	return nil
 }
 
-func addOperationOutputOnType(ctx context.Context, deploymentID, nodeName, typeName, reqIndex string, va *tosca.ValueAssignment, tType interface{}) error {
+func addOperationOutputOnType(ctx context.Context, deploymentID, nodeName, typeName, reqIndex string, va *tosca.ValueAssignment, tType string) error {
 	if va == nil || va.Type != tosca.ValueAssignmentFunction {
 		return nil
 	}
@@ -388,24 +388,30 @@ func operationExists(interfaces map[string]tosca.InterfaceDefinition, interfaceN
 	return true
 }
 
-func storeOperationOutputOnType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output, tType interface{}) error {
+func storeOperationOutputOnType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output, tTypeName string) error {
 	// Retrieve the type in hierarchy which implements the operation
 	typeNameImpl, err := GetTypeImplementingAnOperation(ctx, deploymentID, typeName, fmt.Sprintf("%s.%s", interfaceName, operationName))
 	if err != nil {
 		return nil
 	}
 
-	err = getTypeStruct(deploymentID, typeNameImpl, tType)
-	if err != nil {
-		return err
-	}
-
+	var tType interface{}
 	var tTypeInterfaces map[string]tosca.InterfaceDefinition
-	switch t := tType.(type) {
-	case *tosca.NodeType:
-		tTypeInterfaces = t.Interfaces
-	case *tosca.RelationshipType:
-		tTypeInterfaces = t.Interfaces
+	switch tTypeName {
+	case "node":
+		tType = new(tosca.NodeType)
+		err = getTypeStruct(deploymentID, typeNameImpl, tType)
+		if err != nil {
+			return err
+		}
+		tTypeInterfaces = tType.(*tosca.NodeType).Interfaces
+	case "relationship":
+		tType = new(tosca.RelationshipType)
+		err = getTypeStruct(deploymentID, typeNameImpl, tType)
+		if err != nil {
+			return err
+		}
+		tTypeInterfaces = tType.(*tosca.RelationshipType).Interfaces
 	}
 
 	if !operationExists(tTypeInterfaces, interfaceName, operationName) {
