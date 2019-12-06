@@ -194,11 +194,11 @@ func GetNodeInstancesIds(ctx context.Context, deploymentID, nodeName string) ([]
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
 func GetHostedOnNode(ctx context.Context, deploymentID, nodeName string) (string, error) {
-	node, _, err := getHostedOnNodeAInstance(ctx, deploymentID, nodeName, "")
+	node, _, err := getHostedOnNodeAndInstance(ctx, deploymentID, nodeName, "")
 	return node, err
 }
 
-func getHostedOnNodeAInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
+func getHostedOnNodeAndInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
 	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
 	if err != nil {
 		return "", "", err
@@ -238,7 +238,7 @@ func getHostedOnNodeAInstance(ctx context.Context, deploymentID, nodeName, insta
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
 func GetHostedOnNodeInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
-	return getHostedOnNodeAInstance(ctx, deploymentID, nodeName, instanceName)
+	return getHostedOnNodeAndInstance(ctx, deploymentID, nodeName, instanceName)
 }
 
 // IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy

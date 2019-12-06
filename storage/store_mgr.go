@@ -17,7 +17,7 @@ package storage
 import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/storage/internal"
+	"github.com/ystia/yorc/v4/storage/internal/consul"
 	"github.com/ystia/yorc/v4/storage/types"
 	"path/filepath"
 	"plugin"
@@ -28,7 +28,7 @@ var stores map[types.StoreType]Store
 var defaultStore Store
 
 func init() {
-	defaultStore = internal.NewStore()
+	defaultStore = consul.NewStore()
 }
 
 // LoadStores fetch all store implementations found in plugins (ie for deployments, logs and events storage

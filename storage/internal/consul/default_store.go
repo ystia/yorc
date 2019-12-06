@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package consul
 
 import (
 	"context"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/internal"
 	"github.com/ystia/yorc/v4/storage/types"
 )
 
@@ -31,7 +32,7 @@ func NewStore() *consulStore {
 }
 
 func (c *consulStore) Set(ctx context.Context, k string, v interface{}) error {
-	if err := CheckKeyAndValue(k, v); err != nil {
+	if err := internal.CheckKeyAndValue(k, v); err != nil {
 		return err
 	}
 
@@ -49,7 +50,7 @@ func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyV
 	}
 	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
 	for _, kv := range keyValues {
-		if err := CheckKeyAndValue(kv.Key, kv.Value); err != nil {
+		if err := internal.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
 			return err
 		}
 
@@ -64,7 +65,7 @@ func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyV
 }
 
 func (c *consulStore) Get(k string, v interface{}) (bool, error) {
-	if err := CheckKeyAndValue(k, v); err != nil {
+	if err := internal.CheckKeyAndValue(k, v); err != nil {
 		return false, err
 	}
 
@@ -77,7 +78,7 @@ func (c *consulStore) Get(k string, v interface{}) (bool, error) {
 }
 
 func (c *consulStore) Exist(k string) (bool, error) {
-	if err := CheckKey(k); err != nil {
+	if err := internal.CheckKey(k); err != nil {
 		return false, err
 	}
 

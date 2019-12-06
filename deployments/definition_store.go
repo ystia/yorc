@@ -207,7 +207,7 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
 
 	var isCompute bool
-	err := fixGetOperationOutputs(ctx, deploymentID, nodeName)
+	err := fixGetOperationOutput(ctx, deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
@@ -231,7 +231,7 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 	return isCompute, err
 }
 
-func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) error {
+func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) error {
 	nodeTypeName, err := GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -244,7 +244,7 @@ func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) 
 
 	// Check attributes definitions
 	for _, attributeDef := range nodeType.Attributes {
-		err := addOperationOutputOnNodeType(ctx, deploymentID, nodeName, nodeTypeName, attributeDef.Default)
+		err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, "", attributeDef.Default, nodeType)
 		if err != nil {
 			return err
 		}
@@ -254,7 +254,7 @@ func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) 
 	for _, interfaceDef := range nodeType.Interfaces {
 		for _, operationDef := range interfaceDef.Operations {
 			for _, inputDef := range operationDef.Inputs {
-				err := addOperationOutputOnNodeType(ctx, deploymentID, nodeName, nodeTypeName, inputDef.ValueAssign)
+				err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, "", inputDef.ValueAssign, nodeType)
 				if err != nil {
 					return err
 				}
@@ -262,6 +262,11 @@ func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) 
 		}
 	}
 
+	// Check requirements
+	return fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName, nodeTypeName, nodeType)
+}
+
+func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName, nodeTypeName string, nodeType *tosca.NodeType) error {
 	// Check requirements
 	for reqIndex := range nodeType.Requirements {
 		ind := strconv.Itoa(reqIndex)
@@ -280,7 +285,7 @@ func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) 
 
 		// Check attributes definitions
 		for _, attributeDef := range rType.Attributes {
-			err := addOperationOutputOnRelationshipType(ctx, deploymentID, nodeName, nodeTypeName, ind, attributeDef.Default)
+			err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, ind, attributeDef.Default, rType)
 			if err != nil {
 				return err
 			}
@@ -290,7 +295,7 @@ func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) 
 		for _, interfaceDef := range rType.Interfaces {
 			for _, operationDef := range interfaceDef.Operations {
 				for _, inputDef := range operationDef.Inputs {
-					err := addOperationOutputOnRelationshipType(ctx, deploymentID, nodeName, nodeTypeName, ind, inputDef.ValueAssign)
+					err := addOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName, ind, inputDef.ValueAssign, rType)
 					if err != nil {
 						return err
 					}
@@ -302,7 +307,7 @@ func fixGetOperationOutputs(ctx context.Context, deploymentID, nodeName string) 
 	return nil
 }
 
-func addOperationOutputOnNodeType(ctx context.Context, deploymentID, nodeName, nodeTypeName string, va *tosca.ValueAssignment) error {
+func addOperationOutputOnType(ctx context.Context, deploymentID, nodeName, typeName, reqIndex string, va *tosca.ValueAssignment, tType interface{}) error {
 	if va == nil || va.Type != tosca.ValueAssignmentFunction {
 		return nil
 	}
@@ -324,7 +329,7 @@ func addOperationOutputOnNodeType(ctx context.Context, deploymentID, nodeName, n
 			}}
 			switch entityName {
 			case "SELF":
-				return storeOperationOutputOnNodeType(ctx, deploymentID, nodeTypeName, interfaceName, operationName, outputName, &output)
+				return storeOperationOutputOnType(ctx, deploymentID, typeName, interfaceName, operationName, outputName, &output, tType)
 			case "HOST":
 				hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
 				if err != nil {
@@ -337,87 +342,29 @@ func addOperationOutputOnNodeType(ctx context.Context, deploymentID, nodeName, n
 				if err != nil {
 					return err
 				}
-				return storeOperationOutputOnNodeType(ctx, deploymentID, hostedNodeType, interfaceName, operationName, outputName, &output)
-			default:
-				log.Printf("[WARNING] The entity name:%q for operation output on node is not handled", entityName)
-			}
-		}
-	}
-	return nil
-}
-
-func addOperationOutputOnRelationshipType(ctx context.Context, deploymentID, nodeName, nodeTypeName, reqIndex string, va *tosca.ValueAssignment) error {
-	if va == nil || va.Type != tosca.ValueAssignmentFunction {
-		return nil
-	}
-	f := va.GetFunction()
-	if f != nil {
-		opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-		for _, oof := range opOutputFuncs {
-			if len(oof.Operands) != 4 {
-				return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-			}
-			entityName := url.QueryEscape(oof.Operands[0].String())
-			interfaceName := oof.Operands[1].String()
-			operationName := oof.Operands[2].String()
-			outputName := oof.Operands[3].String()
-
-			output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
-				Type:  tosca.ValueAssignmentFunction,
-				Value: oof.String(),
-			}}
-			switch entityName {
+				return storeOperationOutputOnType(ctx, deploymentID, hostedNodeType, interfaceName, operationName, outputName, &output, tType)
 			case "SOURCE":
-				return storeOperationOutputOnRelationshipType(ctx, deploymentID, nodeTypeName, interfaceName, operationName, outputName, &output)
+				return storeOperationOutputOnType(ctx, deploymentID, typeName, interfaceName, operationName, outputName, &output, tType)
 			case "TARGET":
-				targetNodeName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIndex)
-				if err != nil {
-					return err
+				if reqIndex == "" {
+					return errors.Errorf("missing requirement index for adding operation output on type:%q, deployment:%q", typeName, deploymentID)
 				}
+				targetNodeName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIndex)
+				if err != nil || targetNodeName == "" {
+					return errors.Wrapf(err, "failed to retrieve target node for deployment:%q, node:%q, requirement index:%q", deploymentID, nodeName, reqIndex)
+				}
+
 				targetNodeTypeName, err := GetNodeType(ctx, deploymentID, targetNodeName)
 				if err != nil {
 					return err
 				}
-				return storeOperationOutputOnRelationshipType(ctx, deploymentID, targetNodeTypeName, interfaceName, operationName, outputName, &output)
+				return storeOperationOutputOnType(ctx, deploymentID, targetNodeTypeName, interfaceName, operationName, outputName, &output, tType)
 			default:
-				log.Printf("[WARNING] The entity name:%q for operation output on relationship is not handled", entityName)
+				log.Printf("[WARNING] The entity name:%q for operation output on node/relationship is not handled for type:%q", entityName, typeName)
 			}
 		}
 	}
 	return nil
-}
-
-func storeOperationOutputOnNodeType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output) error {
-	// Retrieve the node type in hierarchy which implements the operation
-	typeNameImpl, err := GetTypeImplementingAnOperation(ctx, deploymentID, typeName, fmt.Sprintf("%s.%s", interfaceName, operationName))
-	if err != nil {
-		return nil
-	}
-
-	nodeType := new(tosca.NodeType)
-	err = getTypeStruct(deploymentID, typeNameImpl, nodeType)
-	if err != nil {
-		return err
-	}
-
-	if !operationExists(nodeType.Interfaces, interfaceName, operationName) {
-		log.Printf("{WARNING] interface (%s) - operation (%s) not found for type:%+v", interfaceName, operationName, nodeType)
-		return nil
-	}
-
-	op := nodeType.Interfaces[interfaceName].Operations[operationName]
-	if op.Outputs == nil {
-		op.Outputs = make(map[string]tosca.Output)
-	}
-
-	op.Outputs[outputName] = *output
-	nodeType.Interfaces[interfaceName].Operations[operationName] = op
-
-	typePath, err := locateTypePath(deploymentID, typeNameImpl)
-	if err != nil {
-		return err
-	}
-	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, typePath, nodeType)
 }
 
 func operationExists(interfaces map[string]tosca.InterfaceDefinition, interfaceName, operationName string) bool {
@@ -441,37 +388,44 @@ func operationExists(interfaces map[string]tosca.InterfaceDefinition, interfaceN
 	return true
 }
 
-func storeOperationOutputOnRelationshipType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output) error {
-	// Retrieve the node type in hierarchy which implements the operation
+func storeOperationOutputOnType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output, tType interface{}) error {
+	// Retrieve the type in hierarchy which implements the operation
 	typeNameImpl, err := GetTypeImplementingAnOperation(ctx, deploymentID, typeName, fmt.Sprintf("%s.%s", interfaceName, operationName))
 	if err != nil {
 		return nil
 	}
 
-	relationshipType := new(tosca.RelationshipType)
-	err = getTypeStruct(deploymentID, typeNameImpl, relationshipType)
+	err = getTypeStruct(deploymentID, typeNameImpl, tType)
 	if err != nil {
 		return err
 	}
 
-	if !operationExists(relationshipType.Interfaces, interfaceName, operationName) {
-		log.Printf("{WARNING] interface (%s) - operation (%s) not found for type:%+v", interfaceName, operationName, relationshipType)
+	var tTypeInterfaces map[string]tosca.InterfaceDefinition
+	switch t := tType.(type) {
+	case *tosca.NodeType:
+		tTypeInterfaces = t.Interfaces
+	case *tosca.RelationshipType:
+		tTypeInterfaces = t.Interfaces
+	}
+
+	if !operationExists(tTypeInterfaces, interfaceName, operationName) {
+		log.Printf("{WARNING] interface (%s) - operation (%s) not found for type:%q", interfaceName, operationName, typeNameImpl)
 		return nil
 	}
 
-	op := relationshipType.Interfaces[interfaceName].Operations[operationName]
+	op := tTypeInterfaces[interfaceName].Operations[operationName]
 	if op.Outputs == nil {
 		op.Outputs = make(map[string]tosca.Output)
 	}
 
 	op.Outputs[outputName] = *output
-	relationshipType.Interfaces[interfaceName].Operations[operationName] = op
+	tTypeInterfaces[interfaceName].Operations[operationName] = op
 
 	typePath, err := locateTypePath(deploymentID, typeNameImpl)
 	if err != nil {
 		return err
 	}
-	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, typePath, relationshipType)
+	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, typePath, tType)
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
