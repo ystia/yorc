@@ -42,7 +42,7 @@ Key metrics
 -----------
 
 Metric Types
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
 |  Type   |                                                     Description                                                     | Quantiles |
@@ -129,8 +129,8 @@ Yorc Tasks metrics
 ~~~~~~~~~~~~~~~~~~
 
 The **Deployment** label is set to the deployment ID.
-The **Step** label is set to the name of the step that is execuded by a task.
-The *Type** label is set the the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
+The **Step** label represents the name of the step that is execuded by a task.
+The *Type** label corresponds to the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
 
 +----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 |           Metric Name            |         Labels              |                Description                      |      Unit       | Metric Type |
@@ -157,9 +157,9 @@ The *Type** label is set the the task type (``Deploy``, ``Undeploy``, ``Purge``,
 Yorc Executors metrics
 ~~~~~~~~~~~~~~~~~~~~~~
 
-There are two types of executors in Yorc ``delegate`` executors and ``operation`` executors. Delegate executors handle the deployment of Yorc natively supported
-TOSCA nodes (like an Openstack compute for instance) while Operation executors handle implementations of an lifecycle operation provided as part of the TOSCA node
-definition (like a shell script or an ansible playbook).
+There are two types of executors in Yorc: ``delegate`` executors and ``operation`` executors. 
+Delegate executors handle the deployment of Yorc natively supported TOSCA nodes (like an Openstack compute for instance).
+Operation executors handle implementations of an lifecycle operation provided as part of the TOSCA node definition (like a shell script or an ansible playbook).
 
 In the below table <ExecType> is the executor type (``operation`` or ``delegate``).
 The **Deployment** label is set to the deployment ID, and the **Node** label is set to the fully qualified TOSCA node type where dots were replaced by
@@ -208,20 +208,20 @@ Yorc SSH connection pool
 |                            Metric Name            |    Labels      |                             Description                              |         Unit         | Metric Type |
 |                                                   |                |                                                                      |                      |             |
 +===================================================+================+======================================================================+======================+=============+
-| ``yorc.ssh-connections-pool.sessions.open-failed``| ConnectionName | This tracks the number of failures when opening an SSH session       | number of open sess  | counter     |
+| ``yorc.ssh-connections-pool.sessions.creations``  | ConnectionName | This measures the number of sessions created for a given connection. | number of open       | counter     |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.sessions.closes``     | ConnectionName | This measures the number of sessions closed for a given connection.  | number of close      | counter     |
++---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.sessions.open-failed``| ConnectionName | This tracks the number of failures when opening an SSH session       | number of open       | counter     |
 |                                                   |                | (multiplexed on top of an existing connection).                      | failures             |             |
-+---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.sessions.creations``  | ConnectionName | This measures the number of sessions created for a given connection. | number of sessions   | counter     |
-+---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.sessions.closes``     | ConnectionName | This measures the number of sessions closed for a given connection.  | number of sessions   | counter     |
 +---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
 | ``yorc.ssh-connections-pool.sessions.open``       | ConnectionName | This tracks the number of currently open sessions per connection     | number of sessions   | gauge       |
 |                                                   |                |                                                                      |                      |             |
 +---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
 | ``yorc.ssh-connections-pool.creations``           |                | This measures the number of created connections.                     | number of connection | counter     |
 +---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.create-failed``       |                | This measures the number of failed create connections.               | number of conn create| counter     |
-|                                                   |                |                                                                      | failures             |             |
+| ``yorc.ssh-connections-pool.create-failed``       |                | This measures the number of failed create connections.               | number of connection | counter     |
+|                                                   |                |                                                                      | create failures      |             |
 +---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.closes``              |                | This measures the number of closed connections.                      | number of connection | counter     |
+| ``yorc.ssh-connections-pool.closes``              |                | This measures the number of closed connections.                      | number of close      | counter     |
 +---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
