@@ -484,6 +484,19 @@ func GetOperationInputs(ctx context.Context, deploymentID, nodeTemplateImpl, typ
 	return inputs, nil
 }
 
+// GetOperationOutputs returns the list of outputs value assignments for a given operation
+func GetOperationOutputs(ctx context.Context, deploymentID, nodeTemplateImpl, typeNameImpl, operationName string) (map[string]tosca.Output, error) {
+	operationDef, _, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, nodeTemplateImpl, typeNameImpl, operationName)
+	if err != nil {
+		return nil, err
+	}
+
+	if operationDef != nil {
+		return operationDef.Outputs, nil
+	}
+	return nil, nil
+}
+
 func getParentOperation(ctx context.Context, deploymentID string, operation prov.Operation) (prov.Operation, error) {
 	parentType, err := GetParentType(ctx, deploymentID, operation.ImplementedInType)
 	if err != nil {

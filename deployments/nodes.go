@@ -42,7 +42,7 @@ func (e nodeNotFoundError) Error() string {
 	return fmt.Sprintf("Looking for a node %q that do not exists in deployment %q.", e.name, e.deploymentID)
 }
 
-// IsTypeMissingError checks if the given error is a TypeMissing error
+// IsNodeNotFoundError checks if the given error is a nodeNotFoundError error
 func IsNodeNotFoundError(err error) bool {
 	cause := errors.Cause(err)
 	_, ok := cause.(nodeNotFoundError)

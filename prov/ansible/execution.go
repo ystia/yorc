@@ -35,8 +35,6 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"gopkg.in/yaml.v2"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
@@ -558,89 +556,69 @@ func (e *executionCommon) resolveContext(ctx context.Context) error {
 
 func (e *executionCommon) resolveOperationOutputPath() error {
 	//Here we get the modelable entity output of the operation
-	//FIXME really don't know how to get this ?
-	operationPath := "hasBeenRemoved"
-	entities, err := consulutil.GetKeys(operationPath + "/outputs/")
+	operationNodeType := e.NodeType
+	if e.operation.RelOp.IsRelationshipOperation {
+		operationNodeType = e.relationshipType
+	}
+	mapOutputs, err := deployments.GetOperationOutputs(e.ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
-
-	if len(entities) == 0 {
+	if len(mapOutputs) == 0 {
 		return nil
 	}
 
 	e.HaveOutput = true
 	//We iterate over all entity of the output in this operation
-	for _, entity := range entities {
-		//We get the name of the output
-		outputKeys, err := consulutil.GetKeys(entity)
-		if err != nil {
-			return err
+	for outputName, outputValue := range mapOutputs {
+		va := outputValue.ValueAssign
+		if va.Type != tosca.ValueAssignmentFunction {
+			return errors.Errorf("Output %q for operation %v is not a valid get_operation_output TOSCA function", outputName, e.operation)
 		}
-		for _, output := range outputKeys {
-			//We get the expression  of the output
+		oof := va.GetFunction()
+		if oof.Operator != tosca.GetOperationOutputOperator {
+			return errors.Errorf("Output %q for operation %v (%v) is not a valid get_operation_output TOSCA function", outputName, e.operation, oof)
+		}
+		targetContext := oof.Operands[0].String() == "TARGET"
+		sourceContext := oof.Operands[0].String() == "SOURCE"
+		if (targetContext || sourceContext) && !e.operation.RelOp.IsRelationshipOperation {
+			return errors.Errorf("Can't resolve an operation output in SOURCE or TARGET context without a relationship operation: %q", va.String())
+		}
 
-			exist, value, err := consulutil.GetValue(output + "/expression")
-			if err != nil {
-				return err
-			}
-			if !exist {
-				return errors.Errorf("Operation output expression is missing for key: %q", output)
-			}
-			va := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal(value, va)
-			if err != nil {
-				return errors.Wrap(err, "Fail to parse operation output, check the following expression : ")
-			}
-			if va.Type != tosca.ValueAssignmentFunction {
-				return errors.Errorf("Output %q for operation %v is not a valid get_operation_output TOSCA function", path.Base(output), e.operation)
-			}
-			oof := va.GetFunction()
-			if oof.Operator != tosca.GetOperationOutputOperator {
-				return errors.Errorf("Output %q for operation %v (%v) is not a valid get_operation_output TOSCA function", path.Base(output), e.operation, oof)
-			}
-			targetContext := oof.Operands[0].String() == "TARGET"
-			sourceContext := oof.Operands[0].String() == "SOURCE"
-			if (targetContext || sourceContext) && !e.operation.RelOp.IsRelationshipOperation {
-				return errors.Errorf("Can't resolve an operation output in SOURCE or TARGET context without a relationship operation: %q", va.String())
-			}
+		var instancesIds []string
+		if targetContext {
+			instancesIds = e.targetNodeInstances
+		} else {
+			instancesIds = e.sourceNodeInstances
+		}
 
-			var instancesIds []string
+		//For each instance of the node we create a new entry in the output map
+		for _, instanceID := range instancesIds {
+			// TODO(loicalbertin) This part should be refactored to store properly the instance ID
+			// don't to it for now as it is for a quickfix
+			b := instanceID
+			interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
+			operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
+			outputVariableName := url.QueryEscape(oof.Operands[3].String())
 			if targetContext {
-				instancesIds = e.targetNodeInstances
+				e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
 			} else {
-				instancesIds = e.sourceNodeInstances
-			}
+				//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
+				if oof.Operands[0].String() == "SELF" && e.operation.RelOp.IsRelationshipOperation {
+					relationShipPrefix := path.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
+					e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", interfaceName, operationName, outputVariableName)
+				} else if oof.Operands[0].String() == "HOST" {
+					// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
+					continue
 
-			//For each instance of the node we create a new entry in the output map
-			for _, instanceID := range instancesIds {
-				// TODO(loicalbertin) This part should be refactored to store properly the instance ID
-				// don't to it for now as it is for a quickfix
-				b := instanceID
-				interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-				operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-				outputVariableName := url.QueryEscape(oof.Operands[3].String())
-				if targetContext {
-					e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
 				} else {
-					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
-					if oof.Operands[0].String() == "SELF" && e.operation.RelOp.IsRelationshipOperation {
-						relationShipPrefix := path.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
-						e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", interfaceName, operationName, outputVariableName)
-					} else if oof.Operands[0].String() == "HOST" {
-						// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
-						continue
-
-					} else {
-						//In all others case we simply save the result of the output on the instance directory of the node
-						e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
-					}
+					//In all others case we simply save the result of the output on the instance directory of the node
+					e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
 				}
-
 			}
+
 		}
 	}
-
 	return nil
 }
 
