@@ -58,7 +58,7 @@ build: test
 	 "
 	 @rm -f ./build/embeddedResources.zip
 	 @cd ./commands && zip -q -r ../build/embeddedResources.zip ./bootstrap/resources/*
-	 @cd ./data && zip -q -r ../build/embeddedResources.zip ./* -x tosca/test-types.yml
+	 @cd ./data && zip -q -r ../build/embeddedResources.zip ./*
 	 @cat ./build/embeddedResources.zip >> ./yorc
 	 @zip -A ./yorc > /dev/null
 
