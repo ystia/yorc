@@ -52,7 +52,7 @@ func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 		hostsPoolMgr:   hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
 		locationMgr:    locations.NewManager(client),
 		tasksCollector: collector.NewCollector(client),
-		config:         config.Configuration{},
+		config:         config.Configuration{WorkingDirectory: "../work"},
 	}
 	httpSrv.registerHandlers()
 	w := httptest.NewRecorder()
