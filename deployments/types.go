@@ -43,7 +43,7 @@ func IsTypeMissingError(err error) bool {
 	return ok
 }
 
-func getTypeBase(typePath string) (bool, *tosca.Type, error) {
+func getTypeBaseStructFromKey(typePath string) (bool, *tosca.Type, error) {
 	typ := new(tosca.Type)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
 	if err != nil {
@@ -52,18 +52,48 @@ func getTypeBase(typePath string) (bool, *tosca.Type, error) {
 	return exist, typ, nil
 }
 
-func getTypeStruct(deploymentID, typeName string, typ interface{}) error {
+func getTypeStruct(deploymentID, typeName string, tType interface{}) error {
 	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return err
 	}
 
-	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, tType)
 	if err != nil {
 		return err
 	}
 	if !exist {
 		return typeMissingError{deploymentID: deploymentID, name: typeName}
+	}
+	return checkTypeIsExpected(typeName, tType)
+}
+
+// This allows to define if the type is of the expecting one
+func checkTypeIsExpected(typeName string, tType interface{}) error {
+	var actualType, expectedType tosca.TypeBase
+	switch t := tType.(type) {
+	case *tosca.NodeType:
+		actualType = t.Base
+		expectedType = tosca.TypeBaseNODE
+	case *tosca.RelationshipType:
+		actualType = t.Base
+		expectedType = tosca.TypeBaseRELATIONSHIP
+	case *tosca.PolicyType:
+		actualType = t.Base
+		expectedType = tosca.TypeBasePOLICY
+	case *tosca.CapabilityType:
+		actualType = t.Base
+		expectedType = tosca.TypeBaseCAPABILITY
+	case *tosca.DataType:
+		actualType = t.Base
+		expectedType = tosca.TypeBaseDATA
+	case *tosca.ArtifactType:
+		actualType = t.Base
+		expectedType = tosca.TypeBaseARTIFACT
+	}
+
+	if actualType != expectedType {
+		return errors.Errorf("The type %q is not of expecting type %q, but of type %q", typeName, expectedType, actualType)
 	}
 	return nil
 }
@@ -75,7 +105,7 @@ func getTypePropertyDefinitions(deploymentID, typeName string) (map[string]tosca
 	}
 
 	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
-	exist, typBase, err := getTypeBase(typePath)
+	exist, typBase, err := getTypeBaseStructFromKey(typePath)
 	if err != nil {
 		return nil, err
 	}
@@ -85,20 +115,20 @@ func getTypePropertyDefinitions(deploymentID, typeName string) (map[string]tosca
 
 	var typ interface{}
 	switch typBase.Base {
-	case "node":
+	case tosca.TypeBaseNODE:
 		typ = new(tosca.NodeType)
-	case "capability":
+	case tosca.TypeBaseCAPABILITY:
 		typ = new(tosca.CapabilityType)
-	case "relationship":
+	case tosca.TypeBaseRELATIONSHIP:
 		typ = new(tosca.RelationshipType)
-	case "artifact":
+	case tosca.TypeBaseARTIFACT:
 		typ = new(tosca.ArtifactType)
-	case "policy":
+	case tosca.TypeBasePOLICY:
 		typ = new(tosca.PolicyType)
-	case "data":
+	case tosca.TypeBaseDATA:
 		typ = new(tosca.DataType)
 	default:
-		return nil, errors.Errorf("Unknown type:%q", typBase.Base)
+		return nil, errors.Errorf("Unknown type having property definitions:%d", typBase.Base)
 
 	}
 
@@ -136,7 +166,7 @@ func getTypeAttributeDefinitions(deploymentID, typeName string) (map[string]tosc
 	}
 
 	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
-	exist, typBase, err := getTypeBase(typePath)
+	exist, typBase, err := getTypeBaseStructFromKey(typePath)
 	if err != nil {
 		return nil, err
 	}
@@ -146,14 +176,14 @@ func getTypeAttributeDefinitions(deploymentID, typeName string) (map[string]tosc
 
 	var typ interface{}
 	switch typBase.Base {
-	case "node":
+	case tosca.TypeBaseNODE:
 		typ = new(tosca.NodeType)
-	case "capability":
+	case tosca.TypeBaseCAPABILITY:
 		typ = new(tosca.CapabilityType)
-	case "relationship":
+	case tosca.TypeBaseRELATIONSHIP:
 		typ = new(tosca.RelationshipType)
 	default:
-		return nil, errors.Errorf("Unknown type:%q", typBase.Base)
+		return nil, errors.Errorf("Unknown type having attribute definitions:%q", typBase.Base)
 
 	}
 
@@ -176,6 +206,94 @@ func getTypeAttributeDefinitions(deploymentID, typeName string) (map[string]tosc
 	}
 
 	return mapAttrs, nil
+}
+
+func getTypeInterfaces(deploymentID, typeName string) (map[string]tosca.InterfaceDefinition, error) {
+	typePath, err := locateTypePath(deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
+	exist, typBase, err := getTypeBaseStructFromKey(typePath)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("No type found with name:%q", typeName)
+	}
+
+	var typ interface{}
+	switch typBase.Base {
+	case tosca.TypeBaseNODE:
+		typ = new(tosca.NodeType)
+	case tosca.TypeBaseRELATIONSHIP:
+		typ = new(tosca.RelationshipType)
+	default:
+		return nil, errors.Errorf("Unknown type having interfaces:%q", typBase.Base)
+	}
+
+	exist, err = storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("No type found with name:%q", typeName)
+	}
+
+	var interfaces map[string]tosca.InterfaceDefinition
+	switch t := typ.(type) {
+	case *tosca.NodeType:
+		interfaces = t.Interfaces
+	case *tosca.RelationshipType:
+		interfaces = t.Interfaces
+	}
+
+	return interfaces, nil
+}
+
+func getTypeArtifacts(deploymentID, typeName string) (tosca.ArtifactDefMap, error) {
+	typePath, err := locateTypePath(deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
+	exist, typBase, err := getTypeBaseStructFromKey(typePath)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("No type found with name:%q", typeName)
+	}
+
+	var typ interface{}
+	switch typBase.Base {
+	case tosca.TypeBaseNODE:
+		typ = new(tosca.NodeType)
+	case tosca.TypeBaseRELATIONSHIP:
+		typ = new(tosca.RelationshipType)
+	default:
+		return nil, errors.Errorf("Unknown type having artifacts:%q", typBase.Base)
+	}
+
+	exist, err = storage.GetStore(types.StoreTypeDeployment).Get(typePath, typ)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.Errorf("No type found with name:%q", typeName)
+	}
+
+	var artifacts tosca.ArtifactDefMap
+	switch t := typ.(type) {
+	case *tosca.NodeType:
+		artifacts = t.Artifacts
+	case *tosca.RelationshipType:
+		artifacts = t.Artifacts
+	}
+
+	return artifacts, nil
 }
 
 func checkIfTypeExists(typePath string) (bool, error) {
@@ -221,7 +339,7 @@ func GetParentType(ctx context.Context, deploymentID, typeName string) (string, 
 		return "", err
 	}
 
-	_, typ, err := getTypeBase(typePath)
+	_, typ, err := getTypeBaseStructFromKey(typePath)
 	if err != nil {
 		return "", err
 	}
@@ -439,20 +557,23 @@ func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, prop
 }
 
 func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, attributeName string) (*tosca.AttributeDefinition, error) {
-	typ := new(tosca.NodeType)
-	err := getTypeStruct(deploymentID, typeName, typ)
+	mapAttrs, err := getTypeAttributeDefinitions(deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 
-	attrDef, is := typ.Attributes[attributeName]
-	if is && &attrDef != nil {
+	attrDef, is := mapAttrs[attributeName]
+	if is {
 		return &attrDef, nil
 	}
 
 	// Check parent
-	if typ.DerivedFrom != "" {
-		return getTypeAttributeDefinition(ctx, deploymentID, typ.DerivedFrom, attributeName)
+	parent, err := GetParentType(ctx, deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+	if parent != "" {
+		return getTypeAttributeDefinition(ctx, deploymentID, parent, attributeName)
 	}
 
 	// Not found
@@ -468,7 +589,7 @@ func GetTypeImportPath(ctx context.Context, deploymentID, typeName string) (stri
 		return "", err
 	}
 
-	_, typ, err := getTypeBase(typePath)
+	_, typ, err := getTypeBaseStructFromKey(typePath)
 	if err != nil {
 		return "", err
 	}

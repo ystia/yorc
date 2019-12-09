@@ -52,7 +52,7 @@ func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPref
 	for policyName, policyType := range topology.PolicyTypes {
 		key := path.Join(topologyPrefix, "types", policyName)
 		policyType.ImportPath = importPath
-		policyType.Base = "policy"
+		policyType.Base = tosca.TypeBasePOLICY
 
 		kv = append(kv, &types.KeyValue{
 			Key:   key,
@@ -69,7 +69,7 @@ func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix
 	for dataTypeName, dataType := range topology.DataTypes {
 		dtPrefix := path.Join(dataTypesPrefix, dataTypeName)
 		dataType.ImportPath = importPath
-		dataType.Base = "data"
+		dataType.Base = tosca.TypeBaseDATA
 		kv = append(kv, &types.KeyValue{
 			Key:   dtPrefix,
 			Value: dataType,
@@ -86,7 +86,7 @@ func storeNodeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
 		nodeType.ImportPath = importPath
-		nodeType.Base = "node"
+		nodeType.Base = tosca.TypeBaseNODE
 		kv = append(kv, &types.KeyValue{
 			Key:   nodeTypePrefix,
 			Value: nodeType,
@@ -101,7 +101,7 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 	for relationName, relationType := range topology.RelationshipTypes {
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		relationType.ImportPath = importPath
-		relationType.Base = "relationship"
+		relationType.Base = tosca.TypeBaseRELATIONSHIP
 		kv = append(kv, &types.KeyValue{
 			Key:   relationTypePrefix,
 			Value: relationType,
@@ -116,7 +116,7 @@ func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topology
 	for capabilityTypeName, capabilityType := range topology.CapabilityTypes {
 		capabilityTypePrefix := path.Join(topologyPrefix, "types", capabilityTypeName)
 		capabilityType.ImportPath = importPath
-		capabilityType.Base = "capability"
+		capabilityType.Base = tosca.TypeBaseCAPABILITY
 		kv = append(kv, &types.KeyValue{
 			Key:   capabilityTypePrefix,
 			Value: capabilityType,
@@ -139,7 +139,7 @@ func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPr
 
 		artTypePrefix := path.Join(typesPrefix, artTypeName)
 		artType.ImportPath = importPath
-		artType.Base = "artifact"
+		artType.Base = tosca.TypeBaseARTIFACT
 		kv = append(kv, &types.KeyValue{
 			Key:   artTypePrefix,
 			Value: artType,

@@ -121,6 +121,24 @@ func testValueAssignments(t *testing.T) {
 	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
 	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", output.ValueAssign.Value)
 
+	interfaceDef, exist = nodeType.Interfaces["custom"]
+	require.True(t, exist)
+
+	operationDef, exist = interfaceDef.Operations["publish"]
+	require.True(t, exist)
+
+	output, exist = operationDef.Outputs["DISTRIBUTION_NAME"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [HOST, custom, publish, DISTRIBUTION_NAME]", output.ValueAssign.Value)
+
+	output, exist = operationDef.Outputs["CONTAINER_NAME"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [TARGET, custom, publish, CONTAINER_NAME]", output.ValueAssign.Value)
+
 	t.Run("groupDeploymentsDefinitionStoreValueAssignments", func(t *testing.T) {
 		t.Run("testValueAssignmentsWithNodeProperties", func(t *testing.T) {
 			testValueAssignmentsWithNodeProperties(t, ctx, deploymentID)

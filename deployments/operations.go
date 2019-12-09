@@ -156,13 +156,11 @@ func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, node
 		}
 		interfaceDef = getInterface(interfaceName, node.Interfaces)
 	} else if nodeType != "" {
-		nodeT := new(tosca.NodeType)
-		err := getTypeStruct(deploymentID, nodeType, nodeT)
+		interfaces, err := getTypeInterfaces(deploymentID, nodeType)
 		if err != nil {
 			return nil, nil, err
 		}
-		//interfaceDef, exist = nodeT.Interfaces[interfaceName]
-		interfaceDef = getInterface(interfaceName, nodeT.Interfaces)
+		interfaceDef = getInterface(interfaceName, interfaces)
 	}
 
 	if interfaceDef != nil {

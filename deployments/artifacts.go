@@ -22,27 +22,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func updateArtifactsForType(ctx context.Context, deploymentID, typeName, tType, importPath string, artifacts map[string]string) error {
-	var typ interface{}
-	switch tType {
-	case "node":
-		typ = new(tosca.NodeType)
-	case "relationship":
-		typ = new(tosca.RelationshipType)
-	default:
-		return errors.Errorf("the type:%q with name:%q is not expected to have artifacts", tType, typeName)
-	}
-
-	err := getTypeStruct(deploymentID, typeName, typ)
+func updateArtifactsForType(ctx context.Context, deploymentID, typeName, importPath string, artifacts map[string]string) error {
+	artifactsMap, err := getTypeArtifacts(deploymentID, typeName)
 	if err != nil {
-		return err
-	}
-	var artifactsMap tosca.ArtifactDefMap
-	switch t := typ.(type) {
-	case *tosca.NodeType:
-		artifactsMap = t.Artifacts
-	case *tosca.RelationshipType:
-		artifactsMap = t.Artifacts
+		return nil
 	}
 
 	for k, v := range artifactsMap {
@@ -59,14 +42,14 @@ func updateArtifactsForType(ctx context.Context, deploymentID, typeName, tType, 
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
-func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName, tType string) (map[string]string, error) {
+func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName  string) (map[string]string, error) {
 	parentType, err := GetParentType(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
 	var artifacts map[string]string
 	if parentType != "" {
-		artifacts, err = GetFileArtifactsForType(ctx, deploymentID, parentType, tType)
+		artifacts, err = GetFileArtifactsForType(ctx, deploymentID, parentType)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +61,7 @@ func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName, tType 
 	if err != nil {
 		return nil, err
 	}
-	err = updateArtifactsForType(ctx, deploymentID, typeName, tType, importPath, artifacts)
+	err = updateArtifactsForType(ctx, deploymentID, typeName, importPath, artifacts)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for type: %q", typeName)
 }
 
@@ -92,7 +75,7 @@ func GetFileArtifactsForNode(ctx context.Context, deploymentID, nodeName string)
 	if err != nil {
 		return nil, err
 	}
-	artifacts, err := GetFileArtifactsForType(ctx, deploymentID, node.Type, "node")
+	artifacts, err := GetFileArtifactsForType(ctx, deploymentID, node.Type)
 	if err != nil {
 		return nil, err
 	}

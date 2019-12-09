@@ -322,7 +322,7 @@ func (e *executionCommon) resolveArtifacts(ctx context.Context) error {
 		}
 		// Then get relationship type artifacts
 		var arts map[string]string
-		arts, err = deployments.GetFileArtifactsForType(ctx, e.deploymentID, e.relationshipType, "relationship")
+		arts, err = deployments.GetFileArtifactsForType(ctx, e.deploymentID, e.relationshipType)
 		if err != nil {
 			return err
 		}

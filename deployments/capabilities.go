@@ -70,14 +70,9 @@ func GetCapabilitiesOfType(ctx context.Context, deploymentID, typeName, capabili
 		}
 	}
 
-	parentType, err := GetParentType(ctx, deploymentID, typeName)
-	if err != nil {
-		return capabilities, err
-	}
-
-	if parentType != "" {
+	if node.DerivedFrom != "" {
 		var parentCapabilities []string
-		parentCapabilities, err = GetCapabilitiesOfType(ctx, deploymentID, parentType, capabilityTypeName)
+		parentCapabilities, err = GetCapabilitiesOfType(ctx, deploymentID, node.DerivedFrom, capabilityTypeName)
 		if err != nil {
 			return capabilities, err
 		}
@@ -490,14 +485,10 @@ func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capa
 		return capDef.Type, nil
 	}
 
-	parentType, err := GetParentType(ctx, deploymentID, nodeType)
-	if err != nil {
-		return "", err
-	}
-	if parentType == "" {
+	if typ.DerivedFrom == "" {
 		return "", nil
 	}
-	return GetNodeTypeCapabilityType(ctx, deploymentID, parentType, capabilityName)
+	return GetNodeTypeCapabilityType(ctx, deploymentID, typ.DerivedFrom, capabilityName)
 }
 
 // GetNodeTypeCapabilityPropertyValueAssignment returns a Tosca value assignment

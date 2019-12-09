@@ -56,7 +56,7 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer) {
 }
 
 func testGetArtifactsForType(t *testing.T, deploymentID string) {
-	artifacts, err := GetFileArtifactsForType(context.Background(), deploymentID, "yorc.types.A", "node")
+	artifacts, err := GetFileArtifactsForType(context.Background(), deploymentID, "yorc.types.A")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 5)
@@ -71,7 +71,7 @@ func testGetArtifactsForType(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetFileArtifactsForType(context.Background(), deploymentID, "yorc.types.ParentA", "node")
+	artifacts, err = GetFileArtifactsForType(context.Background(), deploymentID, "yorc.types.ParentA")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 3)
@@ -82,7 +82,7 @@ func testGetArtifactsForType(t *testing.T, deploymentID string) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 
-	artifacts, err = GetFileArtifactsForType(context.Background(), deploymentID, "root", "node")
+	artifacts, err = GetFileArtifactsForType(context.Background(), deploymentID, "root")
 	require.Nil(t, err)
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 0)

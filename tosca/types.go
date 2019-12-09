@@ -41,9 +41,21 @@ func IsBuiltinType(typeName string) bool {
 		typeName == "scalar-unit.size" || typeName == "scalar-unit.time"
 }
 
+//go:generate go-enum -f=types.go
+
+// TypeBase x ENUM(
+// NODE,
+// RELATIONSHIP,
+// CAPABILITY,
+// POLICY,
+// ARTIFACT,
+// DATA,
+// )
+type TypeBase int
+
 // Type is the base type for all TOSCA types (like node types, relationship types, ...)
 type Type struct {
-	Base        string            `yaml:"base,omitempty" json:"base,omitempty"`
+	Base        TypeBase          `yaml:"base,omitempty" json:"base,omitempty"`
 	DerivedFrom string            `yaml:"derived_from,omitempty" json:"derived_from,omitempty"`
 	Version     string            `yaml:"version,omitempty" json:"version,omitempty"`
 	ImportPath  string            `yaml:"import_path,omitempty" json:"import_path,omitempty"`
