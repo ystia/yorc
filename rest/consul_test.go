@@ -65,25 +65,23 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupRest", func(t *testing.T) {
-		/*
-			t.Run("testHostsPoolHandlers", func(t *testing.T) {
-				testHostsPoolHandlers(t, client, srv)
-			})*/
+		t.Run("testHostsPoolHandlers", func(t *testing.T) {
+			testHostsPoolHandlers(t, client, srv)
+		})
 		t.Run("testLocationsHandlers", func(t *testing.T) {
 			testLocationsHandlers(t, client, srv)
 		})
-		/*
-			t.Run("testSSLRest", func(t *testing.T) {
-				testSSLREST(t, client, srv)
-			})
-			t.Run("testDeploymentHandlers", func(t *testing.T) {
-				testDeploymentHandlers(t, client, srv)
-			})
-			t.Run("testPostInfraUsageHandler", func(t *testing.T) {
-				testPostInfraUsageHandler(t, client, srv)
-			})
-			t.Run("testTaskQueryHandlers", func(t *testing.T) {
-				testTaskQueryHandlers(t, client, srv)
-			})*/
+		t.Run("testSSLRest", func(t *testing.T) {
+			testSSLREST(t, client, srv)
+		})
+		t.Run("testDeploymentHandlers", func(t *testing.T) {
+			testDeploymentHandlers(t, client, srv)
+		})
+		t.Run("testPostInfraUsageHandler", func(t *testing.T) {
+			testPostInfraUsageHandler(t, client, srv)
+		})
+		t.Run("testTaskQueryHandlers", func(t *testing.T) {
+			testTaskQueryHandlers(t, client, srv)
+		})
 	})
 }
