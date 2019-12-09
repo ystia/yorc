@@ -61,7 +61,7 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 
 	typeRelationshipRoot := tosca.RelationshipType{
 		Type: tosca.Type{
-			Base:        tosca.TypeBaseRELATIONSHIP,
+			Base: tosca.TypeBaseRELATIONSHIP,
 		},
 	}
 
@@ -210,7 +210,7 @@ func testDeploymentNodes(t *testing.T, srv1 *ctu.TestServer) {
 
 	root := tosca.NodeType{
 		Type: tosca.Type{
-			Base:        tosca.TypeBaseNODE,
+			Base: tosca.TypeBaseNODE,
 		},
 	}
 	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/testGetNbInstancesForNode/topology/types/tosca.nodes.Root", root)

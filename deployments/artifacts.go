@@ -42,7 +42,7 @@ func updateArtifactsForType(ctx context.Context, deploymentID, typeName, importP
 //
 // The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
-func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName  string) (map[string]string, error) {
+func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName string) (map[string]string, error) {
 	parentType, err := GetParentType(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err

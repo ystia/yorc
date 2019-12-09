@@ -33,7 +33,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 	ctx := context.Background()
 	typeDeploymentResource := tosca.NodeType{
 		Type: tosca.Type{
-			Base: "node",
+			Base: tosca.TypeBaseNODE,
 		},
 	}
 	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource", typeDeploymentResource)
@@ -41,7 +41,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 
 	typeSimpleResource := tosca.NodeType{
 		Type: tosca.Type{
-			Base: "node",
+			Base: tosca.TypeBaseNODE,
 		},
 	}
 	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.SimpleResource", typeSimpleResource)
@@ -49,7 +49,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 
 	typeServiceResource := tosca.NodeType{
 		Type: tosca.Type{
-			Base: "node",
+			Base: tosca.TypeBaseNODE,
 		},
 	}
 	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.ServiceResource", typeServiceResource)
@@ -57,7 +57,7 @@ func testsController(t *testing.T, srv *ctu.TestServer) {
 
 	typeStatefulSetResource := tosca.NodeType{
 		Type: tosca.Type{
-			Base: "node",
+			Base: tosca.TypeBaseNODE,
 		},
 	}
 	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource", typeStatefulSetResource)

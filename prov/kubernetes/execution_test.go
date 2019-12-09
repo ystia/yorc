@@ -364,7 +364,7 @@ func Test_execution_del_resources(t *testing.T) {
 
 	testNodeType := tosca.NodeType{
 		Type: tosca.Type{
-			Base:        "node",
+			Base:        tosca.TypeBaseNODE,
 			DerivedFrom: "tosca.nodes.Root",
 		},
 	}
@@ -663,7 +663,7 @@ func Test_execution_manageNamespaceDeletion(t *testing.T) {
 	}
 	testNodeType := tosca.NodeType{
 		Type: tosca.Type{
-			Base:        "node",
+			Base:        tosca.TypeBaseNODE,
 			DerivedFrom: "tosca.nodes.Root",
 		},
 	}
