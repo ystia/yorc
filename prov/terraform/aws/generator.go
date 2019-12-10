@@ -106,7 +106,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 			}
 		case "yorc.nodes.aws.PublicNetwork":
 			// Nothing to do
-		case "yorc.node.aws.EBSVolume":
+		case "yorc.nodes.aws.EBSVolume":
 			err = g.generateEBS(ctx, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure)
 			if err != nil {
 				return false, nil, nil, nil, err
