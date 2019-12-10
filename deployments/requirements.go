@@ -78,9 +78,6 @@ func GetRequirementIndexByNameForNode(ctx context.Context, deploymentID, nodeNam
 
 // GetRequirementNameByIndexForNode returns the requirement name for a given node and requirement index
 func GetRequirementNameByIndexForNode(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	if requirementIndex == "" {
-		return "", nil
-	}
 	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
 	if err != nil || req == nil {
 		return "", err
@@ -114,11 +111,8 @@ func GetNbRequirementsForNode(ctx context.Context, deploymentID, nodeName string
 //
 // If there is no relationship defined for this requirement then an empty string is returned.
 func GetRelationshipForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	if requirementIndex == "" {
-		return "", nil
-	}
-	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil || req == nil {
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil || name == "" {
 		return "", err
 	}
 	return req.Relationship, nil
@@ -128,11 +122,8 @@ func GetRelationshipForRequirement(ctx context.Context, deploymentID, nodeName, 
 //
 // If there is no capability defined for this requirement then an empty string is returned.
 func GetCapabilityForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	if requirementIndex == "" {
-		return "", nil
-	}
-	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil || req == nil {
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil || name == "" {
 		return "", err
 	}
 	return req.Capability, nil
@@ -142,11 +133,8 @@ func GetCapabilityForRequirement(ctx context.Context, deploymentID, nodeName, re
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	if requirementIndex == "" {
-		return "", nil
-	}
-	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
-	if err != nil || req == nil {
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil || name == "" {
 		return "", err
 	}
 	return req.Node, nil

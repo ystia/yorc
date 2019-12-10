@@ -16,6 +16,7 @@ package consulutil
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"os"
 	"strings"
 	"sync"
@@ -164,10 +165,16 @@ func GetStringValue(key string) (bool, string, error) {
 // GetKeys returns the sub-keys list from a specified key
 func GetKeys(key string) ([]string, error) {
 	subKeys, _, err := GetKV().Keys(key+"/", "/", nil)
-	if err != nil {
+	if err != nil || subKeys == nil {
 		return nil, errors.Wrap(err, ConsulGenericErrMsg)
 	}
-	return subKeys, nil
+	cleaned := make([]string, 0)
+	// Remove trailing slash
+	for _, k := range subKeys {
+		cleaned = append(cleaned, strings.TrimSuffix(k, "/"))
+	}
+	// Remove duplicates
+	return collections.RemoveDuplicates(cleaned), nil
 }
 
 // List returns the key-value map of all sub-keys from a specified key

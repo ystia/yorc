@@ -112,11 +112,9 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testCreateFiltersFromComputeCapabilities(t, deploymentID)
 	})
 	t.Run("testConcurrentExecDelegateShareableHost", func(t *testing.T) {
-		t.Skip()
 		testConcurrentExecDelegateShareableHost(t, srv, client, deploymentID, location)
 	})
 	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
-		t.Skip()
 		testFailureExecDelegateShareableHost(t, srv, client, deploymentID, location)
 	})
 	t.Run("testExecDelegateFailure", func(t *testing.T) {

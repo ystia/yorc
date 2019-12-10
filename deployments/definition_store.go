@@ -126,7 +126,7 @@ func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulSt
 
 func registerImplementationTypes(ctx context.Context, deploymentID string) error {
 	// We use synchronous communication with consul here to allow to check for duplicates
-	types, err := GetTypes(ctx, deploymentID)
+	types, err := GetTypesNames(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) e
 
 func fixGetOperationOutputOnType(ctx context.Context, deploymentID, nodeName, nodeTypeName string) error {
 	nodeType := new(tosca.NodeType)
-	err := getTypeStruct(deploymentID, nodeTypeName, nodeType)
+	err := getExpectedTypeFromName(ctx, deploymentID, nodeTypeName, nodeType)
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 			continue
 		}
 		rType := new(tosca.RelationshipType)
-		err = getTypeStruct(deploymentID, relationshipTypeName, rType)
+		err = getExpectedTypeFromName(ctx, deploymentID, relationshipTypeName, rType)
 		if err != nil {
 			return err
 		}
@@ -449,7 +449,7 @@ func storeOperationOutputOnType(ctx context.Context, deploymentID, typeName, int
 		return nil
 	}
 
-	tType, typePath, err := getTypeStructFromName(deploymentID, typeName)
+	tType, typePath, err := getTypeFromName(nil, deploymentID, typeName)
 	if err != nil {
 		return err
 	}

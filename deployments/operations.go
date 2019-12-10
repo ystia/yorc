@@ -156,7 +156,7 @@ func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, node
 		}
 		interfaceDef = getInterface(interfaceName, node.Interfaces)
 	} else if nodeType != "" {
-		interfaces, err := getTypeInterfaces(deploymentID, nodeType)
+		interfaces, err := getTypeInterfaces(ctx, deploymentID, nodeType)
 		if err != nil {
 			return nil, nil, err
 		}

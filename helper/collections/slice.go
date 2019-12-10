@@ -23,3 +23,19 @@ func ContainsString(s []string, e string) bool {
 	}
 	return false
 }
+
+// RemoveDuplicates removes duplicated elements from a slice
+func RemoveDuplicates(s []string) []string {
+	if s == nil {
+		return nil
+	}
+	keys := make(map[string]bool)
+	res := make([]string, 0)
+	for _, entry := range s {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			res = append(res, entry)
+		}
+	}
+	return res
+}

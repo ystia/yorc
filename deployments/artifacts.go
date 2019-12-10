@@ -23,7 +23,7 @@ import (
 )
 
 func updateArtifactsForType(ctx context.Context, deploymentID, typeName, importPath string, artifacts map[string]string) error {
-	artifactsMap, err := getTypeArtifacts(deploymentID, typeName)
+	artifactsMap, err := getTypeArtifacts(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil
 	}
@@ -93,7 +93,7 @@ func GetFileArtifactsForNode(ctx context.Context, deploymentID, nodeName string)
 // If the artifact doesn't define any extension then a nil slice is returned
 func GetArtifactTypeExtensions(ctx context.Context, deploymentID, artifactTypeName string) ([]string, error) {
 	artifactTyp := new(tosca.ArtifactType)
-	err := getTypeStruct(deploymentID, artifactTypeName, artifactTyp)
+	err := getExpectedTypeFromName(ctx, deploymentID, artifactTypeName, artifactTyp)
 	if err != nil {
 		return nil, err
 	}

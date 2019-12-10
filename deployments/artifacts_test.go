@@ -39,7 +39,7 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer) {
 	// Update the type with importPath (not in Tosca specifications)
 	typeName := "yorc.types.A"
 	typToUpdate := new(tosca.NodeType)
-	err = getTypeStruct(deploymentID, typeName, typToUpdate)
+	err = getExpectedTypeFromName(ctx, deploymentID, typeName, typToUpdate)
 	require.Nil(t, err)
 	typToUpdate.ImportPath = "path/to/typeA"
 	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.types.A", typToUpdate)

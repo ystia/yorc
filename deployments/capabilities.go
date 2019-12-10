@@ -51,7 +51,7 @@ func GetCapabilitiesOfType(ctx context.Context, deploymentID, typeName, capabili
 	capabilities := make([]string, 0)
 
 	node := new(tosca.NodeType)
-	err := getTypeStruct(deploymentID, typeName, node)
+	err := getExpectedTypeFromName(ctx, deploymentID, typeName, node)
 	if err != nil {
 		return capabilities, err
 	}
@@ -108,7 +108,7 @@ func GetCapabilityPropertyType(ctx context.Context, deploymentID, nodeName, capa
 
 func getCapabilityPropertyDefinition(ctx context.Context, deploymentID, capabilityTypeName, propertyName string) (*tosca.PropertyDefinition, error) {
 	typ := new(tosca.CapabilityType)
-	err := getTypeStruct(deploymentID, capabilityTypeName, typ)
+	err := getExpectedTypeFromName(ctx, deploymentID, capabilityTypeName, typ)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +475,7 @@ func GetNodeCapabilityType(ctx context.Context, deploymentID, nodeName, capabili
 // It may return an empty string if the capability is not found in the type hierarchy
 func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capabilityName string) (string, error) {
 	typ := new(tosca.NodeType)
-	err := getTypeStruct(deploymentID, nodeType, typ)
+	err := getExpectedTypeFromName(ctx, deploymentID, nodeType, typ)
 	if err != nil {
 		return "", err
 	}
@@ -496,7 +496,7 @@ func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capa
 // Its descends hierarchy and returns nil if no default value is found
 func GetNodeTypeCapabilityPropertyValueAssignment(ctx context.Context, deploymentID, nodeType, capabilityName, propertyName string) (*tosca.ValueAssignment, error) {
 	typ := new(tosca.NodeType)
-	err := getTypeStruct(deploymentID, nodeType, typ)
+	err := getExpectedTypeFromName(ctx, deploymentID, nodeType, typ)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ import (
 
 func getPolicyTypeStruct(ctx context.Context, deploymentID, policyTypeName string) (*tosca.PolicyType, error) {
 	policyTyp := new(tosca.PolicyType)
-	err := getTypeStruct(deploymentID, policyTypeName, policyTyp)
+	err := getExpectedTypeFromName(ctx, deploymentID, policyTypeName, policyTyp)
 	if err != nil {
 		return nil, err
 	}

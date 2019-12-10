@@ -45,7 +45,7 @@ func IsTypeMissingError(err error) bool {
 
 // This allows to get the type base data of a tosca type
 // If typePath is not provided, it's retrieved
-func getTypeBaseStruct(deploymentID, typeName, typePath string) (*tosca.Type, error) {
+func getTypeBaseInfo(ctx context.Context, deploymentID, typeName, typePath string) (*tosca.Type, error) {
 	var err error
 	if typePath == "" {
 		typePath, err = locateTypePath(deploymentID, typeName)
@@ -65,15 +65,19 @@ func getTypeBaseStruct(deploymentID, typeName, typePath string) (*tosca.Type, er
 	return tType, nil
 }
 
-func getTypeStruct(deploymentID, typeName string, tType interface{}) error {
+// This allows to set the tType structure from its name
+// It requires to know the type base
+func getExpectedTypeFromName(ctx context.Context, deploymentID, typeName string, tType interface{}) error {
 	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return err
 	}
-	return getTypeStructFromKey(deploymentID, typeName, typePath, tType)
+	return getExpectedTypeFromPath(ctx, deploymentID, typeName, typePath, tType)
 }
 
-func getTypeStructFromKey(deploymentID, typeName, typePath string, tType interface{}) error {
+// This allows to set the tType structure from its name and key path
+// It requires to know the type base
+func getExpectedTypeFromPath(ctx context.Context, deploymentID, typeName, typePath string, tType interface{}) error {
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, tType)
 	if err != nil {
 		return err
@@ -115,15 +119,15 @@ func checkTypeIsExpected(typeName string, tType interface{}) error {
 }
 
 // This allows to return the type structure from its type name without information on its type
-// It returns the type key in second position
-func getTypeStructFromName(deploymentID, typeName string) (interface{}, string, error) {
+// It returns the type path in second position
+func getTypeFromName(ctx context.Context, deploymentID, typeName string) (interface{}, string, error) {
 	typePath, err := locateTypePath(deploymentID, typeName)
 	if err != nil {
 		return nil, "", err
 	}
 
 	// Retrieve type of the type (i.e "node", "relationship", "policy"...) to get the related struct
-	typeBase, err := getTypeBaseStruct(deploymentID, typeName, typePath)
+	typeBase, err := getTypeBaseInfo(ctx, deploymentID, typeName, typePath)
 	if err != nil {
 		return nil, "", err
 	}
@@ -147,7 +151,7 @@ func getTypeStructFromName(deploymentID, typeName string) (interface{}, string, 
 
 	}
 
-	err = getTypeStructFromKey(deploymentID, typeName, typePath, tType)
+	err = getExpectedTypeFromPath(ctx, deploymentID, typeName, typePath, tType)
 	if err != nil {
 		return nil, "", err
 	}
@@ -155,8 +159,8 @@ func getTypeStructFromName(deploymentID, typeName string) (interface{}, string, 
 	return tType, typePath, nil
 }
 
-func getTypePropertyDefinitions(deploymentID, typeName string) (map[string]tosca.PropertyDefinition, error) {
-	tType, _, err := getTypeStructFromName(deploymentID, typeName)
+func getTypePropertyDefinitions(ctx context.Context, deploymentID, typeName string) (map[string]tosca.PropertyDefinition, error) {
+	tType, _, err := getTypeFromName(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -178,8 +182,8 @@ func getTypePropertyDefinitions(deploymentID, typeName string) (map[string]tosca
 	return mapProps, nil
 }
 
-func getTypeAttributeDefinitions(deploymentID, typeName string) (map[string]tosca.AttributeDefinition, error) {
-	tType, _, err := getTypeStructFromName(deploymentID, typeName)
+func getTypeAttributeDefinitions(ctx context.Context, deploymentID, typeName string) (map[string]tosca.AttributeDefinition, error) {
+	tType, _, err := getTypeFromName(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -195,8 +199,8 @@ func getTypeAttributeDefinitions(deploymentID, typeName string) (map[string]tosc
 	return mapAttrs, nil
 }
 
-func getTypeInterfaces(deploymentID, typeName string) (map[string]tosca.InterfaceDefinition, error) {
-	tType, _, err := getTypeStructFromName(deploymentID, typeName)
+func getTypeInterfaces(ctx context.Context, deploymentID, typeName string) (map[string]tosca.InterfaceDefinition, error) {
+	tType, _, err := getTypeFromName(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +214,8 @@ func getTypeInterfaces(deploymentID, typeName string) (map[string]tosca.Interfac
 	return interfaces, nil
 }
 
-func getTypeArtifacts(deploymentID, typeName string) (tosca.ArtifactDefMap, error) {
-	tType, _, err := getTypeStructFromName(deploymentID, typeName)
+func getTypeArtifacts(ctx context.Context, deploymentID, typeName string) (tosca.ArtifactDefMap, error) {
+	tType, _, err := getTypeFromName(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +270,7 @@ func GetParentType(ctx context.Context, deploymentID, typeName string) (string, 
 		return "", nil
 	}
 
-	typ, err := getTypeBaseStruct(deploymentID, typeName, "")
+	typ, err := getTypeBaseInfo(ctx, deploymentID, typeName, "")
 	if err != nil {
 		return "", err
 	}
@@ -285,8 +289,8 @@ func IsTypeDerivedFrom(ctx context.Context, deploymentID, nodeType, derives stri
 	return IsTypeDerivedFrom(ctx, deploymentID, parent, derives)
 }
 
-// GetTypes returns the names of the different types for a given deployment.
-func GetTypes(ctx context.Context, deploymentID string) ([]string, error) {
+// GetTypesNames returns the names of the different types for a given deployment.
+func GetTypesNames(ctx context.Context, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
 	typs, err := storage.GetStore(types.StoreTypeDeployment).Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types"))
 	if err != nil {
@@ -335,7 +339,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 	results := make([]string, 0)
 
 	if paramType == "properties" {
-		mapProps, err := getTypePropertyDefinitions(deploymentID, typeName)
+		mapProps, err := getTypePropertyDefinitions(ctx, deploymentID, typeName)
 		if err != nil {
 			return nil, err
 		}
@@ -343,7 +347,7 @@ func getTypeAttributesOrProperties(ctx context.Context, deploymentID, typeName, 
 			results = append(results, k)
 		}
 	} else {
-		mapAttrs, err := getTypeAttributeDefinitions(deploymentID, typeName)
+		mapAttrs, err := getTypeAttributeDefinitions(ctx, deploymentID, typeName)
 		if err != nil {
 			return nil, err
 		}
@@ -460,7 +464,7 @@ func isTypePropertyRequired(ctx context.Context, deploymentID, typeName, propert
 }
 
 func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, propertyName string) (*tosca.PropertyDefinition, error) {
-	mapProps, err := getTypePropertyDefinitions(deploymentID, typeName)
+	mapProps, err := getTypePropertyDefinitions(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +488,7 @@ func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, prop
 }
 
 func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, attributeName string) (*tosca.AttributeDefinition, error) {
-	mapAttrs, err := getTypeAttributeDefinitions(deploymentID, typeName)
+	mapAttrs, err := getTypeAttributeDefinitions(nil, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +515,7 @@ func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, att
 //
 // This is particularly useful for resolving artifacts and implementation
 func GetTypeImportPath(ctx context.Context, deploymentID, typeName string) (string, error) {
-	tType, err := getTypeBaseStruct(deploymentID, typeName, "")
+	tType, err := getTypeBaseInfo(ctx, deploymentID, typeName, "")
 	if err != nil {
 		return "", err
 	}

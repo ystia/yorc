@@ -80,13 +80,8 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 			return err
 		}
 	}
-	var entrySchema string
-	if strings.HasPrefix(currentDataType, "list:") {
-		entrySchema = "list"
-	} else if strings.HasPrefix(currentDataType, "map:") {
-		entrySchema = "map"
-	}
 
+	entrySchema := getDataTypeComplexType(currentDataType)
 	switch entrySchema {
 	case "list":
 		propResult, ok := values.([]interface{})
@@ -126,11 +121,7 @@ func checkForDefaultValuesInComplexTypes(ctx context.Context, deploymentID strin
 
 func addTypeDefault(ctx context.Context, deploymentID string, baseDataType, currentDataType string, values map[string]interface{}, nestedKeys ...string) error {
 	for currentDataType != "" {
-		if strings.HasPrefix(currentDataType, "list:") {
-			currentDataType = currentDataType[5:]
-		} else if strings.HasPrefix(currentDataType, "map:") {
-			currentDataType = currentDataType[4:]
-		}
+		currentDataType = getDataTypeComplexEntrySchema(currentDataType)
 		dtProps, err := GetTypeProperties(ctx, deploymentID, currentDataType, false)
 		if err != nil {
 			return err

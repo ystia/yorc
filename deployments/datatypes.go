@@ -143,3 +143,22 @@ func getTopologyInputOrOutputTypeFromParamDefinition(ctx context.Context, parame
 	}
 	return iType
 }
+
+func getDataTypeComplexEntrySchema(dataType string) string {
+	if strings.HasPrefix(dataType, "list:") {
+		return dataType[5:]
+	} else if strings.HasPrefix(dataType, "map:") {
+		return dataType[4:]
+	}
+	return dataType
+}
+
+func getDataTypeComplexType(dataType string) string {
+	var tType string
+	if strings.HasPrefix(dataType, "list:") {
+		tType = "list"
+	} else if strings.HasPrefix(dataType, "map:") {
+		tType = "map"
+	}
+	return tType
+}
