@@ -175,6 +175,9 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO(loicalbertin) why do we create a new context here?
+	// I was expecting to use the one from http.Request
+	// To be checked if there is a good reason for this.
 	ctx := context.Background()
 	err := deployments.CleanupPurgedDeployments(ctx, s.consulClient, s.config.PurgedDeploymentsEvictionTimeout, uid)
 	if err != nil {
