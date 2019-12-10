@@ -241,7 +241,8 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 	expected = reInsideWhtsp.ReplaceAllString(expected, " ")
 	actual = reLeadcloseWhtsp.ReplaceAllString(actual, "")
 	actual = reInsideWhtsp.ReplaceAllString(actual, " ")
-	//	require.Equal(t, expected, actual)
+	// As environments var aren't in the same order, just compare string length
+	require.Equal(t, len(expected), len(actual))
 }
 
 func getWrappedCommandFunc(path string) func() string {
