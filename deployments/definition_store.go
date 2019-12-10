@@ -64,17 +64,53 @@ func StoreDeploymentDefinition(ctx context.Context, deploymentID string, defPath
 	if err != nil {
 		return handleDeploymentStatus(ctx, deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
 	}
+
+	// Post storage process
+	nodes, err := GetNodes(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+	err = PostDeploymentDefinitionStorageProcess(ctx, deploymentID, nodes)
+	if err != nil {
+		return handleDeploymentStatus(ctx, deploymentID, err)
+	}
+	return handleDeploymentStatus(ctx, deploymentID, enhanceTopology(ctx, deploymentID, nodes))
+}
+
+// PostDeploymentDefinitionStorageProcess allows to execute Post deployment storage process
+// It concerns deployment store only (not instances) and can be run separately (upgrade)
+func PostDeploymentDefinitionStorageProcess(ctx context.Context, deploymentID string, nodes []string) error {
+	// Workflow enhancement
+	err := enhanceWorkflows(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+
+	// Implementation types registration
 	err = registerImplementationTypes(ctx, deploymentID)
 	if err != nil {
 		return handleDeploymentStatus(ctx, deploymentID, err)
 	}
 
-	// Enhance nodes
-	nodes, err := GetNodes(ctx, deploymentID)
-	if err != nil {
-		return err
+	// Topology enhancement
+	for _, nodeName := range nodes {
+		err = fixGetOperationOutput(ctx, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+
+		substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+		if !substitutable {
+			err = fixAlienBlockStorages(ctx, deploymentID, nodeName)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return handleDeploymentStatus(ctx, deploymentID, enhanceNodes(ctx, deploymentID, nodes))
+	return nil
 }
 
 func handleDeploymentStatus(ctx context.Context, deploymentID string, err error) error {
@@ -161,12 +197,12 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 	return nil
 }
 
-// EnhanceNodes walk through the provided nodes an for each of them if needed it creates the instances and fix alien BlockStorage declaration
-func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) error {
+// enhanceTopology walk through the provided nodes an for each of them if needed it creates the instances
+func enhanceTopology(ctx context.Context, deploymentID string, nodes []string) error {
 	ctxStore, errGroup, consulStore := consulutil.WithContext(ctx)
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
-		isCompute, err := createInstanceAndFixModel(ctxStore, consulStore, deploymentID, nodeName)
+		isCompute, err := checkForInstancesCreation(ctxStore, consulStore, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -191,11 +227,6 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 		}
 	}
 
-	err = enhanceWorkflows(ctx, consulStore, deploymentID)
-	if err != nil {
-		return err
-	}
-
 	err = enhanceAttributes(ctx, deploymentID, nodes)
 	if err != nil {
 		return err
@@ -203,13 +234,9 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 	return errGroup.Wait()
 }
 
-func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
+func checkForInstancesCreation(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
 
 	var isCompute bool
-	err := fixGetOperationOutput(ctx, deploymentID, nodeName)
-	if err != nil {
-		return isCompute, err
-	}
 
 	substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 	if err != nil {
@@ -217,10 +244,6 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 	}
 	if !substitutable {
 		err = createInstancesForNode(ctx, consulStore, deploymentID, nodeName)
-		if err != nil {
-			return isCompute, err
-		}
-		err = fixAlienBlockStorages(ctx, deploymentID, nodeName)
 		if err != nil {
 			return isCompute, err
 		}

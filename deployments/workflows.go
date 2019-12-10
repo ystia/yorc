@@ -69,7 +69,7 @@ func DeleteWorkflow(ctx context.Context, deploymentID, workflowName string) erro
 		workflowsPrefix, workflowName), true)
 }
 
-func enhanceWorkflows(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string) error {
+func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 	wf, err := GetWorkflow(ctx, deploymentID, "run")
 	if err != nil {
 		return err

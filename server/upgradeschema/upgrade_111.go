@@ -15,6 +15,7 @@
 package upgradeschema
 
 import (
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"strings"
 
@@ -103,7 +104,7 @@ func up111UpgradeCommonsTypes(kv *api.KV) error {
 }
 
 // UpgradeTo111 allows to upgrade Consul schema from 1.1.0 to 1.1.1
-func UpgradeTo111(kv *api.KV, leaderch <-chan struct{}) error {
+func UpgradeTo111(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Upgrading to database version 1.1.1...")
 	return up111UpgradeCommonsTypes(kv)
 }

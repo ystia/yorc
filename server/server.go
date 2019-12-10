@@ -81,7 +81,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		return err
 	}
 
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(configuration, client)
 	if err != nil {
 		return err
 	}
