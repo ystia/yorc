@@ -5,6 +5,7 @@
 ### BUG FIXES
 
 * Yorc bootstrap on 4.0.0-M7 doesn't work unless an alternative download URL is provided for Yorc ([GH-561](https://github.com/ystia/yorc/issues/561))
+* Location properties stored in Vault are no longer resolvable ([GH-565](https://github.com/ystia/yorc/issues/565))
 
 ## 4.0.0-M7 (November 29, 2019)
 
@@ -33,6 +34,7 @@ This is tracked on ([GH-547: Refactor Deployment updates API](https://github.com
 
 ### FEATURES
 
+* Add support for using bastion hosts to provision instances with ansible and terraform ([GH-128](https://github.com/ystia/yorc/issues/128))
 * Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
 * Loading bar while bootstrap ([GH-254](https://github.com/ystia/yorc/issues/254))
 

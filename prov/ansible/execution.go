@@ -50,7 +50,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/operations"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tosca"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 const taskContextOutput = "task_context"
@@ -125,6 +125,7 @@ type hostConnection struct {
 	instanceID  string
 	privateKeys map[string]*sshutil.PrivateKey
 	password    string
+	bastion     *sshutil.BastionHostConfig
 }
 
 type sshCredentials struct {
@@ -360,7 +361,7 @@ func (e *executionCommon) setHostConnection(ctx context.Context, host, instanceI
 		if err != nil {
 			return err
 		}
-		credentials := new(datatypes.Credential)
+		credentials := new(types.Credential)
 		if credentialValue != nil && credentialValue.RawString() != "" {
 			err = mapstructure.Decode(credentialValue.Value, credentials)
 			if err != nil {
@@ -444,6 +445,10 @@ func (e *executionCommon) resolveHostsOnCompute(ctx context.Context, nodeName st
 					ipAddressStr := config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress.RawString()).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := &hostConnection{host: ipAddressStr, instanceID: instance}
+					hostConn.bastion, err = provutil.GetInstanceBastionHost(e.ctx, e.deploymentID, host)
+					if err != nil {
+						return err
+					}
 					err = e.setHostConnection(ctx, host, instance, capType, hostConn)
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
@@ -822,6 +827,20 @@ func (e *executionCommon) getSSHCredentials(ctx context.Context, host *hostConne
 
 func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host *hostConnection) error {
 	buffer.WriteString(host.host)
+
+	if host.bastion != nil {
+		if host.bastion.Password != "" {
+			return errors.New("ansible provider does not support password authentication with bastion hosts")
+		}
+		if host.bastion.Port == "" {
+			host.bastion.Port = "22"
+		}
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_common_args='-o ProxyCommand=\"ssh -W %%h:%%p "+
+			// disable host key checking on bastion host completeley
+			"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "+
+			"-p %s %s@%s\"'", host.bastion.Port, host.bastion.User, host.bastion.Host))
+	}
+
 	if e.isOrchestratorOperation {
 		err := e.generateHostConnectionForOrchestratorOperation(ctx, buffer)
 		if err != nil {
@@ -1253,6 +1272,13 @@ func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAg
 		for _, key := range host.privateKeys {
 			if err = agent.AddPrivateKey(key, 3600); err != nil {
 				return nil, err
+			}
+		}
+		if host.bastion != nil && len(host.bastion.PrivateKeys) > 0 {
+			for _, key := range host.bastion.PrivateKeys {
+				if err = agent.AddPrivateKey(key, 3600); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
