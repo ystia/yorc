@@ -799,7 +799,15 @@ func CreateNewNodeStackInstances(ctx context.Context, deploymentID, nodeName str
 	for node := range nodesMap {
 		createRelationshipInstances(ctx, consulStore, deploymentID, node)
 	}
-	return nodesMap, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
+
+	// Wait for relationship instances to be created
+	err = errGroup.Wait()
+	if err != nil {
+		return nil, err
+	}
+	// Add possible attribute notifications
+	err = enhanceAttributes(ctx, deploymentID, stackNodes)
+	return nodesMap, errors.Wrapf(err, "Failed to create instances for node %q", nodeName)
 
 }
 

@@ -49,7 +49,6 @@ func GetInstanceBastionHost(ctx context.Context, deploymentID, nodeName string) 
 	}
 
 	reqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "dependency")
-	//reqs, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "dependency")
 	if err != nil {
 		return nil, err
 	}
