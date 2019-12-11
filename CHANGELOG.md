@@ -38,6 +38,7 @@ This is tracked on ([GH-547: Refactor Deployment updates API](https://github.com
 
 ### FEATURES
 
+* Add support for using bastion hosts to provision instances with ansible and terraform ([GH-128](https://github.com/ystia/yorc/issues/128))
 * Enrich Yorc REST API with endpoints and handlers for locations management ([GH-479](https://github.com/ystia/yorc/issues/479))
 * Loading bar while bootstrap ([GH-254](https://github.com/ystia/yorc/issues/254))
 

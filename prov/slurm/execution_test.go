@@ -28,7 +28,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/prov/operations"
 	"github.com/ystia/yorc/v4/testutil"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 func Test_executionCommon_wrapCommand(t *testing.T) {
@@ -50,7 +50,7 @@ func Test_executionCommon_wrapCommand(t *testing.T) {
 			jobInfo: &jobInfo{Name: "MyJob", Nodes: 1, WorkingDir: "~"}},
 			args{"ping -c 3 1.1.1.1"}, regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n\nping -c 3 1.1.1.1\nEOF\nsbatch -D ~ --job-name='MyJob' --nodes=1 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`), false},
 		{"TestWithInlineOptsGeneration", fields{
-			jobInfo: &jobInfo{Name: "MyJob", Nodes: 1, WorkingDir: "~", ExecutionOptions: datatypes.SlurmExecutionOptions{InScriptOptions: []string{"#BB ddd", "not dash prefixed so will not appear", "#another one"}}}},
+			jobInfo: &jobInfo{Name: "MyJob", Nodes: 1, WorkingDir: "~", ExecutionOptions: types.SlurmExecutionOptions{InScriptOptions: []string{"#BB ddd", "not dash prefixed so will not appear", "#another one"}}}},
 			args{"ping -c 3 1.1.1.1"}, regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n#BB ddd\n#another one\n\nping -c 3 1.1.1.1\nEOF\nsbatch -D ~ --job-name='MyJob' --nodes=1 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`), false},
 		{"TestWithSourceEnvFile", fields{
 			jobInfo: &jobInfo{Name: "MyJob", Nodes: 1, WorkingDir: "~", EnvFile: "~/.bash_profile"}},
@@ -107,7 +107,7 @@ func testExecutionCommonBuildJobInfo(t *testing.T) {
 		{"CheckErrorIfNoCommandAndPrimary", fields{config.DynamicMap{}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "", false}, true, jobInfo{}},
 		{"CheckDefaultValues", fields{config.DynamicMap{}, deploymentIDOpts, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "primary", false}, false,
 			jobInfo{Name: "ClassificationJobUnit_Singularity", Tasks: 1, Nodes: 1, MonitoringTimeInterval: 5 * time.Second, Inputs: make(map[string]string), WorkingDir: home,
-				ExecutionOptions: datatypes.SlurmExecutionOptions{
+				ExecutionOptions: types.SlurmExecutionOptions{
 					Args:            []string{"-c", "python3 /opt/kdetect.py ${STORAGE_PATH}"},
 					InScriptOptions: []string{"#BB volume=a4b4f33c-994f-4f3f-877e-395d21bd3fb2 user=bu key=key path=/sharing lustre_path=/fs1/myuser/bu size=1"},
 					Command:         "sh",
@@ -164,7 +164,7 @@ func testExecutionCommonPrepareAndSubmitJob(t *testing.T) {
 		{"CheckWrappedCommand",
 			fields{config.Configuration{}, config.DynamicMap{}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "",
 				&jobInfo{Name: "MyJob", Tasks: 2, Nodes: 4, WorkingDir: home,
-					ExecutionOptions: datatypes.SlurmExecutionOptions{
+					ExecutionOptions: types.SlurmExecutionOptions{
 						Command: "cat",
 						Args:    []string{"/etc/os-release"},
 					}}},

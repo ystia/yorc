@@ -36,6 +36,27 @@ data_types:
         type: string
         required: true
         description: The user (name or ID) used as a credential for authorization or access to a networked resource.
+  yorc.datatypes.ProvisioningBastion:
+    derived_from: tosca.datatypes.Root
+    properties:
+      use:
+        type: boolean
+        required: true
+        default: false
+        description: Enable using a bastion host to connect to the node.
+      host:
+        type: string
+        required: true
+        description: The ip address of the bastion host to connect to.
+      port:
+        type: integer
+        required: false
+        default: 22
+        description: The port ssh is listening on.
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        required: true
+        description: The credentials to use to authorize against the bastion host
   yorc.datatypes.TLSClientConfig:
     derived_from: tosca.datatypes.Root
     properties:
@@ -67,6 +88,10 @@ capability_types:
         type: yorc.datatypes.ProvisioningCredential
         description: Credentials used to provision the resource
         required: false
+      bastion:
+        type: yorc.datatypes.ProvisioningBastion
+        description: Configuration of a bastion host to use to connect
+        required: false
     # # Not supported by alien
     # attributes:
     #   protocol:
@@ -89,6 +114,26 @@ capability_types:
   yorc.capabilities.Group:
     derived_from: tosca.capabilities.Root
 
+  yorc.capabilities.SSHBastionHost:
+    derived_from: tosca.capabilities.Node
+    properties:
+      port:
+        type: integer
+        required: false
+      network_name:
+        type: string
+        required: false
+      port_name:
+        type: string
+        required: false
+      use_host_credentials:
+        type: boolean
+        required: false
+        default: true
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        required: false
+
 relationship_types:
   yorc.relationships.AssignsTo:
     derived_from: tosca.relationships.Root
@@ -98,6 +143,10 @@ relationship_types:
     derived_from: tosca.relationships.Root
     description: This type represents the membership of a node to a group.
     valid_target_types: [ yorc.capabilities.Group ]
+  yorc.relationships.DeploysThrough:
+    derived_from: tosca.relationships.DependsOn
+    description: This type assigns a bastion host to use for connecting to a compute instance.
+    valid_target_types: [ yorc.capabilities.SSHBastionHost ]
 
 node_types:
   yorc.nodes.Compute:
