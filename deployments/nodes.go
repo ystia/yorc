@@ -49,7 +49,7 @@ func IsNodeNotFoundError(err error) bool {
 	return ok
 }
 
-func getNodeTemplateStruct(ctx context.Context, deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
+func getNodeTemplate(ctx context.Context, deploymentID, nodeName string) (*tosca.NodeTemplate, error) {
 	node := new(tosca.NodeTemplate)
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(nodePath, node)
@@ -199,7 +199,7 @@ func GetHostedOnNode(ctx context.Context, deploymentID, nodeName string) (string
 }
 
 func getHostedOnNodeAndInstance(ctx context.Context, deploymentID, nodeName, instanceName string) (string, string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return "", "", err
 	}
@@ -277,7 +277,7 @@ func GetNodesHostedOn(ctx context.Context, deploymentID, hostNode string) ([]str
 }
 
 func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, attrDataType string, nestedKeys ...string) (*TOSCAValue, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +333,7 @@ func getNodeAttributeValue(ctx context.Context, deploymentID, nodeName, instance
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy
 func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -566,7 +566,7 @@ func GetNodes(ctx context.Context, deploymentID string) ([]string, error) {
 // GetNodeType returns the type of a given node identified by its name
 func GetNodeType(ctx context.Context, deploymentID, nodeName string) (string, error) {
 	var nodeType string
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
 	}
@@ -599,7 +599,7 @@ func GetNodeAttributesNames(ctx context.Context, deploymentID, nodeName string) 
 	attributesSet := make(map[string]struct{})
 
 	// Look at node type
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -838,7 +838,7 @@ func DoesNodeExist(ctx context.Context, deploymentID, nodeName string) (bool, er
 
 // GetNodeMetadata retrieves the related node metadata key if exists
 func GetNodeMetadata(ctx context.Context, deploymentID, nodeName, key string) (bool, string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, "", err
 	}

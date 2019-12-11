@@ -52,6 +52,10 @@ func transformedWorkflow(workflow *tosca.Workflow) *tosca.Workflow {
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) error {
 	kv := make([]*types.KeyValue, 0)
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
+		// no need to store empty workflow
+		if workflow.Steps == nil {
+			continue
+		}
 		wfPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName)
 		kv = append(kv, &types.KeyValue{
 			Key:   wfPrefix,

@@ -25,7 +25,7 @@ import (
 	"path"
 )
 
-func getPolicyTypeStruct(ctx context.Context, deploymentID, policyTypeName string) (*tosca.PolicyType, error) {
+func getPolicyType(ctx context.Context, deploymentID, policyTypeName string) (*tosca.PolicyType, error) {
 	policyTyp := new(tosca.PolicyType)
 	err := getExpectedTypeFromName(ctx, deploymentID, policyTypeName, policyTyp)
 	if err != nil {
@@ -34,7 +34,7 @@ func getPolicyTypeStruct(ctx context.Context, deploymentID, policyTypeName strin
 	return policyTyp, nil
 }
 
-func getPolicyStruct(ctx context.Context, deploymentID, policyName string) (*tosca.Policy, error) {
+func getPolicy(ctx context.Context, deploymentID, policyName string) (*tosca.Policy, error) {
 	key := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies", policyName)
 	policy := new(tosca.Policy)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(key, policy)
@@ -58,7 +58,7 @@ func GetPoliciesForType(ctx context.Context, deploymentID, policyTypeName string
 	policies := make([]string, 0)
 	for _, key := range keys {
 		policyName := path.Base(key)
-		policy, err := getPolicyStruct(ctx, deploymentID, policyName)
+		policy, err := getPolicy(ctx, deploymentID, policyName)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func GetPoliciesForTypeAndNode(ctx context.Context, deploymentID, policyTypeName
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the policy then the type hierarchy is explored to find a default value.
 func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	policy, err := getPolicyStruct(ctx, deploymentID, policyName)
+	policy, err := getPolicy(ctx, deploymentID, policyName)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func GetPolicyPropertyValue(ctx context.Context, deploymentID, policyName, prope
 
 // GetPolicyType returns the type of the policy
 func GetPolicyType(ctx context.Context, deploymentID, policyName string) (string, error) {
-	policy, err := getPolicyStruct(ctx, deploymentID, policyName)
+	policy, err := getPolicy(ctx, deploymentID, policyName)
 	if err != nil {
 		return "", err
 	}
@@ -193,7 +193,7 @@ func IsTargetForPolicy(ctx context.Context, deploymentID, policyName, nodeName s
 // GetPolicyTargets retrieves the policy template targets
 // these targets are node names
 func GetPolicyTargets(ctx context.Context, deploymentID, policyName string) ([]string, error) {
-	policy, err := getPolicyStruct(ctx, deploymentID, policyName)
+	policy, err := getPolicy(ctx, deploymentID, policyName)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func GetPolicyTargets(ctx context.Context, deploymentID, policyName string) ([]s
 // GetPolicyTargetsForType retrieves the policy type targets
 // this targets are node types
 func GetPolicyTargetsForType(ctx context.Context, deploymentID, policyTypeName string) ([]string, error) {
-	policyType, err := getPolicyTypeStruct(ctx, deploymentID, policyTypeName)
+	policyType, err := getPolicyType(ctx, deploymentID, policyTypeName)
 	if err != nil {
 		return nil, err
 	}

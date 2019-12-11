@@ -26,7 +26,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
-func getParameterDefinitionStruct(ctx context.Context, deploymentID, parameterName, parameterType string) (bool, *tosca.ParameterDefinition, error) {
+func getParameterDefinition(ctx context.Context, deploymentID, parameterName, parameterType string) (bool, *tosca.ParameterDefinition, error) {
 	valuePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName)
 	parameterDef := new(tosca.ParameterDefinition)
 	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(valuePath, parameterDef)
@@ -43,7 +43,7 @@ func GetTopologyOutputValue(ctx context.Context, deploymentID, outputName string
 		return nil, err
 	}
 
-	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, outputName, "outputs")
+	exist, paramDef, err := getParameterDefinition(ctx, deploymentID, outputName, "outputs")
 	if err != nil || !exist {
 		return nil, err
 	}

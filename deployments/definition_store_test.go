@@ -1075,7 +1075,7 @@ func testCheckCycleInNestedWorkflows(t *testing.T) {
 func testImportTopologyTemplateNodeMetadata(t *testing.T, deploymentID string) {
 	t.Parallel()
 
-	node, err := getNodeTemplateStruct(context.Background(), deploymentID, "TestCompute")
+	node, err := getNodeTemplate(context.Background(), deploymentID, "TestCompute")
 	require.NoError(t, err, "Error getting node template")
 	require.NotNil(t, node, "node TestCompute should not be nil")
 	require.NotNil(t, node.Metadata, "node TestCompute should not be nil")

@@ -24,7 +24,7 @@ import (
 // GetInputValue first checks if a non-empty field value exists for this input, if it doesn't then it checks for a non-empty field default.
 // If none of them exists then it returns an empty string.
 func GetInputValue(ctx context.Context, deploymentID, inputName string, nestedKeys ...string) (string, error) {
-	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, inputName, "inputs")
+	exist, paramDef, err := getParameterDefinition(ctx, deploymentID, inputName, "inputs")
 	if err != nil || !exist {
 		return "", err
 	}

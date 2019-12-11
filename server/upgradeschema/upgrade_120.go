@@ -63,7 +63,6 @@ func upgradeDeploymentsRefactoring(cfg config.Configuration) error {
 			path.Join(topologyPath, "policies"),
 			path.Join(topologyPath, "repositories"),
 			path.Join(topologyPath, "substitution_mappings"),
-			path.Join(topologyPath, "repositories"),
 			path.Join(topologyPath, "metadata"),
 			path.Join(topologyPath, "outputs"),
 			path.Join(topologyPath, "inputs"),

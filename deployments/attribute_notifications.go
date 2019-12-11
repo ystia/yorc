@@ -293,7 +293,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 	}
 
 	// First look at node type as instance values can't contain functions
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}

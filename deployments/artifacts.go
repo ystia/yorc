@@ -71,7 +71,7 @@ func GetFileArtifactsForType(ctx context.Context, deploymentID, typeName string)
 // It will first fetch artifacts from it node type and its parents and fetch artifacts for the node template itself.
 // This way artifacts from a parent type may be overridden by child types and artifacts from node type may be overridden by the node template
 func GetFileArtifactsForNode(ctx context.Context, deploymentID, nodeName string) (map[string]string, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}

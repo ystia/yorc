@@ -52,7 +52,7 @@ const (
 // that it is substitutable
 func isSubstitutableNode(ctx context.Context, deploymentID, nodeName string) (bool, error) {
 
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return false, errors.Wrapf(err, "Can't get directives for node %q", nodeName)
 	}

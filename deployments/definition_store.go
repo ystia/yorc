@@ -255,7 +255,7 @@ func checkForInstancesCreation(ctx context.Context, consulStore consulutil.Consu
 
 func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) error {
 	// Check operation outputs on node template
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func storeOperationOutput(ctx context.Context, deploymentID, nodeName, typeName,
 		return nil
 	}
 	if isNodeImplOpe {
-		nodeTemplate, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+		nodeTemplate, err := getNodeTemplate(ctx, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -528,7 +528,7 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 			}
 
 			// Update the compute node with new requirement
-			node, err := getNodeTemplateStruct(ctx, deploymentID, computeNodeName)
+			node, err := getNodeTemplate(ctx, deploymentID, computeNodeName)
 			if err != nil {
 				return err
 			}

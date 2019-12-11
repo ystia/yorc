@@ -32,7 +32,7 @@ type Requirement struct {
 }
 
 func getRequirements(ctx context.Context, deploymentID, nodeName string) ([]tosca.RequirementAssignmentMap, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		if IsNodeNotFoundError(err) {
 			return nil, nil

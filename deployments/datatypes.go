@@ -121,7 +121,7 @@ func GetTopologyOutputType(ctx context.Context, deploymentID, outputName string)
 }
 
 func getTopologyInputOrOutputType(ctx context.Context, deploymentID, parameterName, parameterType string) (string, error) {
-	exist, paramDef, err := getParameterDefinitionStruct(ctx, deploymentID, parameterName, parameterType)
+	exist, paramDef, err := getParameterDefinition(ctx, deploymentID, parameterName, parameterType)
 	if err != nil || !exist {
 		return "", err
 	}

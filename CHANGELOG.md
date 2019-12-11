@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Refactor deployments package to be able to use different storage backends - part Two: Consul as default Deployments store implementation ([GH-530](https://github.com/ystia/yorc/issues/530))
+
 ### BUG FIXES
 
 * Yorc bootstrap on 4.0.0-M7 doesn't work unless an alternative download URL is provided for Yorc ([GH-561](https://github.com/ystia/yorc/issues/561))

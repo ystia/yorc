@@ -150,7 +150,7 @@ func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, node
 
 	var interfaceDef *tosca.InterfaceDefinition
 	if nodeTemplate != "" {
-		node, err := getNodeTemplateStruct(ctx, deploymentID, nodeTemplate)
+		node, err := getNodeTemplate(ctx, deploymentID, nodeTemplate)
 		if err != nil {
 			return nil, nil, err
 		}

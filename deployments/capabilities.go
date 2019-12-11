@@ -132,7 +132,7 @@ func getCapabilityPropertyDefinition(ctx context.Context, deploymentID, capabili
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 	}
 
 	// Then look at global node level
-	node, err := getNodeTemplateStruct(ctx, deploymentID, nodeName)
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
