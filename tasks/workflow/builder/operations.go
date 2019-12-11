@@ -15,11 +15,13 @@
 package builder
 
 import (
+	"github.com/ystia/yorc/v4/log"
 	"strings"
 
 	"github.com/ystia/yorc/v4/tosca"
 )
 
 func isAsyncOperation(operation string) bool {
-	return operation == strings.ToLower(tosca.RunnableRunOperationName)
+	log.Debugf("isAsyncOperation: operation:%q", operation)
+	return strings.ToLower(operation) == strings.ToLower(tosca.RunnableRunOperationName)
 }

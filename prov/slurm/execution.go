@@ -47,6 +47,7 @@ import (
 
 const home = "~"
 const batchScript = "b-%s.batch"
+const srunCommand = "srun"
 
 type execution interface {
 	resolveExecution(ctx context.Context) error
@@ -440,7 +441,10 @@ func (e *executionCommon) buildJobOpts() string {
 func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
 	if e.jobInfo.ExecutionOptions.Command != "" {
-		inner := fmt.Sprintf("srun %s %s", e.jobInfo.ExecutionOptions.Command, quoteArgs(e.jobInfo.ExecutionOptions.Args))
+		if strings.HasPrefix(strings.TrimSpace(e.jobInfo.ExecutionOptions.Command), srunCommand+" ") {
+			e.jobInfo.ExecutionOptions.Command = e.jobInfo.ExecutionOptions.Command[5:]
+		}
+		inner := fmt.Sprintf("%s %s %s", srunCommand, e.jobInfo.ExecutionOptions.Command, quoteArgs(e.jobInfo.ExecutionOptions.Args))
 		var err error
 		cmd, err = e.wrapCommand(inner)
 		if err != nil {
