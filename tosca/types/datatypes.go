@@ -12,13 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package datatypes
+package types
 
 // Credential is a tosca.datatypes.Credential as defined in the specification https://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.3/csprd01/TOSCA-Simple-Profile-YAML-v1.3-csprd01.html#TYPE_TOSCA_DATA_CREDENTIAL
 type Credential struct {
-	Protocol  string            `mapstructure:"protocol"`
-	TokenType string            `mapstructure:"token_type"` // default: password
-	Token     string            `mapstructure:"token"`
-	Keys      map[string]string `mapstructure:"keys"`
-	User      string            `mapstructure:"user"`
+	Protocol  string            `mapstructure:"protocol" json:"protocol"`
+	TokenType string            `mapstructure:"token_type" json:"token_type"` // default: password
+	Token     string            `mapstructure:"token" json:"token"`
+	Keys      map[string]string `mapstructure:"keys" json:"keys"`
+	User      string            `mapstructure:"user" json:"user"`
+}
+
+// ProvisioningBastion is a representation of yorc.datatypes.ProvisioningBastion.
+type ProvisioningBastion struct {
+	Use         string     `mapstructure:"use" json:"use"`
+	Host        string     `mapstructure:"host" json:"host"`
+	Port        string     `mapstructure:"port" json:"port"`
+	Credentials Credential `mapstructure:"credentials" json:"credentials"`
 }

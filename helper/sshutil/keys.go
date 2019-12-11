@@ -26,7 +26,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 // DefaultSSHPrivateKeyFilePath is the default SSH private Key file path
@@ -136,7 +136,7 @@ func GetDefaultKey() (*PrivateKey, error) {
 }
 
 // GetKeysFromCredentialsDataType returns a map of PrivateKey contained in a Credential datatype
-func GetKeysFromCredentialsDataType(creds *datatypes.Credential) (map[string]*PrivateKey, error) {
+func GetKeysFromCredentialsDataType(creds *types.Credential) (map[string]*PrivateKey, error) {
 	keys := make(map[string]*PrivateKey, len(creds.Keys))
 	for keyName, key := range creds.Keys {
 		// If keys are comming from a config file (typically for hostspool) it may contain templates to interact with Vault
@@ -161,7 +161,7 @@ func GetKeysFromCredentialsAttribute(ctx context.Context, deploymentID, nodeName
 		return nil, err
 	}
 	if credentialsValue != nil && credentialsValue.RawString() != "" {
-		creds := new(datatypes.Credential)
+		creds := new(types.Credential)
 		err = mapstructure.Decode(credentialsValue.Value, creds)
 		if err != nil {
 			return nil, errors.Wrapf(err, `invalid credential datatype for attribute "credentials" for node %q, instance %q, capability %q`, nodeName, instanceID, capabilityName)

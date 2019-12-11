@@ -35,7 +35,10 @@ func storeCommonDefinitions() {
 	}
 	ctx := context.Background()
 	for defName, defContent := range resources {
-		store.CommonDefinition(ctx, defName, store.BuiltinOrigin, defContent)
+		err := store.CommonDefinition(ctx, defName, store.BuiltinOrigin, defContent)
+		if err != nil {
+			log.Panic("Failed to store builtin tosca definition. %v", err)
+		}
 	}
 }
 

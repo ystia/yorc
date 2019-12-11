@@ -146,7 +146,7 @@ func GetCapabilityPropertyValue(ctx context.Context, deploymentID, nodeName, cap
 		return nil, err
 	}
 
-	result, err = GetNodeTypeCapabilityPropertyValue(ctx, deploymentID, nodeType, capabilityName, propertyName, propDataType, nestedKeys...)
+	result, err = GetNodeTypeCapabilityPropertyValue(ctx, deploymentID, nodeType, nodeName, capabilityName, propertyName, propDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, err
 	}
@@ -455,13 +455,13 @@ func GetNodeTypeCapabilityType(ctx context.Context, deploymentID, nodeType, capa
 // GetNodeTypeCapabilityPropertyValue retrieves the property value of a node type capability identified by its name
 //
 // It explores the type hierarchy (derived_from) to found the given capability.
-func GetNodeTypeCapabilityPropertyValue(ctx context.Context, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (*TOSCAValue, error) {
+func GetNodeTypeCapabilityPropertyValue(ctx context.Context, deploymentID, nodeType, nodeName, capabilityName, propertyName, propDataType string, nestedKeys ...string) (*TOSCAValue, error) {
 	typePath, err := locateTypePath(deploymentID, nodeType)
 	if err != nil {
 		return nil, err
 	}
 	capPropPath := path.Join(typePath, "capabilities", capabilityName, "properties", propertyName)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capPropPath, "", "", "", propDataType, nestedKeys...)
+	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capPropPath, nodeName, "", "", propDataType, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
 	}
@@ -473,7 +473,7 @@ func GetNodeTypeCapabilityPropertyValue(ctx context.Context, deploymentID, nodeT
 	if parentType == "" {
 		return nil, nil
 	}
-	return GetNodeTypeCapabilityPropertyValue(ctx, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
+	return GetNodeTypeCapabilityPropertyValue(ctx, deploymentID, parentType, nodeName, capabilityName, propertyName, propDataType, nestedKeys...)
 }
 
 func notifyAndPublishCapabilityAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {
