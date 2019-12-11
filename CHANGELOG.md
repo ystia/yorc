@@ -6,6 +6,7 @@
 
 * Yorc bootstrap on 4.0.0-M7 doesn't work unless an alternative download URL is provided for Yorc ([GH-561](https://github.com/ystia/yorc/issues/561))
 * Location properties stored in Vault are no longer resolvable ([GH-565](https://github.com/ystia/yorc/issues/565))
+* An error during deployment purge may let the deployment in a wrong state ([GH-572](https://github.com/ystia/yorc/issues/572))
 
 ## 4.0.0-M7 (November 29, 2019)
 

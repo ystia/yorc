@@ -130,6 +130,9 @@ func DoesDeploymentExists(ctx context.Context, deploymentID string) (bool, error
 // It will also emit a proper event to notify of status change.
 // It is safe for concurrent use by using a CAS mechanism.
 func SetDeploymentStatus(ctx context.Context, deploymentID string, status DeploymentStatus) error {
+	if ctx == nil {
+		return errors.Errorf("expecting a non-nil context to set the deployment status")
+	}
 RETRY:
 	// As we loop check if context is not cancelled
 	select {

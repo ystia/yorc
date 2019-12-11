@@ -59,6 +59,9 @@ func TestRunConsulWorkerTests(t *testing.T) {
 	t.Run("TestRunPurge", func(t *testing.T) {
 		testRunPurge(t, srv, client)
 	})
+	t.Run("TestRunPurgeFails", func(t *testing.T) {
+		testRunPurgeFails(t, srv, client)
+	})
 }
 
 func createTaskExecutionKVWithKey(t *testing.T, execID, keyName, keyValue string) {
