@@ -53,7 +53,7 @@ func testSimpleComputeInstance(t *testing.T, cfg config.Configuration) {
 	privateKey := expectedKey
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	env := make([]string, 0)
@@ -135,7 +135,7 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, srv1 *testutil.TestServe
 	env := make([]string, 0)
 	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
-	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
@@ -170,7 +170,7 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, srv1 *testutil.Te
 	err := g.generateComputeInstance(context.Background(), cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
-	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
@@ -224,7 +224,7 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, srv1 *testutil.Te
 func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"
 
 	// Simulate the google persistent disk "volume_id" attribute registration
@@ -254,7 +254,7 @@ func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, srv1 *te
 func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "comp1-0"
 
 	// Simulate the google persistent disk "volume_id" attribute registration

@@ -48,6 +48,8 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 	}{
 		{&ebs.AvailabilityZone, "availability_zone", true},
 		{&ebs.Encrypted, "encrypted", false},
+		{&ebs.SnapshotID, "snapshot_id", false},
+		{&ebs.KMSKeyID, "kms_key_id", false},
 		{&size, "size", false},
 	}
 
@@ -59,7 +61,12 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 		}
 	}
 
-	// Handle size converstion
+	// TODO :clean up this
+	// res, err := deployments.GetRelationshipForRequirement(ctx, deploymentID, nodeName, "0")
+	// res = res + ""
+	// err = nil
+
+	// Handle size (eg : convertion)
 	if size != "" {
 		// Default size unit is MB
 		log.Debugf("Initial size property value (default is MB): %q", size)
@@ -70,10 +77,11 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 		log.Debugf("Computed size (in GB): %d", ebs.Size)
 	}
 
-	// TODO : finish name imp
-	name := strings.ToLower(nodeName + "-" + instanceName)
-
+	// Create the name for the ressource
+	name := strings.ToLower(commons.GetResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
 	commons.AddResource(infrastructure, "aws_ebs_volume", name, ebs)
+
+	// TODO : provide outputs !
 
 	return nil
 }

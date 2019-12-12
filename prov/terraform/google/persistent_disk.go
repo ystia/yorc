@@ -110,7 +110,7 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, cfg config
 		}
 	}
 
-	name := strings.ToLower(getResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
+	name := strings.ToLower(commons.GetResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
 	persistentDisk.Name = strings.Replace(name, "_", "-", -1)
 
 	// Add google persistent disk resource if not any volume ID is provided

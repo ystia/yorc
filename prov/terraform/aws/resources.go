@@ -57,5 +57,6 @@ type EBSVolume struct {
 	AvailabilityZone string `json:"availability_zone,omitempty"`
 	Encrypted        string `json:"Encrypted,omitempty"`
 	Size             int    `json:"size,omitempty"`
-	// TODO: finish prop
+	SnapshotID       string `json:"snapshot_id,omitempty"`
+	KMSKeyID         string `json:"kms_key_id,omitempty"`
 }

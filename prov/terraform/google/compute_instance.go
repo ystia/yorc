@@ -47,7 +47,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg confi
 	instance := ComputeInstance{}
 
 	// Must be a match of regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)'
-	instance.Name = strings.ToLower(getResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
+	instance.Name = strings.ToLower(commons.GetResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
 	instance.Name = strings.Replace(instance.Name, "_", "-", -1)
 
 	// Getting string parameters
@@ -386,7 +386,7 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 			attachedDisk.Mode = modeValue.RawString()
 		}
 
-		attachName := strings.ToLower(getResourcesPrefix(cfg, deploymentID) + volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
+		attachName := strings.ToLower(commons.GetResourcesPrefix(cfg, deploymentID) + volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
 		attachName = strings.Replace(attachName, "_", "-", -1)
 		// attachName is used as device name to retrieve device attribute as logical volume name
 		attachedDisk.DeviceName = attachName

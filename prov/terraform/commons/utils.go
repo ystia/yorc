@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package google
+package commons
 
 import (
 	"crypto/sha1"
 	"fmt"
-
 	"github.com/ystia/yorc/v4/config"
 )
 
-func getResourcesPrefix(cfg config.Configuration, deploymentID string) string {
+// GetResourcesPrefix : TODO
+func GetResourcesPrefix(cfg config.Configuration, deploymentID string) string {
 	b := sha1.Sum([]byte(deploymentID))
 	return fmt.Sprintf("%s%x-", cfg.ResourcesPrefix, b[0:3])
 }
