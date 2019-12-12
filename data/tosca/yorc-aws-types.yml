@@ -65,7 +65,10 @@ node_types:
         required: true
       encrypted:
         type: boolean
-        description: If true, the disk will be encrypted.
+        description: If true, the disk will be encrypted. If no km_key_id is provied, one will be generated.
         required: false
+      kms_key_id:
+        type: string
+        description: The ARN for the KMS encryption key. When specifying kms_key_id, encrypted will be always considered to be true.
 
 

@@ -19,6 +19,8 @@ topology_template:
         availability_zone: "europe-west1-b"
         size: "12 GB"
         encrypted: true
+        snapshot_id: projects/project/global/snapshots/snapshot
+        kms_key_id: arn:aws:kms:us-east-2:607034132673:key/8f947919-3432-4ace-ab11-d445a893d390
       requirements:
         - attachToComputeAttach:
             type_requirement: attachment

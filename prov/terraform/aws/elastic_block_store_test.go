@@ -44,4 +44,6 @@ func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	assert.Equal(t, "europe-west1-b", ebsvolume.AvailabilityZone)
 	assert.Equal(t, 12, ebsvolume.Size)
 	assert.Equal(t, "true", ebsvolume.Encrypted)
+	assert.Equal(t, "projects/project/global/snapshots/snapshot", ebsvolume.SnapshotID)
+	assert.Equal(t, "arn:aws:kms:us-east-2:607034132673:key/8f947919-3432-4ace-ab11-d445a893d390", ebsvolume.KMSKeyID)
 }
