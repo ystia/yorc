@@ -70,5 +70,6 @@ node_types:
       kms_key_id:
         type: string
         description: The ARN for the KMS encryption key. When specifying kms_key_id, encrypted will be always considered to be true.
+        required: false
 
 
