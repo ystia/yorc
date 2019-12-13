@@ -17,8 +17,6 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strings"
@@ -170,7 +168,7 @@ func SetInstanceRelationshipAttribute(ctx context.Context, deploymentID, nodeNam
 // SetInstanceRelationshipAttributeComplex sets an instance relationship attribute that may be a literal or a complex data type
 func SetInstanceRelationshipAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, attrPath, attributeValue)
+	err := consulutil.StoreConsulKeyAsJson(attrPath, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -201,7 +199,7 @@ func SetRelationshipAttributeComplexForAllInstances(ctx context.Context, deploym
 	}
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-		err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, attrPath, attributeValue)
+		err := consulutil.StoreConsulKeyAsJson(attrPath, attributeValue)
 		if err != nil {
 			return err
 		}

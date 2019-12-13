@@ -16,6 +16,7 @@ package consulutil
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"os"
 	"strings"
@@ -136,6 +137,15 @@ func StoreConsulKeyAsStringWithFlags(key, value string, flags uint64) error {
 // StoreConsulKey is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
 func StoreConsulKey(key string, value []byte) error {
 	return StoreConsulKeyWithFlags(key, value, 0)
+}
+
+// StoreConsulKeyAsJson marshals a value into JSON before storing it
+func StoreConsulKeyAsJson(key string, value interface{}) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return StoreConsulKeyWithFlags(key, data, 0)
 }
 
 // GetValue retrieves the value for the specified key in bytes array

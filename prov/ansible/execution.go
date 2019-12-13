@@ -561,11 +561,8 @@ func (e *executionCommon) resolveContext(ctx context.Context) error {
 
 func (e *executionCommon) resolveOperationOutputPath() error {
 	//Here we get the modelable entity output of the operation
-	operationNodeType := e.NodeType
-	if e.operation.RelOp.IsRelationshipOperation {
-		operationNodeType = e.relationshipType
-	}
-	mapOutputs, err := deployments.GetOperationOutputs(e.ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
+	log.Debugf("resolving operation outputs")
+	mapOutputs, err := deployments.GetOperationOutputs(e.ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
 	if err != nil {
 		return err
 	}

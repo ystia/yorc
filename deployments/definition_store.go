@@ -306,7 +306,16 @@ func fixGetOperationOutputOnType(ctx context.Context, deploymentID, nodeName, no
 	}
 
 	// Check requirements
-	return fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName, nodeType)
+	err = fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName, nodeType)
+	if err != nil {
+		return err
+	}
+
+	// descend all type hierarchy to add operation outputs
+	if nodeType.DerivedFrom != "" {
+		return fixGetOperationOutputOnType(ctx, deploymentID, nodeName, nodeType.DerivedFrom)
+	}
+	return nil
 }
 
 func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string, nodeType *tosca.NodeType) error {
@@ -320,30 +329,36 @@ func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nod
 		if relationshipTypeName == "" {
 			continue
 		}
-		rType := new(tosca.RelationshipType)
-		err = getExpectedTypeFromName(ctx, deploymentID, relationshipTypeName, rType)
-		if err != nil {
-			return err
-		}
 
-		// Check attributes definitions
-		for _, attributeDef := range rType.Attributes {
-			err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, relationshipTypeName, ind, attributeDef.Default)
+		// descend all relationship type hierarchy to add operation outputs
+		for relationshipTypeName != "" {
+			rType := new(tosca.RelationshipType)
+			err = getExpectedTypeFromName(ctx, deploymentID, relationshipTypeName, rType)
 			if err != nil {
 				return err
 			}
-		}
 
-		// Check input value assignments
-		for _, interfaceDef := range rType.Interfaces {
-			for _, operationDef := range interfaceDef.Operations {
-				for _, inputDef := range operationDef.Inputs {
-					err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, relationshipTypeName, ind, inputDef.ValueAssign)
-					if err != nil {
-						return err
+			// Check attributes definitions
+			for _, attributeDef := range rType.Attributes {
+				err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, relationshipTypeName, ind, attributeDef.Default)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Check input value assignments
+			for _, interfaceDef := range rType.Interfaces {
+				for _, operationDef := range interfaceDef.Operations {
+					for _, inputDef := range operationDef.Inputs {
+						err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, relationshipTypeName, ind, inputDef.ValueAssign)
+						if err != nil {
+							return err
+						}
 					}
 				}
 			}
+
+			relationshipTypeName = rType.DerivedFrom
 		}
 	}
 
