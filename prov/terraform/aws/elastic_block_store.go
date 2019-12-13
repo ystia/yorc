@@ -40,6 +40,7 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 
 	ebs := &EBSVolume{}
 
+	// Get string params
 	var size string
 	stringParams := []struct {
 		pAttr        *string
@@ -47,13 +48,11 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 		mandatory    bool
 	}{
 		{&ebs.AvailabilityZone, "availability_zone", true},
-		{&ebs.Encrypted, "encrypted", false},
 		{&ebs.SnapshotID, "snapshot_id", false},
 		{&ebs.KMSKeyID, "kms_key_id", false},
 		{&size, "size", false},
 	}
 
-	// Get params
 	for _, stringParam := range stringParams {
 		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
@@ -61,10 +60,20 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 		}
 	}
 
-	// TODO :clean up this
-	// res, err := deployments.GetRelationshipForRequirement(ctx, deploymentID, nodeName, "0")
-	// res = res + ""
-	// err = nil
+	// Get bool params
+	boolParams := []struct {
+		pAtrr        *bool
+		propertyName string
+	}{
+		{&ebs.Encrypted, "encrypted"},
+	}
+
+	for _, boolParam := range boolParams {
+		if *boolParam.pAtrr, err = deployments.GetBooleanNodeProperty(ctx, deploymentID, nodeName,
+			boolParam.propertyName); err != nil {
+			return err
+		}
+	}
 
 	// Handle size (eg : convertion)
 	if size != "" {
@@ -75,6 +84,11 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 			return err
 		}
 		log.Debugf("Computed size (in GB): %d", ebs.Size)
+	}
+
+	// If a an encryption key is given, considered the param "encrypted" to be true
+	if ebs.KMSKeyID != "" && ebs.Encrypted == false {
+		ebs.Encrypted = true
 	}
 
 	// Create the name for the ressource

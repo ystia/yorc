@@ -55,7 +55,7 @@ type ElasticIPAssociation struct {
 // see : https://www.terraform.io/docs/providers/aws/r/ebs_volume.html
 type EBSVolume struct {
 	AvailabilityZone string `json:"availability_zone,omitempty"`
-	Encrypted        string `json:"encrypted,omitempty"`
+	Encrypted        bool   `json:"encrypted,omitempty"`
 	Size             int    `json:"size,omitempty"`
 	SnapshotID       string `json:"snapshot_id,omitempty"`
 	KMSKeyID         string `json:"kms_key_id,omitempty"`
