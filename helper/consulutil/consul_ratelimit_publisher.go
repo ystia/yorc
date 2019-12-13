@@ -139,8 +139,8 @@ func StoreConsulKey(key string, value []byte) error {
 	return StoreConsulKeyWithFlags(key, value, 0)
 }
 
-// StoreConsulKeyAsJson marshals a value into JSON before storing it
-func StoreConsulKeyAsJson(key string, value interface{}) error {
+// StoreConsulKeyAsJSON marshals a value into JSON before storing it
+func StoreConsulKeyAsJSON(key string, value interface{}) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
