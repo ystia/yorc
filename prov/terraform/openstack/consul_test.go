@@ -42,6 +42,7 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("simpleOSInstance", func(t *testing.T) {
 			testSimpleOSInstance(t)
 		})
+
 		t.Run("OSInstanceWithBootVolume", func(t *testing.T) {
 			testOSInstanceWithBootVolume(t)
 		})

@@ -32,7 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 const reSbatch = `Submitted batch job (\d+)`
@@ -41,7 +41,7 @@ const invalidJob = "Invalid job id specified"
 
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
-func getSSHClient(credentials *datatypes.Credential, locationProps config.DynamicMap) (*sshutil.SSHClient, error) {
+func getSSHClient(credentials *types.Credential, locationProps config.DynamicMap) (*sshutil.SSHClient, error) {
 	// Check manadatory slurm configuration
 	if err := checkLocationConfig(locationProps); err != nil {
 		log.Printf("Unable to provide SSH client due to:%+v", err)
@@ -93,7 +93,7 @@ func getSSHClient(credentials *datatypes.Credential, locationProps config.Dynami
 
 // getUserCredentials returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
-func getUserCredentials(ctx context.Context, locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*datatypes.Credential, error) {
+func getUserCredentials(ctx context.Context, locationProps config.DynamicMap, deploymentID, nodeName, capabilityName string) (*types.Credential, error) {
 	var err error
 	var credentialsValue *deployments.TOSCAValue
 	if capabilityName != "" {
@@ -104,7 +104,7 @@ func getUserCredentials(ctx context.Context, locationProps config.DynamicMap, de
 	if err != nil {
 		return nil, err
 	}
-	creds := new(datatypes.Credential)
+	creds := new(types.Credential)
 	if credentialsValue != nil && credentialsValue.RawString() != "" {
 		err = mapstructure.Decode(credentialsValue.Value, creds)
 		if err != nil {

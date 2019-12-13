@@ -49,6 +49,10 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !checkBlockingOperationOnDeployment(ctx, id, w, r) {
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Panic(err)

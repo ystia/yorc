@@ -34,6 +34,25 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
+const blockingOperationOnDeploymentFlagName = ".blockingOp"
+
+// AddBlockingOperationOnDeploymentFlag set a flag on a given deployment to specify that an operation is ongoing and no other tasks should be run on this deployment
+func AddBlockingOperationOnDeploymentFlag(ctx context.Context, deploymentID string) error {
+	return consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, deploymentID, blockingOperationOnDeploymentFlagName), nil)
+}
+
+// RemoveBlockingOperationOnDeploymentFlag removes a flag on a given deployment to specify that an operation is ongoing and no other tasks should be run on this deployment
+func RemoveBlockingOperationOnDeploymentFlag(ctx context.Context, deploymentID string) error {
+	_, err := consulutil.GetKV().Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, blockingOperationOnDeploymentFlagName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+// HasBlockingOperationOnDeploymentFlag checks if there is a flag on a given deployment to specify that an operation is ongoing and no other tasks should be run on this deployment
+func HasBlockingOperationOnDeploymentFlag(ctx context.Context, deploymentID string) (bool, error) {
+	kvp, _, err := consulutil.GetKV().Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, blockingOperationOnDeploymentFlagName), nil)
+	return kvp != nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
 func StoreDeploymentDefinition(ctx context.Context, deploymentID string, defPath string) error {

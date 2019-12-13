@@ -175,11 +175,24 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO(loicalbertin) why do we create a new context here?
+	// I was expecting to use the one from http.Request
+	// To be checked if there is a good reason for this.
 	ctx := context.Background()
 	err := deployments.CleanupPurgedDeployments(ctx, s.consulClient, s.config.PurgedDeploymentsEvictionTimeout, uid)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
+
+	if !checkBlockingOperationOnDeployment(ctx, uid, w, r) {
+		return
+	}
+
+	if err := deployments.AddBlockingOperationOnDeploymentFlag(r.Context(), uid); err != nil {
+		log.Debugf("ERROR: %+v", err)
+		log.Panic(err)
+	}
+	defer deployments.RemoveBlockingOperationOnDeploymentFlag(ctx, uid)
 
 	if err := deployments.StoreDeploymentDefinition(r.Context(), uid, yamlFile); err != nil {
 		log.Debugf("ERROR: %+v", err)
@@ -218,6 +231,18 @@ func (s *Server) updateDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		writeError(w, r, errNotFound)
 		return
 	}
+
+	if !checkBlockingOperationOnDeployment(ctx, id, w, r) {
+		return
+	}
+
+	// Update is a blocking operation
+	if err := deployments.AddBlockingOperationOnDeploymentFlag(r.Context(), id); err != nil {
+		log.Debugf("ERROR: %+v", err)
+		log.Panic(err)
+	}
+	defer deployments.RemoveBlockingOperationOnDeploymentFlag(ctx, id)
+
 	s.updateDeployment(w, r, id)
 }
 
@@ -233,6 +258,10 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	}
 	if !dExits {
 		writeError(w, r, errNotFound)
+		return
+	}
+
+	if !checkBlockingOperationOnDeployment(ctx, id, w, r) {
 		return
 	}
 
