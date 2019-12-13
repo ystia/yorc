@@ -45,6 +45,10 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !checkBlockingOperationOnDeployment(ctx, id, w, r) {
+		return
+	}
+
 	if len(nodeName) == 0 {
 		log.Panic("You must provide a nodename")
 	}
