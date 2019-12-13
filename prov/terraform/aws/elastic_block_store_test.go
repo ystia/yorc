@@ -36,8 +36,7 @@ func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	instancesMap := infrastructure.Resource["aws_ebs_volume"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
 
-	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
-	diskName := resourcePrefix + "ebsvolume-0"
+	diskName := "ebsvolume-0"
 	require.Contains(t, instancesMap, diskName)
 
 	ebsvolume, ok := instancesMap[diskName].(*EBSVolume)

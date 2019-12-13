@@ -16,6 +16,7 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -92,10 +93,16 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 	}
 
 	// Create the name for the ressource
-	name := strings.ToLower(commons.GetResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
+	name := strings.ToLower(nodeName + "-" + instanceName)
 	commons.AddResource(infrastructure, "aws_ebs_volume", name, ebs)
 
-	// TODO : provide outputs !
+	// Outputs
+	volumeKey := nodeName + "-" + instanceName + "-volume"   // ex : BlockStorage-0-volume
+	volumeID := fmt.Sprintf("${aws_ebs_volume.%s.id}", name) // ex : {aws_ebs_volume.yorc-a3cdc5-blockstorage-0.id}
+	volumeARN := fmt.Sprintf("${aws_ebs_volume.%s.arn}", name)
+
+	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeID})
+	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeARN})
 
 	return nil
 }

@@ -21,9 +21,3 @@ topology_template:
         encrypted: true
         snapshot_id: projects/project/global/snapshots/snapshot
         kms_key_id: arn:aws:kms:us-east-2:607034132673:key/8f947919-3432-4ace-ab11-d445a893d390
-      requirements:
-        - attachToComputeAttach:
-            type_requirement: attachment
-            node: Comp
-            capability: tosca.capabilities.Attachment
-            relationship: tosca.relationships.AttachTo

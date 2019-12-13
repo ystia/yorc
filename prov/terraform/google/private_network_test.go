@@ -32,7 +32,7 @@ import (
 func testSimplePrivateNetwork(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	networkName := resourcePrefix + "network"
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}

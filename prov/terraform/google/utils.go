@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commons
+package google
 
 import (
 	"crypto/sha1"
@@ -20,8 +20,8 @@ import (
 	"github.com/ystia/yorc/v4/config"
 )
 
-// GetResourcesPrefix : TODO
-func GetResourcesPrefix(cfg config.Configuration, deploymentID string) string {
+// GetResourcesPrefix : Used to generate a random prefix because you can't have two ressouces witht he same name on GC
+func getResourcesPrefix(cfg config.Configuration, deploymentID string) string {
 	b := sha1.Sum([]byte(deploymentID))
 	return fmt.Sprintf("%s%x-", cfg.ResourcesPrefix, b[0:3])
 }

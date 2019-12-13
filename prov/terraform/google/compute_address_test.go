@@ -33,7 +33,7 @@ func testSimpleComputeAddress(t *testing.T, cfg config.Configuration) {
 	err := g.generateComputeAddress(context.Background(), cfg, testLocationProperties, deploymentID, "ComputeAddress", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute address for %s", deploymentID)
 
-	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	addressName := resourcePrefix + "computeaddress-0"
 	require.Len(t, infrastructure.Resource["google_compute_address"], 1, "Expected one compute address")
 	instancesMap := infrastructure.Resource["google_compute_address"].(map[string]interface{})

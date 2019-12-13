@@ -28,7 +28,7 @@ import (
 func testSimplePersistentDisk(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-	resourcePrefix := commons.GetResourcesPrefix(cfg, deploymentID)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	err := g.generatePersistentDisk(context.Background(), cfg, deploymentID, "PersistentDisk", "0", 0, &infrastructure, make(map[string]string))
