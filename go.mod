@@ -86,7 +86,8 @@ require (
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v1.1.0
+	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/satori/go.uuid v1.0.0
 	github.com/sethgrid/pester v0.0.0-20190127155807-68a33a018ad0 // indirect
@@ -103,7 +104,7 @@ require (
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
-	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	golang.org/x/tools v0.0.0-20190312151545-0bb0c0a6e846 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.3
@@ -120,6 +121,6 @@ require (
 )
 
 // Due to this capital letter thing we have troubles and we have to replace it explicitly
-replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.1
 
 go 1.13
