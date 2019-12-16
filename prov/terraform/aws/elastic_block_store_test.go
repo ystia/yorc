@@ -27,9 +27,16 @@ import (
 func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
-	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
-	err := g.generateEBS(context.Background(), cfg, deploymentID, "EBSVolume", "0", 0, &infrastructure)
+	ctx := context.Background()
+	g := awsGenerator{
+		&ctx, &cfg, deploymentID, &infrastructure, "EBSVolume",
+	}
+
+	err := g.generateEBS("0", 0)
+	if err != nil {
+		panic(err)
+	}
 
 	require.NoError(t, err, "Unexpected error attempting to generate EBS for %s", deploymentID)
 	require.Len(t, infrastructure.Resource["aws_ebs_volume"], 1, "Expected one ebs volume")

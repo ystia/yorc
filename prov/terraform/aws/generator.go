@@ -36,13 +36,24 @@ import (
 const infrastructureType = "aws"
 
 type awsGenerator struct {
+	ctx            *context.Context
+	cfg            *config.Configuration
+	deploymentID   string
+	infrastructure *commons.Infrastructure
+	nodeName       string
 }
 
 func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 
+	g.ctx = &ctx
+	g.cfg = &cfg
+	g.deploymentID = deploymentID
+	g.nodeName = nodeName
+
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 	infrastructure := commons.Infrastructure{}
+	g.infrastructure = &infrastructure
 
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
@@ -107,7 +118,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 		case "yorc.nodes.aws.PublicNetwork":
 			// Nothing to do
 		case "yorc.nodes.aws.EBSVolume":
-			err = g.generateEBS(ctx, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure)
+			err = g.generateEBS(instanceName, instNb)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}

@@ -15,68 +15,28 @@
 package aws
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/sizeutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration, deploymentID string, nodeName string,
-	instanceName string, instanceID int, infrastructure *commons.Infrastructure) error {
-
-	// Verify NodeType
-	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
+func (g *awsGenerator) generateEBS(instanceName string, instanceID int) error {
+	err := verifyThatNodeIsTypeOf(g, "yorc.nodes.aws.EBSVolume")
 	if err != nil {
 		return err
-	}
-	if nodeType != "yorc.nodes.aws.EBSVolume" {
-		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
 
 	ebs := &EBSVolume{}
 
 	// Get string params
 	var size string
-	stringParams := []struct {
-		pAttr        *string
-		propertyName string
-		mandatory    bool
-	}{
-		{&ebs.AvailabilityZone, "availability_zone", true},
-		{&ebs.SnapshotID, "snapshot_id", false},
-		{&ebs.KMSKeyID, "kms_key_id", false},
-		{&size, "size", false},
-	}
+	g.getEBSProperties(ebs, &size)
 
-	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName,
-			stringParam.propertyName, stringParam.mandatory); err != nil {
-			return err
-		}
-	}
-
-	// Get bool params
-	boolParams := []struct {
-		pAtrr        *bool
-		propertyName string
-	}{
-		{&ebs.Encrypted, "encrypted"},
-	}
-
-	for _, boolParam := range boolParams {
-		if *boolParam.pAtrr, err = deployments.GetBooleanNodeProperty(ctx, deploymentID, nodeName,
-			boolParam.propertyName); err != nil {
-			return err
-		}
-	}
-
-	// Handle size (eg : convertion)
+	// Convert human readable size into GB
 	if size != "" {
 		// Default size unit is MB
 		log.Debugf("Initial size property value (default is MB): %q", size)
@@ -93,16 +53,48 @@ func (g *awsGenerator) generateEBS(ctx context.Context, cfg config.Configuration
 	}
 
 	// Create the name for the ressource
-	name := strings.ToLower(nodeName + "-" + instanceName)
-	commons.AddResource(infrastructure, "aws_ebs_volume", name, ebs)
+	name := strings.ToLower(g.nodeName + "-" + instanceName)
+	commons.AddResource(g.infrastructure, "aws_ebs_volume", name, ebs)
 
 	// Outputs
-	volumeKey := nodeName + "-" + instanceName + "-volume"   // ex : BlockStorage-0-volume
-	volumeID := fmt.Sprintf("${aws_ebs_volume.%s.id}", name) // ex : {aws_ebs_volume.yorc-a3cdc5-blockstorage-0.id}
-	volumeARN := fmt.Sprintf("${aws_ebs_volume.%s.arn}", name)
+	volumeID := g.nodeName + "-" + instanceName + "-id"           // ex : BlockStorage-0-volume
+	volumeIDValue := fmt.Sprintf("${aws_ebs_volume.%s.id}", name) // ex : {aws_ebs_volume.yorc-a3cdc5-blockstorage-0.id}
+	volumeARN := g.nodeName + "-" + instanceName + "-arn"
+	volumeARNValue := fmt.Sprintf("${aws_ebs_volume.%s.arn}", name)
 
-	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeID})
-	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeARN})
+	commons.AddOutput(g.infrastructure, volumeID, &commons.Output{Value: volumeIDValue})
+	commons.AddOutput(g.infrastructure, volumeARN, &commons.Output{Value: volumeARNValue})
+
+	return nil
+}
+
+func (g *awsGenerator) getEBSProperties(ebs *EBSVolume, size *string) error {
+	// Get string params
+	stringParams := []struct {
+		pAttr        *string
+		propertyName string
+		mandatory    bool
+	}{
+		{&ebs.AvailabilityZone, "availability_zone", true},
+		{&ebs.SnapshotID, "snapshot_id", false},
+		{&ebs.KMSKeyID, "kms_key_id", false},
+		{size, "size", false},
+	}
+
+	for _, stringParam := range stringParams {
+		val, err := deployments.GetStringNodeProperty(*g.ctx, g.deploymentID, g.nodeName, stringParam.propertyName, stringParam.mandatory)
+		if err != nil {
+			return err
+		}
+		*stringParam.pAttr = val
+	}
+
+	// Get bool properties
+	val, err := deployments.GetBooleanNodeProperty(*g.ctx, g.deploymentID, g.nodeName, "encrypted")
+	if err != nil {
+		return err
+	}
+	ebs.Encrypted = val
 
 	return nil
 }
