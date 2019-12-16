@@ -17,6 +17,8 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 	"time"
@@ -268,6 +270,12 @@ func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Loc
 
 // DeleteDeployment deletes a given deploymentID from the deployments path
 func DeleteDeployment(ctx context.Context, deploymentID string) error {
-	// Remove from KV this purge tasks
-	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", true)
+	deploymentKeyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID) + "/"
+	// Remove from deployment store
+	err := storage.GetStore(types.StoreTypeDeployment).Delete(ctx, deploymentKeyPath, true)
+	if err != nil {
+		return err
+	}
+	// Remove from KV
+	return consulutil.Delete(deploymentKeyPath, true)
 }

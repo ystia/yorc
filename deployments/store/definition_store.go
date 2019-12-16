@@ -16,6 +16,8 @@ package store
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"golang.org/x/sync/errgroup"
 	"path"
 	"sync"
@@ -45,13 +47,13 @@ var builtinTypes = make([]string, 0)
 // For example, one path key could be _yorc/commons_types/some_type/2.0.0 if the last version
 // of the some_type type is 2.0.0
 func getLatestCommonsTypesPaths() ([]string, error) {
-	keys, err := consulutil.GetKeys(consulutil.CommonsTypesKVPrefix)
+	keys, err := storage.GetStore(types.StoreTypeDeployment).Keys(consulutil.CommonsTypesKVPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	paths := make([]string, 0, len(keys))
 	for _, builtinTypesPath := range keys {
-		versions, err := consulutil.GetKeys(builtinTypesPath)
+		versions, err := storage.GetStore(types.StoreTypeDeployment).Keys(builtinTypesPath)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -120,7 +122,7 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		}
 	}()
 
-	keys, err := consulutil.GetKeys(topologyPrefix)
+	keys, err := storage.GetStore(types.StoreTypeDeployment).Keys(topologyPrefix)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
