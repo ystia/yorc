@@ -2,6 +2,13 @@
 
 ## UNRELEASED
 
+### BREAKING CHANGES
+
+#### Changes in Yorc metric namespace
+
+In order to improve the observability of Yorc execution, the exposed metrics' names were modified.
+Now labels are used which allow to provide metric trees ([GH-297](https://github.com/ystia/yorc/issues/297))
+
 ### BUG FIXES
 
 * Yorc bootstrap on 4.0.0-M7 doesn't work unless an alternative download URL is provided for Yorc ([GH-561](https://github.com/ystia/yorc/issues/561))
@@ -11,7 +18,7 @@
 
 ### BREAKING CHANGES
 
-#### Changes on the REST API
+#### Changes in the REST API
 
 ##### Deployment updates
 
