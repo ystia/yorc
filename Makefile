@@ -39,7 +39,7 @@ export GO111MODULE=on
 export BUILD_DIR=$(shell pwd)/build
 export GOBIN=$(BUILD_DIR)/bin
 export PATH=$(GOBIN):$(shell echo $$PATH)
-export CGO_ENABLED=1
+export CGO_ENABLED=0
 
 build: test
 	@echo "--> Running go build"
