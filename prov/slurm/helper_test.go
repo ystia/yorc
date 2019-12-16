@@ -31,7 +31,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/sshutil"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 func TestGetAttributesWithCudaVisibleDeviceKey(t *testing.T) {
@@ -246,7 +246,7 @@ func TestPrivateKey(t *testing.T) {
 
 	err = checkLocationUserConfig(locationProps)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": privateKeyContent}}, locationProps)
+	_, err = getSSHClient(&types.Credential{User: "jdoe", Keys: map[string]string{"0": privateKeyContent}}, locationProps)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using provided properties with private key")
 
 	// Remove the private key.
@@ -254,9 +254,9 @@ func TestPrivateKey(t *testing.T) {
 	locationProps.Set("private_key", "")
 	err = checkLocationUserConfig(locationProps)
 	assert.Error(t, err, "Expected an error parsing a wrong configuration with no private key and no password defined")
-	_, err = getSSHClient(&datatypes.Credential{}, locationProps)
+	_, err = getSSHClient(&types.Credential{}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with no private key and no password defined")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe"}, locationProps)
+	_, err = getSSHClient(&types.Credential{User: "jdoe"}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using a provided user name property but no private key and no password provided")
 
 	// Setting a wrong private key path
@@ -264,9 +264,9 @@ func TestPrivateKey(t *testing.T) {
 	locationProps.Set("private_key", "invalid_path_to_key.pem")
 	err = checkLocationUserConfig(locationProps)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
-	_, err = getSSHClient(&datatypes.Credential{}, locationProps)
+	_, err = getSSHClient(&types.Credential{}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with bad private key and no password defined")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Keys: map[string]string{"0": "invalid_path_to_key.pem"}}, locationProps)
+	_, err = getSSHClient(&types.Credential{User: "jdoe", Keys: map[string]string{"0": "invalid_path_to_key.pem"}}, locationProps)
 	assert.Error(t, err, "Expected an error getting a ssh client using provided credentials with bad private key and no password defined")
 
 	// Slurm Configuration with no private key but a password, the config should be valid
@@ -279,7 +279,7 @@ func TestPrivateKey(t *testing.T) {
 
 	err = checkLocationUserConfig(locationProps)
 	assert.NoError(t, err, "Unexpected error parsing a configuration with password")
-	_, err = getSSHClient(&datatypes.Credential{User: "jdoe", Token: "test"}, locationProps)
+	_, err = getSSHClient(&types.Credential{User: "jdoe", Token: "test"}, locationProps)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using provided credentials with password")
 }
 

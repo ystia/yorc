@@ -22,6 +22,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/provutil"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/log"
 )
@@ -106,6 +107,15 @@ type Connection struct {
 	Port       string `json:"port,omitempty"`
 	Timeout    string `json:"timeout,omitempty"` // defaults to "5m"
 	PrivateKey string `json:"private_key,omitempty"`
+
+	Agent bool `json:"agent,omitempty"`
+
+	// The following values are only supported by ssh
+	BastionHost       string `json:"bastion_host,omitempty"`
+	BastionPort       string `json:"bastion_port,omitempty"`
+	BastionUser       string `json:"bastion_user,omitempty"`
+	BastionPassword   string `json:"bastion_password,omitempty"`
+	BastionPrivateKey string `json:"bastion_private_key,omitempty"`
 }
 
 // An Output allows to define a terraform output value
@@ -181,7 +191,8 @@ func GetConnInfoFromEndpointCredentials(ctx context.Context, deploymentID, nodeN
 }
 
 // AddConnectionCheckResource builds a null specific resource to check SSH connection with SSH key passed via env variable
-func AddConnectionCheckResource(infrastructure *Infrastructure, user string, privateKey *sshutil.PrivateKey, accessIP, resourceName string, env *[]string) error {
+func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName string, infrastructure *Infrastructure,
+	user string, privateKey *sshutil.PrivateKey, accessIP, resourceName string, env *[]string) error {
 	// Define private_key variable
 	infrastructure.Variable = make(map[string]interface{})
 	infrastructure.Variable["private_key"] = struct{}{}
@@ -189,14 +200,44 @@ func AddConnectionCheckResource(infrastructure *Infrastructure, user string, pri
 	// Add env TF variable for private key
 	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(privateKey.Content)))
 
+	conn := &Connection{
+		User:       user,
+		Host:       accessIP,
+		PrivateKey: "${var.private_key}",
+	}
+
+	bast, err := provutil.GetInstanceBastionHost(ctx, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
+	if bast != nil {
+		conn.BastionHost = bast.Host
+		conn.BastionPort = bast.Port
+		conn.BastionUser = bast.User
+		conn.BastionPassword = bast.Password
+
+		var bastPk *sshutil.PrivateKey
+		if bast != nil {
+			bastPk = sshutil.SelectPrivateKeyOnName(bast.PrivateKeys, false)
+			if bastPk == nil {
+				// If no key is explicitly defined, use the same as for the instance.
+				bastPk = privateKey
+			}
+		}
+
+		if bastPk != nil {
+			infrastructure.Variable["bastion_private_key"] = struct{}{}
+			*env = append(*env, fmt.Sprintf("TF_VAR_bastion_private_key=%s", string(bastPk.Content)))
+			conn.BastionPrivateKey = "${var.bastion_private_key}"
+		} else if bast.Password == "" {
+			return errors.New("bastion host configuration is missing credentials")
+		}
+	}
+
 	// Build null Resource
 	nullResource := Resource{}
-	re := RemoteExec{Inline: []string{`echo "connected"`},
-		Connection: &Connection{
-			User:       user,
-			Host:       accessIP,
-			PrivateKey: "${var.private_key}",
-		}}
+	re := RemoteExec{Inline: []string{`echo "connected"`}, Connection: conn}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re

@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package datatypes
+package sshutil
 
-// SlurmExecutionOptions is a yorc.datatypes.slurm.ExecutionOptions
-type SlurmExecutionOptions struct {
-	Command         string   `mapstructure:"command" json:"command,omitempty"`
-	Args            []string `mapstructure:"args" json:"args,omitempty"`
-	EnvVars         []string `mapstructure:"env_vars" json:"env_vars,omitempty"`
-	InScriptOptions []string `mapstructure:"in_script_options" json:"in_script_options,omitempty"`
+// BastionHostConfig is the configuration of a bastion host that can be
+// used for ssh connections.
+type BastionHostConfig struct {
+	Host        string
+	Port        string
+	User        string
+	Password    string
+	PrivateKeys map[string]*PrivateKey
 }

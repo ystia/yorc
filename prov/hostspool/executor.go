@@ -34,7 +34,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/labelsutil"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tosca"
-	"github.com/ystia/yorc/v4/tosca/datatypes"
+	"github.com/ystia/yorc/v4/tosca/types"
 )
 
 const infrastructureType = "hostspool"
@@ -252,7 +252,7 @@ func (e *defaultExecutor) updateConnectionSettings(
 	if err != nil {
 		return err
 	}
-	credentials := datatypes.Credential{
+	credentials := types.Credential{
 		User:  host.Connection.User,
 		Token: host.Connection.Password,
 		Keys: map[string]string{

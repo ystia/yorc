@@ -55,7 +55,6 @@ func init() {
 	opNames[locationDeletion] = "delete"
 	opNames[locationCreation] = "create"
 	opNames[locationUpdate] = "update"
-	config.DefaultConfigTemplateResolver.Disable()
 }
 
 // DepViper is the viper configuration for the locations command and its children
@@ -76,6 +75,7 @@ var LocationsCmd = &cobra.Command{
 	Long:          `Perform different commands on locations`,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		config.DefaultConfigTemplateResolver.Disable()
 		ClientConfig = commands.GetYorcClientConfig(DepViper, cfgFile)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
