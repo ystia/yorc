@@ -135,6 +135,10 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if !checkBlockingOperationOnDeployment(ctx, deploymentID, w, r) {
+		return
+	}
+
 	// Check TaskStep/Task existence
 	stExists, stepBefore, err := tasks.TaskStepExists(taskID, stepID)
 	if err != nil {
@@ -183,6 +187,9 @@ func (s *Server) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !checkBlockingOperationOnDeployment(ctx, id, w, r) {
+		return
+	}
 	if taskStatus, err := tasks.GetTaskStatus(taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.TaskStatusFAILED {

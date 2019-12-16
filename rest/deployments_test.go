@@ -15,13 +15,17 @@
 package rest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/v4/helper/ziputil"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -54,6 +58,9 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, srv *testutil.Test
 	t.Run("testUpdateDeploymentsOSS", func(t *testing.T) {
 		testUpdateDeploymentsOSS(t, client, srv)
 	})
+	t.Run("testNewDeployments", func(t *testing.T) {
+		testNewDeployments(t, client, srv)
+	})
 }
 
 func loadTestYaml(t *testing.T, deploymentID string) {
@@ -68,6 +75,7 @@ func cleanTest(deploymentID, taskID string) {
 	}
 	if deploymentID != "" {
 		consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID), true)
+		os.RemoveAll("../work/deployments/" + deploymentID)
 	}
 }
 
@@ -355,6 +363,84 @@ func testUpdateDeploymentsOSS(t *testing.T, client *api.Client, srv *testutil.Te
 				}
 			}
 			cleanTest(tt.deploymentID, "")
+		})
+	}
+}
+
+func testNewDeployments(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+
+	tests := []struct {
+		name           string
+		toscaFile      string
+		preDeployHook  func(*testing.T, string)
+		wantStatusCode int
+		wantErrors     func(*testing.T, string) *Errors
+	}{
+		{"deployWorks", "testdata/testSimpleTopology.yaml", nil, http.StatusCreated, nil},
+		{"deployMalformedCSAR", "testdata/ca-cert.pem", nil, http.StatusBadRequest,
+			func(t *testing.T, deploymentID string) *Errors {
+				return &Errors{[]*Error{
+					newBadRequestError(fmt.Errorf(
+						"one and only one YAML (.yml or .yaml) file should be present at the root of archive for deployment %s",
+						deploymentID)),
+				},
+				}
+			}},
+		{"deployWithAlreadyBlockingTask", "testdata/testSimpleTopology.yaml", func(t *testing.T, deploymentID string) {
+			err := deployments.AddBlockingOperationOnDeploymentFlag(context.Background(), deploymentID)
+			require.NoError(t, err)
+		}, http.StatusBadRequest,
+			func(t *testing.T, deploymentID string) *Errors {
+				return &Errors{[]*Error{
+					newBadRequestError(fmt.Errorf("deployment %q, is currently processing a blocking operation we can't proceed with your request until this operation finish", deploymentID)),
+				},
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			depID := ytestutil.BuildDeploymentID(t)
+
+			if tt.preDeployHook != nil {
+				tt.preDeployHook(t, depID)
+			}
+			var reqBody io.Reader
+			if tt.toscaFile != "" {
+				b, err := ziputil.ZipPath(tt.toscaFile)
+				require.NoError(t, err)
+				reqBody = bytes.NewReader(b)
+			}
+
+			req := httptest.NewRequest("PUT", "/deployments/"+depID, reqBody)
+			req.Header.Set("Content-Type", mimeTypeApplicationZip)
+
+			resp := newTestHTTPRouter(client, req)
+			require.NotNil(t, resp, "unexpected nil response")
+			require.Equal(t, tt.wantStatusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.wantStatusCode)
+
+			body, err := ioutil.ReadAll(resp.Body)
+			require.Nil(t, err, "unexpected error reading body response")
+
+			if tt.wantErrors != nil {
+				var errorsFound Errors
+				err := json.Unmarshal(body, &errorsFound)
+				require.Nil(t, err, "unexpected error unmarshalling json body")
+				wantErrors := tt.wantErrors(t, depID)
+				if !reflect.DeepEqual(errorsFound, *wantErrors) {
+					t.Errorf("errors = %v, want %v", errorsFound, *wantErrors)
+				}
+			} else {
+				url, err := resp.Location()
+				require.NoError(t, err)
+				require.NotNil(t, url)
+
+				has, _, status, err := tasks.TargetHasLivingTasks(depID, nil)
+				require.True(t, has, "%s should have a registered task", depID)
+				require.Equal(t, tasks.TaskStatusINITIAL.String(), status)
+			}
+			cleanTest(depID, "")
 		})
 	}
 }

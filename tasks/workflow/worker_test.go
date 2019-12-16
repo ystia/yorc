@@ -18,15 +18,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tasks"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
@@ -75,6 +78,11 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, client *api.Client) {
 	// This execution corresponds to the purge task
 	// Set targetID to the Test deployment ID
 	myTaskExecution.targetID = deploymentID
+	defer func() {
+		if myTaskExecution.finalFunction != nil {
+			require.NoError(t, myTaskExecution.finalFunction())
+		}
+	}()
 	err := myWorker.runPurge(context.Background(), &myTaskExecution)
 	if err != nil {
 		t.Errorf("runPurge() error = %v", err)
@@ -104,6 +112,51 @@ func testRunPurge(t *testing.T, srv *testutil.TestServer, client *api.Client) {
 	require.True(t, len(kvps) == 1)
 }
 
+func testRunPurgeFails(t *testing.T, srv *testutil.TestServer, client *api.Client) {
+	populateKV(t, srv)
+	myWorker := &worker{
+		// nil expected to make call fail
+		consulClient: nil,
+		cfg: config.Configuration{
+			// Ensure we are not deleting filesystem files elsewhere
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+
+	deploymentID := "TestEnv2"
+
+	srv.PopulateKV(t, testData(deploymentID))
+	var myTaskExecution taskExecution
+	myTaskExecution.cc = client
+	// This execution corresponds to the purge task
+	// Set targetID to the Test deployment ID
+	myTaskExecution.targetID = deploymentID
+	myTaskExecution.taskID = "t3"
+
+	err := myWorker.runPurge(context.Background(), &myTaskExecution)
+	require.Error(t, err)
+	require.NotNil(t, myTaskExecution.finalFunction)
+	myTaskExecution.finalFunction()
+
+	// Test that KV contains expected resultData
+	// Task status should be failed
+	status, err := tasks.GetTaskStatus(myTaskExecution.taskID)
+	require.NoError(t, err)
+	require.Equal(t, tasks.TaskStatusFAILED, status, "task status not set to failed")
+
+	// Deployment status should be UNDEPLOYMENT_FAILED
+	depStatus, err := deployments.GetDeploymentStatus(context.Background(), myTaskExecution.targetID)
+	require.NoError(t, err)
+	require.Equal(t, deployments.UNDEPLOYMENT_FAILED, depStatus)
+
+	// One event with value containing "deploymentId":"Test-Env","status":"purged"
+	kvps, _, err := consulutil.GetKV().List(consulutil.EventsPrefix+"/"+deploymentID, nil)
+	require.True(t, len(kvps) == 5)
+
+	kvps, _, err = consulutil.GetKV().List(consulutil.PurgedDeploymentKVPrefix+"/"+deploymentID, nil)
+	require.True(t, len(kvps) == 0)
+}
+
 func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.Client) {
 
 	mock := new(mockInfraUsageCollector)
@@ -129,7 +182,7 @@ func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.
 func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
 		// Add Test deployment
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deploymentID),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deployments.INITIAL.String()),
 		// deploy task
 		consulutil.TasksPrefix + "/t1/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t1/type":     []byte("0"),
@@ -139,6 +192,7 @@ func testData(deploymentID string) map[string][]byte {
 		// purge task
 		consulutil.TasksPrefix + "/t3/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t3/type":     []byte("4"),
+		consulutil.TasksPrefix + "/t3/status":   []byte(strconv.Itoa(int(tasks.TaskStatusRUNNING))),
 		// query task
 		consulutil.TasksPrefix + "/tQuery/targetId":          []byte("infra_usage:myInfraName"),
 		consulutil.TasksPrefix + "/tQuery/type":              []byte("7"),
@@ -150,7 +204,7 @@ func testData(deploymentID string) map[string][]byte {
 		consulutil.EventsPrefix + "/" + deploymentID + "/e1": []byte("aaaa"),
 		consulutil.EventsPrefix + "/" + deploymentID + "/e2": []byte("bbbb"),
 		// some logs
-		consulutil.LogsPrefix + "/" + deploymentID + "/l1":   []byte("xxxx"),
-		consulutil.EventsPrefix + "/" + deploymentID + "/l2": []byte("yyyy"),
+		consulutil.LogsPrefix + "/" + deploymentID + "/l1": []byte("xxxx"),
+		consulutil.LogsPrefix + "/" + deploymentID + "/l2": []byte("yyyy"),
 	}
 }
