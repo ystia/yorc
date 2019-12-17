@@ -20,9 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"path"
+	"sync"
 	"time"
-
-	"github.com/ystia/yorc/v4/locations/adapter"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -31,9 +30,13 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
 )
+
+var locationMgr *locationManager
+var locMgrInitOnce sync.Once
 
 // LocationConfiguration holds a location configuration
 type LocationConfiguration struct {
@@ -69,31 +72,21 @@ type LocationsDefinition struct {
 
 // GetManager gets a Location Manager, creating one if none was created yet
 func GetManager(cfg config.Configuration) (Manager, error) {
-
-	var locationMgr *locationManager
-	if locationMgr == nil {
-		client, err := cfg.GetConsulClient()
-		if err != nil {
-			return locationMgr, err
-		}
-		locationMgr = &locationManager{cc: client}
-		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client)
+	client, err := cfg.GetConsulClient()
+	if err != nil {
+		return nil, err
 	}
-
-	return locationMgr, nil
+	return NewManager(client), nil
 }
 
 // NewManager creates a Location Manager for the http server
 // The http server has already a Consul client instance that was
 // provided to it as a constructor input parameter (see rest.NewServer function).
 func NewManager(client *api.Client) Manager {
-
-	var locationMgr *locationManager
-	if locationMgr == nil {
+	locMgrInitOnce.Do(func() {
 		locationMgr = &locationManager{cc: client}
 		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client)
-	}
-
+	})
 	return locationMgr
 }
 
