@@ -22,6 +22,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -35,13 +36,7 @@ import (
 	"github.com/ystia/yorc/v4/tasks/workflow"
 )
 
-// RunServer starts the Yorc server
-func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
-	err := setupTelemetry(configuration)
-	if err != nil {
-		return err
-	}
-
+func initVaultClient(configuration config.Configuration) error {
 	vaultClient, err := buildVaultClient(configuration)
 	if err != nil {
 		return err
@@ -55,10 +50,13 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		// Setup default vault client for TOSCA functions resolver
 		deployments.DefaultVaultClient = vaultClient
 	}
-	var wg sync.WaitGroup
+	return nil
+}
+
+func initConsulClient(configuration config.Configuration) (*api.Client, error) {
 	client, err := configuration.GetConsulClient()
 	if err != nil {
-		return errors.Wrap(err, "Can't connect to Consul")
+		return nil, errors.Wrap(err, "Can't connect to Consul")
 	}
 
 	maxConsulPubRoutines := configuration.Consul.PubMaxRoutines
@@ -69,16 +67,16 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
 	err = registerBuiltinTOSCATypes()
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = setupConsulDBSchema(client)
-	if err != nil {
-		return err
-	}
+	// return error if any
+	return client, err
+}
 
+func initLocationManager(configuration config.Configuration) error {
 	if configuration.LocationsFilePath != "" {
 		locationMgr, err := locations.GetManager(configuration)
 		if err != nil {
@@ -98,8 +96,31 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 			log.Debugf("Locations already initialized")
 		}
 	}
+	return nil
+}
 
-	var httpServer *rest.Server
+// RunServer starts the Yorc server
+func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
+	err := setupTelemetry(configuration)
+	if err != nil {
+		return err
+	}
+
+	err = initVaultClient(configuration)
+	if err != nil {
+		return err
+	}
+
+	client, err := initConsulClient(configuration)
+	if err != nil {
+		return err
+	}
+
+	err = initLocationManager(configuration)
+	if err != nil {
+		return err
+	}
+
 	pm := newPluginManager()
 	defer pm.cleanup()
 	err = pm.loadPlugins(configuration)
@@ -107,7 +128,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		return err
 	}
 
-	httpServer, err = rest.NewServer(configuration, client, shutdownCh)
+	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {
 		return err
 	}
@@ -118,6 +139,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		return err
 	}
 
+	var wg sync.WaitGroup
 	// Dispatcher needs
 	go workflow.NewDispatcher(configuration, shutdownCh, client, &wg).Run()
 

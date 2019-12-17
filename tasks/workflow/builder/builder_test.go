@@ -42,7 +42,7 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 	srv1.PopulateKV(t, data)
 	time.Sleep(1 * time.Second)
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
-	require.Nil(t, err)
+	require.Nil(t, err, "BuildWorkflowError: %+v", err)
 	step := wfSteps["stepName"]
 	require.NotNil(t, step)
 	require.Equal(t, "nodeName", step.Target)
