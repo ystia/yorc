@@ -144,7 +144,6 @@ func (d *Dispatcher) Run() {
 	if err != nil {
 		log.Panicf("Can't connect to Consul %+v... Aborting", err)
 	}
-
 	for {
 		select {
 		case <-d.shutdownCh:
@@ -152,18 +151,16 @@ func (d *Dispatcher) Run() {
 			return
 		default:
 		}
-		q := &api.QueryOptions{WaitIndex: waitIndex}
+		q := &api.QueryOptions{
+			WaitIndex: waitIndex,
+			WaitTime:  d.cfg.Tasks.Dispatcher.LongPollWaitTime,
+		}
 		log.Debugf("Long polling Task Executions")
 		execKeys, rMeta, err := kv.Keys(consulutil.ExecutionsTaskPrefix+"/", "/", q)
 		if err != nil {
 			err = errors.Wrap(err, "Error getting task executions")
 			log.Print(err)
 			log.Debugf("%+v", err)
-			continue
-		}
-		if waitIndex == rMeta.LastIndex {
-			// long pool ended due to a timeout
-			// there is no new items go back to the pooling
 			continue
 		}
 		waitIndex = rMeta.LastIndex
@@ -177,23 +174,30 @@ func (d *Dispatcher) Run() {
 
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
-				Key:          path.Join(consulutil.ExecutionsTaskPrefix, executionLockPrefix+execID),
-				Value:        []byte(nodeName),
+				Key:   path.Join(consulutil.ExecutionsTaskPrefix, executionLockPrefix+execID),
+				Value: []byte(nodeName),
+				SessionOpts: &api.SessionEntry{
+					Name:     "DispatcherLock-" + nodeName,
+					Behavior: api.SessionBehaviorRelease,
+					Checks:   []string{"service:yorc", "serfHealth"},
+					TTL:      "10s",
+				},
+				SessionTTL:   "10s",
 				LockTryOnce:  true,
-				LockWaitTime: 10 * time.Millisecond,
+				LockWaitTime: d.cfg.Tasks.Dispatcher.LockWaitTime,
 			}
 			lock, err := d.client.LockOpts(opts)
 			if err != nil {
 				log.Printf("Can't create processing lock for key %s: %+v", execKey, err)
 				continue
 			}
-			leaderChan, err := lock.Lock(nil)
+			leaderChan, err := lock.Lock(d.shutdownCh)
 			if err != nil {
 				log.Printf("Can't create acquire lock for key %s: %+v", execKey, err)
 				continue
 			}
 			if leaderChan == nil {
-				log.Debugf("Another instance got the lock for key %s", execKey)
+				log.Debugf("Can not acquire lock for execution key %s", execKey)
 				continue
 			}
 

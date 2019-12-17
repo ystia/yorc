@@ -99,28 +99,28 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		}
 	}
 
-	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
-	go dispatcher.Run()
 	var httpServer *rest.Server
 	pm := newPluginManager()
 	defer pm.cleanup()
 	err = pm.loadPlugins(configuration)
 	if err != nil {
-		close(shutdownCh)
-		goto WAIT
+		return err
 	}
 
 	httpServer, err = rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {
-		close(shutdownCh)
-		goto WAIT
+		return err
 	}
 	defer httpServer.Shutdown()
 
 	// Register yorc service in Consul
 	if err = consulutil.RegisterServerAsConsulService(configuration, client, shutdownCh); err != nil {
-		return errors.Wrap(err, "Failed to register this yorc server as a Consul service")
+		return err
 	}
+
+	// Dispatcher needs
+	go workflow.NewDispatcher(configuration, shutdownCh, client, &wg).Run()
+
 	// Start monitoring
 	monitoring.Start(configuration, client)
 	defer monitoring.Stop()
@@ -129,7 +129,6 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	scheduler.Start(configuration, client)
 	defer scheduler.Stop()
 
-WAIT:
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {

@@ -15,8 +15,13 @@
 package scheduler
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/testutil"
@@ -26,11 +31,23 @@ import (
 func TestRunConsulSchedulingPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	port, err := strconv.Atoi(u.Port())
+	require.NoError(t, err)
 	cfg := config.Configuration{
-		HTTPAddress: "localhost",
+		HTTPAddress: u.Hostname(),
+		HTTPPort:    port,
 		ServerID:    "0",
+		Consul: config.Consul{
+			Address:        srv.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
 	}
-
 	// Register the consul service
 	chStop := make(chan struct{})
 	consulutil.RegisterServerAsConsulService(cfg, client, chStop)

@@ -15,9 +15,12 @@
 package consulutil
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
@@ -30,6 +33,11 @@ const YorcService = "yorc"
 func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chShutdown chan struct{}) error {
 	log.Printf("Register Yorc as Consul Service for node %q", cfg.ServerID)
 	var service *api.AgentServiceRegistration
+
+	nodeName, err := cc.Agent().NodeName()
+	if err != nil {
+		return errors.Wrap(err, ConsulGenericErrMsg)
+	}
 
 	var sslEnabled bool
 	sslEnabled = ((&cfg.KeyFile != nil) && len(cfg.KeyFile) != 0) || ((&cfg.CertFile != nil) && len(cfg.CertFile) != 0)
@@ -54,7 +62,7 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chS
 			Method:        "GET",
 			TLSSkipVerify: false,
 			Header:        map[string][]string{"Accept": []string{"application/json"}},
-			Status:        api.HealthPassing,
+			Status:        api.HealthCritical,
 		},
 	}
 
@@ -66,7 +74,60 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chS
 			}
 		}
 	}()
-	return cc.Agent().ServiceRegister(service)
+	err = cc.Agent().ServiceRegister(service)
+	if err != nil {
+		return errors.Wrap(err, "Failed to register this yorc server as a Consul service")
+	}
+	return waitForServerHealthCheck(cfg, cc, nodeName, chShutdown)
+}
+
+func waitForServerHealthCheck(cfg config.Configuration, cc *api.Client, nodeName string, chShutdown chan struct{}) error {
+	waitIndex := uint64(0)
+	timeout := 15 * time.Second
+	log.Printf("let up to %s to Yorc service to reach the ready state...", timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	for {
+		var ok bool
+		var err error
+		ok, waitIndex, err = checkServiceHealth(ctx, cfg, cc, nodeName, waitIndex, chShutdown)
+		if ok || err != nil {
+			return err
+		}
+		select {
+		case <-chShutdown:
+			return nil
+		case <-ctx.Done():
+			return errors.Errorf("failed to reach %s state for Yorc service registered in Consul", api.HealthPassing)
+		default:
+		}
+	}
+
+}
+
+func checkServiceHealth(ctx context.Context, cfg config.Configuration, cc *api.Client, nodeName string, waitIndex uint64, chShutdown chan struct{}) (bool, uint64, error) {
+	qOpts := &api.QueryOptions{
+		WaitIndex: waitIndex,
+		WaitTime:  5 * time.Second,
+	}
+	qOpts = qOpts.WithContext(ctx)
+
+	services, qMeta, err := cc.Health().Service(YorcService, cfg.ServerID, false, qOpts)
+	if err != nil {
+		return false, qMeta.LastIndex, errors.Wrap(err, "Failed to check this yorc server Consul service status")
+	}
+
+	for _, s := range services {
+		for _, c := range s.Checks {
+			log.Debugf("Service: %q, Node: %q, CheckID: %q, Status: %q", s.Service.ID, c.Node, c.CheckID, c.Status)
+			if c.Node == nodeName && c.CheckID == "service:yorc" && c.Status == api.HealthPassing {
+				log.Printf("Yorc service is up & running")
+				return true, qMeta.LastIndex, nil
+			}
+		}
+	}
+	log.Debugf("Service: %q no passing status for this node", YorcService)
+	return false, qMeta.LastIndex, nil
 }
 
 // UnregisterServerAsConsulService allows to unregister the Yorc server as a Consul service
