@@ -17,6 +17,7 @@ package server
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	ctu "github.com/hashicorp/consul/testutil"
@@ -99,6 +100,9 @@ func TestServerWithConsul(t *testing.T) {
 	t.Run("initLocationManager", func(t *testing.T) {
 		testInitLocationManager(t, srv)
 	})
+	t.Run("testRunServer", func(t *testing.T) {
+		testRunServer(t, srv, client)
+	})
 }
 
 func testInitConsulClient(t *testing.T, srv *ctu.TestServer, client *api.Client) {
@@ -153,6 +157,34 @@ func testInitLocationManager(t *testing.T, srv *ctu.TestServer) {
 				locationsConfigs, err := m.GetLocations()
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedlocNb, len(locationsConfigs))
+			}
+		})
+	}
+}
+
+func testRunServer(t *testing.T, srv *ctu.TestServer, client *api.Client) {
+	consulConf := config.Consul{Address: srv.HTTPAddr}
+	type args struct {
+		configuration config.Configuration
+		shutdownCh    chan struct{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"NormalStartup", args{configuration: config.Configuration{Consul: consulConf, ServerGracefulShutdownTimeout: 1 * time.Millisecond}, shutdownCh: make(chan struct{})}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			go func() {
+				select {
+				case <-time.After(500 * time.Millisecond):
+					close(tt.args.shutdownCh)
+				}
+			}()
+			if err := RunServer(tt.args.configuration, tt.args.shutdownCh); (err != nil) != tt.wantErr {
+				t.Errorf("RunServer() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

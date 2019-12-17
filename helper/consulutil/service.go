@@ -71,6 +71,7 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chS
 			select {
 			case <-chShutdown:
 				UnregisterServerAsConsulService(cfg, cc)
+				return
 			}
 		}
 	}()
@@ -114,7 +115,7 @@ func checkServiceHealth(ctx context.Context, cfg config.Configuration, cc *api.C
 
 	services, qMeta, err := cc.Health().Service(YorcService, cfg.ServerID, false, qOpts)
 	if err != nil {
-		return false, qMeta.LastIndex, errors.Wrap(err, "Failed to check this yorc server Consul service status")
+		return false, 0, errors.Wrap(err, "Failed to check this yorc server Consul service status")
 	}
 
 	for _, s := range services {

@@ -38,18 +38,19 @@ const executionLockPrefix = ".processingLock-"
 // If it gets the lock, it instantiates an execution task and push it to workers pool
 // If it receives a message from shutdown channel, it has to spread the shutdown to workers
 type Dispatcher struct {
-	client     *api.Client
-	shutdownCh chan struct{}
-	WorkerPool chan chan *taskExecution
-	maxWorkers int
-	cfg        config.Configuration
-	wg         *sync.WaitGroup
+	client           *api.Client
+	shutdownCh       chan struct{}
+	WorkerPool       chan chan *taskExecution
+	maxWorkers       int
+	cfg              config.Configuration
+	wg               *sync.WaitGroup
+	createWorkerFunc func(*Dispatcher)
 }
 
 // NewDispatcher create a new Dispatcher with a given number of workers
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
 	pool := make(chan chan *taskExecution, cfg.WorkersNumber)
-	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
+	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg, createWorkerFunc: createWorker}
 	dispatcher.emitTasksMetrics()
 	return dispatcher
 }
@@ -130,12 +131,16 @@ func (d *Dispatcher) deleteExecutionTree(execID string) {
 	}
 }
 
+func createWorker(d *Dispatcher) {
+	worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
+	worker.Start()
+}
+
 // Run creates workers and polls new task executions
 func (d *Dispatcher) Run() {
 
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
-		worker.Start()
+		d.createWorkerFunc(d)
 	}
 	log.Printf("%d workers started", d.maxWorkers)
 	var waitIndex uint64
