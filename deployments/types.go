@@ -48,7 +48,7 @@ func IsTypeMissingError(err error) bool {
 func getTypeBaseInfo(ctx context.Context, deploymentID, typeName, typePath string) (*tosca.Type, error) {
 	var err error
 	if typePath == "" {
-		typePath, err = locateTypePath(deploymentID, typeName)
+		typePath, err = locateTypeKey(deploymentID, typeName)
 		if err != nil {
 			return nil, err
 		}
@@ -68,17 +68,17 @@ func getTypeBaseInfo(ctx context.Context, deploymentID, typeName, typePath strin
 // This allows to set the tType structure from its name
 // It requires to know the type base
 func getExpectedTypeFromName(ctx context.Context, deploymentID, typeName string, tType interface{}) error {
-	typePath, err := locateTypePath(deploymentID, typeName)
+	typePath, err := locateTypeKey(deploymentID, typeName)
 	if err != nil {
 		return err
 	}
-	return getExpectedTypeFromPath(ctx, deploymentID, typeName, typePath, tType)
+	return getExpectedTypeFromKey(ctx, deploymentID, typeName, typePath, tType)
 }
 
 // This allows to set the tType structure from its name and key path
 // It requires to know the type base
-func getExpectedTypeFromPath(ctx context.Context, deploymentID, typeName, typePath string, tType interface{}) error {
-	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, tType)
+func getExpectedTypeFromKey(ctx context.Context, deploymentID, typeName, key string, tType interface{}) error {
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(key, tType)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func checkTypeIsExpected(typeName string, tType interface{}) error {
 // This allows to return the type structure from its type name without information on its type
 // It returns the type path in second position
 func getTypeFromName(ctx context.Context, deploymentID, typeName string) (interface{}, string, error) {
-	typePath, err := locateTypePath(deploymentID, typeName)
+	typePath, err := locateTypeKey(deploymentID, typeName)
 	if err != nil {
 		return nil, "", err
 	}
@@ -151,7 +151,7 @@ func getTypeFromName(ctx context.Context, deploymentID, typeName string) (interf
 
 	}
 
-	err = getExpectedTypeFromPath(ctx, deploymentID, typeName, typePath, tType)
+	err = getExpectedTypeFromKey(ctx, deploymentID, typeName, typePath, tType)
 	if err != nil {
 		return nil, "", err
 	}
@@ -235,19 +235,19 @@ func checkIfTypeExists(typePath string) (bool, error) {
 	return storage.GetStore(types.StoreTypeDeployment).Exist(typePath)
 }
 
-func locateTypePath(deploymentID, typeName string) (string, error) {
+func locateTypeKey(deploymentID, typeName string) (string, error) {
 	// First check for type in deployment
-	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
+	typeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
 	// Check if node type exist
-	exist, err := checkIfTypeExists(typePath)
+	exist, err := checkIfTypeExists(typeKey)
 	if err != nil {
 		return "", err
 	}
 	if exist {
-		return typePath, nil
+		return typeKey, nil
 	}
 
-	builtinTypesPaths := store.GetCommonsTypesPaths()
+	builtinTypesPaths := store.GetCommonsTypesKeyPaths()
 	for i := range builtinTypesPaths {
 		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types", typeName)
 		exist, err := checkIfTypeExists(builtinTypesPaths[i])
@@ -300,7 +300,7 @@ func GetTypesNames(ctx context.Context, deploymentID string) ([]string, error) {
 		names = append(names, path.Base(t))
 	}
 
-	builtinTypesPaths := store.GetCommonsTypesPaths()
+	builtinTypesPaths := store.GetCommonsTypesKeyPaths()
 	for i := range builtinTypesPaths {
 		builtinTypesPaths[i] = path.Join(builtinTypesPaths[i], "types")
 	}

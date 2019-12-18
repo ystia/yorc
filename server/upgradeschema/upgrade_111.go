@@ -29,7 +29,7 @@ import (
 )
 
 func getCommonsTypesList(kv *api.KV) ([]string, error) {
-	paths := store.GetCommonsTypesPaths()
+	paths := store.GetCommonsTypesKeyPaths()
 	res := make([]string, 0)
 	for _, p := range paths {
 		keys, _, err := kv.Keys(path.Join(p, "types")+"/", "/", nil)

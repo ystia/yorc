@@ -120,7 +120,7 @@ func testTypesPath(t *testing.T) {
 		err := storage.GetStore(types.StoreTypeDeployment).Delete(ctx, consulutil.CommonsTypesKVPrefix, true)
 		require.NoError(t, err)
 		storeCommonTypePath(context.Background(), t, tt.existingPaths)
-		paths, err := getLatestCommonsTypesPaths()
+		paths, err := getLatestCommonsTypesKeyPaths()
 		assert.Equal(t, tt.wantErr, err != nil, "Actual error: %v while expecting error: %v", err, tt.wantErr)
 		assert.Equal(t, tt.want, paths)
 	}

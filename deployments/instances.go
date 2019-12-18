@@ -248,7 +248,7 @@ func SetInstanceListAttributes(ctx context.Context, attributes []*AttributeData)
 // SetInstanceAttributeComplex sets an instance attribute that may be a literal or a complex data type
 func SetInstanceAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	err := consulutil.StoreConsulKeyAsJSON(attrPath, attributeValue)
+	err := consulutil.StoreConsulKeyWithJSONValue(attrPath, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func SetInstanceAttributeComplex(ctx context.Context, deploymentID, nodeName, in
 func SetInstanceListAttributesComplex(ctx context.Context, attributes []*AttributeData) error {
 	for _, attribute := range attributes {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
-		err := consulutil.StoreConsulKeyAsJSON(attrPath, attribute.Value)
+		err := consulutil.StoreConsulKeyWithJSONValue(attrPath, attribute.Value)
 		if err != nil {
 			return err
 		}
@@ -299,7 +299,7 @@ func SetAttributeComplexForAllInstances(ctx context.Context, deploymentID, nodeN
 	}
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-		err := consulutil.StoreConsulKeyAsJSON(attrPath, attributeValue)
+		err := consulutil.StoreConsulKeyWithJSONValue(attrPath, attributeValue)
 		if err != nil {
 			return err
 		}

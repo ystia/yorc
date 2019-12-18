@@ -42,11 +42,11 @@ var lock sync.Mutex
 
 var builtinTypes = make([]string, 0)
 
-// getLatestCommonsTypesPaths() returns all the path keys corresponding to the last version of a type
+// getLatestCommonsTypesKeyPaths() returns all the path keys corresponding to the last version of a type
 // that is stored under the consulutil.CommonsTypesKVPrefix.
 // For example, one path key could be _yorc/commons_types/some_type/2.0.0 if the last version
 // of the some_type type is 2.0.0
-func getLatestCommonsTypesPaths() ([]string, error) {
+func getLatestCommonsTypesKeyPaths() ([]string, error) {
 	keys, err := storage.GetStore(types.StoreTypeDeployment).Keys(consulutil.CommonsTypesKVPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -75,18 +75,18 @@ func getLatestCommonsTypesPaths() ([]string, error) {
 	return paths, nil
 }
 
-// GetCommonsTypesPaths returns the path of builtin types supported by this instance of Yorc
+// GetCommonsTypesKeyPaths returns the path of builtin types supported by this instance of Yorc
 //
 // Returned keys are formatted as <consulutil.CommonsTypesKVPrefix>/<name>/<version>
 // If this is used from outside a Yorc instance typically a plugin or another app then the latest
 // version of each builtin type stored in Consul is assumed
-func GetCommonsTypesPaths() []string {
+func GetCommonsTypesKeyPaths() []string {
 	lock.Lock()
 	defer lock.Unlock()
 	if len(builtinTypes) == 0 {
 		// Not provided at system startup we are probably in an external application used as a lib
 		// So let use latest values of each stored builtin types in Consul
-		builtinTypes, _ = getLatestCommonsTypesPaths()
+		builtinTypes, _ = getLatestCommonsTypesKeyPaths()
 	}
 	res := make([]string, len(builtinTypes))
 	copy(res, builtinTypes)
@@ -166,7 +166,7 @@ func GetCommonsDefinitionsList() ([]Definition, error) {
 	if len(builtinTypes) == 0 {
 		// Not provided at system startup we are probably in an external application used as a lib
 		// So let use latest values of each stored builtin types in Consul
-		builtinTypes, _ = getLatestCommonsTypesPaths()
+		builtinTypes, _ = getLatestCommonsTypesKeyPaths()
 	}
 	res := make([]Definition, len(builtinTypes))
 	for _, p := range builtinTypes {
