@@ -1,0 +1,5 @@
+locations:
+  - name: "location1"
+    type: "sometype"
+    properties:
+      p1: "v1"

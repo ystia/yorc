@@ -22,6 +22,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -36,13 +37,7 @@ import (
 	"github.com/ystia/yorc/v4/tasks/workflow"
 )
 
-// RunServer starts the Yorc server
-func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
-	err := setupTelemetry(configuration)
-	if err != nil {
-		return err
-	}
-
+func initVaultClient(configuration config.Configuration) error {
 	vaultClient, err := buildVaultClient(configuration)
 	if err != nil {
 		return err
@@ -56,10 +51,13 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		// Setup default vault client for TOSCA functions resolver
 		deployments.DefaultVaultClient = vaultClient
 	}
-	var wg sync.WaitGroup
+	return nil
+}
+
+func initConsulClient(configuration config.Configuration) (*api.Client, error) {
 	client, err := configuration.GetConsulClient()
 	if err != nil {
-		return errors.Wrap(err, "Can't connect to Consul")
+		return nil, errors.Wrap(err, "Can't connect to Consul")
 	}
 
 	maxConsulPubRoutines := configuration.Consul.PubMaxRoutines
@@ -72,20 +70,20 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	// Load main stores used for deployments, logs, events
 	err = storage.LoadStores()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = registerBuiltinTOSCATypes()
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = setupConsulDBSchema(configuration, client)
-	if err != nil {
-		return err
-	}
+	// return error if any
+	return client, err
+}
 
+func initLocationManager(configuration config.Configuration) error {
 	if configuration.LocationsFilePath != "" {
 		locationMgr, err := locations.GetManager(configuration)
 		if err != nil {
@@ -105,29 +103,53 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 			log.Debugf("Locations already initialized")
 		}
 	}
+	return nil
+}
 
-	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
-	go dispatcher.Run()
-	var httpServer *rest.Server
+// RunServer starts the Yorc server
+func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
+	err := setupTelemetry(configuration)
+	if err != nil {
+		return err
+	}
+
+	err = initVaultClient(configuration)
+	if err != nil {
+		return err
+	}
+
+	client, err := initConsulClient(configuration)
+	if err != nil {
+		return err
+	}
+
+	err = initLocationManager(configuration)
+	if err != nil {
+		return err
+	}
+
 	pm := newPluginManager()
 	defer pm.cleanup()
 	err = pm.loadPlugins(configuration)
 	if err != nil {
-		close(shutdownCh)
-		goto WAIT
+		return err
 	}
 
-	httpServer, err = rest.NewServer(configuration, client, shutdownCh)
+	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {
-		close(shutdownCh)
-		goto WAIT
+		return err
 	}
 	defer httpServer.Shutdown()
 
 	// Register yorc service in Consul
 	if err = consulutil.RegisterServerAsConsulService(configuration, client, shutdownCh); err != nil {
-		return errors.Wrap(err, "Failed to register this yorc server as a Consul service")
+		return err
 	}
+
+	var wg sync.WaitGroup
+	// Dispatcher needs
+	go workflow.NewDispatcher(configuration, shutdownCh, client, &wg).Run()
+
 	// Start monitoring
 	monitoring.Start(configuration, client)
 	defer monitoring.Stop()
@@ -136,7 +158,6 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	scheduler.Start(configuration, client)
 	defer scheduler.Stop()
 
-WAIT:
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {

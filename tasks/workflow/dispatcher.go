@@ -38,18 +38,19 @@ const executionLockPrefix = ".processingLock-"
 // If it gets the lock, it instantiates an execution task and push it to workers pool
 // If it receives a message from shutdown channel, it has to spread the shutdown to workers
 type Dispatcher struct {
-	client     *api.Client
-	shutdownCh chan struct{}
-	WorkerPool chan chan *taskExecution
-	maxWorkers int
-	cfg        config.Configuration
-	wg         *sync.WaitGroup
+	client           *api.Client
+	shutdownCh       chan struct{}
+	WorkerPool       chan chan *taskExecution
+	maxWorkers       int
+	cfg              config.Configuration
+	wg               *sync.WaitGroup
+	createWorkerFunc func(*Dispatcher)
 }
 
 // NewDispatcher create a new Dispatcher with a given number of workers
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
 	pool := make(chan chan *taskExecution, cfg.WorkersNumber)
-	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
+	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg, createWorkerFunc: createWorker}
 	dispatcher.emitTasksMetrics()
 	return dispatcher
 }
@@ -130,12 +131,16 @@ func (d *Dispatcher) deleteExecutionTree(execID string) {
 	}
 }
 
+func createWorker(d *Dispatcher) {
+	worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
+	worker.Start()
+}
+
 // Run creates workers and polls new task executions
 func (d *Dispatcher) Run() {
 
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
-		worker.Start()
+		d.createWorkerFunc(d)
 	}
 	log.Printf("%d workers started", d.maxWorkers)
 	var waitIndex uint64
@@ -144,7 +149,6 @@ func (d *Dispatcher) Run() {
 	if err != nil {
 		log.Panicf("Can't connect to Consul %+v... Aborting", err)
 	}
-
 	for {
 		select {
 		case <-d.shutdownCh:
@@ -152,18 +156,16 @@ func (d *Dispatcher) Run() {
 			return
 		default:
 		}
-		q := &api.QueryOptions{WaitIndex: waitIndex}
+		q := &api.QueryOptions{
+			WaitIndex: waitIndex,
+			WaitTime:  d.cfg.Tasks.Dispatcher.LongPollWaitTime,
+		}
 		log.Debugf("Long polling Task Executions")
 		execKeys, rMeta, err := kv.Keys(consulutil.ExecutionsTaskPrefix+"/", "/", q)
 		if err != nil {
 			err = errors.Wrap(err, "Error getting task executions")
 			log.Print(err)
 			log.Debugf("%+v", err)
-			continue
-		}
-		if waitIndex == rMeta.LastIndex {
-			// long pool ended due to a timeout
-			// there is no new items go back to the pooling
 			continue
 		}
 		waitIndex = rMeta.LastIndex
@@ -177,23 +179,30 @@ func (d *Dispatcher) Run() {
 
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
-				Key:          path.Join(consulutil.ExecutionsTaskPrefix, executionLockPrefix+execID),
-				Value:        []byte(nodeName),
+				Key:   path.Join(consulutil.ExecutionsTaskPrefix, executionLockPrefix+execID),
+				Value: []byte(nodeName),
+				SessionOpts: &api.SessionEntry{
+					Name:     "DispatcherLock-" + nodeName,
+					Behavior: api.SessionBehaviorRelease,
+					Checks:   []string{"service:yorc", "serfHealth"},
+					TTL:      "10s",
+				},
+				SessionTTL:   "10s",
 				LockTryOnce:  true,
-				LockWaitTime: 10 * time.Millisecond,
+				LockWaitTime: d.cfg.Tasks.Dispatcher.LockWaitTime,
 			}
 			lock, err := d.client.LockOpts(opts)
 			if err != nil {
 				log.Printf("Can't create processing lock for key %s: %+v", execKey, err)
 				continue
 			}
-			leaderChan, err := lock.Lock(nil)
+			leaderChan, err := lock.Lock(d.shutdownCh)
 			if err != nil {
 				log.Printf("Can't create acquire lock for key %s: %+v", execKey, err)
 				continue
 			}
 			if leaderChan == nil {
-				log.Debugf("Another instance got the lock for key %s", execKey)
+				log.Debugf("Can not acquire lock for execution key %s", execKey)
 				continue
 			}
 
