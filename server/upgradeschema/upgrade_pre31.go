@@ -16,6 +16,7 @@ package upgradeschema
 
 import (
 	"encoding/json"
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"strings"
 
@@ -28,7 +29,7 @@ import (
 )
 
 // UpgradeFromPre31 allows to upgrade Consul schema from schema version before 1.0.0 (pre 3.1 yorc version)
-func UpgradeFromPre31(kv *api.KV, leaderch <-chan struct{}) error {
+func UpgradeFromPre31(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Preparing upgrade database schema to 1.0.0 schema version")
 	return eventsChange(kv, leaderch)
 }

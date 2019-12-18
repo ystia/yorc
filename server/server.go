@@ -33,6 +33,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/monitoring"
 	"github.com/ystia/yorc/v4/prov/scheduling/scheduler"
 	"github.com/ystia/yorc/v4/rest"
+	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/tasks/workflow"
 )
 
@@ -66,12 +67,18 @@ func initConsulClient(configuration config.Configuration) (*api.Client, error) {
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
+	// Load main stores used for deployments, logs, events
+	err = storage.LoadStores()
+	if err != nil {
+		return nil, err
+	}
+
 	err = registerBuiltinTOSCATypes()
 	if err != nil {
 		return nil, err
 	}
 
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(configuration, client)
 	// return error if any
 	return client, err
 }

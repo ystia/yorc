@@ -14,6 +14,30 @@ imports:
 
 topology_template:
   node_templates:
+    Comp:
+      type: yorc.nodes.google.Compute
+      properties:
+        machine_type: "n1-standard-1"
+        zone: "europe-west1-b"
+        image_project: "centos-cloud"
+        image_family: "centos-7"
+        no_address: false
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+            credentials:
+              user: centos
+              keys:
+                0: "./testdata/mykey.pem"
     PersistentDisk:
       type: yorc.nodes.google.PersistentDisk
       properties:

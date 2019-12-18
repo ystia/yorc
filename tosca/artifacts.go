@@ -65,11 +65,11 @@ func (adm *ArtifactDefMap) UnmarshalYAML(unmarshal func(interface{}) error) erro
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_ARTIFACT_DEF for more details
 type ArtifactDefinition struct {
-	Type        string `yaml:"type,omitempty"`
-	File        string `yaml:"file,omitempty"`
-	Description string `yaml:"description,omitempty"`
-	Repository  string `yaml:"repository,omitempty"`
-	DeployPath  string `yaml:"deploy_path,omitempty"`
+	Type        string `yaml:"type,omitempty" json:"type,omitempty"`
+	File        string `yaml:"file,omitempty" json:"file,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	Repository  string `yaml:"repository,omitempty" json:"repository,omitempty"`
+	DeployPath  string `yaml:"deploy_path,omitempty" json:"deploy_path,omitempty"`
 	// Extra types used in list (A4C) mode
 	name string
 }

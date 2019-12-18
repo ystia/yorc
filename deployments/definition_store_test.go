@@ -17,11 +17,17 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	stdlog "log"
 	"path"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
+	"vbom.ml/util/sortorder"
 
 	ctu "github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -38,9 +44,6 @@ func testDefinitionStore(t *testing.T) {
 	t.Run("groupDeploymentsDefinitionStore", func(t *testing.T) {
 		t.Run("TestImplementationArtifacts", func(t *testing.T) {
 			testImplementationArtifacts(t)
-		})
-		t.Run("TestImplementationArtifactsDuplicates", func(t *testing.T) {
-			testImplementationArtifactsDuplicates(t)
 		})
 		t.Run("TestValueAssignments", func(t *testing.T) {
 			testValueAssignments(t)
@@ -84,14 +87,6 @@ func testImplementationArtifacts(t *testing.T) {
 
 }
 
-func testImplementationArtifactsDuplicates(t *testing.T) {
-	// t.Parallel()
-	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/artifacts_ext_duplicate.yaml")
-	require.Error(t, err, "Expecting for a duplicate extension for artifact implementation")
-
-}
-
 func testValueAssignments(t *testing.T) {
 	ctx := context.Background()
 	// t.Parallel()
@@ -99,16 +94,87 @@ func testValueAssignments(t *testing.T) {
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
 	// First test operation outputs detection
-	vaTypePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/yorc.tests.nodes.ValueAssignmentNode")
-	exist, value, err := consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/create/outputs/SELF/CREATE_OUTPUT/expression"))
+	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/yorc.tests.nodes.ValueAssignmentNode")
+	nodeType := new(tosca.NodeType)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(typePath, nodeType)
 	require.Nil(t, err)
 	require.True(t, exist)
-	require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", value)
-	exist, value, err = consulutil.GetStringValue(path.Join(vaTypePrefix, "interfaces/standard/configure/outputs/SELF/PARTITION_NAME/expression"))
-	require.Nil(t, err)
-	require.True(t, exist)
-	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", value)
 
+	interfaceDef, exist := nodeType.Interfaces["Standard"]
+	require.True(t, exist)
+
+	operationDef, exist := interfaceDef.Operations["create"]
+	require.True(t, exist)
+
+	output, exist := operationDef.Outputs["CREATE_OUTPUT"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]", output.ValueAssign.Value)
+
+	operationDef, exist = interfaceDef.Operations["configure"]
+	require.True(t, exist)
+
+	output, exist = operationDef.Outputs["PARTITION_NAME"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [SELF, Standard, configure, PARTITION_NAME]", output.ValueAssign.Value)
+
+	interfaceDef, exist = nodeType.Interfaces["custom"]
+	require.True(t, exist)
+
+	operationDef, exist = interfaceDef.Operations["publish"]
+	require.True(t, exist)
+
+	output, exist = operationDef.Outputs["DISTRIBUTION_NAME"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [HOST, custom, publish, DISTRIBUTION_NAME]", output.ValueAssign.Value)
+
+	output, exist = operationDef.Outputs["CONTAINER_NAME"]
+	require.True(t, exist)
+	require.NotNil(t, output.ValueAssign)
+	require.Equal(t, tosca.ValueAssignmentFunction, output.ValueAssign.Type)
+	require.Equal(t, "get_operation_output: [TARGET, custom, publish, CONTAINER_NAME]", output.ValueAssign.Value)
+
+	t.Run("groupDeploymentsDefinitionStoreValueAssignments", func(t *testing.T) {
+		t.Run("testValueAssignmentsWithNodeProperties", func(t *testing.T) {
+			testValueAssignmentsWithNodeProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithNodeAttributes", func(t *testing.T) {
+			testValueAssignmentsWithNodeAttributes(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipProperties", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipProperties", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipProperties", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithRelationshipAttributes", func(t *testing.T) {
+			testValueAssignmentsWithRelationshipAttributes(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithCapabilityProperties", func(t *testing.T) {
+			testValueAssignmentsWithCapabilityProperties(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithCapabilityAttributes", func(t *testing.T) {
+			testValueAssignmentsWithCapabilityAttributes(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithTopologyInputs", func(t *testing.T) {
+			testValueAssignmentsWithTopologyInputs(t, ctx, deploymentID)
+		})
+		t.Run("testValueAssignmentsWithTopologyOutputs", func(t *testing.T) {
+			testValueAssignmentsWithTopologyOutputs(t, ctx, deploymentID)
+		})
+	})
+
+}
+
+func testValueAssignmentsWithNodeProperties(t *testing.T, ctx context.Context, deploymentID string) {
 	// Then test node properties
 	type nodePropArgs struct {
 		nodeName     string
@@ -184,9 +250,11 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithNodeAttributes(t *testing.T, ctx context.Context, deploymentID string) {
 	// Then test node attributes
-	err = SetInstanceAttribute(ctx, deploymentID, "VANode1", "0", "lit", "myLiteral")
+	err := SetInstanceAttribute(ctx, deploymentID, "VANode1", "0", "lit", "myLiteral")
 	require.NoError(t, err)
 	err = SetInstanceAttributeComplex(ctx, deploymentID, "VANode1", "0", "listAttr", []int{42, 43, 44})
 	require.NoError(t, err)
@@ -269,7 +337,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithRelationshipProperties(t *testing.T, ctx context.Context, deploymentID string) {
 	// Then test relationship properties
 	type relPropArgs struct {
 		nodeName     string
@@ -341,11 +411,14 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithRelationshipAttributes(t *testing.T, ctx context.Context, deploymentID string) {
 
 	// Then test relationship attributes value assignment
-	err = SetInstanceRelationshipAttribute(ctx, deploymentID, "VANode2", "0", "0", "literalAttr", "user rel literal attr")
+	err := SetInstanceRelationshipAttribute(ctx, deploymentID, "VANode2", "0", "0", "literalAttr", "user rel literal attr")
 	require.NoError(t, err)
-	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "mapAttr", map[interface{}]string{"U1": "V1", "U2": "V2"})
+	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "mapAttr", map[string]string{"U1": "V1", "U2": "V2"})
 	require.NoError(t, err)
 	err = SetInstanceRelationshipAttributeComplex(ctx, deploymentID, "VANode2", "0", "0", "listAttr", []interface{}{"UV1", "UV2", "UV3"})
 	require.NoError(t, err)
@@ -438,6 +511,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithCapabilityProperties(t *testing.T, ctx context.Context, deploymentID string) {
 
 	// Then test capabilities properties value assignment
 	type capPropArgs struct {
@@ -523,11 +599,14 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithCapabilityAttributes(t *testing.T, ctx context.Context, deploymentID string) {
 
 	// Then test capabilities attributes value assignment
-	err = SetInstanceCapabilityAttribute(ctx, deploymentID, "VANode1", "0", "host", "literalAttr", "user cap literal attr")
+	err := SetInstanceCapabilityAttribute(ctx, deploymentID, "VANode1", "0", "host", "literalAttr", "user cap literal attr")
 	require.NoError(t, err)
-	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "mapAttr", map[interface{}]string{"U1": "V1", "U2": "V2"})
+	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "mapAttr", map[string]string{"U1": "V1", "U2": "V2"})
 	require.NoError(t, err)
 	err = SetInstanceCapabilityAttributeComplex(ctx, deploymentID, "VANode1", "0", "host", "listAttr", []interface{}{"UV1", "UV2", "UV3"})
 	require.NoError(t, err)
@@ -646,6 +725,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testValueAssignmentsWithTopologyInputs(t *testing.T, ctx context.Context, deploymentID string) {
 	type topoInputArgs struct {
 		inputName  string
 		nestedKeys []string
@@ -694,7 +776,9 @@ func testValueAssignments(t *testing.T) {
 			}
 		})
 	}
+}
 
+func testValueAssignmentsWithTopologyOutputs(t *testing.T, ctx context.Context, deploymentID string) {
 	type topoOutputArgs struct {
 		OutputName string
 		nestedKeys []string
@@ -831,7 +915,7 @@ func testRelationshipWorkflow(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 4)
 
-	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
+	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInstall.Steps), 14)
 
@@ -861,7 +945,10 @@ func testGlobalInputs(t *testing.T) {
 	inputs, err := GetOperationInputs(ctx, deploymentID, "", giType, operationName)
 	require.Nil(t, err)
 	require.Len(t, inputs, 5)
-	require.Equal(t, []string{"L1", "L2", "G1", "G2", "G3"}, inputs)
+	expected := []string{"L1", "L2", "G1", "G2", "G3"}
+	sort.Sort(sortorder.Natural(expected))
+	sort.Sort(sortorder.Natural(inputs))
+	require.Equal(t, expected, inputs)
 
 	isPropDef, err := IsOperationInputAPropertyDefinition(ctx, deploymentID, "", giType, operationName, "L1")
 	require.Nil(t, err)
@@ -937,7 +1024,7 @@ func testInlineWorkflow(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 3)
 
-	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
+	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInstall.Steps), 4)
 
@@ -951,7 +1038,7 @@ func testInlineWorkflow(t *testing.T) {
 	require.Equal(t, len(step.Activities), 1)
 	require.Equal(t, step.Activities[0].Inline, "inception")
 
-	wfInception, err := ReadWorkflow(ctx, deploymentID, "inception")
+	wfInception, err := GetWorkflow(ctx, deploymentID, "inception")
 	require.Nil(t, err)
 	require.Equal(t, len(wfInception.Steps), 1)
 }
@@ -965,14 +1052,14 @@ func testDeleteWorkflow(t *testing.T) {
 
 	workflows, err := GetWorkflows(ctx, deploymentID)
 	require.Nil(t, err)
-	require.Equal(t, len(workflows), 3)
+	require.Equal(t, 3, len(workflows))
 
 	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
 
-	wfInstall, err := ReadWorkflow(ctx, deploymentID, "install")
+	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
-	assert.Equal(t, len(wfInstall.Steps), 0, "Expected no step in non-existing workflow")
+	require.Nil(t, wfInstall, "Expected nil workflow")
 
 }
 
@@ -985,47 +1072,41 @@ func testCheckCycleInNestedWorkflows(t *testing.T) {
 
 // Testing a Deployment Definition where one of the imports
 // contains a topology template
-func testImportTopologyTemplate(t *testing.T, deploymentID string) {
-	// t.Parallel()
+func testImportTopologyTemplateNodeMetadata(t *testing.T, deploymentID string) {
+	t.Parallel()
 
-	// Check the stored compute node and network have the expected type
-	expectedKeyValuePairs := map[string]string{
-		"topology/nodes/TestCompute/type":                              "yorc.nodes.openstack.Compute",
-		"topology/nodes/TestCompute/metadata/monitoring_time_interval": "30",
-		"topology/nodes/Network/type":                                  "yorc.nodes.openstack.Network",
-	}
-
-	for key, expectedValue := range expectedKeyValuePairs {
-		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		exist, value, err := consulutil.GetStringValue(consulKey)
-		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.True(t, exist, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
-	}
+	node, err := getNodeTemplate(context.Background(), deploymentID, "TestCompute")
+	require.NoError(t, err, "Error getting node template")
+	require.NotNil(t, node, "node TestCompute should not be nil")
+	require.NotNil(t, node.Metadata, "node TestCompute should not be nil")
+	require.Len(t, node.Metadata, 1, "a metadata entry is expected")
+	require.Equal(t, "30", node.Metadata["monitoring_time_interval"], "monitoring time interval is expected in metadata")
 }
 
 // Testing topology template metadata
 func testTopologyTemplateMetadata(t *testing.T, deploymentID string) {
 	t.Parallel()
 
-	// Check the stored template metadata
-	// This topology template imports a tempologuy template with metatadata
-	// Checking the imported template metadata
-	expectedKeyValuePairs := map[string]string{
-		"topology/metadata/template_name":                               "topotest-Environment",
-		"topology/metadata/template_version":                            "0.1.0-SNAPSHOT",
-		"topology/metadata/template_author":                             "yorcTester",
-		"topology/imports/test_component.yml/metadata/template_name":    "test-component",
-		"topology/imports/test_component.yml/metadata/template_version": "2.0.0-SNAPSHOT",
-		"topology/imports/test_component.yml/metadata/template_author":  "yorcTester",
+	tests := []struct {
+		name         string
+		topologyPath string
+		expected     map[string]string
+	}{
+		{"topologyOne", "topology", map[string]string{"template_name": "topotest-Environment", "template_version": "0.1.0-SNAPSHOT", "template_author": "yorcTester"}},
+		{"topologyImport", "topology/imports/test_component.yml", map[string]string{"template_name": "test-component", "template_version": "2.0.0-SNAPSHOT", "template_author": "yorcTester"}},
 	}
-
-	for key, expectedValue := range expectedKeyValuePairs {
-		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		exist, value, err := consulutil.GetStringValue(consulKey)
-		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.True(t, exist, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, tt.topologyPath, "metadata")
+			metadataPtr := new(map[string]string)
+			exist, err := storage.GetStore(types.StoreTypeDeployment).Get(consulKey, metadataPtr)
+			require.NoError(t, err, "Error getting value for key %s", consulKey)
+			require.True(t, exist, "Unexpected null value for key %s", consulKey)
+			metadata := *metadataPtr
+			if !reflect.DeepEqual(metadata, tt.expected) {
+				t.Errorf("testTopologyTemplateMetadata = %v, want %v", metadata, tt.expected)
+			}
+		})
 	}
 
 }
@@ -1039,25 +1120,8 @@ func testRunnableWorkflowsAutoCancel(t *testing.T) {
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_runnable_wf_modifer.yml")
 	require.NoError(t, err, "Failed to store test topology deployment definition")
 
-	// Check the stored template metadata
-	// This topology template imports a tempologuy template with metatadata
-	// Checking the imported template metadata
-	expectedKeyValuePairs := map[string]string{
-		"workflows/run/steps/yorc_automatic_cancellation_of_Job_submit/target":               "Job",
-		"workflows/run/steps/Job_submit/on-cancel/yorc_automatic_cancellation_of_Job_submit": "",
-		"workflows/run/steps/yorc_automatic_cancellation_of_Job_run/target":                  "Job",
-		"workflows/run/steps/Job_run/on-cancel/yorc_automatic_cancellation_of_Job_run":       "",
-	}
-
-	for key, expectedValue := range expectedKeyValuePairs {
-		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
-		exist, value, err := consulutil.GetStringValue(consulKey)
-		require.NoError(t, err, "Error getting value for key %s", consulKey)
-		require.True(t, exist, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, value, expectedValue, "Wrong value for key %s", key)
-	}
-
-	wf, err := ReadWorkflow(context.Background(), deploymentID, "run")
+	// Check the stored and enhanced run workflow
+	wf, err := GetWorkflow(context.Background(), deploymentID, "run")
 	require.NoError(t, err)
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_submit")
 	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_run")

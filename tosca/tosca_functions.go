@@ -17,6 +17,7 @@ package tosca
 import (
 	"bytes"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -212,4 +213,14 @@ func parseFunction(f map[interface{}]interface{}) (*Function, error) {
 		return &Function{Operator: operator, Operands: ops}, nil
 	}
 	return nil, errors.Errorf("Not a TOSCA function")
+}
+
+// ParseFunction allows to cast a string function representation in Function struct
+func ParseFunction(rawFunction string) (*Function, error) {
+	f := &Function{}
+	err := yaml.Unmarshal([]byte(rawFunction), f)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse TOSCA function %q", rawFunction)
+	}
+	return f, nil
 }

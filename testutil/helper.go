@@ -15,6 +15,7 @@
 package testutil
 
 import (
+	"github.com/ystia/yorc/v4/storage"
 	"os"
 	"strings"
 	"testing"
@@ -74,6 +75,11 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
+
+	// Load stores
+	// Load main stores used for deployments, logs, events
+	err = storage.LoadStores()
+	assert.Nil(t, err)
 
 	if storeCommons {
 		storeCommonDefinitions()

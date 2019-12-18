@@ -16,6 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 
 	"github.com/pkg/errors"
@@ -29,52 +32,45 @@ const DockerHubURL = "https://hub.docker.com/"
 // SingularityHubURL is the official URL for the docker hub
 const SingularityHubURL = "https://singularity-hub.org/"
 
+func getRepository(ctx context.Context, deploymentID, repoName string) (bool, *tosca.Repository, error) {
+	repository := new(tosca.Repository)
+	repoPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories", repoName)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(repoPath, repository)
+	return exist, repository, err
+}
+
 // GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
 func GetRepositoryURLFromName(ctx context.Context, deploymentID, repoName string) (string, error) {
-	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
-	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "url"))
+	exist, repo, err := getRepository(ctx, deploymentID, repoName)
 	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return "", err
 	}
 	if !exist {
 		return "", errors.Errorf("The repository %v has been not found", repoName)
 	}
-	return res, nil
+	return repo.URL, nil
 }
 
 // GetRepositoryTokenTypeFromName retrieves the token_type of credential for a given repoName
 func GetRepositoryTokenTypeFromName(ctx context.Context, deploymentID, repoName string) (string, error) {
-	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
-	exist, res, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token_type"))
+	exist, repo, err := getRepository(ctx, deploymentID, repoName)
 	if err != nil {
-		return "", errors.Wrap(err, "An error has occurred when trying to get repository token_type")
+		return "", err
 	}
-
 	if !exist {
 		return "", errors.Errorf("The repository %v has been not found", repoName)
 	}
-
-	return res, nil
+	return repo.Credit.TokenType, nil
 }
 
 // GetRepositoryTokenUserFromName This function get the credentials (user/token) for a given repoName
 func GetRepositoryTokenUserFromName(ctx context.Context, deploymentID, repoName string) (string, string, error) {
-	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
-	existToken, token, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "token"))
+	exist, repo, err := getRepository(ctx, deploymentID, repoName)
 	if err != nil {
-		return "", "", errors.Wrap(err, "An error has occurred when trying to get repository token")
+		return "", "", err
 	}
-	if !existToken || token == "" {
-		return "", "", errors.Errorf("The token for repository %v has been not found", repoName)
+	if !exist {
+		return "", "", errors.Errorf("The repository %v has been not found", repoName)
 	}
-
-	existUser, user, err := consulutil.GetStringValue(path.Join(repositoriesPath, repoName, "credentials", "user"))
-	if err != nil {
-		return "", "", errors.Wrap(err, "An error has occurred when trying to get repository user")
-	}
-	if !existUser || user == "" {
-		return "", "", errors.Errorf("The user for repository %v has been not found", repoName)
-	}
-
-	return token, user, nil
+	return repo.Credit.Token, repo.Credit.User, nil
 }

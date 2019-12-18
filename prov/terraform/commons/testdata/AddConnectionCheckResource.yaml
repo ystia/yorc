@@ -3,9 +3,12 @@ tosca_definitions_version: alien_dsl_2_0_0
 imports:
   - <normative-types.yml>
   - <yorc-types.yml>
+  - ./test-types.yml
 
 topology_template:
   node_templates:
+    SSHBastionHost:
+      type: yorc.test.nodes.SSHBastionHost
     Compute:
       type: yorc.nodes.Compute
       capabilities:

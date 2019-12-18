@@ -16,6 +16,9 @@ package store
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"golang.org/x/sync/errgroup"
 	"path"
 	"sync"
 
@@ -39,18 +42,18 @@ var lock sync.Mutex
 
 var builtinTypes = make([]string, 0)
 
-// getLatestCommonsTypesPaths() returns all the path keys corresponding to the last version of a type
+// getLatestCommonsTypesKeyPaths() returns all the path keys corresponding to the last version of a type
 // that is stored under the consulutil.CommonsTypesKVPrefix.
 // For example, one path key could be _yorc/commons_types/some_type/2.0.0 if the last version
 // of the some_type type is 2.0.0
-func getLatestCommonsTypesPaths() ([]string, error) {
-	keys, err := consulutil.GetKeys(consulutil.CommonsTypesKVPrefix)
+func getLatestCommonsTypesKeyPaths() ([]string, error) {
+	keys, err := storage.GetStore(types.StoreTypeDeployment).Keys(consulutil.CommonsTypesKVPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	paths := make([]string, 0, len(keys))
 	for _, builtinTypesPath := range keys {
-		versions, err := consulutil.GetKeys(builtinTypesPath)
+		versions, err := storage.GetStore(types.StoreTypeDeployment).Keys(builtinTypesPath)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -72,18 +75,18 @@ func getLatestCommonsTypesPaths() ([]string, error) {
 	return paths, nil
 }
 
-// GetCommonsTypesPaths returns the path of builtin types supported by this instance of Yorc
+// GetCommonsTypesKeyPaths returns the path of builtin types supported by this instance of Yorc
 //
 // Returned keys are formatted as <consulutil.CommonsTypesKVPrefix>/<name>/<version>
 // If this is used from outside a Yorc instance typically a plugin or another app then the latest
 // version of each builtin type stored in Consul is assumed
-func GetCommonsTypesPaths() []string {
+func GetCommonsTypesKeyPaths() []string {
 	lock.Lock()
 	defer lock.Unlock()
 	if len(builtinTypes) == 0 {
 		// Not provided at system startup we are probably in an external application used as a lib
 		// So let use latest values of each stored builtin types in Consul
-		builtinTypes, _ = getLatestCommonsTypesPaths()
+		builtinTypes, _ = getLatestCommonsTypesKeyPaths()
 	}
 	res := make([]string, len(builtinTypes))
 	copy(res, builtinTypes)
@@ -97,7 +100,7 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 	if err != nil {
 		return errors.Wrapf(err, "failed to unmarshal TOSCA definition %q", definitionName)
 	}
-	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
+	errGroup, ctx := errgroup.WithContext(ctx)
 	name := topology.Metadata["template_name"]
 	if name == "" {
 		return errors.Errorf("Can't store builtin TOSCA definition %q, template_name is missing", definitionName)
@@ -119,7 +122,7 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		}
 	}()
 
-	keys, err := consulutil.GetKeys(topologyPrefix)
+	keys, err := storage.GetStore(types.StoreTypeDeployment).Keys(topologyPrefix)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -128,24 +131,22 @@ func CommonDefinition(ctx context.Context, definitionName, origin string, defini
 		return nil
 	}
 	errGroup.Go(func() error {
-		internal.StoreTopologyTopLevelKeyNames(ctx, consulStore, topology, topologyPrefix)
-		return nil
+		return internal.StoreTopologyTopLevelKeyNames(ctx, topology, topologyPrefix)
 	})
 	errGroup.Go(func() error {
-		return internal.StoreRepositories(ctx, consulStore, topology, topologyPrefix)
+		return internal.StoreRepositories(ctx, topology, topologyPrefix)
 	})
 	errGroup.Go(func() error {
-		return internal.StoreAllTypes(ctx, consulStore, topology, topologyPrefix, "")
+		return internal.StoreAllTypes(ctx, topology, topologyPrefix, "")
 	})
 	return errGroup.Wait()
 }
 
 // Deployment stores a whole deployment.
 func Deployment(ctx context.Context, topology tosca.Topology, deploymentID, rootDefPath string) error {
-	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
-
+	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.Go(func() error {
-		return internal.StoreTopology(ctx, consulStore, errGroup, topology, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"), "", "", rootDefPath)
+		return internal.StoreTopology(ctx, errGroup, topology, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"), "", "", rootDefPath)
 	})
 
 	return errGroup.Wait()
@@ -165,7 +166,7 @@ func GetCommonsDefinitionsList() ([]Definition, error) {
 	if len(builtinTypes) == 0 {
 		// Not provided at system startup we are probably in an external application used as a lib
 		// So let use latest values of each stored builtin types in Consul
-		builtinTypes, _ = getLatestCommonsTypesPaths()
+		builtinTypes, _ = getLatestCommonsTypesKeyPaths()
 	}
 	res := make([]Definition, len(builtinTypes))
 	for _, p := range builtinTypes {

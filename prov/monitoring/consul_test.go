@@ -15,6 +15,7 @@
 package monitoring
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -22,9 +23,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/testutil"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
@@ -39,6 +44,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	require.NoError(t, err)
 	port, err := strconv.Atoi(u.Port())
 	require.NoError(t, err)
+	ctx := context.Background()
 	cfg := config.Configuration{
 		HTTPAddress: u.Hostname(),
 		HTTPPort:    port,
@@ -62,70 +68,62 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		srv.Stop()
 	}()
 
+	policy1 := tosca.Policy{
+		Type:    "yorc.policies.monitoring.TCPMonitoring",
+		Targets: []string{"Compute1"},
+		Properties: map[string]*tosca.ValueAssignment{
+			"port":          &tosca.ValueAssignment{Type: 0, Value: 22},
+			"time_interval": &tosca.ValueAssignment{Type: 0, Value: "1s"},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/policies/TCPMonitoring", policy1)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring5/topology/policies/TCPMonitoring", policy1)
+	require.Nil(t, err)
+
+	policy2 := tosca.Policy{
+		Type:    "yorc.policies.monitoring.HTTPMonitoring",
+		Targets: []string{"Compute2"},
+		Properties: map[string]*tosca.ValueAssignment{
+			"port":          &tosca.ValueAssignment{Type: 0, Value: 22},
+			"time_interval": &tosca.ValueAssignment{Type: 0, Value: "1s"},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/policies/HTTPMonitoring", policy2)
+	require.Nil(t, err)
+
+	policy3 := tosca.Policy{
+		Type:    "yorc.policies.monitoring.TCPMonitoring",
+		Targets: []string{"Compute"},
+		Properties: map[string]*tosca.ValueAssignment{
+			"port":          &tosca.ValueAssignment{Type: 0, Value: 22},
+			"time_interval": &tosca.ValueAssignment{Type: 0, Value: "1s"},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring3/topology/policies/HTTPMonitoring", policy3)
+	require.Nil(t, err)
+
+	nodeCompute := tosca.NodeTemplate{
+		Type: "yorc.nodes.openstack.Compute",
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/nodes/Compute1", nodeCompute)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring1/topology/nodes/Compute2", nodeCompute)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring2/topology/nodes/Compute1", nodeCompute)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring3/topology/nodes/Compute1", nodeCompute)
+	require.Nil(t, err)
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/monitoring5/topology/nodes/Compute1", nodeCompute)
+	require.Nil(t, err)
+
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.Monitoring/properties/time_interval/default":  []byte("5s"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.Monitoring/properties/time_interval/type":     []byte("string"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.Monitoring/properties/time_interval/required": []byte("true"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.Monitoring/properties/time_interval/name":     []byte("time_interval"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.monitoring.TCPMonitoring/derived_from": []byte("yorc.policies.Monitoring"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.monitoring.TCPMonitoring/targets": []byte("		tosca.nodes.Compute,tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/properties/port":          []byte("22"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/properties/time_interval": []byte("1s"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/targets":                  []byte("Compute1"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/TCPMonitoring/type":                     []byte("yorc.policies.monitoring.TCPMonitoring"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.monitoring.HTTPMonitoring/derived_from": []byte("yorc.policies.Monitoring"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.policies.monitoring.HTTPMonitoring/targets": []byte("		tosca.nodes.Compute,tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/properties/port":          []byte("22"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/properties/time_interval": []byte("1s"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/targets":                  []byte("Compute2"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/policies/HTTPMonitoring/type":                     []byte("yorc.policies.monitoring.HTTPMonitoring"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/yorc.policies.monitoring.TCPMonitoring/derived_from": []byte("yorc.policies.Monitoring"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/yorc.policies.monitoring.TCPMonitoring/targets": []byte("		tosca.nodes.Compute,tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/policies/TCPMonitoring/properties/port":          []byte("22"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/policies/TCPMonitoring/properties/time_interval": []byte("1s"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/policies/TCPMonitoring/targets":                  []byte("Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/policies/TCPMonitoring/type":                     []byte("yorc.policies.monitoring.TCPMonitoring"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.policies.monitoring.TCPMonitoring/derived_from": []byte("yorc.policies.Monitoring"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.policies.monitoring.TCPMonitoring/targets": []byte("		tosca.nodes.Compute,tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/policies/TCPMonitoring/properties/port":          []byte("22"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/policies/TCPMonitoring/properties/time_interval": []byte("1s"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/policies/TCPMonitoring/targets":                  []byte("Compute1"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/policies/TCPMonitoring/type":                     []byte("yorc.policies.monitoring.TCPMonitoring"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/tosca.nodes.Compute/derived_from":          []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.nodes.Compute/derived_from":           []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.nodes.openstack.Compute/derived_from": []byte("yorc.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/type":                             []byte("yorc.nodes.openstack.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/ip_address":      []byte("1.2.3.4"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/state":           []byte("started"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute2/type":                             []byte("yorc.nodes.openstack.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute2/0/attributes/ip_address":      []byte("10.20.30.40"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute2/0/attributes/state":           []byte("started"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Compute/derived_from":          []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/yorc.nodes.Compute/derived_from":           []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/yorc.nodes.openstack.Compute/derived_from": []byte("yorc.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring2/topology/nodes/Compute1/type":                             []byte("yorc.nodes.openstack.Compute"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/tosca.nodes.Compute/derived_from":          []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/yorc.nodes.Compute/derived_from":           []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/types/yorc.nodes.openstack.Compute/derived_from": []byte("yorc.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring3/topology/nodes/Compute1/type":                             []byte("yorc.nodes.openstack.Compute"),
-
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/tosca.nodes.Compute/derived_from":          []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.nodes.Compute/derived_from":           []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.nodes.openstack.Compute/derived_from": []byte("yorc.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/nodes/Compute1/type":                             []byte("yorc.nodes.openstack.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/ip_address":      []byte("1.2.3.4"),
-		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/state":           []byte("started"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/ip_address": []byte("1.2.3.4"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/state":      []byte("started"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute2/0/attributes/ip_address": []byte("10.20.30.40"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute2/0/attributes/state":      []byte("started"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/ip_address": []byte("1.2.3.4"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/state":      []byte("started"),
 	})
 
 	t.Run("groupMonitoring", func(t *testing.T) {

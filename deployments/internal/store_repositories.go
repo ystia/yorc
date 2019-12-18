@@ -16,26 +16,27 @@ package internal
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
 // StoreRepositories store repositories
-func StoreRepositories(ctx context.Context, consulStore consulutil.ConsulStore, topology tosca.Topology, topologyPrefix string) error {
+func StoreRepositories(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
+	kv := make([]*types.KeyValue, 0)
 	for repositoryName, repo := range topology.Repositories {
 		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
-		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "url"), repo.URL)
-		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "type"), repo.Type)
-		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "user"), repo.Credit.User)
-		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "token"), repo.Credit.Token)
+		// Default repository token is password
 		if repo.Credit.TokenType == "" {
 			repo.Credit.TokenType = "password"
 		}
-		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "token_type"), repo.Credit.TokenType)
+		kv = append(kv, &types.KeyValue{
+			Key:   repoPrefix,
+			Value: repo,
+		})
 	}
-
-	return nil
+	return storage.GetStore(types.StoreTypeDeployment).SetCollection(ctx, kv)
 }

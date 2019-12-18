@@ -16,6 +16,8 @@ package store
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"os"
 	"path"
 	"testing"
@@ -72,6 +74,11 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
+
+	// Load stores
+	// Load main stores used for deployments, logs, events
+	err = storage.LoadStores()
+	assert.Nil(t, err)
 	return srv1, client
 }
 
@@ -97,7 +104,7 @@ func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
 // - some_name
 func testTypesPath(t *testing.T) {
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	tests := []struct {
 		name          string
 		existingPaths []string
@@ -110,10 +117,10 @@ func testTypesPath(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := consulutil.Delete(consulutil.CommonsTypesKVPrefix, true)
+		err := storage.GetStore(types.StoreTypeDeployment).Delete(ctx, consulutil.CommonsTypesKVPrefix, true)
 		require.NoError(t, err)
 		storeCommonTypePath(context.Background(), t, tt.existingPaths)
-		paths, err := getLatestCommonsTypesPaths()
+		paths, err := getLatestCommonsTypesKeyPaths()
 		assert.Equal(t, tt.wantErr, err != nil, "Actual error: %v while expecting error: %v", err, tt.wantErr)
 		assert.Equal(t, tt.want, paths)
 	}

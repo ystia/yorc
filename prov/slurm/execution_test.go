@@ -170,6 +170,14 @@ func testExecutionCommonPrepareAndSubmitJob(t *testing.T) {
 					}}},
 			regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n\nsrun cat '/etc/os-release' \nEOF\nsbatch -D ~ --job-name='MyJob' --ntasks=2 --nodes=4 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`),
 			false},
+		{"CheckWrappedCommandWithSrun",
+			fields{config.Configuration{}, config.DynamicMap{}, deploymentID, "ClassificationJobUnit_Singularity", make([]*operations.EnvInput, 0), "",
+				&jobInfo{Name: "MyJob", Tasks: 2, Nodes: 4, WorkingDir: home,
+					ExecutionOptions: types.SlurmExecutionOptions{
+						Command: "srun --mpi=pmi2 test.mpi",
+					}}},
+			regexp.MustCompile(`cat <<'EOF' > ~/b-[-a-f0-9]+.batch\n#!/bin/bash\n\nsrun --mpi=pmi2 test.mpi \nEOF\nsbatch -D ~ --job-name='MyJob' --ntasks=2 --nodes=4 ~/b-[-a-f0-9]+.batch; rm -f ~/b-[-a-f0-9]+.batch`),
+			false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

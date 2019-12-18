@@ -25,12 +25,12 @@ import (
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.12 Substitution mapping
 type SubstitutionMapping struct {
-	NodeType     string                     `yaml:"node_type"`
-	Properties   map[string]PropAttrMapping `yaml:"properties,omitempty"`
-	Capabilities map[string]CapReqMapping   `yaml:"capabilities,omitempty"`
-	Requirements map[string]CapReqMapping   `yaml:"requirements,omitempty"`
-	Attributes   map[string]PropAttrMapping `yaml:"attributes,omitempty"`
-	Interfaces   map[string]string          `yaml:"interfaces,omitempty"`
+	NodeType     string                     `yaml:"node_type" json:"node_type"`
+	Properties   map[string]PropAttrMapping `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Capabilities map[string]CapReqMapping   `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	Requirements map[string]CapReqMapping   `yaml:"requirements,omitempty" json:"requirements,omitempty"`
+	Attributes   map[string]PropAttrMapping `yaml:"attributes,omitempty" json:"attributes,omitempty"`
+	Interfaces   map[string]string          `yaml:"interfaces,omitempty" json:"interfaces,omitempty"`
 }
 
 // PropAttrMapping defines a property or attribute mapping.
@@ -61,8 +61,8 @@ type SubstitutionMapping struct {
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.8 Property mapping
 type PropAttrMapping struct {
-	Mapping []string         `yaml:"mapping,omitempty,flow"`
-	Value   *ValueAssignment `yaml:"value,omitempty"`
+	Mapping []string         `yaml:"mapping,omitempty,flow" json:"mapping,omitempty,flow"`
+	Value   *ValueAssignment `yaml:"value,omitempty" json:"value,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into a PropAttrMapping
@@ -139,9 +139,9 @@ func (p *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.9 Capability mapping and 3.8.10 Requirement mapping
 type CapReqMapping struct {
-	Mapping    []string                    `yaml:"mapping,omitempty,flow"`
-	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
-	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`
+	Mapping    []string                    `yaml:"mapping,omitempty,flow" json:"mapping,omitempty,flow"`
+	Properties map[string]*ValueAssignment `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty" json:"attributes,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into a CapReqMapping
