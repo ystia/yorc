@@ -50,11 +50,13 @@ type Dispatcher struct {
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
 	pool := make(chan chan *taskExecution, cfg.WorkersNumber)
 	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
-	dispatcher.emitTasksMetrics()
+	dispatcher.emitMetrics()
 	return dispatcher
 }
 
-func getNbAndMaxTasksWaitTimeMs() (float32, float64, string, error) {
+// getTasksNbWaitAndMaxWaitTimeMs calculates the number of tasks that wait (are in INITIAL status),
+// and for the task that is waiting from the longest time, return its waiting time and its ID
+func getTasksNbWaitAndMaxWaitTimeMs() (float32, float64, string, error) {
 	now := time.Now()
 	var max float64
 	var nb float32
@@ -65,11 +67,11 @@ func getNbAndMaxTasksWaitTimeMs() (float32, float64, string, error) {
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
-		status, err := tasks.GetTaskStatus(taskID)
+		taskStatus, err := tasks.GetTaskStatus(taskID)
 		if err != nil {
 			return nb, max, maxTaskID, err
 		}
-		if status == tasks.TaskStatusINITIAL {
+		if taskStatus == tasks.TaskStatusINITIAL {
 			nb++
 			createDate, err := tasks.GetTaskCreationDate(path.Base(taskKey))
 			if err != nil {
@@ -85,7 +87,7 @@ func getNbAndMaxTasksWaitTimeMs() (float32, float64, string, error) {
 	return nb, max, maxTaskID, nil
 }
 
-func (d *Dispatcher) emitTasksMetrics() {
+func (d *Dispatcher) emitMetrics() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
@@ -93,31 +95,35 @@ func (d *Dispatcher) emitTasksMetrics() {
 		for {
 			select {
 			case <-time.After(time.Second):
-				metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
-				nb, maxWait, maxWaitTaskID, err := getNbAndMaxTasksWaitTimeMs()
-				if err != nil {
-					now := time.Now()
-					if now.Sub(lastWarn) > 5*time.Minute {
-						// Do not print each time
-						lastWarn = now
-						log.Printf("Warning: Failed to get Max Blocked duration for tasks: %+v", err)
-					}
-					continue
-				}
-				taskID, err := tasks.GetTaskTarget(maxWaitTaskID)
-				taskLabelDeployment := metrics.Label{
-					Name:  "Deployment",
-					Value: taskID,
-				}
-				taskLabels := []metrics.Label{taskLabelDeployment}
-
-				metrics.AddSampleWithLabels([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait), taskLabels)
-				metrics.SetGaugeWithLabels([]string{"tasks", "nbWaiting"}, nb, taskLabels)
+				d.emitWorkersMetrics()
+				d.emitTasksMetrics(&lastWarn)
 			case <-d.shutdownCh:
 				return
 			}
 		}
 	}()
+}
+
+func (d *Dispatcher) emitWorkersMetrics() {
+	metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
+}
+
+func (d *Dispatcher) emitTasksMetrics(lastWarn *time.Time) {
+	nbWaiting, maxWait, maxWaitTaskID, err := getTasksNbWaitAndMaxWaitTimeMs()
+	maxWaitTaskTargetID, err := tasks.GetTaskTarget(maxWaitTaskID)
+	if err != nil {
+		now := time.Now()
+		if now.Sub(*lastWarn) > 5*time.Minute {
+			// Do not print each time
+			*lastWarn = now
+			log.Printf("Warning: Failed to get Max Blocked duration for tasks: %+v", err)
+		}
+		return
+	}
+	metrics.SetGauge([]string{"tasks", "nbWaiting"}, nbWaiting)
+
+	taskLabels := []metrics.Label{metrics.Label{Name: "Deployment", Value: maxWaitTaskTargetID}}
+	metrics.AddSampleWithLabels([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait), taskLabels)
 }
 
 func getExecutionKeyValue(execID, execKey string) (string, error) {

@@ -128,7 +128,7 @@ Yorc Workers metrics
 Yorc Tasks metrics
 ~~~~~~~~~~~~~~~~~~
 
-The **Deployment** label is set to the deployment ID.
+The **Deployment** label is set to the deployment ID of the monitored task.
 The **Step** label represents the name of the step that is execuded by a task.
 The *Type** label corresponds to the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
 
@@ -139,7 +139,7 @@ The *Type** label corresponds to the task type (``Deploy``, ``Undeploy``, ``Purg
 | ``yorc.tasks.maxBlockTimeMs``    | Deployment                  |  Measures the highest duration since creation   | milliseconds    | timer       |
 |                                  |                             |  for all waiting tasks.                         |                 |             |
 +----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.tasks.nbWaiting``         | Deployment                  |  Tracks the number of tasks waiting for being   | number of       | gauge       |
+| ``yorc.tasks.nbWaiting``         |                             |  Tracks the number of tasks waiting for being   | number of       | gauge       |
 |                                  |                             |  processed.                                     | tasks           |             |
 +----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 | ``yorc.task.wait``               | Deployment                  |  Measures the finally waited time for a task    | milliseconds    | timer       |

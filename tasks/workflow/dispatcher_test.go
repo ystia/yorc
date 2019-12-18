@@ -17,7 +17,6 @@ package workflow
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
@@ -35,8 +34,6 @@ func testDeleteExecutionTreeSamePrefix(t *testing.T, client *api.Client) {
 
 	createTaskExecutionKVWithKey(t, "testDeleteExecutionTreeSamePrefixExecID1", "somekey", "val")
 	createTaskExecutionKVWithKey(t, "testDeleteExecutionTreeSamePrefixExecID11", "somekey", "val")
-
-	time.Sleep(2 * time.Second)
 
 	dispatcher.deleteExecutionTree("testDeleteExecutionTreeSamePrefixExecID1")
 
