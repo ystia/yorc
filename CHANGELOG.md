@@ -4,6 +4,7 @@
 
 ### ENHANCEMENTS
 
+* Should be able to bootstrap Yorc on OpenStack with Identity API v3 ([GH-575](https://github.com/ystia/yorc/issues/575))
 * Refactor deployments package to be able to use different storage backends - part Two: Consul as default Deployments store implementation ([GH-530](https://github.com/ystia/yorc/issues/530))
 
 ### BUG FIXES
