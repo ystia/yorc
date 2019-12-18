@@ -67,7 +67,7 @@ func createWorkerFuncMock(d *Dispatcher, tchan chan *taskExecution) {
 func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Client) {
 
 	shutdownCh := make(chan struct{})
-
+	defer close(shutdownCh)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -117,13 +117,4 @@ func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	case <-time.After(15 * time.Second):
 		require.Fail(t, "timeout awaiting dispatcher to take execution")
 	}
-
-	close(shutdownCh)
-
-	shutdownCh = make(chan struct{})
-	defer close(shutdownCh)
-	dispatcher = NewDispatcher(cfg, shutdownCh, client, wg)
-	createWorkerFuncMock(dispatcher, nil)
-	go dispatcher.Run()
-
 }
