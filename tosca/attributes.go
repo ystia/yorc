@@ -18,11 +18,11 @@ package tosca
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_ATTRIBUTE_DEFN for more details
 type AttributeDefinition struct {
-	Type        string           `yaml:"type"`
-	Description string           `yaml:"description,omitempty"`
-	Default     *ValueAssignment `yaml:"default,omitempty"`
-	Status      string           `yaml:"status,omitempty"`
-	EntrySchema EntrySchema      `yaml:"entry_schema,omitempty"`
+	Type        string           `yaml:"type" json:"type"`
+	Description string           `yaml:"description,omitempty" json:"description,omitempty"`
+	Default     *ValueAssignment `yaml:"default,omitempty" json:"default,omitempty"`
+	Status      string           `yaml:"status,omitempty" json:"status,omitempty"`
+	EntrySchema EntrySchema      `yaml:"entry_schema,omitempty" json:"entry_schema,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an AttributeDefinition

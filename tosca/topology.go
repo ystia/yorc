@@ -30,36 +30,36 @@ const (
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_SERVICE_TEMPLATE for more details
 type Topology struct {
-	TOSCAVersion string            `yaml:"tosca_definitions_version"`
-	Description  string            `yaml:"description,omitempty"`
-	Metadata     map[string]string `yaml:"metadata,omitempty"`
+	TOSCAVersion string            `yaml:"tosca_definitions_version" json:"tosca_definitions_version"`
+	Description  string            `yaml:"description,omitempty" json:"description,omitempty"`
+	Metadata     map[string]string `yaml:"metadata,omitempty" json:"metadata,omitempty"`
 
-	Imports []ImportDefinition `yaml:"imports,omitempty"`
+	Imports []ImportDefinition `yaml:"imports,omitempty" json:"imports,omitempty"`
 
-	Repositories map[string]Repository `yaml:"repositories,omitempty"`
+	Repositories map[string]Repository `yaml:"repositories,omitempty" json:"repositories,omitempty"`
 
-	DataTypes         map[string]DataType         `yaml:"data_types,omitempty"`
-	ArtifactTypes     map[string]ArtifactType     `yaml:"artifact_types,omitempty"`
-	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty"`
-	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
-	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty"`
+	DataTypes         map[string]DataType         `yaml:"data_types,omitempty" json:"data_types,omitempty"`
+	ArtifactTypes     map[string]ArtifactType     `yaml:"artifact_types,omitempty" json:"artifact_types,omitempty"`
+	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty" json:"node_types,omitempty"`
+	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty" json:"capability_types,omitempty"`
+	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty" json:"relationship_types,omitempty"`
 	// TODO Group Types
-	PolicyTypes map[string]PolicyType `yaml:"policy_types,omitempty"`
+	PolicyTypes map[string]PolicyType `yaml:"policy_types,omitempty" json:"policy_types,omitempty"`
 
-	TopologyTemplate TopologyTemplate `yaml:"topology_template"`
+	TopologyTemplate TopologyTemplate `yaml:"topology_template" json:"topology_template"`
 }
 
 // An TopologyTemplate is the representation of a TOSCA Topology Template
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_TOPOLOGY_TEMPLATE for more details
 type TopologyTemplate struct {
-	Description        string                         `yaml:"description,omitempty"`
-	Inputs             map[string]ParameterDefinition `yaml:"inputs,omitempty"`
-	NodeTemplates      map[string]NodeTemplate        `yaml:"node_templates"`
-	Outputs            map[string]ParameterDefinition `yaml:"outputs,omitempty"`
-	SubstitionMappings *SubstitutionMapping           `yaml:"substitution_mappings,omitempty"`
+	Description        string                         `yaml:"description,omitempty" json:"description,omitempty"`
+	Inputs             map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	NodeTemplates      map[string]NodeTemplate        `yaml:"node_templates" json:"node_templates"`
+	Outputs            map[string]ParameterDefinition `yaml:"outputs,omitempty" json:"outputs,omitempty"`
+	SubstitionMappings *SubstitutionMapping           `yaml:"substitution_mappings,omitempty" json:"substitution_mappings,omitempty"`
 	Workflows          map[string]Workflow
-	Policies           []PolicyMap `yaml:"policies,omitempty"`
+	Policies           []PolicyMap `yaml:"policies,omitempty" json:"policies,omitempty"`
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
 }
@@ -68,46 +68,46 @@ type TopologyTemplate struct {
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_NODE_TEMPLATE for more details
 type NodeTemplate struct {
-	Type         string                          `yaml:"type"`
-	Description  string                          `yaml:"description,omitempty"`
-	Directives   []string                        `yaml:"directives,omitempty"`
-	Properties   map[string]*ValueAssignment     `yaml:"properties,omitempty"`
-	Attributes   map[string]*ValueAssignment     `yaml:"attributes,omitempty"`
-	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
-	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
-	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
-	Metadata     map[string]string               `yaml:"metadata,omitempty"`
-	Interfaces   map[string]InterfaceDefinition  `yaml:"interfaces,omitempty"`
+	Type         string                          `yaml:"type" json:"type"`
+	Description  string                          `yaml:"description,omitempty" json:"description,omitempty"`
+	Directives   []string                        `yaml:"directives,omitempty" json:"directives,omitempty"`
+	Properties   map[string]*ValueAssignment     `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes   map[string]*ValueAssignment     `yaml:"attributes,omitempty" json:"attributes,omitempty"`
+	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty" json:"requirements,omitempty"`
+	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
+	Metadata     map[string]string               `yaml:"metadata,omitempty" json:"metadata,omitempty"`
+	Interfaces   map[string]InterfaceDefinition  `yaml:"interfaces,omitempty" json:"interfaces,omitempty"`
 }
 
 //A Repository is representation of TOSCA Repository
 //
 //See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/csprd01/TOSCA-Simple-Profile-YAML-v1.0-csprd01.html#_Toc430015673 for more details
 type Repository struct {
-	URL         string     `yaml:"url,omitempty"`
-	Type        string     `yaml:"type,omitempty"`
-	Description string     `yaml:"description,omitempty"`
-	Credit      Credential `yaml:"credential,omitempty"`
+	URL         string     `yaml:"url,omitempty" json:"url,omitempty"`
+	Type        string     `yaml:"type,omitempty" json:"type,omitempty"`
+	Description string     `yaml:"description,omitempty" json:"description,omitempty"`
+	Credit      Credential `yaml:"credential,omitempty" json:"credential,omitempty"`
 }
 
 // A Credential is a representation of TOSCA Credential
 type Credential struct {
-	TokenType string            `yaml:"token_type"`
-	Token     string            `yaml:"token"`
-	User      string            `yaml:"user,omitempty"`
-	Protocol  string            `yaml:"protocol,omitempty"`
-	Keys      map[string]string `yaml:"keys,omitempty"`
+	TokenType string            `yaml:"token_type" json:"token_type"`
+	Token     string            `yaml:"token" json:"token"`
+	User      string            `yaml:"user,omitempty" json:"user,omitempty"`
+	Protocol  string            `yaml:"protocol,omitempty" json:"protocol,omitempty"`
+	Keys      map[string]string `yaml:"keys,omitempty" json:"keys,omitempty"`
 }
 
 // A Policy represents a Tosca Policy definition
 // See https://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/os/TOSCA-Simple-Profile-YAML-v1.2-os.html#DEFN_ELEMENT_POLICY_DEF
 // for the first implementation, we don't handle triggers
 type Policy struct {
-	Type        string                      `yaml:"type"`
-	Description string                      `yaml:"description,omitempty"`
-	Targets     []string                    `yaml:"targets,omitempty"`
-	Properties  map[string]*ValueAssignment `yaml:"properties,omitempty"`
-	Metadata    map[string]string           `yaml:"metadata,omitempty"`
+	Type        string                      `yaml:"type" json:"type"`
+	Description string                      `yaml:"description,omitempty" json:"description,omitempty"`
+	Targets     []string                    `yaml:"targets,omitempty" json:"targets,omitempty"`
+	Properties  map[string]*ValueAssignment `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Metadata    map[string]string           `yaml:"metadata,omitempty" json:"metadata,omitempty"`
 }
 
 // PolicyMap is a map of Policy indexed by policy name

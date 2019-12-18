@@ -34,7 +34,7 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 	return deploymentID
 }
 
-func TestRunConsulProvutilPackageTests(t *testing.T) {
+func TestRunConsulTerraformCommonsPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 	log.SetDebug(true)

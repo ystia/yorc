@@ -5,6 +5,7 @@
 ### ENHANCEMENTS
 
 * Should be able to bootstrap Yorc on OpenStack with Identity API v3 ([GH-575](https://github.com/ystia/yorc/issues/575))
+* Refactor deployments package to be able to use different storage backends - part Two: Consul as default Deployments store implementation ([GH-530](https://github.com/ystia/yorc/issues/530))
 
 ### BUG FIXES
 
@@ -12,7 +13,7 @@
 * Location properties stored in Vault are no longer resolvable ([GH-565](https://github.com/ystia/yorc/issues/565))
 * An error during deployment purge may let the deployment in a wrong state ([GH-572](https://github.com/ystia/yorc/issues/572))
 * Can have current deployment and undeployment on the same application on specific conditions ([GH-567](https://github.com/ystia/yorc/issues/567))
-  * API calls to deploy and update a deployment will now prevent other API calls that may modify a deployment to run at the same time
+* API calls to deploy and update a deployment will now prevent other API calls that may modify a deployment to run at the same time
 
 ## 4.0.0-M7 (November 29, 2019)
 

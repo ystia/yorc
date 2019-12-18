@@ -18,6 +18,9 @@ import (
 	"context"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"testing"
 	"time"
@@ -25,21 +28,32 @@ import (
 
 func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
-
+	ctx := context.Background()
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
 	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
-	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/stepName/activities/1/set-state"] = []byte("installed")
-	data[prefix+"/steps/stepName/activities/2/call-operation"] = []byte("script.sh")
-	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
 
-	data[prefix+"/steps/Some_other_inline/activities/0/inline"] = []byte("my_custom_wf")
-
-	srv1.PopulateKV(t, data)
+	wf := tosca.Workflow{Steps: map[string]*tosca.Step{
+		"stepName": {
+			Target:             "nodeName",
+			TargetRelationShip: "",
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+				{SetState: "installed"},
+				{CallOperation: "script.sh"},
+			},
+		},
+		"Some_other_inline": {
+			//Target:             "nodeName",
+			Activities: []tosca.Activity{
+				{Inline: "my_custom_wf"},
+			},
+		},
+	}}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
+	require.Nil(t, err)
 	time.Sleep(1 * time.Second)
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err)
@@ -62,21 +76,30 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 
 func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
-
+	ctx := context.Background()
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
 	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
-	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/stepName/next/downstream"] = []byte("")
-	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
 
-	data[prefix+"/steps/downstream/activities/0/call-operation"] = []byte("script.sh")
-	data[prefix+"/steps/downstream/target"] = []byte("downstream")
-
-	srv1.PopulateKV(t, data)
+	wf := tosca.Workflow{Steps: map[string]*tosca.Step{
+		"stepName": {
+			Target:    "nodeName",
+			OnSuccess: []string{"downstream"},
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+		"downstream": {
+			Target: "downstream",
+			Activities: []tosca.Activity{
+				{CallOperation: "script.sh"},
+			},
+		},
+	}}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
+	require.Nil(t, err)
 
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err)
@@ -91,18 +114,24 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 
 func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
-
+	ctx := context.Background()
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
 	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
-	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/stepName/next/nonexistent"] = []byte("")
-	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
 
-	srv1.PopulateKV(t, data)
+	wf := tosca.Workflow{Steps: map[string]*tosca.Step{
+		"stepName": {
+			Target:    "nodeName",
+			OnSuccess: []string{"nonexistent"},
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+	}}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
+	require.Nil(t, err)
 
 	wfSteps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Errorf(t, err, "non-existent step should raise an error")
@@ -113,35 +142,56 @@ func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServe
 func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer) {
 	t.Parallel()
 	t.Log("Registering Keys")
-
+	ctx := context.Background()
 	// Create a test key/value pair
 	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
+
 	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
 
-	data[prefix+"/steps/step11/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step11/next/step10"] = []byte("")
-	data[prefix+"/steps/step11/next/step12"] = []byte("")
-	data[prefix+"/steps/step11/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step10/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step10/next/step13"] = []byte("")
-	data[prefix+"/steps/step10/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step12/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step12/next/step13"] = []byte("")
-	data[prefix+"/steps/step12/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step13/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step13/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step15/activities/0/inline"] = []byte("inception")
-
-	data[prefix+"/steps/step20/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step20/target"] = []byte("nodeName")
-
-	srv1.PopulateKV(t, data)
+	wf := tosca.Workflow{Steps: map[string]*tosca.Step{
+		"step11": {
+			Target:    "nodeName",
+			OnSuccess: []string{"step10", "step12"},
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+		"step10": {
+			Target:    "nodeName",
+			OnSuccess: []string{"step13"},
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+		"step12": {
+			Target:    "nodeName",
+			OnSuccess: []string{"step13"},
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+		"step13": {
+			Target: "nodeName",
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+		"step15": {
+			Target: "nodeName",
+			Activities: []tosca.Activity{
+				{Inline: "inception"},
+			},
+		},
+		"step20": {
+			Target: "nodeName",
+			Activities: []tosca.Activity{
+				{Delegate: "install"},
+			},
+		},
+	}}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, prefix, wf)
+	require.Nil(t, err)
 
 	steps, err := BuildWorkFlow(context.Background(), deploymentID, wfName)
 	require.Nil(t, err, "oups")

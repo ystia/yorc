@@ -14,7 +14,10 @@
 
 package collections
 
-import "testing"
+import (
+	"github.com/stretchr/testify/require"
+	"testing"
+)
 
 func TestContainsString(t *testing.T) {
 	type args struct {
@@ -45,6 +48,28 @@ func TestContainsString(t *testing.T) {
 			if got := ContainsString(tt.args.s, tt.args.e); got != tt.want {
 				t.Errorf("ContainsString() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestRemoveDuplicates(t *testing.T) {
+	type args struct {
+		s []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{"EmptySlice", args{[]string{}}, []string{}},
+		{"Nillice", args{nil}, nil},
+		{"SliceWithOneDuplicate", args{[]string{"john", "tara", "harry", "tara"}}, []string{"john", "tara", "harry"}},
+		{"SliceWithManyDuplicates", args{[]string{"tara", "tara", "tara", "tara"}}, []string{"tara"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RemoveDuplicates(tt.args.s)
+			require.Equalf(t, got, tt.want, "RemoveDuplicates() = %v, want %v", got, tt.want)
 		})
 	}
 }

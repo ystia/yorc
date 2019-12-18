@@ -16,6 +16,9 @@ package kubernetes
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"testing"
 
 	ctu "github.com/hashicorp/consul/testutil"
@@ -27,36 +30,94 @@ import (
 
 func testsController(t *testing.T, srv *ctu.TestServer) {
 	log.SetDebug(true)
-
-	srv.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/type":                                                    []byte("yorc.nodes.kubernetes.api.types.DeploymentResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/properties/resource_type":                                []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/properties/resource_spec":                                []byte("{}"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy/properties/service_dependency_lookups":                   []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource/name":        []byte("org.alien4cloud.kubernetes.api.types.DeploymentResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource/.existFlag":  []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-service/type":                                                   []byte("yorc.nodes.kubernetes.api.types.ServiceResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-service/properties/resource_type":                               []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-service/properties/resource_spec":                               []byte("{}"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.ServiceResource/name":           []byte("org.alien4cloud.kubernetes.api.types.ServiceResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.ServiceResource/.existFlag":     []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-simpleresource/type":                                            []byte("yorc.nodes.kubernetes.api.types.SimpleResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-simpleresource/properties/resource_type":                        []byte("pvc"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-simpleresource/properties/resource_spec":                        []byte("{}"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.SimpleResource/name":            []byte("org.alien4cloud.kubernetes.api.types.ServiceResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.SimpleResource/.existFlag":      []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-simpleresource-badresource/type":                                []byte("yorc.nodes.kubernetes.api.types.SimpleResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-simpleresource-badresource/properties/resource_type":            []byte("bad"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-simpleresource-badresource/properties/resource_spec":            []byte("{}"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-statefulset/type":                                               []byte("yorc.nodes.kubernetes.api.types.StatefulSetResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-statefulset/properties/resource_type":                           []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-statefulset/properties/resource_spec":                           []byte("{}"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource/name":       []byte("org.alien4cloud.kubernetes.api.types.StatefulSetResource"),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource/.existFlag": []byte(""),
-		consulutil.DeploymentKVPrefix + "/dep-id/topology/nodes/node-deploy-nores-props/type":                                        []byte("yorc.nodes.kubernetes.api.types.DeploymentResource"),
-	})
-
 	ctx := context.Background()
+	typeDeploymentResource := tosca.NodeType{
+		Type: tosca.Type{
+			Base: tosca.TypeBaseNODE,
+		},
+	}
+	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.DeploymentResource", typeDeploymentResource)
+	require.Nil(t, err)
+
+	typeSimpleResource := tosca.NodeType{
+		Type: tosca.Type{
+			Base: tosca.TypeBaseNODE,
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.SimpleResource", typeSimpleResource)
+	require.Nil(t, err)
+
+	typeServiceResource := tosca.NodeType{
+		Type: tosca.Type{
+			Base: tosca.TypeBaseNODE,
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.ServiceResource", typeServiceResource)
+	require.Nil(t, err)
+
+	typeStatefulSetResource := tosca.NodeType{
+		Type: tosca.Type{
+			Base: tosca.TypeBaseNODE,
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/types/org.alien4cloud.kubernetes.api.types.StatefulSetResource", typeStatefulSetResource)
+	require.Nil(t, err)
+
+	nodeDeploy := tosca.NodeTemplate{
+		Type: "yorc.nodes.kubernetes.api.types.DeploymentResource",
+		Properties: map[string]*tosca.ValueAssignment{
+			"resource_type":              &tosca.ValueAssignment{Type: 0, Value: ""},
+			"resource_spec":              &tosca.ValueAssignment{Type: 0, Value: "{}"},
+			"service_dependency_lookups": &tosca.ValueAssignment{Type: 0, Value: ""}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-deploy", nodeDeploy)
+	require.Nil(t, err)
+
+	nodeDeployNoRes := tosca.NodeTemplate{
+		Type: "yorc.nodes.kubernetes.api.types.DeploymentResource",
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-deploy-nores-props", nodeDeployNoRes)
+	require.Nil(t, err)
+
+	nodeService := tosca.NodeTemplate{
+		Type: "yorc.nodes.kubernetes.api.types.ServiceResource",
+		Properties: map[string]*tosca.ValueAssignment{
+			"resource_type": &tosca.ValueAssignment{Type: 0, Value: ""},
+			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-service", nodeService)
+	require.Nil(t, err)
+
+	nodeSimpleResource := tosca.NodeTemplate{
+		Type: "yorc.nodes.kubernetes.api.types.SimpleResource",
+		Properties: map[string]*tosca.ValueAssignment{
+			"resource_type": &tosca.ValueAssignment{Type: 0, Value: "pvc"},
+			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"},
+		},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-simpleresource", nodeSimpleResource)
+	require.Nil(t, err)
+
+	nodeBadResource := tosca.NodeTemplate{
+		Type: "yorc.nodes.kubernetes.api.types.SimpleResource",
+		Properties: map[string]*tosca.ValueAssignment{
+			"resource_type": &tosca.ValueAssignment{
+				Type:  0,
+				Value: "bad",
+			},
+			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-simpleresource-badresource", nodeBadResource)
+	require.Nil(t, err)
+
+	nodeStatefulSetResource := tosca.NodeTemplate{
+		Type: "yorc.nodes.kubernetes.api.types.SimpleResource",
+		Properties: map[string]*tosca.ValueAssignment{
+			"resource_type": &tosca.ValueAssignment{Type: 0, Value: ""},
+			"resource_spec": &tosca.ValueAssignment{Type: 0, Value: "{}"}},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/dep-id/topology/nodes/node-statefulset", nodeStatefulSetResource)
+	require.Nil(t, err)
 	k8s := newTestK8s()
 	tests := []struct {
 		name     string

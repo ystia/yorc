@@ -321,6 +321,7 @@ relationship_types:
                 literal: 52
                 mymap: {"relnested": 3}
     attributes:
+      containerName: { get_operation_output: [TARGET, custom, publish, CONTAINER_NAME] }
       literalAttr:
         type: string
       mapAttr:
@@ -503,7 +504,12 @@ topology_template:
                       literal: 4
                       mymap: {"VANode2ToVANode1": 3}
 
-
+      interfaces:
+        custom:
+          log:
+            inputs:
+              DISTRIBUTION_NAME: { get_operation_output: [HOST, custom, publish, DISTRIBUTION_NAME] }
+            implementation: scripts/log.sh
 
   outputs:
     literal:

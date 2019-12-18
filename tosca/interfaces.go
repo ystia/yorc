@@ -18,19 +18,20 @@ package tosca
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_INTERFACE_DEF for more details
 type InterfaceDefinition struct {
-	Type        string                         `yaml:"type,omitempty"`
-	Description string                         `yaml:"description,omitempty"`
-	Inputs      map[string]Input               `yaml:"inputs,omitempty"`
-	Operations  map[string]OperationDefinition `yaml:",inline,omitempty"`
+	Type        string                         `yaml:"type,omitempty" json:"type,omitempty"`
+	Description string                         `yaml:"description,omitempty" json:"description,omitempty"`
+	Inputs      map[string]Input               `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Operations  map[string]OperationDefinition `yaml:",inline,omitempty" json:",inline,omitempty"`
 }
 
 // An OperationDefinition is the representation of a TOSCA Operation Definition
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type OperationDefinition struct {
-	Inputs         map[string]Input `yaml:"inputs,omitempty"`
-	Description    string           `yaml:"description,omitempty"`
-	Implementation Implementation   `yaml:"implementation,omitempty"`
+	Outputs        map[string]Output `yaml:"outputs,omitempty" json:"outputs,omitempty"`
+	Inputs         map[string]Input  `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Description    string            `yaml:"description,omitempty" json:"description,omitempty"`
+	Implementation Implementation    `yaml:"implementation,omitempty" json:"implementation,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an InterfaceDefinition

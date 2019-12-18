@@ -69,12 +69,17 @@ func executeCustomCommand(client httputil.HTTPClient, args []string, jsonParam, 
 		InputsStruct.Inputs = make(map[string]*tosca.ValueAssignment)
 		for _, arg := range inputs {
 			keyValue := strings.Split(arg, "=")
-			var value tosca.ValueAssignment
+			var value interface{}
 			err := json.Unmarshal([]byte(strings.TrimSpace(keyValue[1])), &value)
 			if err != nil {
 				return err
 			}
-			InputsStruct.Inputs[strings.TrimSpace(keyValue[0])] = &value
+
+			valueAssign, err := tosca.ToValueAssignment(value)
+			if err != nil {
+				return err
+			}
+			InputsStruct.Inputs[strings.TrimSpace(keyValue[0])] = valueAssign
 		}
 
 		tmp, err := json.Marshal(InputsStruct)

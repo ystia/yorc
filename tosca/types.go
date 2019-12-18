@@ -41,12 +41,26 @@ func IsBuiltinType(typeName string) bool {
 		typeName == "scalar-unit.size" || typeName == "scalar-unit.time"
 }
 
+//go:generate go-enum -f=types.go
+
+// TypeBase x ENUM(
+// NODE,
+// RELATIONSHIP,
+// CAPABILITY,
+// POLICY,
+// ARTIFACT,
+// DATA,
+// )
+type TypeBase int
+
 // Type is the base type for all TOSCA types (like node types, relationship types, ...)
 type Type struct {
-	DerivedFrom string            `yaml:"derived_from,omitempty"`
-	Version     string            `yaml:"version,omitempty"`
-	Description string            `yaml:"description,omitempty"`
-	Metadata    map[string]string `yaml:"metadata,omitempty"`
+	Base        TypeBase          `yaml:"base,omitempty" json:"base,omitempty"`
+	DerivedFrom string            `yaml:"derived_from,omitempty" json:"derived_from,omitempty"`
+	Version     string            `yaml:"version,omitempty" json:"version,omitempty"`
+	ImportPath  string            `yaml:"import_path,omitempty" json:"import_path,omitempty"`
+	Description string            `yaml:"description,omitempty" json:"description,omitempty"`
+	Metadata    map[string]string `yaml:"metadata,omitempty" json:"metadata,omitempty"`
 }
 
 // An NodeType is the representation of a TOSCA Node Type
@@ -55,12 +69,12 @@ type Type struct {
 // for more details
 type NodeType struct {
 	Type         `yaml:",inline"`
-	Properties   map[string]PropertyDefinition   `yaml:"properties,omitempty"`
-	Attributes   map[string]AttributeDefinition  `yaml:"attributes,omitempty"`
-	Requirements []RequirementDefinitionMap      `yaml:"requirements,omitempty,flow"`
-	Capabilities map[string]CapabilityDefinition `yaml:"capabilities,omitempty"`
-	Interfaces   map[string]InterfaceDefinition  `yaml:"interfaces,omitempty"`
-	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
+	Properties   map[string]PropertyDefinition   `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes   map[string]AttributeDefinition  `yaml:"attributes,omitempty" json:"attributes,omitempty"`
+	Requirements []RequirementDefinitionMap      `yaml:"requirements,omitempty,flow" json:"requirements,omitempty"`
+	Capabilities map[string]CapabilityDefinition `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	Interfaces   map[string]InterfaceDefinition  `yaml:"interfaces,omitempty" json:"interfaces,omitempty"`
+	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
 }
 
 // An RelationshipType is the representation of a TOSCA Relationship Type
@@ -69,11 +83,11 @@ type NodeType struct {
 // for more details
 type RelationshipType struct {
 	Type             `yaml:",inline"`
-	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
-	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
-	Interfaces       map[string]InterfaceDefinition `yaml:"interfaces,omitempty"`
-	Artifacts        ArtifactDefMap                 `yaml:"artifacts,omitempty"`
-	ValidTargetTypes []string                       `yaml:"valid_target_types,omitempty"`
+	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty" json:"attributes,omitempty"`
+	Interfaces       map[string]InterfaceDefinition `yaml:"interfaces,omitempty" json:"interfaces,omitempty"`
+	Artifacts        ArtifactDefMap                 `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
+	ValidTargetTypes []string                       `yaml:"valid_target_types,omitempty" json:"valid_target_types,omitempty"`
 }
 
 // An CapabilityType is the representation of a TOSCA Capability Type
@@ -82,9 +96,9 @@ type RelationshipType struct {
 // for more details
 type CapabilityType struct {
 	Type             `yaml:",inline"`
-	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
-	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
-	ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
+	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty" json:"attributes,omitempty"`
+	ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow" json:"valid_source_types,omitempty"`
 }
 
 // An ArtifactType is the representation of a TOSCA Artifact Type
@@ -93,9 +107,9 @@ type CapabilityType struct {
 // for more details
 type ArtifactType struct {
 	Type       `yaml:",inline"`
-	MimeType   string                        `yaml:"mime_type,omitempty"`
-	FileExt    []string                      `yaml:"file_ext,omitempty"`
-	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
+	MimeType   string                        `yaml:"mime_type,omitempty" json:"mime_type,omitempty"`
+	FileExt    []string                      `yaml:"file_ext,omitempty" json:"file_ext,omitempty"`
+	Properties map[string]PropertyDefinition `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 
 // An DataType is the representation of a TOSCA Data Type
@@ -104,7 +118,7 @@ type ArtifactType struct {
 // for more details
 type DataType struct {
 	Type       `yaml:",inline"`
-	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
+	Properties map[string]PropertyDefinition `yaml:"properties,omitempty" json:"properties,omitempty"`
 	// Constraints not enforced in Yorc so we don't parse them
 	// Constraints []ConstraintClause
 }
@@ -116,6 +130,6 @@ type DataType struct {
 // for more details
 type PolicyType struct {
 	Type       `yaml:",inline"`
-	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
-	Targets    []string                      `yaml:"targets,omitempty,flow"`
+	Properties map[string]PropertyDefinition `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Targets    []string                      `yaml:"targets,omitempty,flow" json:"targets,omitempty"`
 }
