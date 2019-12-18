@@ -55,36 +55,39 @@ func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *a
 }
 
 // getTasksNbWaitAndMaxWaitTimeMs calculates the number of tasks that wait (are in INITIAL status),
-// and for the task that is waiting from the longest time, return its waiting time and its ID
+// and for the task that is waiting from the longest time, return its waiting time and it's target ID
 func getTasksNbWaitAndMaxWaitTimeMs() (float32, float64, string, error) {
 	now := time.Now()
 	var max float64
 	var nb float32
-	var maxTaskID string
+	var maxTaskTargetID string
 	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
 	if err != nil {
-		return nb, max, maxTaskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nb, max, maxTaskTargetID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
 		taskStatus, err := tasks.GetTaskStatus(taskID)
 		if err != nil {
-			return nb, max, maxTaskID, err
+			return nb, max, maxTaskTargetID, err
 		}
 		if taskStatus == tasks.TaskStatusINITIAL {
 			nb++
 			createDate, err := tasks.GetTaskCreationDate(path.Base(taskKey))
 			if err != nil {
-				return nb, max, maxTaskID, err
+				return nb, max, maxTaskTargetID, err
 			}
 			blockTime := float64(now.Sub(createDate) / time.Millisecond)
 			if blockTime > max {
 				max = math.Max(max, blockTime)
-				maxTaskID = taskID
+				maxTaskTargetID, err = tasks.GetTaskTarget(taskID)
+			}
+			if err != nil {
+				return nb, max, maxTaskTargetID, err
 			}
 		}
 	}
-	return nb, max, maxTaskID, nil
+	return nb, max, maxTaskTargetID, nil
 }
 
 func (d *Dispatcher) emitMetrics() {
@@ -109,8 +112,7 @@ func (d *Dispatcher) emitWorkersMetrics() {
 }
 
 func (d *Dispatcher) emitTasksMetrics(lastWarn *time.Time) {
-	nbWaiting, maxWait, maxWaitTaskID, err := getTasksNbWaitAndMaxWaitTimeMs()
-	maxWaitTaskTargetID, err := tasks.GetTaskTarget(maxWaitTaskID)
+	nbWaiting, maxWait, maxWaitTargetID, err := getTasksNbWaitAndMaxWaitTimeMs()
 	if err != nil {
 		now := time.Now()
 		if now.Sub(*lastWarn) > 5*time.Minute {
@@ -122,7 +124,7 @@ func (d *Dispatcher) emitTasksMetrics(lastWarn *time.Time) {
 	}
 	metrics.SetGauge([]string{"tasks", "nbWaiting"}, nbWaiting)
 
-	taskLabels := []metrics.Label{metrics.Label{Name: "Deployment", Value: maxWaitTaskTargetID}}
+	taskLabels := []metrics.Label{metrics.Label{Name: "Deployment", Value: maxWaitTargetID}}
 	metrics.AddSampleWithLabels([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait), taskLabels)
 }
 
