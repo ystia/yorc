@@ -179,20 +179,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 		}
 	}()
 
-	taskExecutionLabelID := metrics.Label{
-		Name:  "TaskID",
-		Value: t.taskID,
-	}
-	taskExecutionLabelStep := metrics.Label{
-		Name:  "Step",
-		Value: t.step,
-	}
-	taskExecutionLabelDeployment := metrics.Label{
-		Name:  "Deployment",
-		Value: t.targetID,
-	}
-	taskExecutionLabels := []metrics.Label{taskExecutionLabelID, taskExecutionLabelStep, taskExecutionLabelDeployment}
-	metrics.MeasureSinceWithLabels([]string{"task", "wait"}, t.creationDate, taskExecutionLabels)
+	metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
 
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
@@ -207,7 +194,14 @@ func (w *worker) handleExecution(t *taskExecution) {
 		return
 	}
 	defer func(t *taskExecution, start time.Time) {
-
+		taskExecutionLabelID := metrics.Label{
+			Name:  "TaskID",
+			Value: t.taskID,
+		}
+		taskExecutionLabelDeployment := metrics.Label{
+			Name:  "Deployment",
+			Value: t.targetID,
+		}
 		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
 			taskExecutionLabelType := metrics.Label{
 				Name:  "Type",

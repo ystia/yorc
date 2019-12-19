@@ -128,31 +128,35 @@ Yorc Workers metrics
 Yorc Tasks metrics
 ~~~~~~~~~~~~~~~~~~
 
-The **Deployment** label is set to the deployment ID of the monitored task.
-The **Step** label represents the name of the step that is execuded by a task.
++----------------------------------+--------------------------------------------------------------+-----------------+-------------+
+|           Metric Name            |                        Description                           |      Unit       | Metric Type |
+|                                  |                                                              |                 |             |
++==================================+==============================================================+=================+=============+
+| ``yorc.tasks.maxBlockTimeMs``    |  Measures the highest duration since creation                | milliseconds    | timer       |
+|                                  |          for all waiting tasks.                              |                 |             |
++----------------------------------+--------------------------------------------------------------+-----------------+-------------+
+| ``yorc.tasks.nbWaiting``         |  Tracks the number of tasks waiting for being processed      | number of tasks | gauge       |
++----------------------------------+--------------------------------------------------------------+-----------------+-------------+
+| ``yorc.tasks.wait``              |  Measures the finally waited time for a task being processed | gauge           |             |
++----------------------------------+--------------------------------------------------------------+-----------------+-------------+
+
+Yorc taskExecutions metrics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The **Deployment** label is set to the deployment ID of the monitored taskExecution.
+The **Step** label represents the name of the step that is execuded.
 The *Type** label corresponds to the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
 
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
-|           Metric Name            |         Labels              |                Description                      |      Unit       | Metric Type |
-|                                  |                             |                                                 |                 |             |
-+==================================+=============================+=================================================+=================+=============+
-| ``yorc.tasks.maxBlockTimeMs``    | Deployment                  |  Measures the highest duration since creation   | milliseconds    | timer       |
-|                                  |                             |  for all waiting tasks.                         |                 |             |
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.tasks.nbWaiting``         |                             |  Tracks the number of tasks waiting for being   | number of       | gauge       |
-|                                  |                             |  processed.                                     | tasks           |             |
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.task.wait``               | Deployment                  |  Measures the finally waited time for a task    | milliseconds    | timer       |
-|                                  | Step                        |  being processed.                               |                 |             |
-|                                  | TaskID                      |                                                 |                 |             |
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.task.<FinalStatus>``      | Deployment                  | Counts the number of tasks ending in a status.  | number of tasks | counter     |
-|                                  | Type                        |                                                 |                 |             |
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.task.duration``           | Deployment                  | Measures a task processing duration.            | milliseconds    | timer       |
-|                                  | Type                        |                                                 |                 |             |
-+----------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 
++---------------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+|           Metric Name                 |         Labels              |                Description                      |      Unit       | Metric Type |
+|                                       |                             |                                                 |                 |             |
++=======================================+=============================+=================================================+=================+=============+
+| ``yorc.taskExecutions.<FinalStatus>`` | Deployment                  | Counts the number of taskExecutions ending      | number of tasks | counter     |
+|                                       | Type                        |         in a given final status                 |                 |             |
++---------------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
+| ``yorc.taskExecutions.duration``      | Deployment                  | Measures a taskExecution's processing duration  | milliseconds    | timer       |
+|                                       | Type                        |                                                 |                 |             |
++---------------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
 
 Yorc Executors metrics
 ~~~~~~~~~~~~~~~~~~~~~~
