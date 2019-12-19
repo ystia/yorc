@@ -138,8 +138,7 @@ func TestStore(t *testing.T) {
 	// Check sub-keys
 	keys, err := store.Keys(keypath1)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(keys))
-	require.Contains(t, keys, keypath2)
+	require.Equal(t, 1, len(keys))
 	require.Contains(t, keys, keypath2)
 
 	keys, err = store.Keys(keypath2)

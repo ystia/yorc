@@ -16,6 +16,7 @@ package consul
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -110,6 +111,50 @@ func testStore(t *testing.T, srv1 *testutil.TestServer) {
 	if found {
 		t.Error("A value was found, but no value was expected")
 	}
+
+	// Tree handling
+	keypath1 := "one"
+	keypath2 := "one/two"
+	keypath3 := "one/two/one"
+	keypath4 := "one/two/two"
+	keypath5 := "one/two/three"
+	err = store.Set(ctx, keypath1, val)
+	require.NoError(t, err)
+
+	err = store.Set(ctx, keypath2, val)
+	require.NoError(t, err)
+
+	err = store.Set(ctx, keypath3, val)
+	require.NoError(t, err)
+
+	err = store.Set(ctx, keypath4, val)
+	require.NoError(t, err)
+
+	err = store.Set(ctx, keypath5, val)
+	require.NoError(t, err)
+
+	// Check sub-keys
+	keys, err := store.Keys(keypath1)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(keys))
+	require.Contains(t, keys, keypath2)
+
+	keys, err = store.Keys(keypath2)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(keys))
+	require.Contains(t, keys, keypath3)
+	require.Contains(t, keys, keypath4)
+	require.Contains(t, keys, keypath5)
+
+	// Delete recursively tree
+	store.Delete(ctx, keypath1, true)
+	keys, err = store.Keys(keypath1)
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
+	keys, err = store.Keys(keypath2)
+	require.NoError(t, err)
+	require.Nil(t, keys)
 }
 
 func testTypes(t *testing.T, srv1 *testutil.TestServer) {

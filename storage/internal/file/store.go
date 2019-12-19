@@ -16,6 +16,7 @@ package file
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"io/ioutil"
 	"os"
 	"path"
@@ -202,7 +203,7 @@ func (s *fileStore) Keys(k string) ([]string, error) {
 		result = append(result, path.Join(k, strings.TrimSuffix(fileName, "."+s.filenameExtension)))
 	}
 
-	return result, nil
+	return collections.RemoveDuplicates(result), nil
 }
 
 func (s *fileStore) Delete(ctx context.Context, k string, recursive bool) error {
