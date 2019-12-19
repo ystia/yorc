@@ -27,7 +27,6 @@ import (
 func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
-
 	t.Run("groupDeployments", func(t *testing.T) {
 		t.Run("testArtifacts", func(t *testing.T) {
 			testArtifacts(t, srv)
@@ -146,7 +145,7 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 			testNotifyAttributeOnValueChange(t, deploymentID)
 		})
 		t.Run("TestImportTopologyTemplate", func(t *testing.T) {
-			testImportTopologyTemplate(t, deploymentID)
+			testImportTopologyTemplateNodeMetadata(t, deploymentID)
 		})
 		t.Run("TestTopologyTemplateMetadata", func(t *testing.T) {
 			testTopologyTemplateMetadata(t, deploymentID)

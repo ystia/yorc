@@ -113,18 +113,17 @@ capability_types:
 
   yorc.capabilities.Group:
     derived_from: tosca.capabilities.Root
-  
-capability_types:
+
   yorc.capabilities.SSHBastionHost:
     derived_from: tosca.capabilities.Node
     properties:
-      port: 
+      port:
         type: integer
         required: false
-      network_name: 
+      network_name:
         type: string
         required: false
-      port_name: 
+      port_name:
         type: string
         required: false
       use_host_credentials:

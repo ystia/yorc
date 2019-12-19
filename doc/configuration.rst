@@ -182,6 +182,14 @@ Globals Command-line options
 
   * ``--resources_prefix``: Specify a prefix that will be used for names when creating resources such as Compute instances or volumes. Defaults to ``yorc-``.
 
+.. _option_tasks_dispatcher_long_polling_wait_time_cmd:
+
+  * ``--tasks_dispatcher_long_polling_wait_time``: Wait time (Golang duration format) when long polling for executions tasks to dispatch to workers. If not set the default value of `1m` will be used.
+
+.. _option_tasks_dispatcher_lock_wait_time_cmd:
+
+  * ``--tasks_dispatcher_lock_wait_time``: Wait time (Golang duration format) for acquiring a lock for an execution task. If not set the default value of `50ms` will be used.
+
 .. _option_workers_cmd:
 
   * ``--workers_number``: Yorc instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `30` will be used.
@@ -666,6 +674,27 @@ All available configuration options for telemetry are:
 
   * ``expose_prometheus_endpoint``: Specify if an HTTP Prometheus endpoint should be exposed allowing Prometheus to scrape metrics.
 
+Tasks/Workers configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of configuration file with Tasks configuration options.
+
+.. code-block:: YAML
+
+    resources_prefix: "yorc1-"
+    tasks:
+      dispatcher:
+        long_polling_wait_time: "1m"
+        lock_wait_time: "50ms"
+
+.. _option_tasks_dispatcher_long_polling_wait_time_cfg:
+
+  * ``long_polling_wait_time``: Equivalent to :ref:`--tasks_dispatcher_long_polling_wait_time <option_tasks_dispatcher_long_polling_wait_time_cmd>` command-line flag.
+
+.. _option_tasks_dispatcher_lock_wait_time_cfg:
+
+  * ``lock_wait_time``: Equivalent to :ref:`--tasks_dispatcher_lock_wait_time <option_tasks_dispatcher_lock_wait_time_cmd>` command-line flag.
+
 Environment variables
 ---------------------
 
@@ -793,6 +822,14 @@ Environment variables
 .. _option_locations_env:
 
   * ``YORC_LOCATIONS_FILE_PATH``: Equivalent to :ref:`--locations_file_path <option_locations_cmd>` command-line flag.
+
+.. _option_tasks_dispatcher_long_polling_wait_time_env:
+
+  * ``YORC_TASKS_DISPATCHER_LONG_POLLING_WAIT_TIME``: Equivalent to :ref:`--tasks_dispatcher_long_polling_wait_time <option_tasks_dispatcher_long_polling_wait_time_cmd>` command-line flag.
+
+.. _option_tasks_dispatcher_lock_wait_time_env:
+
+  * ``YORC_TASKS_DISPATCHER_LOCK_WAIT_TIME``: Equivalent to :ref:`--tasks_dispatcher_lock_wait_time <option_tasks_dispatcher_lock_wait_time_cmd>` command-line flag.
 
 .. _option_workers_env:
 

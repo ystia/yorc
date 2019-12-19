@@ -21,8 +21,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
-
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
@@ -322,19 +320,18 @@ func resolveValueAssignmentAsString(ctx context.Context, deploymentID, nodeName,
 func resolveValueAssignment(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex string, valueAssignment *TOSCAValue, nestedKeys ...string) (*TOSCAValue, error) {
 	// Function
 	fromSecret := valueAssignment.IsSecret
-	va := &tosca.ValueAssignment{}
-	err := yaml.Unmarshal([]byte(valueAssignment.RawString()), va)
+	f, err := tosca.ParseFunction(valueAssignment.RawString())
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", valueAssignment, nodeName)
+		return nil, err
 	}
 	r := resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(instanceName), withRequirementIndex(requirementIndex))
-	valueAssignment, err = r.resolveFunction(ctx, va.GetFunction())
+	valueAssignment, err = r.resolveFunction(ctx, f)
 	if err != nil {
 		return nil, err
 	}
 	if valueAssignment == nil {
 		ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: nodeName, events.InstanceID: instanceName})
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The value assignment %q hasn't be resolved for deployment: %q, node: %q, instance: %q. An empty string is returned instead", va, deploymentID, nodeName, instanceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The value assignment %q hasn't be resolved for deployment: %q, node: %q, instance: %q. An empty string is returned instead", valueAssignment, deploymentID, nodeName, instanceName)
 		valueAssignment = &TOSCAValue{Value: ""}
 	}
 	if fromSecret {

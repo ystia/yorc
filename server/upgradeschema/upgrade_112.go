@@ -15,6 +15,7 @@
 package upgradeschema
 
 import (
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"strings"
 
@@ -26,7 +27,7 @@ import (
 )
 
 // UpgradeTo112 allows to upgrade Consul schema from 1.1.1 to 1.1.2
-func UpgradeTo112(kv *api.KV, leaderch <-chan struct{}) error {
+func UpgradeTo112(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Upgrading to database version 1.1.12..")
 	return up112UpgradeHostsPoolStorage(kv)
 }

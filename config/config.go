@@ -72,6 +72,12 @@ const DefaultPurgedDeploymentsEvictionTimeout = 30 * time.Minute
 // DefaultAnsibleJobMonInterval is the default monitoring interval for Jobs handled by Ansible
 const DefaultAnsibleJobMonInterval = 15 * time.Second
 
+// DefaultTasksDispatcherLongPollWaitTime is the default wait time when long polling for executions tasks to dispatch to workers
+const DefaultTasksDispatcherLongPollWaitTime = 1 * time.Minute
+
+// DefaultTasksDispatcherLockWaitTime is the default wait time for acquiring a lock for an execution task
+const DefaultTasksDispatcherLockWaitTime = 50 * time.Millisecond
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
@@ -96,6 +102,7 @@ type Configuration struct {
 	ServerID                         string        `yaml:"server_id,omitempty" mapstructure:"server_id"`
 	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
+	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -170,6 +177,17 @@ type Terraform struct {
 	GooglePluginVersionConstraint    string `yaml:"google_plugin_version_constraint,omitempty" mapstructure:"google_plugin_version_constraint"`
 	OpenStackPluginVersionConstraint string `yaml:"openstack_plugin_version_constraint,omitempty" mapstructure:"openstack_plugin_version_constraint"`
 	KeepGeneratedFiles               bool   `yaml:"keep_generated_files,omitempty" mapstructure:"keep_generated_files"`
+}
+
+// Tasks processing configuration
+type Tasks struct {
+	Dispatcher Dispatcher `yaml:"dispatcher,omitempty" mapstructure:"dispatcher" json:"dispatcher,omitempty"`
+}
+
+// Dispatcher configuration
+type Dispatcher struct {
+	LongPollWaitTime time.Duration `yaml:"long_poll_wait_time,omitempty" mapstructure:"long_poll_wait_time" json:"long_poll_wait_time,omitempty"`
+	LockWaitTime     time.Duration `yaml:"lock_wait_time,omitempty" mapstructure:"lock_wait_time" json:"lock_wait_time,omitempty"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.

@@ -19,4 +19,5 @@ package main
 import (
 	_ "github.com/abice/go-enum"
 	_ "github.com/google/addlicense"
+	_ "github.com/ystia/tdt2go/cmd/tdt2go"
 )

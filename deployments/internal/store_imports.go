@@ -22,8 +22,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
-
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/tosca"
 	"golang.org/x/sync/errgroup"
@@ -31,7 +29,7 @@ import (
 )
 
 // storeImports parses and store imports.
-func storeImports(ctx context.Context, consulStore consulutil.ConsulStore, errGroup *errgroup.Group, topology tosca.Topology, deploymentID, topologyPrefix, importPath, rootDefPath string) error {
+func storeImports(ctx context.Context, errGroup *errgroup.Group, topology tosca.Topology, deploymentID, topologyPrefix, importPath, rootDefPath string) error {
 	for _, element := range topology.Imports {
 
 		importURI := strings.Trim(element.File, " \t")
@@ -61,7 +59,7 @@ func storeImports(ctx context.Context, consulStore consulutil.ConsulStore, errGr
 				// for an import containing a given metadata template name
 				// (function getSubstitutableNodeType in this package)
 				importPrefix := path.Join("imports", strings.Replace(path.Join(importPath, importURI), "/", "_", -1))
-				return StoreTopology(ctx, consulStore, errGroup, importedTopology, deploymentID, topologyPrefix, importPrefix, path.Dir(path.Join(importPath, importURI)), rootDefPath)
+				return StoreTopology(ctx, errGroup, importedTopology, deploymentID, topologyPrefix, importPrefix, path.Dir(path.Join(importPath, importURI)), rootDefPath)
 			})
 		}
 	}

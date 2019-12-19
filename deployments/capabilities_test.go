@@ -16,6 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,20 +31,25 @@ import (
 
 func testCapabilities(t *testing.T, srv1 *testutil.TestServer) {
 	log.SetDebug(true)
-
+	ctx := context.Background()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/capabilities.yaml")
 	require.Nil(t, err)
 
 	srv1.PopulateKV(t, map[string][]byte{
-		// overwrite type to an non-existing one now we have passed StoreDeploymentDefinition verifications
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/types/yorc.type.WithUndefCap/capabilities/udef/type": []byte("yorc.capabilities.Undefined"),
-
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":       []byte("0.0.0.0"),
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/credentials/user": []byte("ubuntu"),
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/private_address":                      []byte("10.0.0.1"),
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/public_address":                       []byte("10.1.0.1"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":  []byte("0.0.0.0"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/node1/0/capabilities/endpoint/attributes/credentials": []byte("{\"user\":\"ubuntu\"}"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/private_address":                 []byte("10.0.0.1"),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/topology/instances/Compute/0/attributes/public_address":                  []byte("10.1.0.1"),
 	})
+
+	// overwrite type to an non-existing one now we have passed StoreDeploymentDefinition verifications
+	typ := tosca.NodeType{}
+	typ.Capabilities = map[string]tosca.CapabilityDefinition{
+		"undef": {Type: "yorc.capabilities.Undefined"},
+	}
+	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/"+deploymentID+"/topology/types/yorc.type.WithUndefCap", typ)
+	require.Nil(t, err)
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
 		t.Run("TestHasScalableCapability", func(t *testing.T) {
@@ -146,8 +154,8 @@ func testGetCapabilityProperty(t *testing.T, deploymentID string) {
 		{"GetCapabilityPropertyDefinedInNode", args{"node1", "scalable", "min_instances"}, true, "10", false},
 		{"GetCapabilityPropertyDefinedInNodeOfInheritedType", args{"node1", "scalable", "default_instances"}, true, "1", false},
 		{"GetCapabilityPropertyDefinedAsCapTypeDefault", args{"node1", "scalable", "max_instances"}, true, "100", false},
-		{"GetCapabilityPropertyUndefinedProp", args{"node1", "scalable", "udef"}, false, "", false},
-		{"GetCapabilityPropertyUndefinedCap", args{"node1", "udef", "udef"}, false, "", false},
+		{"GetCapabilityPropertyUndefinedProp", args{"node1", "scalable", "undef"}, false, "", false},
+		{"GetCapabilityPropertyUndefinedCap", args{"node1", "undef", "undef"}, false, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -188,9 +196,9 @@ func testGetCapabilityPropertyType(t *testing.T, deploymentID string) {
 		{"GetCapabilityPropertyTypeStringDefinedInNodeOfInheritedType",
 			args{"node1", "endpoint", "prop1"}, true, "string", false},
 		{"GetCapabilityPropertyUndefinedProp",
-			args{"node1", "scalable", "udef"}, false, "", false},
+			args{"node1", "scalable", "undef"}, false, "", false},
 		{"GetCapabilityPropertyUndefinedCap",
-			args{"node1", "udef", "udef"}, false, "", false},
+			args{"node1", "undef", "undef"}, false, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -239,8 +247,8 @@ func testGetInstanceCapabilityAttribute(t *testing.T, deploymentID string) {
 		{"GetCapabilityAttributeFromPropertyDefinedInNode", args{"node1", "0", "scalable", "min_instances", nil}, true, "10", false},
 		{"GetCapabilityAttributeFromPropertyDefinedInNodeOfInheritedType", args{"node1", "0", "scalable", "default_instances", nil}, true, "1", false},
 		{"GetCapabilityAttributeFromPropertyDefinedAsCapTypeDefault", args{"node1", "0", "scalable", "max_instances", nil}, true, "100", false},
-		{"GetCapabilityAttributeFromPropertyUndefinedProp", args{"node1", "0", "scalable", "udef", nil}, false, "", false},
-		{"GetCapabilityAttributeFromPropertyUndefinedCap", args{"node1", "0", "udef", "udef", nil}, false, "", false},
+		{"GetCapabilityAttributeFromPropertyUndefinedProp", args{"node1", "0", "scalable", "undef", nil}, false, "", false},
+		{"GetCapabilityAttributeFromPropertyUndefinedCap", args{"node1", "0", "undef", "undef", nil}, false, "", false},
 
 		// Test cases for properties as attributes mapping
 		{"GetCapabilityAttributeKeyFromPropertyDefinedInInstance", args{"node1", "0", "endpoint", "credentials", []string{"user"}}, true, "ubuntu", false},
@@ -279,7 +287,7 @@ func testGetNodeCapabilityType(t *testing.T, deploymentID string) {
 		{"CapNotFoundOnNode3", args{"node3", "scalable"}, "", false},
 		{"GetEndpointCapTypeOnNode1", args{"node1", "endpoint"}, "yorc.test.capabilities.Endpoint", false},
 		{"GetEndpointCapTypeOnNode2", args{"node2", "binding"}, "yorc.test.capabilities.network.Bindable", false},
-		{"UndefCapOnNodeWithUndefCap", args{"NodeWithUndefCap", "udef"}, "yorc.capabilities.Undefined", false},
+		{"UndefCapOnNodeWithUndefCap", args{"NodeWithUndefCap", "undef"}, "yorc.capabilities.Undefined", false},
 		{"CapWithInheritance", args{"SuperScalableNode", "sups"}, "yorc.capabilities.SuperScalable", false},
 	}
 	for _, tt := range tests {

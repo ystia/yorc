@@ -15,6 +15,7 @@
 package upgradeschema
 
 import (
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"strings"
 
@@ -26,7 +27,7 @@ import (
 )
 
 // UpgradeTo110 allows to upgrade Consul schema from 1.0.0 to 1.1.0
-func UpgradeTo110(kv *api.KV, leaderch <-chan struct{}) error {
+func UpgradeTo110(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Upgrading to database version 1.1.0...")
 	keys, _, err := kv.Keys(consulutil.DeploymentKVPrefix+"/", "/", nil)
 	if err != nil {

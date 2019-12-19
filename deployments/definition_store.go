@@ -17,6 +17,7 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/log"
 	"io/ioutil"
 	"os"
 	"path"
@@ -27,12 +28,32 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	storageTypes "github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 )
+
+const blockingOperationOnDeploymentFlagName = ".blockingOp"
+
+// AddBlockingOperationOnDeploymentFlag set a flag on a given deployment to specify that an operation is ongoing and no other tasks should be run on this deployment
+func AddBlockingOperationOnDeploymentFlag(ctx context.Context, deploymentID string) error {
+	return consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, deploymentID, blockingOperationOnDeploymentFlagName), nil)
+}
+
+// RemoveBlockingOperationOnDeploymentFlag removes a flag on a given deployment to specify that an operation is ongoing and no other tasks should be run on this deployment
+func RemoveBlockingOperationOnDeploymentFlag(ctx context.Context, deploymentID string) error {
+	_, err := consulutil.GetKV().Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID, blockingOperationOnDeploymentFlagName), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+// HasBlockingOperationOnDeploymentFlag checks if there is a flag on a given deployment to specify that an operation is ongoing and no other tasks should be run on this deployment
+func HasBlockingOperationOnDeploymentFlag(ctx context.Context, deploymentID string) (bool, error) {
+	kvp, _, err := consulutil.GetKV().Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, blockingOperationOnDeploymentFlagName), nil)
+	return kvp != nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
@@ -62,17 +83,53 @@ func StoreDeploymentDefinition(ctx context.Context, deploymentID string, defPath
 	if err != nil {
 		return handleDeploymentStatus(ctx, deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
 	}
+
+	// Post storage process
+	nodes, err := GetNodes(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+	err = PostDeploymentDefinitionStorageProcess(ctx, deploymentID, nodes)
+	if err != nil {
+		return handleDeploymentStatus(ctx, deploymentID, err)
+	}
+	return handleDeploymentStatus(ctx, deploymentID, enhanceTopology(ctx, deploymentID, nodes))
+}
+
+// PostDeploymentDefinitionStorageProcess allows to execute Post deployment storage process
+// It concerns deployment store only (not instances) and can be run separately (upgrade)
+func PostDeploymentDefinitionStorageProcess(ctx context.Context, deploymentID string, nodes []string) error {
+	// Workflow enhancement
+	err := enhanceWorkflows(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+
+	// Implementation types registration
 	err = registerImplementationTypes(ctx, deploymentID)
 	if err != nil {
 		return handleDeploymentStatus(ctx, deploymentID, err)
 	}
 
-	// Enhance nodes
-	nodes, err := GetNodes(ctx, deploymentID)
-	if err != nil {
-		return err
+	// Topology enhancement
+	for _, nodeName := range nodes {
+		err = fixGetOperationOutput(ctx, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+
+		substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+		if !substitutable {
+			err = fixAlienBlockStorages(ctx, deploymentID, nodeName)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return handleDeploymentStatus(ctx, deploymentID, enhanceNodes(ctx, deploymentID, nodes))
+	return nil
 }
 
 func handleDeploymentStatus(ctx context.Context, deploymentID string, err error) error {
@@ -124,10 +181,11 @@ func createInstancesForNode(ctx context.Context, consulStore consulutil.ConsulSt
 
 func registerImplementationTypes(ctx context.Context, deploymentID string) error {
 	// We use synchronous communication with consul here to allow to check for duplicates
-	types, err := GetTypes(ctx, deploymentID)
+	types, err := GetTypesNames(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
+	extensionsMap := make(map[string]string)
 	for _, t := range types {
 		isImpl, err := IsTypeDerivedFrom(ctx, deploymentID, t, "tosca.artifacts.Implementation")
 		if err != nil {
@@ -143,33 +201,27 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 			if err != nil {
 				return err
 			}
+
 			for _, ext := range extensions {
 				ext = strings.ToLower(ext)
-				check, err := GetImplementationArtifactForExtension(ctx, deploymentID, ext)
-				if err != nil {
-					return err
-				}
-				if check != "" {
-					return errors.Errorf("Duplicate implementation artifact file extension %q found in artifact %q and %q", ext, check, t)
-				}
-				extPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, ext)
-				err = consulutil.StoreConsulKeyAsString(extPath, t)
-				if err != nil {
-					return err
-				}
+				extensionsMap[ext] = t
 			}
 		}
+	}
+
+	if len(extensionsMap) > 0 {
+		return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath), extensionsMap)
 	}
 
 	return nil
 }
 
-// EnhanceNodes walk through the provided nodes an for each of them if needed it creates the instances and fix alien BlockStorage declaration
-func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) error {
+// enhanceTopology walk through the provided nodes an for each of them if needed it creates the instances
+func enhanceTopology(ctx context.Context, deploymentID string, nodes []string) error {
 	ctxStore, errGroup, consulStore := consulutil.WithContext(ctx)
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
-		isCompute, err := createInstanceAndFixModel(ctxStore, consulStore, deploymentID, nodeName)
+		isCompute, err := checkForInstancesCreation(ctxStore, consulStore, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -194,11 +246,6 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 		}
 	}
 
-	err = enhanceWorkflows(ctx, consulStore, deploymentID)
-	if err != nil {
-		return err
-	}
-
 	err = enhanceAttributes(ctx, deploymentID, nodes)
 	if err != nil {
 		return err
@@ -206,28 +253,16 @@ func enhanceNodes(ctx context.Context, deploymentID string, nodes []string) erro
 	return errGroup.Wait()
 }
 
-func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
+func checkForInstancesCreation(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeName string) (bool, error) {
 
 	var isCompute bool
-	err := fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName)
-	if err != nil {
-		return isCompute, err
-	}
-	err = fixGetOperationOutputForHost(ctx, deploymentID, nodeName)
-	if err != nil {
-		return isCompute, err
-	}
 
-	substitutable, err := isSubstitutableNode(deploymentID, nodeName)
+	substitutable, err := isSubstitutableNode(ctx, deploymentID, nodeName)
 	if err != nil {
 		return isCompute, err
 	}
 	if !substitutable {
 		err = createInstancesForNode(ctx, consulStore, deploymentID, nodeName)
-		if err != nil {
-			return isCompute, err
-		}
-		err = fixAlienBlockStorages(ctx, deploymentID, nodeName)
 		if err != nil {
 			return isCompute, err
 		}
@@ -237,124 +272,258 @@ func createInstanceAndFixModel(ctx context.Context, consulStore consulutil.Consu
 	return isCompute, err
 }
 
-// In this function we iterate over all node to know which node need to have a HOST output and search for this HOST and tell him to export this output
-func fixGetOperationOutputForHost(ctx context.Context, deploymentID, nodeName string) error {
-	nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
-	if nodeType != "" && err == nil {
-		typePath, err := locateTypePath(deploymentID, nodeType)
-		if err != nil {
-			return err
-		}
-		interfacesPrefix := path.Join(typePath, "interfaces")
-		interfacesNamesPaths, err := consulutil.GetKeys(interfacesPrefix)
-		if err != nil {
-			return err
-		}
-		for _, interfaceNamePath := range interfacesNamesPaths {
-			operationsPaths, err := consulutil.GetKeys(interfaceNamePath)
-			if err != nil {
-				return err
-			}
-			for _, operationPath := range operationsPaths {
-				outputsPrefix := path.Join(operationPath, "outputs", "HOST")
-				outputsNamesPaths, err := consulutil.GetKeys(outputsPrefix)
+func fixGetOperationOutput(ctx context.Context, deploymentID, nodeName string) error {
+	// Check operation outputs on node template
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	nodeTypeName, err := GetNodeType(ctx, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	// Check input value assignments
+	for _, interfaceDef := range node.Interfaces {
+		for _, operationDef := range interfaceDef.Operations {
+			for _, inputDef := range operationDef.Inputs {
+				err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, nodeTypeName, "", inputDef.ValueAssign)
 				if err != nil {
 					return err
-				}
-				if outputsNamesPaths == nil || len(outputsNamesPaths) == 0 {
-					continue
-				}
-				for _, outputNamePath := range outputsNamesPaths {
-					hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
-					if err != nil {
-						return nil
-					} else if hostedOn == "" {
-						return errors.New("Fail to get the hostedOn to fix the output")
-					}
-					if hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
-						hostedTypePath, err := locateTypePath(deploymentID, hostedNodeType)
-						if err != nil {
-							return err
-						}
-						consulutil.StoreConsulKeyAsString(path.Join(hostedTypePath, "interfaces", path.Base(interfaceNamePath), path.Base(operationPath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationPath)+","+path.Base(outputNamePath)+"]")
-					}
 				}
 			}
 		}
 	}
+
+	return fixGetOperationOutputOnType(ctx, deploymentID, nodeName, nodeTypeName)
+}
+
+func fixGetOperationOutputOnType(ctx context.Context, deploymentID, nodeName, nodeTypeName string) error {
+	nodeType := new(tosca.NodeType)
+	err := getExpectedTypeFromName(ctx, deploymentID, nodeTypeName, nodeType)
 	if err != nil {
 		return err
+	}
+
+	// Check attributes definitions
+	for _, attributeDef := range nodeType.Attributes {
+		err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, nodeTypeName, "", attributeDef.Default)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check input value assignments
+	for _, interfaceDef := range nodeType.Interfaces {
+		for _, operationDef := range interfaceDef.Operations {
+			for _, inputDef := range operationDef.Inputs {
+				err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, nodeTypeName, "", inputDef.ValueAssign)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Check requirements
+	err = fixGetOperationOutputForRelationship(ctx, deploymentID, nodeName, nodeType)
+	if err != nil {
+		return err
+	}
+
+	// descend all type hierarchy to add operation outputs
+	if nodeType.DerivedFrom != "" {
+		return fixGetOperationOutputOnType(ctx, deploymentID, nodeName, nodeType.DerivedFrom)
+	}
+	return nil
+}
+
+func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string, nodeType *tosca.NodeType) error {
+	// Check requirements
+	for reqIndex := range nodeType.Requirements {
+		ind := strconv.Itoa(reqIndex)
+		relationshipTypeName, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, ind)
+		if err != nil {
+			return err
+		}
+		if relationshipTypeName == "" {
+			continue
+		}
+
+		// descend all relationship type hierarchy to add operation outputs
+		for relationshipTypeName != "" {
+			rType := new(tosca.RelationshipType)
+			err = getExpectedTypeFromName(ctx, deploymentID, relationshipTypeName, rType)
+			if err != nil {
+				return err
+			}
+
+			// Check attributes definitions
+			for _, attributeDef := range rType.Attributes {
+				err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, relationshipTypeName, ind, attributeDef.Default)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Check input value assignments
+			for _, interfaceDef := range rType.Interfaces {
+				for _, operationDef := range interfaceDef.Operations {
+					for _, inputDef := range operationDef.Inputs {
+						err := lookForOperationOutputInVA(ctx, deploymentID, nodeName, relationshipTypeName, ind, inputDef.ValueAssign)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+
+			relationshipTypeName = rType.DerivedFrom
+		}
 	}
 
 	return nil
 }
 
-// This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
-// Ex: To get an variable from a past operation or a future operation
-func fixGetOperationOutputForRelationship(ctx context.Context, deploymentID, nodeName string) error {
-	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
-	reqName, err := consulutil.GetKeys(reqPath)
-	if err != nil {
-		return err
+func lookForOperationOutputInVA(ctx context.Context, deploymentID, nodeName, typeName, reqIndex string, va *tosca.ValueAssignment) error {
+	if va == nil || va.Type != tosca.ValueAssignmentFunction || va.GetFunction() == nil {
+		return nil
 	}
-	for _, reqKeyIndex := range reqName {
-		relationshipType, err := GetRelationshipForRequirement(ctx, deploymentID, nodeName, path.Base(reqKeyIndex))
-		if err != nil {
-			return err
+
+	opOutputFuncs := va.GetFunction().GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+	for _, oof := range opOutputFuncs {
+		if len(oof.Operands) != 4 {
+			return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
 		}
-		if relationshipType == "" {
-			continue
-		}
-		relTypePath, err := locateTypePath(deploymentID, relationshipType)
-		if err != nil {
-			return err
-		}
-		relationshipPrefix := path.Join(relTypePath, "interfaces")
-		interfaceNamesPaths, err := consulutil.GetKeys(relationshipPrefix)
-		if err != nil {
-			return err
-		}
-		for _, interfaceNamePath := range interfaceNamesPaths {
-			operationsNamesPaths, err := consulutil.GetKeys(interfaceNamePath + "/")
+		entityName := oof.Operands[0].String()
+		interfaceName := oof.Operands[1].String()
+		operationName := oof.Operands[2].String()
+		outputName := oof.Operands[3].String()
+
+		output := tosca.Output{ValueAssign: &tosca.ValueAssignment{
+			Type:  tosca.ValueAssignmentFunction,
+			Value: oof.String(),
+		}}
+		switch entityName {
+		case "SELF":
+			return storeOperationOutput(ctx, deploymentID, nodeName, typeName, interfaceName, operationName, outputName, &output)
+		case "HOST":
+			hostedOn, err := GetHostedOnNode(ctx, deploymentID, nodeName)
+			if err != nil || hostedOn == "" {
+				return errors.Wrapf(err, "Fail to get the hostedOn to fix the output for deploymentID:%q, node name:%q", deploymentID, nodeName)
+			}
+			hostedNodeType, err := GetNodeType(ctx, deploymentID, hostedOn)
 			if err != nil {
 				return err
 			}
-			for _, operationNamePath := range operationsNamesPaths {
-				modEntityNamesPaths, err := consulutil.GetKeys(operationNamePath + "/outputs")
-				if err != nil {
-					return err
-				}
-				for _, modEntityNamePath := range modEntityNamesPaths {
-					outputsNamesPaths, err := consulutil.GetKeys(modEntityNamePath)
-					if err != nil {
-						return err
-					}
-					for _, outputNamePath := range outputsNamesPaths {
-						if path.Base(modEntityNamePath) != "SOURCE" || path.Base(modEntityNamePath) != "TARGET" {
-							continue
-						}
-						var nodeType string
-						if path.Base(modEntityNamePath) == "SOURCE" {
-							nodeType, _ = GetNodeType(ctx, deploymentID, nodeName)
-						} else if path.Base(modEntityNamePath) == "TARGET" {
-							targetNode, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqKeyIndex)
-							if err != nil {
-								return err
-							}
-							nodeType, _ = GetNodeType(ctx, deploymentID, targetNode)
-						}
-						typePath, err := locateTypePath(deploymentID, nodeType)
-						if err != nil {
-							return err
-						}
-						consulutil.StoreConsulKeyAsString(path.Join(typePath, "interfaces", path.Base(interfaceNamePath), path.Base(operationNamePath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationNamePath)+","+path.Base(outputNamePath)+"]")
-					}
-				}
+			return storeOperationOutput(ctx, deploymentID, nodeName, hostedNodeType, interfaceName, operationName, outputName, &output)
+		case "SOURCE":
+			return storeOperationOutput(ctx, deploymentID, nodeName, typeName, interfaceName, operationName, outputName, &output)
+		case "TARGET":
+			if reqIndex == "" {
+				return errors.Errorf("missing requirement index for adding operation output on type:%q, deployment:%q", typeName, deploymentID)
 			}
+			targetNodeName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIndex)
+			if err != nil || targetNodeName == "" {
+				return errors.Wrapf(err, "failed to retrieve target node for deployment:%q, node:%q, requirement index:%q", deploymentID, nodeName, reqIndex)
+			}
+
+			targetNodeTypeName, err := GetNodeType(ctx, deploymentID, targetNodeName)
+			if err != nil {
+				return err
+			}
+			return storeOperationOutput(ctx, deploymentID, nodeName, targetNodeTypeName, interfaceName, operationName, outputName, &output)
+		default:
+			log.Printf("[WARNING] The entity name:%q for operation output on node/relationship is not handled for type:%q", entityName, typeName)
 		}
+	}
+
+	return nil
+}
+
+func checkIfOperationExists(interfaces map[string]tosca.InterfaceDefinition, interfaceName, operationName string) bool {
+	if interfaces == nil {
+		return false
+	}
+
+	i, exist := interfaces[interfaceName]
+	if !exist {
+		return false
+	}
+
+	if i.Operations == nil {
+		return false
+	}
+
+	_, exist = i.Operations[operationName]
+	if !exist {
+		return false
+	}
+	return true
+}
+
+func storeOperationOutput(ctx context.Context, deploymentID, nodeName, typeName, interfaceName, operationName, outputName string, output *tosca.Output) error {
+	// Check first if the operation is implemented in the node template
+	isNodeImplOpe, err := IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
+	if err != nil {
+		return nil
+	}
+	if isNodeImplOpe {
+		nodeTemplate, err := getNodeTemplate(ctx, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+		err = addOperationOutputToInterfaces(interfaceName, operationName, outputName, nodeName, nodeTemplate.Interfaces, output)
+		if err != nil {
+			return err
+		}
+		nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName)
+		return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, nodePath, nodeTemplate)
+	}
+
+	return storeOperationOutputOnType(ctx, deploymentID, typeName, interfaceName, operationName, outputName, output)
+}
+
+func addOperationOutputToInterfaces(interfaceName, operationName, outputName, nodeOrTypeName string, interfaces map[string]tosca.InterfaceDefinition, output *tosca.Output) error {
+	if !checkIfOperationExists(interfaces, interfaceName, operationName) {
+		log.Printf("{WARNING] interface (%s) - operation (%s) not found for node/type:%q", interfaceName, operationName, nodeOrTypeName)
+		return nil
+	}
+
+	op := interfaces[interfaceName].Operations[operationName]
+	if op.Outputs == nil {
+		op.Outputs = make(map[string]tosca.Output)
+	}
+
+	op.Outputs[outputName] = *output
+	interfaces[interfaceName].Operations[operationName] = op
+	return nil
+}
+
+func storeOperationOutputOnType(ctx context.Context, deploymentID, typeName, interfaceName, operationName, outputName string, output *tosca.Output) error {
+	// Retrieve the type in hierarchy which implements the operation
+	typeNameImpl, err := GetTypeImplementingAnOperation(ctx, deploymentID, typeName, fmt.Sprintf("%s.%s", interfaceName, operationName))
+	if err != nil {
+		return nil
+	}
+
+	tType, typePath, err := getTypeFromName(nil, deploymentID, typeName)
+	if err != nil {
+		return err
+	}
+	var tTypeInterfaces map[string]tosca.InterfaceDefinition
+	switch t := tType.(type) {
+	case *tosca.NodeType:
+		tTypeInterfaces = t.Interfaces
+	case *tosca.RelationshipType:
+		tTypeInterfaces = t.Interfaces
 
 	}
-	return nil
+
+	err = addOperationOutputToInterfaces(interfaceName, operationName, outputName, typeNameImpl, tTypeInterfaces, output)
+	if err != nil {
+		return err
+	}
+	return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, typePath, tType)
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
@@ -364,42 +533,19 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
 		for _, attachReq := range attachReqs {
-			req := tosca.RequirementAssignment{}
+			req := attachReq.RequirementAssignment
+			// Reverse the target node
+			computeNodeName := req.Node
 			req.Node = nodeName
-			exist, value, err := consulutil.GetStringValue(path.Join(attachReq, "node"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			var computeNodeName string
-			if exist {
-				computeNodeName = value
-			}
-			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "capability"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			if exist {
-				req.Capability = value
-			}
-			exist, value, err = consulutil.GetStringValue(path.Join(attachReq, "relationship"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			if exist {
-				req.Relationship = value
-			}
 			device, err := GetNodePropertyValue(ctx, deploymentID, nodeName, "device")
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
-
-			req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
-
 			if device != nil {
 				va := &tosca.ValueAssignment{}
 				if device.RawString() != "" {
@@ -408,38 +554,26 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 						return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q, failed to parse device property", nodeName)
 					}
 				}
+				// Add device requirement property
+				if req.RelationshipProps == nil {
+					req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
+				}
 				req.RelationshipProps["device"] = va
 			}
 
-			// Get all requirement properties
-			// Appending a final "/" here is not necessary as there is no other keys starting with "properties" prefix
-			kvs, err := consulutil.List(path.Join(attachReq, "properties"))
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-			}
-			for key, value := range kvs {
-				va := &tosca.ValueAssignment{}
-				err := yaml.Unmarshal(value, va)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
-				}
-				req.RelationshipProps[path.Base(key)] = va
-			}
-			newReqID, err := GetNbRequirementsForNode(ctx, deploymentID, computeNodeName)
+			// Update the compute node with new requirement
+			node, err := getNodeTemplate(ctx, deploymentID, computeNodeName)
 			if err != nil {
 				return err
 			}
 
-			// Do not share the consul store as we have to compute the number of requirements for nodes and as we will modify it asynchronously it may lead to overwriting
-			_, errgroup, consulStore := consulutil.WithContext(ctx)
-			internal.StoreRequirementAssignment(consulStore, req, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
+			reqMap := make(map[string]tosca.RequirementAssignment)
+			reqMap["local_storage"] = req
 
-			err = errgroup.Wait()
-			if err != nil {
-				return err
-			}
+			node.Requirements = append(node.Requirements, reqMap)
+			nodePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", computeNodeName)
+			return storage.GetStore(storageTypes.StoreTypeDeployment).Set(ctx, nodePrefix, node)
 		}
-
 	}
 
 	return nil
@@ -465,7 +599,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uin
 func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulutil.ConsulStore, deploymentID string, nodeNames []string) error {
 
 	for _, nodeName := range nodeNames {
-		requirementsKey, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+		requirements, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 		if err != nil {
 			return err
 		}
@@ -477,21 +611,10 @@ func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulut
 
 		var bsName []string
 
-		for _, requirement := range requirementsKey {
-			exist, _, err := consulutil.GetStringValue(path.Join(requirement, "capability"))
-			if err != nil {
-				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			} else if !exist {
-				continue
+		for _, requirement := range requirements {
+			if requirement.Capability != "" {
+				bsName = append(bsName, requirement.Node)
 			}
-
-			_, bsNode, err := consulutil.GetStringValue(path.Join(path.Join(requirement, "node")))
-			if err != nil {
-				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
-			}
-
-			bsName = append(bsName, bsNode)
 		}
 
 		for _, name := range bsName {
@@ -506,28 +629,17 @@ func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulut
 This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
 func checkBlockStorage(ctx context.Context, deploymentID, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	requirements, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
 
 	var bsName []string
-
-	for _, requirement := range requirementsKey {
-		exist, _, err := consulutil.GetStringValue(path.Join(requirement, "capability"))
-		if err != nil {
-			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		} else if !exist {
-			continue
+	for _, requirement := range requirements {
+		if requirement.Capability != "" {
+			bsName = append(bsName, requirement.Node)
 		}
 
-		_, bsNode, err := consulutil.GetStringValue(path.Join(requirement, "node"))
-		if err != nil {
-			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
-		}
-
-		bsName = append(bsName, bsNode)
 	}
 
 	return true, bsName, nil

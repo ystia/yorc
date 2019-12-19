@@ -21,6 +21,7 @@ import (
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/prov/terraform"
+	"strings"
 	"time"
 )
 
@@ -31,7 +32,7 @@ type defaultExecutor struct {
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Debugf("google defaultExecutor: Execute the operation:%+v", operation)
 	var delegateOp string
-	switch operation.Name {
+	switch strings.ToLower(operation.Name) {
 	case "standard.create":
 		delegateOp = "install"
 	case "standard.delete":

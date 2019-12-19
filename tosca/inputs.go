@@ -22,8 +22,8 @@ import "github.com/ystia/yorc/v4/log"
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type Input struct {
-	ValueAssign *ValueAssignment
-	PropDef     *PropertyDefinition
+	ValueAssign *ValueAssignment    `json:"value_assignment,omitempty"`
+	PropDef     *PropertyDefinition `json:"property_definition,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an Input

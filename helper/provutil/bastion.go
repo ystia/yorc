@@ -48,19 +48,14 @@ func GetInstanceBastionHost(ctx context.Context, deploymentID, nodeName string) 
 		}
 	}
 
-	deps, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "dependency")
+	reqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "dependency")
 	if err != nil {
 		return nil, err
 	}
-	for _, depPrefix := range deps {
-		depIdx := deployments.GetRequirementIndexFromRequirementKey(ctx, depPrefix)
-		rel, err := deployments.GetRelationshipForRequirement(ctx, deploymentID, nodeName, depIdx)
-		if err != nil {
-			return nil, err
-		}
+	for _, req := range reqs {
 
-		if rel == "yorc.relationships.DeploysThrough" {
-			return getInstanceBastionHostFromRelationship(ctx, deploymentID, nodeName, depIdx)
+		if req.Relationship == "yorc.relationships.DeploysThrough" && req.Node != "" {
+			return getInstanceBastionHostFromRelationship(ctx, deploymentID, req.Node)
 		}
 	}
 
@@ -91,12 +86,8 @@ func getInstanceBastionHostFromEndpoint(ctx context.Context, deploymentID, nodeN
 	return b, nil
 }
 
-func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, nodeName, reqIdx string) (*sshutil.BastionHostConfig, error) {
-	bastNode, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, reqIdx)
-	if err != nil {
-		return nil, err
-	}
-	bastHostNode, err := deployments.GetHostedOnNode(ctx, deploymentID, bastNode)
+func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, bastionNodeName string) (*sshutil.BastionHostConfig, error) {
+	bastHostNode, err := deployments.GetHostedOnNode(ctx, deploymentID, bastionNodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +95,11 @@ func getInstanceBastionHostFromRelationship(ctx context.Context, deploymentID, n
 	if err != nil {
 		return nil, err
 	}
-	port, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastNode, bastionCapabilityName, "port")
+	port, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, bastionNodeName, bastionCapabilityName, "port")
 	if err != nil {
 		return nil, err
 	}
-	creds, err := getBastionHostInstanceCredentials(ctx, deploymentID, bastNode, bastHostNode)
+	creds, err := getBastionHostInstanceCredentials(ctx, deploymentID, bastionNodeName, bastHostNode)
 	if err != nil {
 		return nil, err
 	}

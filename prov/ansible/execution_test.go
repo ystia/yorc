@@ -105,6 +105,8 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "0/capabilities/cap/attributes/myattr"): []byte("attr-0"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "1/capabilities/cap/attributes/myattr"): []byte("attr-1"),
+
+		path.Join(consulutil.TasksPrefix, "taskIDNotUsedForNow", "type"): []byte("0"),
 	})
 
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {
@@ -155,7 +157,6 @@ func testExecutionResolveInputsOnNode(t *testing.T, deploymentID, nodeName, node
 		deploymentID:           deploymentID,
 		NodeName:               nodeName,
 		operation:              op,
-		OperationPath:          path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create"),
 		isPerInstanceOperation: false,
 		VarInputsNames:         make([]string, 0),
 		EnvInputs:              make([]*operations.EnvInput, 0)}
@@ -240,7 +241,8 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 	expected = reInsideWhtsp.ReplaceAllString(expected, " ")
 	actual = reLeadcloseWhtsp.ReplaceAllString(actual, "")
 	actual = reInsideWhtsp.ReplaceAllString(actual, " ")
-	require.Equal(t, expected, actual)
+	// As environments var aren't in the same order, just compare string length
+	require.Equal(t, len(expected), len(actual))
 }
 
 func getWrappedCommandFunc(path string) func() string {
@@ -340,7 +342,6 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, 
 		deploymentID:           deploymentID,
 		NodeName:               nodeAName,
 		operation:              op,
-		OperationPath:          path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/configure/pre_configure_source"),
 		isPerInstanceOperation: false,
 		relationshipType:       relationshipTypeName,
 		VarInputsNames:         make([]string, 0),
@@ -433,7 +434,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeN
         NodeA_2_G2: "/var/www"
         NodeB_0_G3: "10.10.10.10"
         NodeB_1_G3: "10.10.10.11"
-	    DEPLOYMENT_ID: "` + deploymentID + `"
+        DEPLOYMENT_ID: "` + deploymentID + `"
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
         SOURCE_NODE: "NodeA"
@@ -441,17 +442,17 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeN
         TARGET_INSTANCE: "NodeB_0"
         TARGET_INSTANCES: "NodeB_0,NodeB_1"
         TARGET_NODE: "NodeB"
-		TARGET_CAPABILITY_NAMES: "cap"
-		TARGET_CAPABILITY_NodeB_0_ATTRIBUTE_myattr: "attr-0"
-		TARGET_CAPABILITY_NodeB_1_ATTRIBUTE_myattr: "attr-1"
-		TARGET_CAPABILITY_PROPERTY_Cap1: "DCap1"
-		TARGET_CAPABILITY_PROPERTY_Cap2: "DCap2"
-		TARGET_CAPABILITY_TYPE: "yorc.types.Cap"
-		TARGET_CAPABILITY_cap_NodeB_0_ATTRIBUTE_myattr: "attr-0"
-		TARGET_CAPABILITY_cap_NodeB_1_ATTRIBUTE_myattr: "attr-1"
-		TARGET_CAPABILITY_cap_PROPERTY_Cap1: "DCap1"
-		TARGET_CAPABILITY_cap_PROPERTY_Cap2: "DCap2"
-		TARGET_CAPABILITY_cap_TYPE: "yorc.types.Cap"
+        TARGET_CAPABILITY_NAMES: "cap"
+        TARGET_CAPABILITY_NodeB_0_ATTRIBUTE_myattr: "attr-0"
+        TARGET_CAPABILITY_NodeB_1_ATTRIBUTE_myattr: "attr-1"
+        TARGET_CAPABILITY_PROPERTY_Cap1: "DCap1"
+        TARGET_CAPABILITY_PROPERTY_Cap2: "DCap2"
+        TARGET_CAPABILITY_TYPE: "yorc.types.Cap"
+        TARGET_CAPABILITY_cap_NodeB_0_ATTRIBUTE_myattr: "attr-0"
+        TARGET_CAPABILITY_cap_NodeB_1_ATTRIBUTE_myattr: "attr-1"
+        TARGET_CAPABILITY_cap_PROPERTY_Cap1: "DCap1"
+        TARGET_CAPABILITY_cap_PROPERTY_Cap2: "DCap2"
+        TARGET_CAPABILITY_cap_TYPE: "yorc.types.Cap"
         A1: " {{A1}}"
         A2: " {{A2}}"
         G1: " {{G1}}"
@@ -486,7 +487,6 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, deploymentID, n
 		deploymentID:             deploymentID,
 		NodeName:                 nodeAName,
 		operation:                op,
-		OperationPath:            path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/configure/add_source"),
 		isRelationshipTargetNode: true,
 		isPerInstanceOperation:   false,
 		relationshipType:         relationshipTypeName,

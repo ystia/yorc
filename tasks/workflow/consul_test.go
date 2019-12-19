@@ -43,6 +43,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testDeleteTaskExecutionSamePrefix", func(t *testing.T) {
 			testDeleteTaskExecutionSamePrefix(t, client)
 		})
+		t.Run("testDispatcherRun", func(t *testing.T) {
+			testDispatcherRun(t, srv, client)
+		})
 	})
 }
 
@@ -58,6 +61,9 @@ func TestRunConsulWorkerTests(t *testing.T) {
 	})
 	t.Run("TestRunPurge", func(t *testing.T) {
 		testRunPurge(t, srv, client)
+	})
+	t.Run("TestRunPurgeFails", func(t *testing.T) {
+		testRunPurgeFails(t, srv, client)
 	})
 }
 

@@ -47,6 +47,10 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !checkBlockingOperationOnDeployment(ctx, deploymentID, w, r) {
+		return
+	}
+
 	deploymentStatus, err := deployments.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
 		log.Panicf("%v", err)
@@ -173,10 +177,9 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, errNotFound)
 		return
 	}
-	wfSteps, err := deployments.ReadWorkflow(ctx, deploymentID, workflowName)
+	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		log.Panic(err)
 	}
-	wf := Workflow{Name: workflowName, Workflow: wfSteps}
-	encodeJSONResponse(w, r, wf)
+	encodeJSONResponse(w, r, Workflow{Name: workflowName, Workflow: *wf})
 }

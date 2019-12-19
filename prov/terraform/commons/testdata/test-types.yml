@@ -1,0 +1,27 @@
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
+
+metadata:
+  template_name: test-types
+  template_author: yorc
+  template_version: 1.0.0
+
+imports:
+  - normative: <normative-types.yml>
+  - yorc: <yorc-types.yml>
+
+node_types:
+  yorc.test.nodes.SSHBastionHost:
+    derived_from: tosca.nodes.SoftwareComponent
+    capabilities:
+      bastion:
+        type: yorc.capabilities.SSHBastionHost
+        properties:
+          port: { get_property: [HOST, endpoint, port] }
+          network_name: { get_property: [HOST, endpoint, network_name] }
+          port_name: { get_property: [HOST, endpoint, port_name] }
+    interfaces:
+      Standard:
+        configure:
+          implementation:
+            file: ansible/bastion.yml
+            type: tosca.artifacts.Implementation.Ansible

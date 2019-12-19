@@ -624,8 +624,26 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 
 func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	// Set status to PURGE_IN_PROGRESS
-	deployments.SetDeploymentStatus(ctx, t.targetID, deployments.PURGE_IN_PROGRESS)
+	err := deployments.SetDeploymentStatus(ctx, t.targetID, deployments.PURGE_IN_PROGRESS)
+	if t.finalFunction == nil {
+		t.finalFunction = func() error {
+			if err != nil {
+				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED)
+				return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
+			}
+			return nil
+		}
+	}
+	if err != nil {
+		return err
+	}
 
+	if w.consulClient == nil {
+		// This is mainly for testing this is not expected to be nil in normal conditions
+		err = errors.Errorf("expecting a non-nil consul client to run a purge")
+		// note that it is expected to be on 2 different lines to let final function detect it
+		return err
+	}
 	kv := w.consulClient.KV()
 	// Remove from KV all tasks from the current target deployment, except this purge task
 	tasksList, err := tasks.GetTasksIdsForTarget(t.targetID)
@@ -771,6 +789,11 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	if err != nil {
 		return errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
+	if wfSteps == nil || len(wfSteps) == 0 {
+		// Nothing to do
+		return nil
+	}
+
 	bs, ok := wfSteps[t.step]
 	if !ok {
 		return errors.Errorf("Failed to build step: %q for workflow: %q, unknown step", t.step, workflowName)

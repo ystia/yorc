@@ -16,6 +16,8 @@ package consulutil
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"os"
 	"strings"
 	"sync"
@@ -137,6 +139,15 @@ func StoreConsulKey(key string, value []byte) error {
 	return StoreConsulKeyWithFlags(key, value, 0)
 }
 
+// StoreConsulKeyWithJSONValue marshals a value into JSON before storing it
+func StoreConsulKeyWithJSONValue(key string, value interface{}) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return StoreConsulKeyWithFlags(key, data, 0)
+}
+
 // GetValue retrieves the value for the specified key in bytes array
 // If the key doesn't exist, it returns false
 func GetValue(key string) (bool, []byte, error) {
@@ -164,10 +175,16 @@ func GetStringValue(key string) (bool, string, error) {
 // GetKeys returns the sub-keys list from a specified key
 func GetKeys(key string) ([]string, error) {
 	subKeys, _, err := GetKV().Keys(key+"/", "/", nil)
-	if err != nil {
+	if err != nil || subKeys == nil {
 		return nil, errors.Wrap(err, ConsulGenericErrMsg)
 	}
-	return subKeys, nil
+	cleaned := make([]string, 0)
+	// Remove trailing slash
+	for _, k := range subKeys {
+		cleaned = append(cleaned, strings.TrimSuffix(k, "/"))
+	}
+	// Remove duplicates
+	return collections.RemoveDuplicates(cleaned), nil
 }
 
 // List returns the key-value map of all sub-keys from a specified key

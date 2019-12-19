@@ -18,11 +18,11 @@ package tosca
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_PROPERTY_DEFN for more details
 type PropertyDefinition struct {
-	Type        string           `yaml:"type"`
-	Description string           `yaml:"description,omitempty"`
-	Required    *bool            `yaml:"required,omitempty"`
-	Default     *ValueAssignment `yaml:"default,omitempty"`
-	Status      string           `yaml:"status,omitempty"`
+	Type        string           `yaml:"type" json:"type"`
+	Description string           `yaml:"description,omitempty" json:"description,omitempty"`
+	Required    *bool            `yaml:"required,omitempty" json:"required,omitempty"`
+	Default     *ValueAssignment `yaml:"default,omitempty" json:"default,omitempty"`
+	Status      string           `yaml:"status,omitempty" json:"status,omitempty"`
 	//Constraints []ConstraintClause `yaml:"constraints,omitempty"`
-	EntrySchema EntrySchema `yaml:"entry_schema,omitempty"`
+	EntrySchema EntrySchema `yaml:"entry_schema,omitempty" json:"entry_schema,omitempty"`
 }
