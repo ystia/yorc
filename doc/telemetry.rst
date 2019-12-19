@@ -219,6 +219,9 @@ Yorc SSH connection pool
 | ``yorc.ssh-connections-pool.closes``              | This measures the number of closed connections.                      | number of close      | counter     |
 +---------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
 
+
+Measures about the utilisation of sessions related to ssh connections. 
+
 +---------------------------------------------------+----------------+----------------------------------------------------------------------+----------------------+-------------+
 |                            Metric Name            |    Labels      |                             Description                              |         Unit         | Metric Type |
 |                                                   |                |                                                                      |                      |             |
