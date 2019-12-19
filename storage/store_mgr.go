@@ -16,24 +16,40 @@ package storage
 
 import (
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/internal/consul"
+	"github.com/ystia/yorc/v4/storage/internal/file"
 	"github.com/ystia/yorc/v4/storage/types"
+	"path"
 	"path/filepath"
 	"plugin"
 )
 
 var stores map[types.StoreType]Store
 
-var defaultStore Store
+var defaultStores map[types.StoreType]Store
 
-func init() {
-	defaultStore = consul.NewStore()
+func loadDefaultStores(cfg config.Configuration) {
+	defaultStores = make(map[types.StoreType]Store, 0)
+	for _, typ := range types.StoreTypeNames() {
+		st, _ := types.ParseStoreType(typ)
+		switch st {
+		case types.StoreTypeDeployment:
+			rootDirectory := path.Join(cfg.WorkingDirectory, "store")
+			defaultStores[st] = file.NewStore(rootDirectory)
+		default:
+			defaultStores[st] = consul.NewStore()
+		}
+	}
 }
 
 // LoadStores fetch all store implementations found in plugins (ie for deployments, logs and events storage
 // If no external store is found, default store is used
-func LoadStores() error {
+func LoadStores(cfg config.Configuration) error {
+	// Load default stores
+	loadDefaultStores(cfg)
+
 	stores = make(map[types.StoreType]Store, 0)
 	storePlugins, err := filepath.Glob("plugins/store_*.so")
 	if err != nil {
@@ -69,7 +85,7 @@ func LoadStores() error {
 		st, _ := types.ParseStoreType(typ)
 		if _, ok := stores[st]; !ok {
 			log.Printf("Using default store for type: %q.", typ)
-			stores[st] = defaultStore
+			stores[st] = defaultStores[st]
 		}
 	}
 

@@ -66,7 +66,7 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 // DeleteWorkflow deletes the given workflow from the Consul store
 func DeleteWorkflow(ctx context.Context, deploymentID, workflowName string) error {
 	return storage.GetStore(types.StoreTypeDeployment).Delete(ctx, path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-		workflowsPrefix, workflowName), true)
+		workflowsPrefix, workflowName), false)
 }
 
 func enhanceWorkflows(ctx context.Context, deploymentID string) error {

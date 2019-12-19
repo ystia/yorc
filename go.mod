@@ -14,6 +14,7 @@ require (
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cheggaaa/pb/v3 v3.0.3
+	github.com/dgraph-io/ristretto v0.0.1
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v0.0.0-20170504205632-89658bed64c2
 	github.com/docker/go-connections v0.4.0 // indirect

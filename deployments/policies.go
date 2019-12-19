@@ -50,7 +50,7 @@ func getPolicy(ctx context.Context, deploymentID, policyName string) (*tosca.Pol
 // GetPoliciesForType retrieves all policies with or derived from policyTypeName
 func GetPoliciesForType(ctx context.Context, deploymentID, policyTypeName string) ([]string, error) {
 	p := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "policies")
-	keys, err := consulutil.GetKeys(p)
+	keys, err := storage.GetStore(types.StoreTypeDeployment).Keys(p)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

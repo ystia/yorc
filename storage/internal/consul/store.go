@@ -97,5 +97,8 @@ func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) erro
 }
 
 func (c *consulStore) Types() []types.StoreType {
-	return nil
+	t := make([]types.StoreType, 0)
+	t = append(t, types.StoreTypeEvent)
+	t = append(t, types.StoreTypeLog)
+	return t
 }

@@ -16,6 +16,7 @@ package testutil
 
 import (
 	"github.com/ystia/yorc/v4/storage"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -63,11 +64,15 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
+	tempDir, err := ioutil.TempDir("/tmp", "work")
+	assert.Nil(t, err)
+
 	cfg := config.Configuration{
 		Consul: config.Consul{
 			Address:        srv1.HTTPAddr,
 			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 		},
+		WorkingDirectory: tempDir,
 	}
 
 	client, err := cfg.GetNewConsulClient()
@@ -78,7 +83,7 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores()
+	err = storage.LoadStores(cfg)
 	assert.Nil(t, err)
 
 	if storeCommons {
