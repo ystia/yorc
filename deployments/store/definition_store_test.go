@@ -40,7 +40,6 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("StoreTests", func(t *testing.T) {
-		t.Skip()
 		t.Run("TestTypesPath", func(t *testing.T) {
 			testTypesPath(t)
 		})
@@ -83,25 +82,22 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores(cfg)
+	err = storage.LoadStores()
 	assert.Nil(t, err)
 	return srv1, client
 }
 
 func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
-	_, errGrp, consulStore := consulutil.WithContext(ctx)
-
 	// Store someValue (here "1") with key "_yorc/commons_types/some_type/some_version/some_name"
 	// Where "some_type/some_value" is one of the existingPath slice element provided in the tests structure,
-	// for example "toto/1.0.0",
-	// and "some_name" (here ".exist") represents some element (like a property) name of the some_type type
+	// for example "toto/1.0.0"
 	someValue := "1"
 	for _, p := range paths {
 		// Store value "1" with key _yorc/commons_types/toto/1.0.0/.exist
-		consulStore.StoreConsulKeyAsString(path.Join(consulutil.CommonsTypesKVPrefix, p, ".exist"), someValue)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.CommonsTypesKVPrefix, p), someValue)
+		require.NoError(t, err)
 	}
-	//
-	require.NoError(t, errGrp.Wait())
+
 }
 
 // testTypePath aims to test getLatestCommonsTypesPath by storing some_value with a path constructed by joining :
