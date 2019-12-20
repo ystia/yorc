@@ -143,7 +143,7 @@ Yorc taskExecutions metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The **Deployment** label is set to the deployment ID of the monitored taskExecution.
 The **Step** label represents the name of the step that is execuded.
-The *Type** label corresponds to the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
+The **Type** label corresponds to the task type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``CustomCommand``, etc.)
 
 
 +---------------------------------------+-----------------------------+-------------------------------------------------+-----------------+-------------+
@@ -171,22 +171,22 @@ dashes.
 The **Name** label is set to the TOSCA operation name where dots were replaced by dashes.
 
 
-+----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
-|           Metric Name                  |         Labels        |                Description                     |      Unit           | Metric Type |
-|                                        |                       |                                                |                     |             |
-+========================================+=======================+================================================+=====================+=============+
-| ``yorc.executor.<ExecType>``           | Deployment            | This measures the duration of an execution.    | milliseconds        | timer       |
-|                                        | Node                  |                                                |                     |             |
-|                                        | Name                  |                                                |                     |             |
-+----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
-| ``yorc.executor.<ExecType>.failures``  | Deployment            | Counts the number of failed executions.        | number of failures  | counter     |
-|                                        | Node                  |                                                |                     |             |
-|                                        | Name                  |                                                |                     |             |
-+----------------------------------------+-----------------------+------------------------------------------------+--------------------+--------------+
-| ``yorc.executor.<ExecType>.successes`` | Deployment            | Counts the number of successful executions.    | number of successes | counter     |
-|                                        | Node                  |                                                |                     |             |
-|                                        | Name                  |                                                |                     |             |
-+----------------------------------------+-----------------------+------------------------------------------------+---------------------+-------------+
++---------------------------------------+-------------------+------------------------------------------------+---------------------+-------------+
+|           Metric Name                 |     Labels        |                Description                     |      Unit           | Metric Type |
+|                                       |                   |                                                |                     |             |
++=======================================+===================+================================================+=====================+=============+
+| ``yorc.executor.<ExecType>``          | Deployment        | This measures the duration of an execution.    | milliseconds        | timer       |
+|                                       | Node              |                                                |                     |             |
+|                                       | Name              |                                                |                     |             |
++---------------------------------------+-------------------+------------------------------------------------+---------------------+-------------+
+| ``yorc.executor.<ExecType>.failures`` | Deployment        | Counts the number of failed executions.        | number of failures  | counter     |
+|                                       | Node              |                                                |                     |             |
+|                                       | Name              |                                                |                     |             |
++---------------------------------------+-------------------+------------------------------------------------+---------------------+-------------+
+| ``yorc.executor.<ExecType>.successes``| Deployment        | Counts the number of successful executions.    | number of successes | counter     |
+|                                       | Node              |                                                |                     |             |
+|                                       | Name              |                                                |                     |             |
++---------------------------------------+-------------------+------------------------------------------------+---------------------+-------------+
 
 Yorc Actions scheduling metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
