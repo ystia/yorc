@@ -303,19 +303,12 @@ func (mgr *locationManager) lockLocations() (*api.Lock, <-chan struct{}, error) 
 		return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	retries := 0
-	maxRetries := 5
 	var lockCh <-chan struct{}
 	for lockCh == nil {
 		log.Debug("Try to acquire lock for locations in consul")
 		lockCh, err = lock.Lock(nil)
 		if err != nil {
-			log.Printf("[WARNING] failed to acquire consul lock for locations: retry:%d due to error:%v", retries, err)
-			retries++
-			if retries == maxRetries {
-				log.Printf("[WARNING] failed to acquire consul lock for locations: maximum retries have been reached", retries, err)
-				return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
+			return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 
 	}

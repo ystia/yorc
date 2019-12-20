@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 	"vbom.ml/util/sortorder"
 
 	ctu "github.com/hashicorp/consul/testutil"
@@ -1057,6 +1058,9 @@ func testDeleteWorkflow(t *testing.T) {
 
 	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
+
+	// wait for value to be deleted
+	time.Sleep(10 * time.Millisecond)
 
 	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")

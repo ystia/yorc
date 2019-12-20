@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // Foo is just some struct for common tests.
@@ -98,6 +99,8 @@ func CommonStoreTest(t *testing.T, store Store) {
 	if err != nil {
 		t.Error(err)
 	}
+	// wait for value to be deleted
+	time.Sleep(10 * time.Millisecond)
 	// Key-value pair shouldn't exist anymore
 	found, err = store.Get(key, new(Foo))
 	if err != nil {
@@ -146,6 +149,9 @@ func CommonStoreTest(t *testing.T, store Store) {
 	keys, err = store.Keys(keypath1)
 	require.NoError(t, err)
 	require.Nil(t, keys)
+
+	// wait for value to be deleted
+	time.Sleep(10 * time.Millisecond)
 
 	keys, err = store.Keys(keypath2)
 	require.NoError(t, err)
