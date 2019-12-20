@@ -57,7 +57,7 @@ func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *a
 
 // getTasksNbWaitAndMaxWaitTimeMs calculates the number of tasks that wait (are in INITIAL status),
 // and for the task that is waiting from the longest time, return its waiting time
-func getTasksNbWaitAndMaxWaitTimeMs() (float32, float64, error) {
+func (d *Dispatcher) getTasksNbWaitAndMaxWaitTimeMs() (float32, float64, error) {
 	now := time.Now()
 	var max float64
 	var nb float32
@@ -105,7 +105,7 @@ func (d *Dispatcher) emitWorkersMetrics() {
 }
 
 func (d *Dispatcher) emitTasksMetrics(lastWarn *time.Time) {
-	nbWaiting, maxWait, err := getTasksNbWaitAndMaxWaitTimeMs()
+	nbWaiting, maxWait, err := d.getTasksNbWaitAndMaxWaitTimeMs()
 	if err != nil {
 		now := time.Now()
 		if now.Sub(*lastWarn) > 5*time.Minute {

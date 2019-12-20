@@ -16,12 +16,15 @@ package workflow
 
 import (
 	"path"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -70,5 +73,19 @@ func TestRunConsulWorkerTests(t *testing.T) {
 func createTaskExecutionKVWithKey(t *testing.T, execID, keyName, keyValue string) {
 	t.Helper()
 	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, execID, keyName), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+}
+
+func createTaskKV(t *testing.T, taskID string) {
+	t.Helper()
+
+	var keyValue string
+	keyValue = strconv.Itoa(int(tasks.TaskStatusINITIAL))
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+
+	creationDate := time.Now()
+	keyValue = creationDate.Format(time.RFC3339Nano)
+	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "creationDate"), Value: []byte(keyValue)}, nil)
 	require.NoError(t, err)
 }
