@@ -99,9 +99,9 @@ Go Runtime metrics
 Yorc REST API metrics
 ~~~~~~~~~~~~~~~~~~~~~
 
-The **method** lablel represents the HTTP verb
-The **path** lablel corresponds to the request URL where slashes are replaced by dashes
-The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...)
+The **method** lablel represents the HTTP verb.
+The **path** lablel corresponds to the request URL where slashes are replaced by dashes.
+The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...).
 
 +------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
 |       Metric Name      |        Labels      |              Description                             |        Unit        | Metric Type |
@@ -136,7 +136,7 @@ Yorc Tasks metrics
 +----------------------------------+--------------------------------------------------------------+-----------------+-------------+
 | ``yorc.tasks.nbWaiting``         |  Tracks the number of tasks waiting for being processed      | number of tasks | gauge       |
 +----------------------------------+--------------------------------------------------------------+-----------------+-------------+
-| ``yorc.tasks.wait``              |  Measures the finally waited time for a task being processed | gauge           |             |
+| ``yorc.tasks.wait``              |  Measures the finally waited time for a task being processed | milliseconds    | timer       |
 +----------------------------------+--------------------------------------------------------------+-----------------+-------------+
 
 Yorc taskExecutions metrics
@@ -161,10 +161,11 @@ Yorc Executors metrics
 ~~~~~~~~~~~~~~~~~~~~~~
 
 There are two types of executors in Yorc: ``delegate`` executors and ``operation`` executors. 
-Delegate executors handle the deployment of Yorc natively supported TOSCA nodes (like an Openstack compute for instance).
+Delegate executors handle the deployment of Yorc natively supported TOSCA nodes (like an OpenStack compute for instance).
 Operation executors handle implementations of an lifecycle operation provided as part of the TOSCA node definition (like a shell script or an ansible playbook).
 
 In the below table <ExecType> is the executor type (``operation`` or ``delegate``).
+
 The **Deployment** label is set to the deployment ID, and the **Node** label is set to the fully qualified TOSCA node type where dots were replaced by
 dashes.
 The **Name** label is set to the TOSCA operation name where dots were replaced by dashes.
@@ -181,7 +182,7 @@ The **Name** label is set to the TOSCA operation name where dots were replaced b
 | ``yorc.executor.<ExecType>.failures``  | Deployment            | Counts the number of failed executions.        | number of failures  | counter     |
 |                                        | Node                  |                                                |                     |             |
 |                                        | Name                  |                                                |                     |             |
-+----------------------------------------+-----------------------+-------------------------------------------------+--------------------+-------------+
++----------------------------------------+-----------------------+------------------------------------------------+--------------------+--------------+
 | ``yorc.executor.<ExecType>.successes`` | Deployment            | Counts the number of successful executions.    | number of successes | counter     |
 |                                        | Node                  |                                                |                     |             |
 |                                        | Name                  |                                                |                     |             |
@@ -198,7 +199,7 @@ If an action schedule misses because another task is already executing it, the T
 +========================================+=======================+================================================+=====================+=============+
 | ``yorc.scheduling.ticks``              |  ActionType           | Counts the number of action schedulings.       | number of schedules | counter     |
 |                                        |  ActionID             |                                                |                     |             |
-+----------------------------------------+-----------------------+-------------------------------------------------+--------------------+-------------+
++----------------------------------------+-----------------------+------------------------------------------------+--------------------+--------------+
 | ``yorc.scheduling.misses``             | ActionType            | Counts the number of missed trigger due to     | number of missed    | counter     |
 |                                        | ActionID              | another execution already planned or running   | schedules           |             |
 |                                        | TaskID                |                                                |                     |             |
