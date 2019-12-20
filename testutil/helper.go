@@ -32,9 +32,11 @@ import (
 // NewTestConsulInstance allows to :
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
+//  - loads stores
 //  - stores common-types to Consul
 // Warning: You need to defer the server stop command in the caller
-func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
+// Warning: You need to defer the store temporary directory
+func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, string) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -48,7 +50,7 @@ func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 }
 
 // NewTestConsulInstanceWithConfigAndStore sets up a consul instance for testing
-func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client, string) {
 
 	return NewTestConsulInstanceWithConfig(t, cb, true)
 }
@@ -58,13 +60,13 @@ func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerCon
 //  - starts a Consul Publisher
 //  - stores common-types to Consul only if storeCommons bool parameter is true
 // Warning: You need to defer the server stop command in the caller
-func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, storeCommons bool) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, storeCommons bool) (*testutil.TestServer, *api.Client, string) {
 	srv1, err := testutil.NewTestServerConfig(cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
-	tempDir, err := ioutil.TempDir("/tmp", "work")
+	workingDir, err := ioutil.TempDir("/tmp", "work")
 	assert.Nil(t, err)
 
 	cfg := config.Configuration{
@@ -72,7 +74,7 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 			Address:        srv1.HTTPAddr,
 			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 		},
-		WorkingDirectory: tempDir,
+		WorkingDirectory: workingDir,
 	}
 
 	client, err := cfg.GetNewConsulClient()
@@ -90,7 +92,7 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 		storeCommonDefinitions()
 	}
 
-	return srv1, client
+	return srv1, client, workingDir
 }
 
 // BuildDeploymentID allows to create a deploymentID from the test name value

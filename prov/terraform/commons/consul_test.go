@@ -16,6 +16,7 @@ package commons
 
 import (
 	"context"
+	"os"
 	"path"
 	"testing"
 
@@ -35,8 +36,11 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 }
 
 func TestRunConsulTerraformCommonsPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	log.SetDebug(true)
 
 	t.Run("AddConnectionCheckResource", func(t *testing.T) {

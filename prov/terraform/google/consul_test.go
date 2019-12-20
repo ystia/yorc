@@ -15,6 +15,7 @@
 package google
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/config"
@@ -25,8 +26,11 @@ var testLocationProperties config.DynamicMap
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulGooglePackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	testLocationProperties = config.DynamicMap{
 		"credentials": "/tmp/creds.json",

@@ -21,6 +21,7 @@ import (
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
+	"os"
 	"path"
 	"strconv"
 	"sync"
@@ -304,8 +305,11 @@ func Test_execution_invalid_JSON(t *testing.T) {
 
 func Test_execution_scale_resources(t *testing.T) {
 	t.Skip()
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	deploymentID := "Dep-ID"
 	e := &execution{
 		deploymentID: deploymentID,
@@ -353,8 +357,11 @@ func Test_execution_scale_resources(t *testing.T) {
 func Test_execution_del_resources(t *testing.T) {
 	t.Skip()
 	ctx := context.Background()
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	deploymentID := "Dep-ID"
 
 	e := &execution{
@@ -424,8 +431,11 @@ func deployTestResources(ctx context.Context, e *execution, k8s *k8s, resources 
 
 func Test_execution_create_resource(t *testing.T) {
 	t.Skip()
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	deploymentID := "Dep-ID"
 	e := &execution{
 		deploymentID: deploymentID,
@@ -593,8 +603,11 @@ func Test_execution_executeInvalidOperation(t *testing.T) {
 // }
 
 func Test_execution_getExpectedInstances(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	deploymentID := "Dep-ID"
 
@@ -652,8 +665,11 @@ func Test_execution_getExpectedInstances(t *testing.T) {
 }
 
 func Test_execution_manageNamespaceDeletion(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	deploymentID := "Dep-ID"
 	ctx := context.Background()
 

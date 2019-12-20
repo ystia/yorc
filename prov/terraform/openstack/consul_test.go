@@ -15,6 +15,7 @@
 package openstack
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -26,8 +27,11 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulOpenstackPackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	cfg := config.Configuration{
 		Consul: config.Consul{

@@ -16,6 +16,7 @@ package server
 
 import (
 	"github.com/ystia/yorc/v4/config"
+	"os"
 	"testing"
 
 	"github.com/blang/semver"
@@ -29,8 +30,11 @@ import (
 )
 
 func TestConsulServerPackage(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	t.Run("groupSchema", func(t *testing.T) {
 		t.Run("testSetupVersion", func(t *testing.T) {

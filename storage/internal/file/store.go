@@ -16,7 +16,8 @@ package file
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/storage/store"
+	"github.com/ystia/yorc/v4/storage/utils"
 	"io/ioutil"
 	"os"
 	"path"
@@ -27,6 +28,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/types"
@@ -45,7 +47,7 @@ type fileStore struct {
 }
 
 // NewStore returns a new Consul store
-func NewStore(rootDir string) *fileStore {
+func NewStore(rootDir string) store.Store {
 	// Instantiate cache
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e7,     // number of keys to track frequency of (10M).
@@ -91,7 +93,7 @@ func (s *fileStore) buildFilePath(k string, withExtension bool) string {
 }
 
 func (s *fileStore) Set(ctx context.Context, k string, v interface{}) error {
-	if err := types.CheckKeyAndValue(k, v); err != nil {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return err
 	}
 
@@ -135,7 +137,7 @@ func (s *fileStore) SetCollection(ctx context.Context, keyValues []*types.KeyVal
 }
 
 func (s *fileStore) Get(k string, v interface{}) (bool, error) {
-	if err := types.CheckKeyAndValue(k, v); err != nil {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return false, err
 	}
 
@@ -207,7 +209,7 @@ func (s *fileStore) Keys(k string) ([]string, error) {
 }
 
 func (s *fileStore) Delete(ctx context.Context, k string, recursive bool) error {
-	if err := types.CheckKey(k); err != nil {
+	if err := utils.CheckKey(k); err != nil {
 		return err
 	}
 

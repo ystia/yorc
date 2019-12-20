@@ -16,6 +16,7 @@ package server
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -91,8 +92,11 @@ func Test_initVaultClient(t *testing.T) {
 }
 
 func TestServerWithConsul(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	t.Run("initConsulClient", func(t *testing.T) {
 		testInitConsulClient(t, srv, client)

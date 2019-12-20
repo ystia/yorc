@@ -16,13 +16,14 @@ package provutil
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/testutil"
+	"os"
 	"path"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/testutil"
 )
 
 func loadTestYaml(t *testing.T) string {
@@ -34,8 +35,11 @@ func loadTestYaml(t *testing.T) string {
 }
 
 func TestRunConsulProvutilPackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	log.SetDebug(true)
 
 	t.Run("BastionNotDefined", func(t *testing.T) {

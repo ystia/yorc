@@ -15,14 +15,18 @@
 package kubernetes
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 func TestConsulKubernetesPackage(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	t.Run("groupK8S", func(t *testing.T) {
 		t.Run("testExecutionCancelJob", func(t *testing.T) {

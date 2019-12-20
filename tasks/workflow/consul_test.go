@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"os"
 	"path"
 	"testing"
 
@@ -27,8 +28,11 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulWorkflowPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
 		t.Run("testRunStep", func(t *testing.T) {
@@ -51,8 +55,11 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 
 func TestRunConsulWorkerTests(t *testing.T) {
 	log.SetDebug(true)
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	populateKV(t, srv)
 

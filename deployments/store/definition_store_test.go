@@ -82,7 +82,7 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores()
+	err = storage.LoadStores(cfg)
 	assert.Nil(t, err)
 	return srv1, client
 }

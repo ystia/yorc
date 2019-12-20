@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -29,8 +30,11 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulHostsPoolPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	log.SetDebug(true)
 
 	// Populate hosts for this test location

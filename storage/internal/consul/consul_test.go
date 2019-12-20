@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/store"
 	"os"
 	"testing"
 )
@@ -30,10 +32,10 @@ func TestRunConsulStoragePackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupStorage", func(t *testing.T) {
-		t.Run("testTypes", func(t *testing.T) {
+		t.Run("testConsulTypes", func(t *testing.T) {
 			testTypes(t, srv)
 		})
-		t.Run("testStore", func(t *testing.T) {
+		t.Run("testConsulStore", func(t *testing.T) {
 			testStore(t, srv)
 		})
 	})
@@ -71,4 +73,14 @@ func newTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
 
 	return srv1, client
+}
+
+func testStore(t *testing.T, srv1 *testutil.TestServer) {
+	csStore := &consulStore{encoding.JSON}
+	store.CommonStoreTest(t, csStore)
+}
+
+func testTypes(t *testing.T, srv1 *testutil.TestServer) {
+	csStore := &consulStore{encoding.JSON}
+	store.CommonStoreTestAllTypes(t, csStore)
 }

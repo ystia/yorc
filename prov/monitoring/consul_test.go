@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 
@@ -34,7 +35,7 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulMonitoringPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
+	srv, client, workingDir := testutil.NewTestConsulInstance(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -66,6 +67,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	defer func() {
 		Stop()
 		srv.Stop()
+		os.RemoveAll(workingDir)
 	}()
 
 	policy1 := tosca.Policy{

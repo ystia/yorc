@@ -15,23 +15,26 @@
 package storage
 
 import (
+	"github.com/ystia/yorc/v4/storage/store"
+	"path"
+	"path/filepath"
+	"plugin"
+
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/internal/consul"
 	"github.com/ystia/yorc/v4/storage/internal/file"
 	"github.com/ystia/yorc/v4/storage/types"
-	"path"
-	"path/filepath"
-	"plugin"
 )
 
-var stores map[types.StoreType]Store
+var stores map[types.StoreType]store.Store
 
-var defaultStores map[types.StoreType]Store
+var defaultStores map[types.StoreType]store.Store
 
 func loadDefaultStores(cfg config.Configuration) {
-	defaultStores = make(map[types.StoreType]Store, 0)
+	defaultStores = make(map[types.StoreType]store.Store, 0)
 	for _, typ := range types.StoreTypeNames() {
 		st, _ := types.ParseStoreType(typ)
 		switch st {
@@ -50,7 +53,7 @@ func LoadStores(cfg config.Configuration) error {
 	// Load default stores
 	loadDefaultStores(cfg)
 
-	stores = make(map[types.StoreType]Store, 0)
+	stores = make(map[types.StoreType]store.Store, 0)
 	storePlugins, err := filepath.Glob("plugins/store_*.so")
 	if err != nil {
 		return err
@@ -67,7 +70,7 @@ func LoadStores(cfg config.Configuration) error {
 			return err
 		}
 
-		store, ok := symStore.(Store)
+		store, ok := symStore.(store.Store)
 		if !ok {
 			return errors.Errorf("A store type is expected from Go plugin Symbol from file:%q", f)
 		}
@@ -93,6 +96,6 @@ func LoadStores(cfg config.Configuration) error {
 }
 
 // GetStore returns the store related to a defined store type
-func GetStore(typ types.StoreType) Store {
+func GetStore(typ types.StoreType) store.Store {
 	return stores[typ]
 }

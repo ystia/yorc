@@ -16,6 +16,7 @@ package testutil
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -24,8 +25,11 @@ import (
 
 func TestAssets(t *testing.T) {
 
-	srv, _ := NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	t.Run("TestAssets", func(t *testing.T) {
 		t.Run("NormativeTypes", testAssetNormativeParsing)
 		t.Run("OpenstackTypes", testAssetYorcOpenStackParsing)

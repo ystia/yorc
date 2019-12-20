@@ -22,6 +22,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	stdlog "log"
+	"os"
 	"path"
 	"reflect"
 	"sort"
@@ -1176,8 +1177,11 @@ func BenchmarkDefinitionStore(b *testing.B) {
 		c.Stderr = ioutil.Discard
 	}
 
-	srv, _ := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 	deploymentID := testutil.BuildDeploymentID(b)
 	ctx := context.Background()
 	b.ResetTimer()

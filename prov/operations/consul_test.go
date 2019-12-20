@@ -15,6 +15,7 @@
 package operations
 
 import (
+	"os"
 	"testing"
 
 	consultests "github.com/hashicorp/consul/testutil"
@@ -29,8 +30,11 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	populateKV(t, srv)
 

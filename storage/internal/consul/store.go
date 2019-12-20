@@ -16,6 +16,9 @@ package consul
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage/store"
+	"github.com/ystia/yorc/v4/storage/utils"
+
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/types"
@@ -26,12 +29,12 @@ type consulStore struct {
 }
 
 // NewStore returns a new Consul store
-func NewStore() *consulStore {
+func NewStore() store.Store {
 	return &consulStore{encoding.JSON}
 }
 
 func (c *consulStore) Set(ctx context.Context, k string, v interface{}) error {
-	if err := types.CheckKeyAndValue(k, v); err != nil {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return err
 	}
 
@@ -49,7 +52,7 @@ func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyV
 	}
 	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
 	for _, kv := range keyValues {
-		if err := types.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
+		if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
 			return err
 		}
 
@@ -64,7 +67,7 @@ func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyV
 }
 
 func (c *consulStore) Get(k string, v interface{}) (bool, error) {
-	if err := types.CheckKeyAndValue(k, v); err != nil {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return false, err
 	}
 
@@ -77,7 +80,7 @@ func (c *consulStore) Get(k string, v interface{}) (bool, error) {
 }
 
 func (c *consulStore) Exist(k string) (bool, error) {
-	if err := types.CheckKey(k); err != nil {
+	if err := utils.CheckKey(k); err != nil {
 		return false, err
 	}
 
