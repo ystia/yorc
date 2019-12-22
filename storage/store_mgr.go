@@ -54,7 +54,16 @@ func LoadStores(cfg config.Configuration) error {
 	loadDefaultStores(cfg)
 
 	stores = make(map[types.StoreType]store.Store, 0)
-	storePlugins, err := filepath.Glob("plugins/store_*.so")
+	pluginsPath := cfg.PluginsDirectory
+	if pluginsPath == "" {
+		pluginsPath = config.DefaultPluginDir
+	}
+	pluginPath, err := filepath.Abs(pluginsPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to explore plugins directory")
+	}
+
+	storePlugins, err := filepath.Glob(filepath.Join(pluginPath, "store_*.so"))
 	if err != nil {
 		return err
 	}
