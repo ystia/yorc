@@ -78,7 +78,7 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores()
+	err = storage.LoadStores(cfg)
 	assert.Nil(t, err)
 
 	if storeCommons {
