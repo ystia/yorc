@@ -144,9 +144,8 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 		if ok {
 			log.Debugf("Value has been retrieved from cache for key:%q", k)
 			return true, s.codec.Unmarshal(data, v)
-		} else {
-			log.Printf("[WARNING] Failed to cast retrieved value from cache to bytes array for key:%q", k)
 		}
+		log.Printf("[WARNING] Failed to cast retrieved value from cache to bytes array for key:%q. Data will be retrieved from store.", k)
 	}
 
 	filePath := s.buildFilePath(k, true)

@@ -44,6 +44,7 @@ func handleGetError(t *testing.T, err error, found bool) {
 	}
 }
 
+// CommonStoreTest allows to test storage by storing, reading and deleting data
 // TestStore tests if reading from, writing to and deleting from the store works properly.
 // A struct is used as value. See TestTypes() for a test that is simpler but tests all types.
 func CommonStoreTest(t *testing.T, store Store) {
@@ -158,6 +159,7 @@ func CommonStoreTest(t *testing.T, store Store) {
 	require.Nil(t, keys)
 }
 
+// CommonStoreTestAllTypes allows to test storage of all types
 func CommonStoreTestAllTypes(t *testing.T, store Store) {
 	ctx := context.Background()
 	boolVar := true
