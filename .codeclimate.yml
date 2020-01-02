@@ -1,4 +1,6 @@
 version: "2"         # required to adjust maintainability checks
+exclude_patterns:
+  - "**/*_test.go"
 checks:
   argument-count:
     config:
