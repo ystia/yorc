@@ -1171,6 +1171,7 @@ func testNotifyAttributeOnValueChange(t *testing.T, deploymentID string) {
 }
 
 func BenchmarkDefinitionStore(b *testing.B) {
+	topoFilePath := "testdata/test_topology.yml"
 	log.SetDebug(false)
 	log.SetOutput(ioutil.Discard)
 	stdlog.SetOutput(ioutil.Discard)
@@ -1190,7 +1191,8 @@ func BenchmarkDefinitionStore(b *testing.B) {
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		StoreDeploymentDefinition(ctx, fmt.Sprintf("%s-%d", deploymentID, i), "testdata/import_many_types.yaml")
+		err := StoreDeploymentDefinition(ctx, fmt.Sprintf("%s-%d", deploymentID, i), topoFilePath)
+		require.NoError(b, err, "Error storing deployment definition from file:%s", topoFilePath)
 	}
 	b.StopTimer()
 
