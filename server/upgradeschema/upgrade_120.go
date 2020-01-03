@@ -35,10 +35,10 @@ import (
 // UpgradeTo120 allows to upgrade Consul schema from 1.1.1 to 1.2.0
 func UpgradeTo120(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Upgrading to database version 1.2.0")
-	return upgradeDeploymentsRefactoring(cfg)
+	return upgradeDeploymentsRefactoring(cfg, "1.2.0")
 }
 
-func upgradeDeploymentsRefactoring(cfg config.Configuration) error {
+func upgradeDeploymentsRefactoring(cfg config.Configuration, targetVersion string) error {
 	log.Print("Upgrade deployments store refactoring...")
 
 	ctx := context.Background()
@@ -47,14 +47,14 @@ func upgradeDeploymentsRefactoring(cfg config.Configuration) error {
 		return err
 	}
 
-	err = upgradeCommonsTypes(cfg)
+	err = upgradeCommonsTypes(cfg, targetVersion)
 	if err != nil {
 		return err
 	}
-	log.Debugf("Upgrade 1.2.0: Tosca resources commons types successfully upgraded")
+	log.Debugf("Upgrade %s: Tosca resources commons types successfully upgraded", targetVersion)
 	for _, deployment := range deps {
 		deploymentID := path.Base(deployment)
-		log.Debugf("Upgrade 1.2.0: Handling deployment with deploymentID:%qd", deploymentID)
+		log.Debugf("Upgrade %s: Handling deployment with deploymentID:%q", targetVersion, deploymentID)
 		// Remove all previous tree keys for all deployments
 		deploymentPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID)
 		topologyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology")
@@ -73,47 +73,47 @@ func upgradeDeploymentsRefactoring(cfg config.Configuration) error {
 		}
 
 		for _, tree := range trees {
-			log.Debugf("Upgrade 1.2.0:  Delete tree with path:%q", tree)
+			log.Debugf("Upgrade %s:  Delete tree with path:%q", targetVersion, tree)
 			err = consulutil.Delete(tree, true)
 			if err != nil {
 				return err
 			}
 		}
-		log.Debugf("Upgrade 1.2.0: removal of existing topology successfully done for deploymentID:%q", deploymentID)
+		log.Debugf("Upgrade %s: removal of existing topology successfully done for deploymentID:%q", targetVersion, deploymentID)
 		// Store topology from original file
-		err = storeTopologyInNewSchema(ctx, cfg, deploymentID)
+		err = storeTopologyInNewSchema(ctx, cfg, deploymentID, targetVersion)
 		if err != nil {
 			return err
 		}
-		log.Debugf("Upgrade 1.2.0: upgrade topology schema successfully done for deploymentID:%q", deploymentID)
+		log.Debugf("Upgrade %s: upgrade topology schema successfully done for deploymentID:%q", targetVersion, deploymentID)
 	}
 
 	return nil
 }
 
-func upgradeCommonsTypes(cfg config.Configuration) error {
+func upgradeCommonsTypes(cfg config.Configuration, targetVersion string) error {
 	if cfg.ServerID == "testUpgrade120_skip_common_types" {
 		return nil
 	}
-	log.Debugf("Upgrade 1.2.0: Delete and store Tosca resources in new schema")
+	log.Debugf("Upgrade %s: Delete and store Tosca resources in new schema", targetVersion)
 	err := consulutil.Delete(consulutil.CommonsTypesKVPrefix, true)
 	if err != nil {
 		return err
 	}
 	err = resources.StoreBuiltinTOSCAResources()
 	if err != nil {
-		return errors.Wrapf(err, "Upgrade 1.2.0: failed to upgrade builtin Tosca resources")
+		return errors.Wrapf(err, "Upgrade %s: failed to upgrade builtin Tosca resources", targetVersion)
 	}
 	return nil
 }
 
-func storeTopologyInNewSchema(ctx context.Context, cfg config.Configuration, deploymentID string) error {
+func storeTopologyInNewSchema(ctx context.Context, cfg config.Configuration, deploymentID, targetVersion string) error {
 	topologyFilePath, err := getTopologyFilePath(cfg.WorkingDirectory, deploymentID)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("Upgrade 1.2.0: Store topology in new schema for deployment:%q from file path:%q", deploymentID, topologyFilePath)
+	log.Debugf("Upgrade %s: Store topology in new schema for deployment:%q from file path:%q", targetVersion, deploymentID, topologyFilePath)
 	topology := tosca.Topology{}
 	definition, err := os.Open(topologyFilePath)
 	if err != nil {
@@ -130,7 +130,7 @@ func storeTopologyInNewSchema(ctx context.Context, cfg config.Configuration, dep
 
 	err = store.Deployment(context.Background(), topology, deploymentID, filepath.Dir(topologyFilePath))
 	if err != nil {
-		return errors.Wrapf(err, "Upgrade 1.2.0: failed to store deployment in new schema for deploymentID:%q", deploymentID)
+		return errors.Wrapf(err, "Upgrade %s: failed to store deployment in new schema for deploymentID:%q", targetVersion, deploymentID)
 	}
 
 	// Retrieve new stored nodes
@@ -141,7 +141,7 @@ func storeTopologyInNewSchema(ctx context.Context, cfg config.Configuration, dep
 
 	err = deployments.PostDeploymentDefinitionStorageProcess(ctx, deploymentID, nodes)
 	if err != nil {
-		return errors.Wrapf(err, "Upgrade 1.2.0: failed to execute Post process deployment storage in new schema 1.2.0 for deploymentID:%q", deploymentID)
+		return errors.Wrapf(err, "Upgrade %s: failed to execute Post process deployment storage in new schema for deploymentID:%q", targetVersion, deploymentID)
 	}
 	return nil
 }

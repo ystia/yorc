@@ -12,10 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package consulutil
+package upgradeschema
 
-// YorcSchemaVersion is the version of the data schema in Consul understood by this version of Yorc
-const YorcSchemaVersion = "1.3.0"
+import (
+	"github.com/hashicorp/consul/api"
 
-// YorcSchemaVersionPath is the path where  the data schema version is stored in Consul
-const YorcSchemaVersionPath = yorcPrefix + "/database_schema_version"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/log"
+)
+
+// UpgradeTo130 allows to upgrade Consul schema from 1.2.0 to 1.3.0
+func UpgradeTo130(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
+	log.Print("Upgrading to database version 1.3.0")
+	return upgradeDeploymentsRefactoring(cfg, "1.3.0")
+}
