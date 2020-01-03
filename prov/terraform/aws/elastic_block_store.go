@@ -16,15 +16,17 @@ package aws
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/sizeutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *awsGenerator) generateEBS(instanceName string, instanceID int) error {
+func (g *awsGenerator) generateEBS(instanceName string, instanceID int, outputs map[string]string) error {
 	err := verifyThatNodeIsTypeOf(g, "yorc.nodes.aws.EBSVolume")
 	if err != nil {
 		return err
@@ -33,8 +35,8 @@ func (g *awsGenerator) generateEBS(instanceName string, instanceID int) error {
 	ebs := &EBSVolume{}
 
 	// Get string params
-	var size string
-	g.getEBSProperties(ebs, &size)
+	var size, deviceName string
+	g.getEBSProperties(ebs, &size, &deviceName)
 
 	// Convert human readable size into GB
 	if size != "" {
@@ -56,19 +58,25 @@ func (g *awsGenerator) generateEBS(instanceName string, instanceID int) error {
 	name := strings.ToLower(g.nodeName + "-" + instanceName)
 	commons.AddResource(g.infrastructure, "aws_ebs_volume", name, ebs)
 
-	// Outputs
-	volumeID := g.nodeName + "-" + instanceName + "-id"           // ex : BlockStorage-0-volume
-	volumeIDValue := fmt.Sprintf("${aws_ebs_volume.%s.id}", name) // ex : {aws_ebs_volume.yorc-a3cdc5-blockstorage-0.id}
+	// Terraform Outputs
+	volumeID := g.nodeName + "-" + instanceName + "-id"           // ex : "BlockStorage-0-id"
+	volumeIDValue := fmt.Sprintf("${aws_ebs_volume.%s.id}", name) // ex : ${aws_ebs_volume.blockstorage-0.id}
 	volumeARN := g.nodeName + "-" + instanceName + "-arn"
 	volumeARNValue := fmt.Sprintf("${aws_ebs_volume.%s.arn}", name)
-
 	commons.AddOutput(g.infrastructure, volumeID, &commons.Output{Value: volumeIDValue})
 	commons.AddOutput(g.infrastructure, volumeARN, &commons.Output{Value: volumeARNValue})
+
+	// Yorc attributes
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, g.deploymentID, "topology", "instances")
+	instancesKey := path.Join(instancesPrefix, g.nodeName)
+	outputs[path.Join(instancesKey, instanceName, "/attributes/volume_id")] = volumeID
+	// outputs[path.Join(instancesKey, instanceName, "/attributes/device_name")] = deviceName
+	// TODO : outputs ARN ?
 
 	return nil
 }
 
-func (g *awsGenerator) getEBSProperties(ebs *EBSVolume, size *string) error {
+func (g *awsGenerator) getEBSProperties(ebs *EBSVolume, size *string, deviceName *string) error {
 	// Get string params
 	stringParams := []struct {
 		pAttr        *string
@@ -79,6 +87,7 @@ func (g *awsGenerator) getEBSProperties(ebs *EBSVolume, size *string) error {
 		{&ebs.SnapshotID, "snapshot_id", false},
 		{&ebs.KMSKeyID, "kms_key_id", false},
 		{size, "size", false},
+		{deviceName, "device", false},
 	}
 
 	for _, stringParam := range stringParams {

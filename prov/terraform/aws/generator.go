@@ -35,6 +35,8 @@ import (
 
 const infrastructureType = "aws"
 
+// You should provide fileds during creation
+// Or call GenerateTerraformInfraForNode first to save them
 type awsGenerator struct {
 	ctx            *context.Context
 	cfg            *config.Configuration
@@ -137,7 +139,7 @@ func (g *awsGenerator) generateInstances(instances *[]string, outputs map[string
 		case "yorc.nodes.aws.PublicNetwork":
 			// Nothing to do
 		case "yorc.nodes.aws.EBSVolume":
-			err = g.generateEBS(instanceName, instNb)
+			err = g.generateEBS(instanceName, instNb, outputs)
 			if err != nil {
 				return err
 			}

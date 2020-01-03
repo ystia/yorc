@@ -205,7 +205,62 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		return err
 	}
 
+	addAttachedDisks(ctx, cfg, deploymentID, nodeName, instanceName, instance.Tags.Name, infrastructure, outputs)
+
 	return nil
+}
+
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName, instanceTagName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
+	devices := make([]string, 0)
+
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, storagePrefix := range storageKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, storagePrefix)
+		volumeNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
+
+		volumeID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "volume_id")
+		if err != nil {
+			return nil, err
+		}
+
+		// deviceNameTosca, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device_name")
+		deviceName := "/dev/sdf"
+
+		// if err != nil {
+		// 	return nil, err
+		// }
+
+		attachedDisk := &VolumeAttachment{
+			DeviceName:  deviceName,
+			InstanceID:  fmt.Sprintf("${aws_instance.%s.id}", instanceTagName),
+			VolumeID:    volumeID,
+			SkipDestroy: false,
+		}
+
+		attachName := strings.ToLower(volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
+		attachName = strings.Replace(attachName, "_", "-", -1)
+
+		// Provide file outputs for device attributes which can't be resolved with Terraform
+		device := fmt.Sprintf("aws-%s", attachName)
+		commons.AddResource(infrastructure, "aws_volume_attachment", device, attachedDisk)
+		// outputDeviceVal := commons.FileOutputPrefix + device
+		// instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+		// outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = outputDeviceVal
+		// outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		// outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		// // Add device
+		devices = append(devices, device)
+	}
+	return devices, nil
 }
 
 func associateEIP(infrastructure *commons.Infrastructure, instance *ComputeInstance, providedEIP string) string {

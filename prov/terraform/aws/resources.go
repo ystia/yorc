@@ -60,3 +60,12 @@ type EBSVolume struct {
 	SnapshotID       string `json:"snapshot_id,omitempty"`
 	KMSKeyID         string `json:"kms_key_id,omitempty"`
 }
+
+// VolumeAttachment provide a way to attach an EBS volume to an EC2 instance
+// see : https://www.terraform.io/docs/providers/aws/r/volume_attachment.html
+type VolumeAttachment struct {
+	DeviceName  string `json:"device_name,omitempty"`
+	InstanceID  string `json:"instance_id,omitempty"`
+	VolumeID    string `json:"volume_id,omitempty"`
+	SkipDestroy bool   `json:"skip_destroy,omitempty"`
+}
