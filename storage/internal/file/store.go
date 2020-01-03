@@ -16,6 +16,9 @@ package file
 
 import (
 	"context"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage/encryption"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/utils"
 	"io/ioutil"
@@ -44,10 +47,15 @@ type fileStore struct {
 	directory         string
 	codec             encoding.Codec
 	cache             *ristretto.Cache
+	encryption        bool
+	encryptor         *encryption.Encryptor
 }
 
-// NewStore returns a new Consul store
-func NewStore(rootDir string) store.Store {
+// NewStore returns a new File store
+func NewStore(rootDir string, withEncryption bool) (store.Store, error) {
+	//TODO need to add an id for a store to allow saving encryption key ?
+	storeID := "myStoreID"
+
 	// Instantiate cache
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e7,     // number of keys to track frequency of (10M).
@@ -55,7 +63,27 @@ func NewStore(rootDir string) store.Store {
 		BufferItems: 64,      // number of keys per Get buffer.
 	})
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrapf(err, "failed to instantiate new cache for file store")
+	}
+
+	// Instantiate encryptor if necessary
+	var encryptor *encryption.Encryptor
+	if withEncryption {
+		exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, storeID, "key"))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get encryption key for store with ID:%q", storeID)
+		}
+		encryptor, err = encryption.NewEncryptor(key)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", storeID)
+		}
+		// save the encryption key if new
+		if !exist {
+			err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, storeID, "key"), encryptor.Key)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to save encryption key for store with ID:%q", storeID)
+			}
+		}
 	}
 
 	return &fileStore{
@@ -65,7 +93,8 @@ func NewStore(rootDir string) store.Store {
 		locksLock:         new(sync.Mutex),
 		fileLocks:         make(map[string]*sync.RWMutex),
 		cache:             cache,
-	}
+		encryptor:         encryptor,
+	}, nil
 }
 
 // prepareFileLock returns an existing file lock or creates a new one
@@ -114,6 +143,13 @@ func (s *fileStore) Set(ctx context.Context, k string, v interface{}) error {
 	// Copy to cache
 	s.cache.Set(k, data, 1)
 
+	// encrypt if necessary
+	if s.encryption {
+		data, err = s.encryptor.Encrypt(data)
+		if err != nil {
+			return err
+		}
+	}
 	return ioutil.WriteFile(filePath, data, 0600)
 }
 
@@ -163,6 +199,14 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 			return false, nil
 		}
 		return false, err
+	}
+
+	// decrypt if necessary
+	if s.encryption {
+		data, err = s.encryptor.Decrypt(data)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return true, s.codec.Unmarshal(data, v)

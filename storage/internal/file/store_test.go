@@ -27,8 +27,8 @@ func TestFileStore(t *testing.T) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore := NewStore(rootDir)
-
+	fileStore, err := NewStore(rootDir, false)
+	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
 
@@ -38,6 +38,7 @@ func TestFileStoreTypes(t *testing.T) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore := NewStore(rootDir)
+	fileStore, err := NewStore(rootDir, false)
+	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

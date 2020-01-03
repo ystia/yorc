@@ -33,25 +33,33 @@ var stores map[types.StoreType]store.Store
 
 var defaultStores map[types.StoreType]store.Store
 
-func loadDefaultStores(cfg config.Configuration) {
+func loadDefaultStores(cfg config.Configuration) error {
+	var err error
 	defaultStores = make(map[types.StoreType]store.Store, 0)
 	for _, typ := range types.StoreTypeNames() {
 		st, _ := types.ParseStoreType(typ)
 		switch st {
 		case types.StoreTypeDeployment:
 			rootDirectory := path.Join(cfg.WorkingDirectory, "store")
-			defaultStores[st] = file.NewStore(rootDirectory)
+			defaultStores[st], err = file.NewStore(rootDirectory, false)
+			if err != nil {
+				return err
+			}
 		default:
 			defaultStores[st] = consul.NewStore()
 		}
 	}
+	return nil
 }
 
 // LoadStores fetch all store implementations found in plugins (ie for deployments, logs and events storage
 // If no external store is found, default store is used
 func LoadStores(cfg config.Configuration) error {
 	// Load default stores
-	loadDefaultStores(cfg)
+	err := loadDefaultStores(cfg)
+	if err != nil {
+		return err
+	}
 
 	stores = make(map[types.StoreType]store.Store, 0)
 	pluginsPath := cfg.PluginsDirectory
