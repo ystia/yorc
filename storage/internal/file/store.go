@@ -16,8 +16,6 @@ package file
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage/store"
-	"github.com/ystia/yorc/v4/storage/utils"
 	"io/ioutil"
 	"os"
 	"path"
@@ -26,12 +24,15 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/ristretto"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/storage/utils"
 )
 
 type fileStore struct {
@@ -46,8 +47,8 @@ type fileStore struct {
 	cache             *ristretto.Cache
 }
 
-// NewStore returns a new Consul store
-func NewStore(rootDir string) store.Store {
+// NewStore returns a new File store
+func NewStore(rootDir string) (store.Store, error) {
 	// Instantiate cache
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e7,     // number of keys to track frequency of (10M).
@@ -55,7 +56,7 @@ func NewStore(rootDir string) store.Store {
 		BufferItems: 64,      // number of keys per Get buffer.
 	})
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrapf(err, "failed to instantiate new cache for file store")
 	}
 
 	return &fileStore{
@@ -65,7 +66,7 @@ func NewStore(rootDir string) store.Store {
 		locksLock:         new(sync.Mutex),
 		fileLocks:         make(map[string]*sync.RWMutex),
 		cache:             cache,
-	}
+	}, nil
 }
 
 // prepareFileLock returns an existing file lock or creates a new one
