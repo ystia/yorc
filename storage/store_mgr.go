@@ -41,7 +41,7 @@ func loadDefaultStores(cfg config.Configuration) error {
 		switch st {
 		case types.StoreTypeDeployment:
 			rootDirectory := path.Join(cfg.WorkingDirectory, "store")
-			defaultStores[st], err = file.NewStore(rootDirectory, false)
+			defaultStores[st], err = file.NewStore(rootDirectory, true, false)
 			if err != nil {
 				return err
 			}

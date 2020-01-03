@@ -81,7 +81,7 @@ func testFileStoreWithEncryption(t *testing.T, srv1 *testutil.TestServer) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, true)
+	fileStore, err := NewStore(rootDir, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
@@ -92,7 +92,7 @@ func testFileStoreTypesWithEncryption(t *testing.T, srv1 *testutil.TestServer) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, true)
+	fileStore, err := NewStore(rootDir, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encryption"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/utils"
@@ -32,7 +33,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ystia/yorc/v4/helper/collections"
-	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/types"
 )
@@ -46,24 +46,29 @@ type fileStore struct {
 	filenameExtension string
 	directory         string
 	codec             encoding.Codec
+	withCache         bool
 	cache             *ristretto.Cache
-	encryption        bool
+	withEncryption    bool
 	encryptor         *encryption.Encryptor
 }
 
 // NewStore returns a new File store
-func NewStore(rootDir string, withEncryption bool) (store.Store, error) {
-	//TODO need to add an id for a store to allow saving encryption key ?
+func NewStore(rootDir string, withCache, withEncryption bool) (store.Store, error) {
+	var err error
+	//TODO need to add an id for a store to allow saving withEncryption key ?
 	storeID := "myStoreID"
 
-	// Instantiate cache
-	cache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1e7,     // number of keys to track frequency of (10M).
-		MaxCost:     1 << 30, // maximum cost of cache (1GB).
-		BufferItems: 64,      // number of keys per Get buffer.
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate new cache for file store")
+	// Instantiate cache if necessary
+	var cache *ristretto.Cache
+	if withCache {
+		cache, err = ristretto.NewCache(&ristretto.Config{
+			NumCounters: 1e7,     // number of keys to track frequency of (10M).
+			MaxCost:     1 << 30, // maximum cost of cache (1GB).
+			BufferItems: 64,      // number of keys per Get buffer.
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to instantiate new cache for file store")
+		}
 	}
 
 	// Instantiate encryptor if necessary
@@ -71,17 +76,17 @@ func NewStore(rootDir string, withEncryption bool) (store.Store, error) {
 	if withEncryption {
 		exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, storeID, "key"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get encryption key for store with ID:%q", storeID)
+			return nil, errors.Wrapf(err, "failed to get withEncryption key for store with ID:%q", storeID)
 		}
 		encryptor, err = encryption.NewEncryptor(key)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", storeID)
 		}
-		// save the encryption key if new
+		// save the withEncryption key if new
 		if !exist {
-			err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, storeID, "key"), encryptor.Key)
+			err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, storeID, "key"), encryptor.Key)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to save encryption key for store with ID:%q", storeID)
+				return nil, errors.Wrapf(err, "failed to save withEncryption key for store with ID:%q", storeID)
 			}
 		}
 	}
@@ -92,7 +97,9 @@ func NewStore(rootDir string, withEncryption bool) (store.Store, error) {
 		directory:         rootDir,
 		locksLock:         new(sync.Mutex),
 		fileLocks:         make(map[string]*sync.RWMutex),
+		withCache:         withCache,
 		cache:             cache,
+		withEncryption:    withEncryption,
 		encryptor:         encryptor,
 	}, nil
 }
@@ -140,11 +147,13 @@ func (s *fileStore) Set(ctx context.Context, k string, v interface{}) error {
 		return err
 	}
 
-	// Copy to cache
-	s.cache.Set(k, data, 1)
+	// Copy to cache if necessary
+	if s.withCache {
+		s.cache.Set(k, data, 1)
+	}
 
 	// encrypt if necessary
-	if s.encryption {
+	if s.withEncryption {
 		data, err = s.encryptor.Encrypt(data)
 		if err != nil {
 			return err
@@ -174,14 +183,16 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 	}
 
 	// Check cache first
-	value, has := s.cache.Get(k)
-	if has {
-		data, ok := value.([]byte)
-		if ok {
-			log.Debugf("Value has been retrieved from cache for key:%q", k)
-			return true, s.codec.Unmarshal(data, v)
+	if s.withCache {
+		value, has := s.cache.Get(k)
+		if has {
+			data, ok := value.([]byte)
+			if ok {
+				log.Debugf("Value has been retrieved from cache for key:%q", k)
+				return true, s.codec.Unmarshal(data, v)
+			}
+			log.Printf("[WARNING] Failed to cast retrieved value from cache to bytes array for key:%q. Data will be retrieved from store.", k)
 		}
-		log.Printf("[WARNING] Failed to cast retrieved value from cache to bytes array for key:%q. Data will be retrieved from store.", k)
 	}
 
 	filePath := s.buildFilePath(k, true)
@@ -202,7 +213,7 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 	}
 
 	// decrypt if necessary
-	if s.encryption {
+	if s.withEncryption {
 		data, err = s.encryptor.Decrypt(data)
 		if err != nil {
 			return false, err
@@ -253,8 +264,10 @@ func (s *fileStore) Delete(ctx context.Context, k string, recursive bool) error 
 	}
 
 	// Handle cache
-	if err := s.clearCache(ctx, k, recursive); err != nil {
-		return err
+	if s.withCache {
+		if err := s.clearCache(ctx, k, recursive); err != nil {
+			return err
+		}
 	}
 
 	var err error

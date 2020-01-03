@@ -21,24 +21,24 @@ import (
 	"testing"
 )
 
-func TestFileStore(t *testing.T) {
+func TestFileStoreWithCache(t *testing.T) {
 	rootDir := "./.work_" + t.Name()
 	defer func() {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, false)
+	fileStore, err := NewStore(rootDir, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
 
-func TestFileStoreTypes(t *testing.T) {
+func TestFileStoreTypesWithCache(t *testing.T) {
 	rootDir := "./.work_" + t.Name()
 	defer func() {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, false)
+	fileStore, err := NewStore(rootDir, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }
