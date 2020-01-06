@@ -103,7 +103,7 @@ type Configuration struct {
 	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
-	Stores                           DynamicMap    `yaml:"stores,omitempty" mapstructure:"stores"`
+	Stores                           []Store       `yaml:"stores,omitempty" mapstructure:"stores"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -189,6 +189,14 @@ type Tasks struct {
 type Dispatcher struct {
 	LongPollWaitTime time.Duration `yaml:"long_poll_wait_time,omitempty" mapstructure:"long_poll_wait_time" json:"long_poll_wait_time,omitempty"`
 	LockWaitTime     time.Duration `yaml:"lock_wait_time,omitempty" mapstructure:"lock_wait_time" json:"lock_wait_time,omitempty"`
+}
+
+// Stores configuration
+type Store struct {
+	Name           string     `yaml:"name" mapstructure:"name"`
+	Implementation string     `yaml:"implementation,omitempty" mapstructure:"type"` // not an enum as it could be extended by plugins
+	Types          []string   `yaml:"types" mapstructure:"types"`
+	Properties     DynamicMap `yaml:"properties,omitempty" mapstructure:"properties"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.

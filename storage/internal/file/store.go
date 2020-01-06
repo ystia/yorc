@@ -53,10 +53,8 @@ type fileStore struct {
 }
 
 // NewStore returns a new File store
-func NewStore(rootDir string, withCache, withEncryption bool) (store.Store, error) {
+func NewStore(storeID, rootDir string, withCache, withEncryption bool) (store.Store, error) {
 	var err error
-	//TODO need to add an id for a store to allow saving withEncryption key ?
-	storeID := "myStoreID"
 
 	// Instantiate cache if necessary
 	var cache *ristretto.Cache
@@ -74,20 +72,9 @@ func NewStore(rootDir string, withCache, withEncryption bool) (store.Store, erro
 	// Instantiate encryptor if necessary
 	var encryptor *encryption.Encryptor
 	if withEncryption {
-		exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, storeID, "key"))
+		encryptor, err = buildEncryptor(storeID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get withEncryption key for store with ID:%q", storeID)
-		}
-		encryptor, err = encryption.NewEncryptor(key)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", storeID)
-		}
-		// save the withEncryption key if new
-		if !exist {
-			err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, storeID, "key"), encryptor.Key)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to save withEncryption key for store with ID:%q", storeID)
-			}
+			return nil, err
 		}
 	}
 
@@ -102,6 +89,25 @@ func NewStore(rootDir string, withCache, withEncryption bool) (store.Store, erro
 		withEncryption:    withEncryption,
 		encryptor:         encryptor,
 	}, nil
+}
+
+func buildEncryptor(storeID string) (*encryption.Encryptor, error) {
+	exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, storeID, "key"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get withEncryption key for store with ID:%q", storeID)
+	}
+	encryptor, err := encryption.NewEncryptor(key)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", storeID)
+	}
+	// save the withEncryption key if new
+	if !exist {
+		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, storeID, "key"), encryptor.Key)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to save withEncryption key for store with ID:%q", storeID)
+		}
+	}
+	return encryptor, nil
 }
 
 // prepareFileLock returns an existing file lock or creates a new one
@@ -293,12 +299,6 @@ func (s *fileStore) Delete(ctx context.Context, k string, recursive bool) error 
 		return nil
 	}
 	return err
-}
-
-func (s *fileStore) Types() []types.StoreType {
-	t := make([]types.StoreType, 0)
-	t = append(t, types.StoreTypeDeployment)
-	return t
 }
 
 func (s *fileStore) clearCache(ctx context.Context, k string, recursive bool) error {

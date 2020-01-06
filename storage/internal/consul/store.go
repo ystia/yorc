@@ -98,10 +98,3 @@ func (c *consulStore) Keys(k string) ([]string, error) {
 func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) error {
 	return consulutil.Delete(k, recursive)
 }
-
-func (c *consulStore) Types() []types.StoreType {
-	t := make([]types.StoreType, 0)
-	t = append(t, types.StoreTypeEvent)
-	t = append(t, types.StoreTypeLog)
-	return t
-}

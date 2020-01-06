@@ -58,7 +58,7 @@ func NewEncryptor(key string) (*Encryptor, error) {
 	}, nil
 }
 
-// Create 32-bits encryption key encoded in hexadecimal
+// Create 256-bits encryption key encoded in hexadecimal
 func buildEncryptionKey() (string, error) {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
@@ -68,6 +68,8 @@ func buildEncryptionKey() (string, error) {
 	return hex.EncodeToString(key), nil
 }
 
+// Encrypt allows to encrypt data with the encryptor GCM
+// encrypted data is prefixed with the nonce
 func (e *Encryptor) Encrypt(data []byte) ([]byte, error) {
 	nonce := make([]byte, e.gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -76,6 +78,8 @@ func (e *Encryptor) Encrypt(data []byte) ([]byte, error) {
 	return e.gcm.Seal(nonce, nonce, data, nil), nil
 }
 
+// Decrypt allows to decrypt previously encrypted data
+// We need to retrieve the nonce defined as the encrypted data prefix
 func (e *Encryptor) Decrypt(data []byte) ([]byte, error) {
 	nonceSize := e.gcm.NonceSize()
 	nonce, encrypted := data[:nonceSize], data[nonceSize:]

@@ -36,8 +36,11 @@ import (
 // TestRunDefinitionStoreTests aims to run a max of tests on store functions
 func TestRunDefinitionStoreTests(t *testing.T) {
 	// create consul server and consul client
-	srv, _ := newTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := newTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	t.Run("StoreTests", func(t *testing.T) {
 		t.Run("TestTypesPath", func(t *testing.T) {
@@ -49,7 +52,7 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 // newTestConsulInstance creates and configures Consul instance
 // for testing functions in the store package
 // Remarque: can't use util functions from testutil package in order to avoid import cycles
-func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
+func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client, string) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -63,7 +66,7 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
-	tempDir, err := ioutil.TempDir("/tmp", "work")
+	workingDir, err := ioutil.TempDir("/tmp", "work")
 	assert.Nil(t, err)
 
 	cfg := config.Configuration{
@@ -71,7 +74,7 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 			Address:        srv1.HTTPAddr,
 			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 		},
-		WorkingDirectory: tempDir,
+		WorkingDirectory: workingDir,
 	}
 
 	client, err := cfg.GetNewConsulClient()
@@ -84,7 +87,7 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	// Load main stores used for deployments, logs, events
 	err = storage.LoadStores(cfg)
 	assert.Nil(t, err)
-	return srv1, client
+	return srv1, client, workingDir
 }
 
 func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {

@@ -15,21 +15,22 @@
 package file
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/storage/store"
 	"os"
 	"testing"
+
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/storage/store"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunFileStoragePackageTests(t *testing.T) {
-	srv, _ := newTestConsulInstance(t)
-	defer srv.Stop()
+	srv, _, workingDir := store.NewTestConsulInstance(t)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(workingDir)
+	}()
 
 	t.Run("groupStorage", func(t *testing.T) {
 		t.Run("testConsulTypes", func(t *testing.T) {
@@ -41,47 +42,13 @@ func TestRunFileStoragePackageTests(t *testing.T) {
 	})
 }
 
-// This is a private Consul server instantiation as done in github.com/ystia/yorc/v4/testutil
-// This allows avoiding cyclic dependencies with deployments store package
-func newTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
-	logLevel := "debug"
-	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
-		logLevel = "warn"
-	}
-
-	cb := func(c *testutil.TestServerConfig) {
-		c.Args = []string{"-ui"}
-		c.LogLevel = logLevel
-	}
-
-	srv1, err := testutil.NewTestServerConfig(cb)
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv1.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
-
-	client, err := cfg.GetNewConsulClient()
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
-
-	return srv1, client
-}
-
 func testFileStoreWithEncryption(t *testing.T, srv1 *testutil.TestServer) {
 	rootDir := "./.work_" + t.Name()
 	defer func() {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, false, true)
+	fileStore, err := NewStore("testStoreID", rootDir, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
@@ -92,7 +59,7 @@ func testFileStoreTypesWithEncryption(t *testing.T, srv1 *testutil.TestServer) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, false, true)
+	fileStore, err := NewStore("testStoreID", rootDir, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

@@ -16,8 +16,15 @@ package store
 
 import (
 	"context"
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -42,6 +49,45 @@ func handleGetError(t *testing.T, err error, found bool) {
 	if !found {
 		t.Error("No value was found, but should have been")
 	}
+}
+
+// NewTestConsulInstance allows to provide new Consul instance for tests
+// This is a private Consul server instantiation as done in github.com/ystia/yorc/v4/testutil
+// This allows avoiding cyclic dependencies with deployments store package
+func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, string) {
+	logLevel := "debug"
+	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
+		logLevel = "warn"
+	}
+
+	cb := func(c *testutil.TestServerConfig) {
+		c.Args = []string{"-ui"}
+		c.LogLevel = logLevel
+	}
+
+	srv1, err := testutil.NewTestServerConfig(cb)
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
+
+	workingDir, err := ioutil.TempDir("/tmp", "work")
+	assert.Nil(t, err)
+
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			Address:        srv1.HTTPAddr,
+			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		},
+		WorkingDirectory: workingDir,
+	}
+
+	client, err := cfg.GetNewConsulClient()
+	assert.Nil(t, err)
+
+	kv := client.KV()
+	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
+
+	return srv1, client, workingDir
 }
 
 // CommonStoreTest allows to test storage by storing, reading and deleting data

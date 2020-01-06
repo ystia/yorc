@@ -56,6 +56,4 @@ type Store interface {
 	// The key must not be "".
 	// If recursive is true, all sub-keys are deleted too.
 	Delete(ctx context.Context, k string, recursive bool) error
-	// Types defines all the Store types concerned by this store.
-	Types() []types.StoreType
 }

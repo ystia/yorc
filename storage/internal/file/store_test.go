@@ -27,7 +27,7 @@ func TestFileStoreWithCache(t *testing.T) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, true, false)
+	fileStore, err := NewStore("testStoreID", rootDir, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
@@ -38,7 +38,7 @@ func TestFileStoreTypesWithCache(t *testing.T) {
 		err := os.RemoveAll(rootDir)
 		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
 	}()
-	fileStore, err := NewStore(rootDir, true, false)
+	fileStore, err := NewStore("testStoreID", rootDir, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

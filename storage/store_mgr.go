@@ -15,127 +15,133 @@
 package storage
 
 import (
-	"github.com/ystia/yorc/v4/storage/store"
 	"path"
-	"path/filepath"
-	"plugin"
-
-	"github.com/pkg/errors"
+	"time"
 
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/internal/consul"
 	"github.com/ystia/yorc/v4/storage/internal/file"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
 )
 
-const consulStore = "consul"
+const consulStoreImpl = "consul"
 
-const fileStoreWithCache = "fileWithCache"
+const fileStoreWithCacheImpl = "fileWithCache"
 
-const fileStoreWithCacheAndEncryption = "fileWithCacheAndEncryption"
+const fileStoreWithCacheAndEncryptionImpl = "fileWithCacheAndEncryption"
 
 var stores map[types.StoreType]store.Store
 
-func loadConfigStores(cfg config.Configuration) error {
-	// Define default config stores
-	if cfg.Stores == nil {
-		cfg.Stores = make(config.DynamicMap)
-		cfg.Stores[types.StoreTypeDeployment.String()] = fileStoreWithCache
-		cfg.Stores[types.StoreTypeLog.String()] = fileStoreWithCacheAndEncryption
-		cfg.Stores[types.StoreTypeEvent.String()] = consulStore
+// LoadStores reads stores configuration and load store implementations
+// The store config needs to provide store for all defined types. ie. deployments, logs and events.
+// An example in json:
+// "stores": [
+// {
+//	 "name": "myFileStore",
+//	 "implementation": "fileWithCache",
+//	 "types":  ["Deployment"]
+// },
+// {
+//	 "name": "myCipherFileStore",
+//	 "implementation": "fileWithCache",
+//	 "types":  ["Log", "Event"]
+//  }]
+//
+func LoadStores(cfg config.Configuration) error {
+	stores = make(map[types.StoreType]store.Store, 0)
+	time.Sleep(10 * time.Second)
+	// Check provided config stores
+	ok := checkConfigStores(cfg)
+
+	// Define default config stores if no correct config has been provided
+	if cfg.Stores == nil || !ok {
+		cfg.Stores = make([]config.Store, 0)
+
+		// File with cache store for deployments
+		fileStoreWithCache := config.Store{
+			Name:           "defaultFileStoreWithCache",
+			Implementation: fileStoreWithCacheImpl,
+			Types:          []string{types.StoreTypeDeployment.String()},
+		}
+		cfg.Stores = append(cfg.Stores, fileStoreWithCache)
+
+		// File with cache and encryption store for logs
+		cipherFileStoreWithCache := config.Store{
+			Name:           "defaultFileStoreWithCacheAndEncryption",
+			Implementation: fileStoreWithCacheAndEncryptionImpl,
+			Types:          []string{types.StoreTypeLog.String()},
+		}
+		cfg.Stores = append(cfg.Stores, cipherFileStoreWithCache)
+
+		// File with cache and encryption store for events
+		consulStore := config.Store{
+			Name:           "defaultConsul",
+			Implementation: consulStoreImpl,
+			Types:          []string{types.StoreTypeEvent.String()},
+		}
+		cfg.Stores = append(cfg.Stores, consulStore)
 	}
 
-	defaultStores := make(map[types.StoreType]store.Store, 0)
-	for _, storeTypeName := range types.StoreTypeNames() {
-		st, _ := types.ParseStoreType(storeTypeName)
-		if _, ok := stores[st]; !ok {
-			log.Printf("Using default store %q for type: %q.", cfg.Stores[storeTypeName], storeTypeName)
-			if _, defaultOk := defaultStores[st]; !defaultOk {
-				storeImpl, cast := cfg.Stores[storeTypeName].(string)
-				if !cast {
-					return errors.Errorf("failed to cast to string store implementation from stores config with store=%+v", cfg.Stores)
-				}
-
-				err := loadStoreImpl(cfg, storeImpl, st, defaultStores)
+	for _, configStore := range cfg.Stores {
+		for _, storeTypeName := range configStore.Types {
+			st, _ := types.ParseStoreType(storeTypeName)
+			if _, ok := stores[st]; !ok {
+				log.Printf("Using store with name:%q, implementation:%q for type: %q", configStore.Name, configStore.Implementation, storeTypeName)
+				err := createStoreImpl(cfg, configStore, st)
 				if err != nil {
 					return err
 				}
 			}
-			stores[st] = defaultStores[st]
 		}
 	}
 	return nil
 }
 
-func loadStoreImpl(cfg config.Configuration, storeImpl string, storeType types.StoreType, defaultStores map[types.StoreType]store.Store) error {
-	var err error
-	switch storeImpl {
-	case fileStoreWithCache:
-		rootDirectory := path.Join(cfg.WorkingDirectory, "store")
-		defaultStores[storeType], err = file.NewStore(rootDirectory, true, false)
-		if err != nil {
-			return err
-		}
-	case fileStoreWithCacheAndEncryption:
-		rootDirectory := path.Join(cfg.WorkingDirectory, "store")
-		defaultStores[storeType], err = file.NewStore(rootDirectory, true, true)
-		if err != nil {
-			return err
-		}
-	case consulStore:
-		defaultStores[storeType] = consul.NewStore()
-	default:
-		log.Printf("[WARNING] unknown store type:%q. This will be ignored.", storeType)
-	}
-	return nil
-}
-
-// LoadStores fetch all store implementations found in plugins (ie for deployments, logs and events storage
-// If no external store is found, default store is used
-func LoadStores(cfg config.Configuration) error {
-	stores = make(map[types.StoreType]store.Store, 0)
-	pluginsPath := cfg.PluginsDirectory
-	if pluginsPath == "" {
-		pluginsPath = config.DefaultPluginDir
-	}
-	pluginPath, err := filepath.Abs(pluginsPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to explore plugins directory")
-	}
-
-	storePlugins, err := filepath.Glob(filepath.Join(pluginPath, "store_*.so"))
-	if err != nil {
-		return err
-	}
-
-	for _, f := range storePlugins {
-		p, err := plugin.Open(f)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to load plugin from file:%q", f)
-		}
-
-		symStore, err := p.Lookup("Store")
-		if err != nil {
-			return err
-		}
-
-		store, ok := symStore.(store.Store)
-		if !ok {
-			return errors.Errorf("A store type is expected from Go plugin Symbol from file:%q", f)
-		}
-
-		log.Printf("Loaded store from plugin file:%q with store types: %v", f, store.Types())
-		for _, typ := range store.Types() {
-			if _, ok := stores[typ]; ok {
-				log.Printf("[WARNING] a store already exists for type: %q. This will be ignored.", typ)
+// Check if all stores types are provided by stores config
+// If any store type is missing, default config is used
+func checkConfigStores(cfg config.Configuration) bool {
+	checkStores := make([]string, 0)
+	for _, configStore := range cfg.Stores {
+		for _, storeTypeName := range configStore.Types {
+			if !collections.ContainsString(checkStores, storeTypeName) {
+				checkStores = append(checkStores, storeTypeName)
 			}
-			stores[typ] = store
 		}
 	}
 
-	// Load config stores if no plugin brings the store type
-	return loadConfigStores(cfg)
+	for _, storeTypeName := range types.StoreTypeNames() {
+		if !collections.ContainsString(checkStores, storeTypeName) {
+			log.Printf("[WARNING] failed to get any config store for type:%q. Default config stores will be used.", storeTypeName)
+			return false
+		}
+	}
+	return true
+}
+
+func createStoreImpl(cfg config.Configuration, configStore config.Store, storeType types.StoreType) error {
+	var err error
+	switch configStore.Implementation {
+	case fileStoreWithCacheImpl:
+		rootDirectory := path.Join(cfg.WorkingDirectory, "store")
+		stores[storeType], err = file.NewStore(configStore.Name, rootDirectory, true, false)
+		if err != nil {
+			return err
+		}
+	case fileStoreWithCacheAndEncryptionImpl:
+		rootDirectory := path.Join(cfg.WorkingDirectory, "store")
+		stores[storeType], err = file.NewStore(configStore.Name, rootDirectory, true, true)
+		if err != nil {
+			return err
+		}
+	case consulStoreImpl:
+		stores[storeType] = consul.NewStore()
+	default:
+		log.Printf("[WARNING] unknown store implementation:%q. This will be ignored.", storeType)
+	}
+	return nil
 }
 
 // GetStore returns the store related to a defined store type
