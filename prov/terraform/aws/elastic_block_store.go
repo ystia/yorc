@@ -66,12 +66,15 @@ func (g *awsGenerator) generateEBS(instanceName string, instanceID int, outputs 
 	commons.AddOutput(g.infrastructure, volumeID, &commons.Output{Value: volumeIDValue})
 	commons.AddOutput(g.infrastructure, volumeARN, &commons.Output{Value: volumeARNValue})
 
-	// Yorc attributes
 	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, g.deploymentID, "topology", "instances")
 	instancesKey := path.Join(instancesPrefix, g.nodeName)
 	outputs[path.Join(instancesKey, instanceName, "/attributes/volume_id")] = volumeID
-	// outputs[path.Join(instancesKey, instanceName, "/attributes/device_name")] = deviceName
-	// TODO : outputs ARN ?
+	outputs[path.Join(instancesKey, instanceName, "/attributes/arn")] = volumeARN
+
+	err = deployments.SetInstanceAttribute(*g.ctx, g.deploymentID, g.nodeName, instanceName, "/attributes/device", deviceName)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

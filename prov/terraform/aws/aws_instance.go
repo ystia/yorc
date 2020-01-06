@@ -232,12 +232,12 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 			return nil, err
 		}
 
-		// deviceNameTosca, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device_name")
-		deviceName := "/dev/sdf"
+		deviceNameTosca, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device")
+		deviceName := deviceNameTosca.RawString()
 
-		// if err != nil {
-		// 	return nil, err
-		// }
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't find the required disk name")
+		}
 
 		attachedDisk := &VolumeAttachment{
 			DeviceName:  deviceName,
