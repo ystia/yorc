@@ -99,8 +99,8 @@ Go Runtime metrics
 Yorc REST API metrics
 ~~~~~~~~~~~~~~~~~~~~~
 
-The **method** lablel represents the HTTP verb.
-The **path** lablel corresponds to the request URL where slashes are replaced by dashes.
+The **method** label represents the HTTP verb.
+The **path** label corresponds to the request URL where slashes are replaced by dashes.
 The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...).
 
 +------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
