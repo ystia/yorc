@@ -35,7 +35,7 @@ Below is sample output (lot of metrics omitted for brevity) of a telemetry dump:
     [2020-01-06 16:31:00 +0200 CEST][S] 'yorc.http.duration.GET.server/health': Count: 10 Min: 27.765 Mean: 21.274 Max: 32.193 Stddev: 1.527 Sum: 65.848 LastUpdated: 2020-01-06 16:31:06.2557253638 +0200 CEST
     [2020-01-06 16:31:10 +0200 CEST][S] 'yorc.tasks.maxBlockTimeMs': Count: 10 Sum: 0.000 LastUpdated: 2020-01-06 16:31:19.986227315 +0200 CEST
 
-Another exemple in which the telemetry service configuration property ``disable_hostname`` is set to **false** and the host name is ``yorc-server-0``:
+Another exemple in which the telemetry service configuration property ``disable_hostname`` is set to **false** and the host name is ``yorc-server-0``::
 
     [2020-01-06 16:31:00 +0200 CEST][G] 'yorc.yorc-server-0.runtime.alloc_bytes': 73723728.000
     [2020-01-06 16:31:00 +0200 CEST][G] 'yorc.yorc-server-0.workers.free': 2.000
