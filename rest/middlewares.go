@@ -85,11 +85,13 @@ func contentTypeHandler(cType string) func(http.Handler) http.Handler {
 
 type statusRecorderResponseWriter struct {
 	http.ResponseWriter
-	status int
+	status    int
+	statusSet bool
 }
 
 func (w *statusRecorderResponseWriter) WriteHeader(code int) {
 	w.status = code
+	w.statusSet = true
 	w.ResponseWriter.WriteHeader(code)
 }
 
@@ -109,7 +111,9 @@ func telemetryHandler(next http.Handler) http.Handler {
 		defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"http", "duration"}), time.Now(), labels)
 		writer := &statusRecorderResponseWriter{ResponseWriter: w}
 		next.ServeHTTP(writer, r)
-		labels = append(labels, metrics.Label{Name: "status", Value: fmt.Sprint(writer.status)})
+		if writer.statusSet {
+			labels = append(labels, metrics.Label{Name: "status", Value: fmt.Sprint(writer.status)})
+		}
 		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"http", "total"}), 1, labels)
 	}
 
