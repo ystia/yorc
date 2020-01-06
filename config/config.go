@@ -103,6 +103,7 @@ type Configuration struct {
 	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
+	Stores                           DynamicMap    `yaml:"stores,omitempty" mapstructure:"stores"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
