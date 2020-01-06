@@ -27,16 +27,18 @@ Telemetry information can be streamed to both statsite as well as statsd or pull
 
 Below is sample output (lot of metrics omitted for brevity) of a telemetry dump::
 
-    [2017-07-19 16:31:00 +0200 CEST][G] 'yorc.yorc-server-0.runtime.alloc_bytes': 73723728.000
-    [2017-07-19 16:31:00 +0200 CEST][G] 'yorc.yorc-server-0.workers.free': 2.000
-    [2017-07-19 16:31:00 +0200 CEST][C] 'yorc.http.200.GET.metrics': Count: 2 Sum: 2.000 LastUpdated: 2017-07-19 16:31:06.253380804 +0200 CEST
-    [2017-07-19 16:31:00 +0200 CEST][S] 'yorc.tasks.maxBlockTimeMs': Count: 10 Sum: 0.000 LastUpdated: 2017-07-19 16:31:09.805073861 +0200 CEST
-    [2017-07-19 16:31:00 +0200 CEST][S] 'yorc.http.GET.metrics': Count: 2 Min: 27.765 Mean: 29.474 Max: 31.183 Stddev: 2.417 Sum: 58.948 LastUpdated: 2017-07-19 16:31:06.253392224 +0200 CEST
-    [2017-07-19 16:31:10 +0200 CEST][S] 'yorc.tasks.maxBlockTimeMs': Count: 10 Sum: 0.000 LastUpdated: 2017-07-19 16:31:19.986227315 +0200 CEST
-    [2017-07-19 16:31:20 +0200 CEST][C] 'yorc.http.200.GET.metrics': Count: 2 Sum: 2.000 LastUpdated: 2017-07-19 16:31:26.257243322 +0200 CEST
-    [2017-07-19 16:31:20 +0200 CEST][S] 'yorc.tasks.maxBlockTimeMs': Count: 9 Sum: 0.000 LastUpdated: 2017-07-19 16:31:29.138694946 +0200 CEST
-    [2017-07-19 16:31:20 +0200 CEST][S] 'yorc.http.GET.metrics': Count: 2 Min: 32.371 Mean: 41.727 Max: 51.083 Stddev: 13.232 Sum: 83.454 LastUpdated: 2017-07-19 16:31:26.257253638 +0200 CEST
+    [2020-01-06 16:31:00 +0200 CEST][G] 'yorc.runtime.alloc_bytes': 73723728.000
+    [2020-01-06 16:31:00 +0200 CEST][G] 'yorc.workers.free': 2.000
+    [2020-01-06 16:31:00 +0200 CEST][C] 'yorc.http.GET.metrics.200': Count: 2 Sum: 2.000 LastUpdated: 2020-01-06 16:31:06.253380804 +0200 CEST
+    [2020-01-06 16:31:00 +0200 CEST][S] 'yorc.tasks.maxBlockTimeMs': Count: 10 Sum: 0.000 LastUpdated: 2020-01-06 16:31:09.805073861 +0200 CEST
+    [2020-01-06 16:31:00 +0200 CEST][S] 'yorc.http.duration.GET.events': Count: 2 Min: 27.765 Mean: 29.474 Max: 31.183 Stddev: 2.417 Sum: 58.948 LastUpdated: 2020-01-06 16:31:06.253392224 +0200 CEST
+    [2020-01-06 16:31:00 +0200 CEST][S] 'yorc.http.duration.GET.server/health': Count: 10 Min: 27.765 Mean: 21.274 Max: 32.193 Stddev: 1.527 Sum: 65.848 LastUpdated: 2020-01-06 16:31:06.2557253638 +0200 CEST
+    [2020-01-06 16:31:10 +0200 CEST][S] 'yorc.tasks.maxBlockTimeMs': Count: 10 Sum: 0.000 LastUpdated: 2020-01-06 16:31:19.986227315 +0200 CEST
 
+Another exemple in which the telemetry service configuration property ``disable_hostname`` is set to **false** and the host name is ``yorc-server-0``:
+
+    [2020-01-06 16:31:00 +0200 CEST][G] 'yorc.yorc-server-0.runtime.alloc_bytes': 73723728.000
+    [2020-01-06 16:31:00 +0200 CEST][G] 'yorc.yorc-server-0.workers.free': 2.000
 
 Key metrics
 -----------
