@@ -276,7 +276,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 		}
 		executorDelegateLabels := []metrics.Label{executorDelegateLabelDeployment, executorDelegateLabelName, executorDelegateLabelNode}
 		err = func() error {
-			defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate"}), time.Now(), executorDelegateLabels)
+			defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "duration"}), time.Now(), executorDelegateLabels)
 			return provisioner.ExecDelegate(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, delegateOp)
 		}()
 
@@ -339,7 +339,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 		// In function of the operation, the execution is sync or async
 		if s.Async {
 			err = func() error {
-				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
+				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "duration"}), time.Now(), executorOperationLabels)
 				action, timeInterval, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op, s.Name)
 				if err != nil {
 					return err
@@ -367,7 +367,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			}()
 		} else {
 			err = func() error {
-				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
+				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "duration"}), time.Now(), executorOperationLabels)
 				return exec.ExecOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op)
 			}()
 		}

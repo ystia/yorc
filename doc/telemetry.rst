@@ -103,7 +103,7 @@ Yorc REST API metrics
 
 The **method** label represents the HTTP verb.
 The **path** label corresponds to the request URL where slashes are replaced by dashes.
-The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...).
+The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...) if a status code is set in the response header.
 
 +------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
 |       Metric Name      |        Labels      |              Description                             |        Unit        | Metric Type |
@@ -173,7 +173,7 @@ In the below table <ExecType> is the executor type (``operation`` or ``delegate`
 |           Metric Name                 |     Labels        |                Description                     |      Unit           | Metric Type |
 |                                       |                   |                                                |                     |             |
 +=======================================+===================+================================================+=====================+=============+
-| ``yorc.executor.<ExecType>``          | Deployment        | This measures the duration of an execution.    | milliseconds        | timer       |
+| ``yorc.executor.<ExecType>.duration`` | Deployment        | This measures the duration of an execution.    | milliseconds        | timer       |
 |                                       | Node              |                                                |                     |             |
 |                                       | Name              |                                                |                     |             |
 +---------------------------------------+-------------------+------------------------------------------------+---------------------+-------------+
