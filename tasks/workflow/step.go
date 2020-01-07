@@ -262,19 +262,12 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
 
-		executorDelegateLabelDeployment := metrics.Label{
-			Name:  "Deployment",
-			Value: deploymentID,
+		executorDelegateLabels := []metrics.Label{
+			metrics.Label{Name: "Deployment", Value: deploymentID},
+			metrics.Label{Name: "Name", Value: delegateOp},
+			metrics.Label{Name: "Node", Value: nodeType},
 		}
-		executorDelegateLabelName := metrics.Label{
-			Name:  "Name",
-			Value: delegateOp,
-		}
-		executorDelegateLabelNode := metrics.Label{
-			Name:  "Node",
-			Value: nodeType,
-		}
-		executorDelegateLabels := []metrics.Label{executorDelegateLabelDeployment, executorDelegateLabelName, executorDelegateLabelNode}
+
 		err = func() error {
 			defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "duration"}), time.Now(), executorDelegateLabels)
 			return provisioner.ExecDelegate(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, delegateOp)
@@ -322,20 +315,12 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			// Need to publish INITIAL status before RUNNING one with operationName set
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
-		executorOperationLabelDeployment := metrics.Label{
-			Name:  "Deployment",
-			Value: deploymentID,
-		}
-		executorOperationLabelName := metrics.Label{
-			Name:  "Name",
-			Value: op.Name,
-		}
-		executorOperationLabelNode := metrics.Label{
-			Name:  "Node",
-			Value: nodeType,
-		}
-		executorOperationLabels := []metrics.Label{executorOperationLabelDeployment, executorOperationLabelName, executorOperationLabelNode}
 
+		executorOperationLabels := []metrics.Label{
+			metrics.Label{Name: "Deployment", Value: deploymentID},
+			metrics.Label{Name: "Name", Value: op.Name},
+			metrics.Label{Name: "Node", Value: nodeType},
+		}
 		// In function of the operation, the execution is sync or async
 		if s.Async {
 			err = func() error {
