@@ -21,7 +21,6 @@ import (
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"os"
 	"path"
 	"strconv"
 	"sync"
@@ -31,7 +30,6 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/tasks"
-	"github.com/ystia/yorc/v4/testutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -305,11 +303,6 @@ func Test_execution_invalid_JSON(t *testing.T) {
 
 func Test_execution_scale_resources(t *testing.T) {
 	t.Skip()
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
-	defer func() {
-		srv.Stop()
-		os.RemoveAll(workingDir)
-	}()
 	deploymentID := "Dep-ID"
 	e := &execution{
 		deploymentID: deploymentID,
@@ -357,11 +350,6 @@ func Test_execution_scale_resources(t *testing.T) {
 func Test_execution_del_resources(t *testing.T) {
 	t.Skip()
 	ctx := context.Background()
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
-	defer func() {
-		srv.Stop()
-		os.RemoveAll(workingDir)
-	}()
 	deploymentID := "Dep-ID"
 
 	e := &execution{
@@ -431,11 +419,6 @@ func deployTestResources(ctx context.Context, e *execution, k8s *k8s, resources 
 
 func Test_execution_create_resource(t *testing.T) {
 	t.Skip()
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
-	defer func() {
-		srv.Stop()
-		os.RemoveAll(workingDir)
-	}()
 	deploymentID := "Dep-ID"
 	e := &execution{
 		deploymentID: deploymentID,
@@ -497,7 +480,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 	}
 }
 
-func Test_execution_executeInvalidOperation(t *testing.T) {
+func testExecutionExecuteInvalidOperation(t *testing.T) {
 	tests := []struct {
 		name    string
 		opName  string
@@ -602,13 +585,7 @@ func Test_execution_executeInvalidOperation(t *testing.T) {
 // 	}
 // }
 
-func Test_execution_getExpectedInstances(t *testing.T) {
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
-	defer func() {
-		srv.Stop()
-		os.RemoveAll(workingDir)
-	}()
-
+func testExecutionGetExpectedInstances(t *testing.T) {
 	deploymentID := "Dep-ID"
 
 	type fields struct {
@@ -664,12 +641,7 @@ func Test_execution_getExpectedInstances(t *testing.T) {
 	}
 }
 
-func Test_execution_manageNamespaceDeletion(t *testing.T) {
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
-	defer func() {
-		srv.Stop()
-		os.RemoveAll(workingDir)
-	}()
+func testExecutionManageNamespaceDeletion(t *testing.T) {
 	deploymentID := "Dep-ID"
 	ctx := context.Background()
 

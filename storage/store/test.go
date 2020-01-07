@@ -54,7 +54,7 @@ func handleGetError(t *testing.T, err error, found bool) {
 // NewTestConsulInstance allows to provide new Consul instance for tests
 // This is a private Consul server instantiation as done in github.com/ystia/yorc/v4/testutil
 // This allows avoiding cyclic dependencies with deployments store package
-func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, string) {
+func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, config.Configuration) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -87,7 +87,7 @@ func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, str
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
 
-	return srv1, client, workingDir
+	return srv1, client, cfg
 }
 
 // CommonStoreTest allows to test storage by storing, reading and deleting data
@@ -120,11 +120,20 @@ func CommonStoreTest(t *testing.T, store Store) {
 		t.Error(err)
 	}
 
+	// Get last Index
+	lastIndex, err := store.GetLastIndex(key)
+	require.NoError(t, err)
+
 	// Storing it again should not lead to an error but just overwrite it
 	err = store.Set(ctx, key, val)
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(10 * time.Millisecond)
+	// The last Index should be greater than previous one
+	nextLastIndex, err := store.GetLastIndex(key)
+	require.NoError(t, err)
+	require.True(t, nextLastIndex >= lastIndex)
 
 	// Retrieve the object
 	expected := val
@@ -156,6 +165,11 @@ func CommonStoreTest(t *testing.T, store Store) {
 	if found {
 		t.Error("A value was found, but no value was expected")
 	}
+
+	// The last Index should be 0 if k doesn't exist
+	lastIndex, err = store.GetLastIndex(key)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), lastIndex)
 
 	// Tree handling
 	keypath1 := "one"

@@ -56,4 +56,6 @@ type Store interface {
 	// The key must not be "".
 	// If recursive is true, all sub-keys are deleted too.
 	Delete(ctx context.Context, k string, recursive bool) error
+	// GetLastIndex returns the last index that modified the key k
+	GetLastIndex(k string) (uint64, error)
 }

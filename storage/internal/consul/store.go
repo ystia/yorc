@@ -16,12 +16,12 @@ package consul
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage/store"
-	"github.com/ystia/yorc/v4/storage/utils"
-
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/storage/utils"
 )
 
 type consulStore struct {
@@ -97,4 +97,16 @@ func (c *consulStore) Keys(k string) ([]string, error) {
 
 func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) error {
 	return consulutil.Delete(k, recursive)
+}
+
+func (c *consulStore) GetLastIndex(k string) (uint64, error) {
+	kvp, qm, err := consulutil.GetKV().Get(k, nil)
+	if err != nil || qm == nil {
+		return 0, errors.Errorf("Failed to retrieve last index for key:%q", k)
+	}
+	// must be useful that lastIndex is 0 when key doesn't exist
+	if kvp == nil {
+		return 0, nil
+	}
+	return qm.LastIndex, nil
 }

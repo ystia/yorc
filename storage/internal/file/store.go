@@ -16,28 +16,32 @@ package file
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
-	"github.com/ystia/yorc/v4/storage/encryption"
-	"github.com/ystia/yorc/v4/storage/store"
-	"github.com/ystia/yorc/v4/storage/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/ristretto"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/encryption"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/storage/utils"
 )
 
 type fileStore struct {
+	id string
 	// For locking the locks map
 	// (no two goroutines may create a lock for a filename that doesn't have a lock yet).
 	locksLock *sync.Mutex
@@ -50,16 +54,31 @@ type fileStore struct {
 	cache             *ristretto.Cache
 	withEncryption    bool
 	encryptor         *encryption.Encryptor
+	cc                *api.Client
 }
 
 // NewStore returns a new File store
-func NewStore(storeID, rootDir string, withCache, withEncryption bool) (store.Store, error) {
+func NewStore(cfg config.Configuration, storeID, rootDir string, withCache, withEncryption bool) (store.Store, error) {
 	var err error
+	fs := &fileStore{
+		id:                storeID,
+		codec:             encoding.JSON,
+		filenameExtension: "json",
+		directory:         rootDir,
+		locksLock:         new(sync.Mutex),
+		fileLocks:         make(map[string]*sync.RWMutex),
+		withCache:         withCache,
+		withEncryption:    withEncryption,
+	}
+	// Use consul to store shared encryption key btw yorc instances
+	fs.cc, err = cfg.GetConsulClient()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get consul client for new file store")
+	}
 
 	// Instantiate cache if necessary
-	var cache *ristretto.Cache
 	if withCache {
-		cache, err = ristretto.NewCache(&ristretto.Config{
+		fs.cache, err = ristretto.NewCache(&ristretto.Config{
 			NumCounters: 1e7,     // number of keys to track frequency of (10M).
 			MaxCost:     1 << 30, // maximum cost of cache (1GB).
 			BufferItems: 64,      // number of keys per Get buffer.
@@ -70,44 +89,61 @@ func NewStore(storeID, rootDir string, withCache, withEncryption bool) (store.St
 	}
 
 	// Instantiate encryptor if necessary
-	var encryptor *encryption.Encryptor
 	if withEncryption {
-		encryptor, err = buildEncryptor(storeID)
+		err = fs.buildEncryptor()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return &fileStore{
-		codec:             encoding.JSON,
-		filenameExtension: "json",
-		directory:         rootDir,
-		locksLock:         new(sync.Mutex),
-		fileLocks:         make(map[string]*sync.RWMutex),
-		withCache:         withCache,
-		cache:             cache,
-		withEncryption:    withEncryption,
-		encryptor:         encryptor,
-	}, nil
+	return fs, nil
 }
 
-func buildEncryptor(storeID string) (*encryption.Encryptor, error) {
-	exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, storeID, "key"))
+func (s *fileStore) buildEncryptor() error {
+	exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, s.id, "key"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get withEncryption key for store with ID:%q", storeID)
+		return errors.Wrapf(err, "failed to get withEncryption key for store with ID:%q", s.id)
 	}
-	encryptor, err := encryption.NewEncryptor(key)
+	s.encryptor, err = encryption.NewEncryptor(key)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", storeID)
+		return errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", s.id)
 	}
-	// save the withEncryption key if new
+	// save the encryption key if new
 	if !exist {
-		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, storeID, "key"), encryptor.Key)
+		lock, _, err := s.getConsulLock()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to save withEncryption key for store with ID:%q", storeID)
+			return err
+		}
+		defer lock.Unlock()
+		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, s.id, "key"), s.encryptor.Key)
+		if err != nil {
+			return errors.Wrapf(err, "failed to save encryption key for store with ID:%q", s.id)
 		}
 	}
-	return encryptor, nil
+	return nil
+}
+
+func (s *fileStore) getConsulLock() (*api.Lock, <-chan struct{}, error) {
+	lock, err := s.cc.LockOpts(&api.LockOptions{
+		Key:          path.Join(consulutil.StoresPrefix, s.id, ".lock"),
+		LockTryOnce:  true,
+		LockWaitTime: 30 * time.Second,
+	})
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to get lock options for file store with ID:%q", s.id)
+	}
+
+	var lockCh <-chan struct{}
+	for lockCh == nil {
+		log.Debug("Try to acquire Consul lock for file store with ID:%q")
+		lockCh, err = lock.Lock(nil)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed trying acquiring Consul lock for file store with ID:%q", s.id)
+		}
+
+	}
+	log.Debug("Consul Lock for file store %q acquired", s.id)
+	return lock, lockCh, nil
 }
 
 // prepareFileLock returns an existing file lock or creates a new one
@@ -322,4 +358,30 @@ func (s *fileStore) clearCache(ctx context.Context, k string, recursive bool) er
 	}
 
 	return errGroup.Wait()
+}
+
+func (s *fileStore) GetLastIndex(k string) (uint64, error) {
+	// key can be directory or file, ie with or without extension
+	// let's try first without extension as it can be the most current case
+	fp := s.buildFilePath(k, false)
+	fInfo, err := os.Stat(fp)
+
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return 0, errors.Wrapf(err, "failed to get last index for key:%q", k)
+		}
+		// not a directory, let's try a file with extension
+		fp := s.buildFilePath(k, true)
+		fInfo, err = os.Stat(fp)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return 0, errors.Wrapf(err, "failed to get last index for key:%q", k)
+			} else {
+				// File not found : the key doesn't exist
+				return 0, nil
+			}
+		}
+	}
+
+	return uint64(fInfo.ModTime().UnixNano()), nil
 }

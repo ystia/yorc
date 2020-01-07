@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
@@ -51,26 +50,18 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 			testDispatcherRun(t, srv, client)
 		})
 	})
-}
-
-func TestRunConsulWorkerTests(t *testing.T) {
-	log.SetDebug(true)
-	srv, client, workingDir := testutil.NewTestConsulInstance(t)
-	defer func() {
-		srv.Stop()
-		os.RemoveAll(workingDir)
-	}()
 
 	populateKV(t, srv)
-
-	t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
-		testRunQueryInfraUsage(t, srv, client)
-	})
-	t.Run("TestRunPurge", func(t *testing.T) {
-		testRunPurge(t, srv, client)
-	})
-	t.Run("TestRunPurgeFails", func(t *testing.T) {
-		testRunPurgeFails(t, srv, client)
+	t.Run("groupWorker", func(t *testing.T) {
+		t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
+			testRunQueryInfraUsage(t, srv, client)
+		})
+		t.Run("TestRunPurge", func(t *testing.T) {
+			testRunPurge(t, srv, client)
+		})
+		t.Run("TestRunPurgeFails", func(t *testing.T) {
+			testRunPurgeFails(t, srv, client)
+		})
 	})
 }
 

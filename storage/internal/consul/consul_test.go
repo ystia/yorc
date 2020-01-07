@@ -26,10 +26,10 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulStoragePackageTests(t *testing.T) {
-	srv, _, workingDir := store.NewTestConsulInstance(t)
+	srv, _, cfg := store.NewTestConsulInstance(t)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	t.Run("groupStorage", func(t *testing.T) {

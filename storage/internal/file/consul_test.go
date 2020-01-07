@@ -21,45 +21,54 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/storage/store"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunFileStoragePackageTests(t *testing.T) {
-	srv, _, workingDir := store.NewTestConsulInstance(t)
+	srv, _, cfg := store.NewTestConsulInstance(t)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
-	t.Run("groupStorage", func(t *testing.T) {
-		t.Run("testConsulTypes", func(t *testing.T) {
-			testFileStoreWithEncryption(t, srv)
+	t.Run("groupFileStore", func(t *testing.T) {
+		t.Run("testFileStoreWithEncryption", func(t *testing.T) {
+			testFileStoreWithEncryption(t, srv, cfg)
 		})
-		t.Run("testConsulStore", func(t *testing.T) {
-			testFileStoreTypesWithEncryption(t, srv)
+		t.Run("testFileStoreTypesWithEncryption", func(t *testing.T) {
+			testFileStoreTypesWithEncryption(t, srv, cfg)
+		})
+		t.Run("testFileStoreWithCache", func(t *testing.T) {
+			testFileStoreWithCache(t, srv, cfg)
+		})
+		t.Run("testFileStoreTypesWithCache", func(t *testing.T) {
+			testFileStoreTypesWithCache(t, srv, cfg)
 		})
 	})
 }
 
-func testFileStoreWithEncryption(t *testing.T, srv1 *testutil.TestServer) {
-	rootDir := "./.work_" + t.Name()
-	defer func() {
-		err := os.RemoveAll(rootDir)
-		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
-	}()
-	fileStore, err := NewStore("testStoreID", rootDir, false, true)
+func testFileStoreWithEncryption(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
 
-func testFileStoreTypesWithEncryption(t *testing.T, srv1 *testutil.TestServer) {
-	rootDir := "./.work_" + t.Name()
-	defer func() {
-		err := os.RemoveAll(rootDir)
-		require.NoError(t, err, "failed to remove test working directory:%q", rootDir)
-	}()
-	fileStore, err := NewStore("testStoreID", rootDir, false, true)
+func testFileStoreTypesWithEncryption(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, false, true)
+	require.NoError(t, err, "failed to instantiate new store")
+	store.CommonStoreTestAllTypes(t, fileStore)
+}
+
+func testFileStoreWithCache(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, true, false)
+	require.NoError(t, err, "failed to instantiate new store")
+	store.CommonStoreTest(t, fileStore)
+}
+
+func testFileStoreTypesWithCache(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

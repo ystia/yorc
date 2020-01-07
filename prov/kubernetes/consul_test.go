@@ -35,5 +35,15 @@ func TestConsulKubernetesPackage(t *testing.T) {
 		t.Run("testsController", func(t *testing.T) {
 			testsController(t, srv)
 		})
+		t.Run("testExecutionExecuteInvalidOperation", func(t *testing.T) {
+			testExecutionExecuteInvalidOperation(t)
+		})
+		t.Run("testExecutionGetExpectedInstances", func(t *testing.T) {
+			testExecutionGetExpectedInstances(t)
+		})
+		t.Run("testExecutionManageNamespaceDeletion", func(t *testing.T) {
+			testExecutionManageNamespaceDeletion(t)
+		})
+
 	})
 }
