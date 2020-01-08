@@ -2,6 +2,27 @@
 
 ## UNRELEASED
 
+### BREAKING CHANGES
+
+#### Changes on the deployments API
+
+As deployments are from now stored by JSON, some functions have been changed:
+
+```
+func GetOperationPathAndPrimaryImplementation(ctx context.Context, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, string, error)
+func GetRequirementsKeysByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]string, error)
+func GetRequirementKeyByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error)
+func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error)
+```
+
+And substituted by:
+
+```
+func GetOperationImplementation(ctx context.Context, ...) (*tosca.Implementation, error)
+func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error)
+func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca.Workflow, error)
+```
+
 ### ENHANCEMENTS
 
 * Should be able to bootstrap Yorc on OpenStack with Identity API v3 ([GH-575](https://github.com/ystia/yorc/issues/575))
