@@ -30,11 +30,16 @@ func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	infrastructure := commons.Infrastructure{}
 	ctx := context.Background()
 	outputs := make(map[string]string, 0)
-	g := awsGenerator{
-		&ctx, &cfg, deploymentID, &infrastructure, "EBSVolume",
+	g := awsGenerator{}
+	nodeParams := nodeParams{
+		ctx:            &ctx,
+		cfg:            &cfg,
+		deploymentID:   deploymentID,
+		nodeName:       "EBSVolume",
+		infrastructure: &infrastructure,
 	}
 
-	err := g.generateEBS("0", 0, outputs)
+	err := g.generateEBS(nodeParams, "0", 0, outputs)
 	if err != nil {
 		panic(err)
 	}
