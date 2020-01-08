@@ -16,12 +16,15 @@ package consul
 
 import (
 	"context"
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/storage/utils"
+	"reflect"
+	"time"
 )
 
 type consulStore struct {
@@ -109,4 +112,30 @@ func (c *consulStore) GetLastIndex(k string) (uint64, error) {
 		return 0, nil
 	}
 	return qm.LastIndex, nil
+}
+
+func (c *consulStore) List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error) {
+	if err := utils.CheckKey(k); err != nil {
+		return nil, 0, err
+	}
+
+	kvps, qm, err := consulutil.GetKV().List(k, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	if err != nil || qm == nil {
+		return nil, 0, err
+	}
+
+	values := make([]types.KeyValue, 0)
+	for _, kvp := range kvps {
+		value := reflect.New(reflect.TypeOf(v)).Interface()
+		if err := c.codec.Unmarshal(kvp.Value, &value); err != nil {
+			return nil, 0, errors.Wrapf(err, "failed to unmarshal stored value into %q instance", reflect.TypeOf(v))
+		}
+
+		values = append(values, types.KeyValue{
+			Key:       kvp.Key,
+			LastIndex: kvp.ModifyIndex,
+			Value:     value,
+		})
+	}
+	return values, qm.LastIndex, nil
 }

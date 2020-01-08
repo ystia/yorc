@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage/types"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -40,6 +41,15 @@ type Foo struct {
 type privateFoo struct {
 	Bar        string
 	privateBar string
+}
+
+type ComplexFoo struct {
+	FooData   Foo
+	Value     string
+	ValueInt  int
+	ValueBool bool
+	FooList   []Foo
+	FooMap    map[string]Foo
 }
 
 func handleGetError(t *testing.T, err error, found bool) {
@@ -217,6 +227,78 @@ func CommonStoreTest(t *testing.T, store Store) {
 	keys, err = store.Keys(keypath2)
 	require.NoError(t, err)
 	require.Nil(t, keys)
+
+	// Test List
+	val0 := Foo{
+		Bar: "mybar",
+	}
+
+	val1 := ComplexFoo{
+		FooData: Foo{
+			Bar: "Bar1",
+		},
+		Value:     "myValue",
+		ValueInt:  10,
+		ValueBool: true,
+		FooList:   []Foo{val0},
+		FooMap: map[string]Foo{
+			"keyOne": {
+				Bar: "BarMap",
+			},
+		},
+	}
+
+	val2 := ComplexFoo{
+		FooData: Foo{
+			Bar: "Bar2",
+		},
+		Value:     "myValue2",
+		ValueInt:  20,
+		ValueBool: false,
+		FooList:   []Foo{val0, val0},
+		FooMap: map[string]Foo{
+			"keyOne": {
+				Bar: "BarMap",
+			},
+		},
+	}
+
+	keyValues := []*types.KeyValue{
+		{
+			Key:   "testlist/one",
+			Value: val1,
+		},
+		{
+			Key:   "testlist/two",
+			Value: val2,
+		},
+	}
+
+	err = store.SetCollection(ctx, keyValues)
+	require.NoError(t, err)
+
+	kvs, index, err := store.List("testlist", ComplexFoo{}, 0, 0)
+	require.NoError(t, err)
+	require.NotZero(t, index)
+	require.NotNil(t, kvs)
+	require.Equal(t, 2, len(kvs))
+
+	for _, kv := range kvs {
+		value := *kv.Value.(*ComplexFoo)
+		switch kv.Key {
+		case "testlist/one":
+			if !reflect.DeepEqual(value, val1) {
+				t.Errorf("List() = %v, want %v", value, val1)
+			}
+		case "testlist/two":
+			if !reflect.DeepEqual(value, val2) {
+				t.Errorf("List() = %v, want %v", value, val2)
+			}
+		default:
+			require.Fail(t, "unexpected key:%q", kv.Key)
+		}
+	}
+
 }
 
 // CommonStoreTestAllTypes allows to test storage of all types

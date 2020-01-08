@@ -17,6 +17,7 @@ package store
 import (
 	"context"
 	"github.com/ystia/yorc/v4/storage/types"
+	"time"
 )
 
 // Store is an abstraction for different key-value store implementations.
@@ -58,4 +59,11 @@ type Store interface {
 	Delete(ctx context.Context, k string, recursive bool) error
 	// GetLastIndex returns the last index that modified the key k
 	GetLastIndex(k string) (uint64, error)
+	// List allows to lookup all sub-keys under the defined key k and provided associated values.
+	// The key must not be "" and v must not be nil. v is the expected typed element in the collection
+	// waitIndex is used to enable a blocking query (waitIndex != 0) which wait until the timeout or a new index > waitIndex
+	// if waitIndex is > 0, default timeout is 5 minutes. Max timeout allowed is 10 minutes
+	// The values are retrieved in a types.KeyValue collection with instances of the expected type
+	// The lastIndex is returned to perform new blocking query.
+	List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error)
 }

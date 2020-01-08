@@ -385,3 +385,7 @@ func (s *fileStore) GetLastIndex(k string) (uint64, error) {
 
 	return uint64(fInfo.ModTime().UnixNano()), nil
 }
+
+func (c *fileStore) List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error) {
+	return nil, 0, nil
+}

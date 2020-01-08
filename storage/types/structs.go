@@ -25,6 +25,7 @@ type StoreType int
 
 // KeyValue describes a Key-Value representation
 type KeyValue struct {
-	Key   string
-	Value interface{}
+	Key       string
+	LastIndex uint64
+	Value     interface{}
 }
