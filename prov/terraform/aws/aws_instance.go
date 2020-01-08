@@ -252,9 +252,19 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 		commons.AddOutput(infrastructure, deviceNameID, &commons.Output{Value: deploymentValue})
 		// TODO instanceid, volumeid
 
+		instanceID := attachName + ".instance_id"
+		instanceValue := fmt.Sprintf("${aws_volume_attachment.%s.instance_id}", attachName)
+		commons.AddOutput(infrastructure, instanceID, &commons.Output{Value: instanceValue})
+
+		volumeID2 := attachName + ".volume_id"
+		volumeValue := fmt.Sprintf("${aws_volume_attachment.%s.volume_id}", attachName)
+		commons.AddOutput(infrastructure, volumeID2, &commons.Output{Value: volumeValue})
+
 		// Yorc outputs
 		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, storageReq.Index, instanceName, "attributes/device_name")
 		outputs[path.Join(instancesPrefix, "/attributes/device_name")] = deviceNameID
+		outputs[path.Join(instancesPrefix, "/attributes/instance_id")] = instanceID
+		outputs[path.Join(instancesPrefix, "/attributes/volume_id")] = volumeID2
 	}
 	return nil
 }
