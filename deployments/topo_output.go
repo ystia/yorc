@@ -16,6 +16,9 @@ package deployments
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 
 	"github.com/pkg/errors"
@@ -23,28 +26,41 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
+func getParameterDefinition(ctx context.Context, deploymentID, parameterName, parameterType string) (bool, *tosca.ParameterDefinition, error) {
+	valuePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", parameterType, parameterName)
+	parameterDef := new(tosca.ParameterDefinition)
+	exist, err := storage.GetStore(types.StoreTypeDeployment).Get(valuePath, parameterDef)
+	if err != nil {
+		return false, nil, err
+	}
+	return exist, parameterDef, nil
+}
+
 // GetTopologyOutputValue returns the value of a given topology output
 func GetTopologyOutputValue(ctx context.Context, deploymentID, outputName string, nestedKeys ...string) (*TOSCAValue, error) {
 	dataType, err := GetTopologyOutputType(ctx, deploymentID, outputName)
 	if err != nil {
 		return nil, err
 	}
-	valuePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/outputs", outputName, "value")
+
+	exist, paramDef, err := getParameterDefinition(ctx, deploymentID, outputName, "outputs")
+	if err != nil || !exist {
+		return nil, err
+	}
 	// TODO this is not clear in the specification but why do we return a single value in this context as in case of attributes and multi-instances
 	// we can have different results.
 	// We have to improve this.
-	res, err := getValueAssignmentWithDataType(ctx, deploymentID, valuePath, "", "0", "", dataType, nestedKeys...)
+	res, err := getValueAssignment(ctx, deploymentID, "", "0", "", dataType, paramDef.Value, nestedKeys...)
 	if err != nil || res != nil {
 		return res, err
 	}
 	// check the default
-	defaultPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/outputs", outputName, "default")
-	return getValueAssignmentWithDataType(ctx, deploymentID, defaultPath, "", "0", "", dataType, nestedKeys...)
+	return getValueAssignment(ctx, deploymentID, "", "0", "", dataType, paramDef.Default, nestedKeys...)
 }
 
 // GetTopologyOutputsNames returns the list of outputs for the deployment
 func GetTopologyOutputsNames(ctx context.Context, deploymentID string) ([]string, error) {
-	optPaths, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/outputs"))
+	optPaths, err := storage.GetStore(types.StoreTypeDeployment).Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/outputs"))
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

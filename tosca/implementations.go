@@ -18,10 +18,10 @@ package tosca
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type Implementation struct {
-	Primary       string             `yaml:"primary"`
-	Dependencies  []string           `yaml:"dependencies,omitempty"`
-	Artifact      ArtifactDefinition `yaml:",inline"`
-	OperationHost string             `yaml:"operation_host,omitempty"`
+	Primary       string             `yaml:"primary" json:"primary"`
+	Dependencies  []string           `yaml:"dependencies,omitempty" json:"dependencies,omitempty"`
+	Artifact      ArtifactDefinition `yaml:",inline" json:"artifact,omitempty"`
+	OperationHost string             `yaml:"operation_host,omitempty" json:"operation_host,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an Implementation

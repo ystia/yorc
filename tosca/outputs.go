@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package tosca
 
-import (
-	"context"
-
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/tosca"
-)
-
-// storeAttributeDefinition stores an attribute definition
-func storeAttributeDefinition(ctx context.Context, consulStore consulutil.ConsulStore, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
-	consulStore.StoreConsulKeyAsString(attrPrefix+"/type", attrDefinition.Type)
-	consulStore.StoreConsulKeyAsString(attrPrefix+"/entry_schema", attrDefinition.EntrySchema.Type)
-	StoreValueAssignment(consulStore, attrPrefix+"/default", attrDefinition.Default)
-	consulStore.StoreConsulKeyAsString(attrPrefix+"/status", attrDefinition.Status)
+// An Output is the representation of the output part of a TOSCA Operation Definition
+//
+//
+// Not in Tosca actually !
+type Output struct {
+	ValueAssign *ValueAssignment `json:"value_assignment,omitempty"`
 }

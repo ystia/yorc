@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -51,13 +50,11 @@ func testResolver(t *testing.T) {
 
 }
 
-func generateToscaValueAssignmentFromString(t *testing.T, valueAssignment string) *tosca.ValueAssignment {
-	va := &tosca.ValueAssignment{}
-
-	err := yaml.Unmarshal([]byte(valueAssignment), va)
+func generateToscaValueAssignmentFromString(t *testing.T, rawFunction string) *tosca.Function {
+	f, err := tosca.ParseFunction(rawFunction)
 	require.Nil(t, err)
-	// require.NotNil(t, va.Expression)
-	return va
+	require.NotNil(t, f)
+	return f
 }
 
 func testGetOperationOutput(t *testing.T) {
@@ -71,33 +68,33 @@ func testGetOperationOutput(t *testing.T) {
 	require.Nil(t, err)
 	r := resolver(deploymentID)
 
-	result, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`).GetFunction())
+	result, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`))
 	require.Nil(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "MY_RESULT", result.RawString())
 
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part1")
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`))
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part1", result.RawString())
 
-	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`))
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part1", result.RawString())
 
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part2")
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`))
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part2", result.RawString())
 
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/1/0/outputs/configure/pre_configure_source/PARTITION_NAME"), "part3")
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`))
 	require.Nil(t, err, "%+v", err)
 	require.NotNil(t, result)
 	require.Equal(t, "part3", result.RawString())
@@ -116,7 +113,7 @@ func testGetOperationOutputReal(t *testing.T) {
 	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), "/mypath")
 	require.Nil(t, err)
 
-	result, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`).GetFunction())
+	result, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(ctx, generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`))
 	require.Nil(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "/mypath", result.RawString())
@@ -163,9 +160,8 @@ func testResolveComplex(t *testing.T) {
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {
-			va := generateToscaValueAssignmentFromString(t, tt.args.functionAsString)
-			require.Equal(t, tosca.ValueAssignmentFunction, va.Type)
-			got, err := r.context(withNodeName(tt.data.nodeName), withInstanceName(tt.data.instanceName), withRequirementIndex(tt.data.requirementIndex)).resolveFunction(ctx, va.GetFunction())
+			f := generateToscaValueAssignmentFromString(t, tt.args.functionAsString)
+			got, err := r.context(withNodeName(tt.data.nodeName), withInstanceName(tt.data.instanceName), withRequirementIndex(tt.data.requirementIndex)).resolveFunction(ctx, f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("resolveFunction() error = %v, wantErr %v", err, tt.wantErr)
 				return

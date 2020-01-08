@@ -76,7 +76,6 @@ require (
 	github.com/stevedomin/termtable v0.0.0-20150929082024-09d29f3fd628
 	github.com/stretchr/testify v1.3.0
 	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
-	github.com/ystia/yorc v3.1.2+incompatible
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980

@@ -758,6 +758,11 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	if err != nil {
 		return errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
+	if wfSteps == nil || len(wfSteps) == 0 {
+		// Nothing to do
+		return nil
+	}
+
 	bs, ok := wfSteps[t.step]
 	if !ok {
 		return errors.Errorf("Failed to build step: %q for workflow: %q, unknown step", t.step, workflowName)

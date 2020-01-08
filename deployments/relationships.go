@@ -17,12 +17,12 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strings"
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v4/deployments/internal"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -49,9 +49,18 @@ func GetRelationshipPropertyValueFromRequirement(ctx context.Context, deployment
 			}
 		}
 	}
-	reqPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex)
 
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
+	// Look at requirement level
+	_, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	var va *tosca.ValueAssignment
+	if req != nil && req.RelationshipProps != nil {
+		va = req.RelationshipProps[propertyName]
+	}
+	result, err := getValueAssignment(ctx, deploymentID, nodeName, "", requirementIndex, propDataType, va, nestedKeys...)
 	if err != nil || result != nil {
 		return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
 	}
@@ -129,7 +138,7 @@ func GetRelationshipAttributeValueFromRequirement(ctx context.Context, deploymen
 
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	result, err := getValueAssignmentWithDataType(ctx, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, attrDataType, nestedKeys...)
+	result, err := getInstanceValueAssignment(ctx, deploymentID, nodeName, instanceName, requirementIndex, attrDataType, capAttrPath, nestedKeys...)
 	if err != nil || result != nil {
 		// If there is an error or attribute was found
 		return result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
@@ -159,14 +168,16 @@ func SetInstanceRelationshipAttribute(ctx context.Context, deploymentID, nodeNam
 // SetInstanceRelationshipAttributeComplex sets an instance relationship attribute that may be a literal or a complex data type
 func SetInstanceRelationshipAttributeComplex(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	_, errGrp, store := consulutil.WithContext(context.Background())
-	internal.StoreComplexType(store, attrPath, attributeValue)
-	err := publishRelationshipAttributeValueChange(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+	err := consulutil.StoreConsulKeyWithJSONValue(attrPath, attributeValue)
+	if err != nil {
+		return err
+	}
+	err = publishRelationshipAttributeValueChange(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 	if err != nil {
 		return err
 	}
 
-	return errGrp.Wait()
+	return nil
 }
 
 // SetRelationshipAttributeForAllInstances sets the same relationship attribute value to all instances of a given node.
@@ -186,16 +197,18 @@ func SetRelationshipAttributeComplexForAllInstances(ctx context.Context, deploym
 	if err != nil {
 		return err
 	}
-	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-		internal.StoreComplexType(store, attrPath, attributeValue)
-		err := publishRelationshipAttributeValueChange(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+		err := consulutil.StoreConsulKeyWithJSONValue(attrPath, attributeValue)
+		if err != nil {
+			return err
+		}
+		err = publishRelationshipAttributeValueChange(ctx, deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
 	}
-	return errGrp.Wait()
+	return nil
 }
 
 // This function create an instance of each relationship and reference who is the target and the instanceID of this one
@@ -295,9 +308,7 @@ func DeleteRelationshipInstance(ctx context.Context, deploymentID, nodeName, ins
 	}
 
 	// now delete from targets in relationships instances
-	addOrRemoveInstanceFromTargetRelationship(ctx, deploymentID, nodeName, instanceName, false)
-
-	return nil
+	return addOrRemoveInstanceFromTargetRelationship(ctx, deploymentID, nodeName, instanceName, false)
 }
 
 func publishRelationshipAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {

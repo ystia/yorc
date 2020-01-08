@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/ystia/yorc/v4/config"
 	"io"
 	"os"
 	"strconv"
@@ -28,11 +29,12 @@ import (
 	"github.com/ystia/yorc/v4/server/upgradeschema"
 )
 
-var upgradeToMap = map[string]func(*api.KV, <-chan struct{}) error{
+var upgradeToMap = map[string]func(config.Configuration, *api.KV, <-chan struct{}) error{
 	"1.0.0": upgradeschema.UpgradeFromPre31,
 	"1.1.0": upgradeschema.UpgradeTo110,
 	"1.1.1": upgradeschema.UpgradeTo111,
 	"1.1.2": upgradeschema.UpgradeTo112,
+	"1.2.0": upgradeschema.UpgradeTo120,
 }
 
 var orderedUpgradesVersions []semver.Version
@@ -79,7 +81,7 @@ func synchronizeDBUpdate(client *api.Client) (*api.Lock, <-chan struct{}, error)
 	return lock, leaderCh, nil
 }
 
-func setupConsulDBSchema(client *api.Client) error {
+func setupConsulDBSchema(cfg config.Configuration, client *api.Client) error {
 	lock, leaderCh, err := synchronizeDBUpdate(client)
 	if err != nil {
 		return err
@@ -104,13 +106,13 @@ func setupConsulDBSchema(client *api.Client) error {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if len(kvps) > 0 {
-			return upgradeFromVersion(client, leaderCh, "0.0.0")
+			return upgradeFromVersion(cfg, client, leaderCh, "0.0.0")
 		}
 
 		return setNewVersion()
 	}
 
-	return upgradeFromVersion(client, leaderCh, string(kvp.Value))
+	return upgradeFromVersion(cfg, client, leaderCh, string(kvp.Value))
 }
 
 func setNewVersion() error {
@@ -121,7 +123,7 @@ func setNewVersion() error {
 	return nil
 }
 
-func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersion string) error {
+func upgradeFromVersion(cfg config.Configuration, client *api.Client, leaderCh <-chan struct{}, fromVersion string) error {
 	vCurrent, err := semver.Make(fromVersion)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse current version of consul db schema")
@@ -136,7 +138,7 @@ func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersio
 		// Same version nothing to do
 		return nil
 	case 1:
-		err = performUpgrade(client, leaderCh, vCurrent)
+		err = performUpgrade(cfg, client, leaderCh, vCurrent)
 		if err != nil {
 			return err
 		}
@@ -147,7 +149,7 @@ func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersio
 	return setNewVersion()
 }
 
-func performUpgrade(client *api.Client, leaderCh <-chan struct{}, vCurrent semver.Version) error {
+func performUpgrade(cfg config.Configuration, client *api.Client, leaderCh <-chan struct{}, vCurrent semver.Version) error {
 	snap := client.Snapshot()
 	var snapReader io.ReadCloser
 	if !disableConsulSnapshotsOnUpgrades {
@@ -161,7 +163,7 @@ func performUpgrade(client *api.Client, leaderCh <-chan struct{}, vCurrent semve
 	}
 	for _, vUp := range orderedUpgradesVersions {
 		if vUp.GT(vCurrent) {
-			err := upgradeToMap[vUp.String()](client.KV(), leaderCh)
+			err := upgradeToMap[vUp.String()](cfg, client.KV(), leaderCh)
 			if err != nil {
 				if !disableConsulSnapshotsOnUpgrades {
 					// Restore Consul snapshot

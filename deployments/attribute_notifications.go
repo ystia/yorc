@@ -23,8 +23,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
-
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -271,7 +269,7 @@ func addSubstitutionMappingAttributeNotification(ctx context.Context, deployment
 // This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
 // This allows too to publish initial state for default attribute value
 func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string) error {
-	substitutionInstance, err := isSubstitutionNodeInstance(deploymentID, nodeName, instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return err
 	}
@@ -294,45 +292,32 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 		return err
 	}
 
-	var attrDataType string
-	hasAttr, err := TypeHasAttribute(ctx, deploymentID, nodeType, attributeName, true)
+	// First look at node type as instance values can't contain functions
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
-		if err != nil {
-			return err
-		}
+
+	va, is := node.Attributes[attributeName]
+	if is && va != nil && va.Type != tosca.ValueAssignmentFunction {
+		return nil
 	}
 
-	// First look at instance-scoped attributes
-	vaPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	value, isFunction, err := getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, attrDataType)
-	if err != nil || (value != nil && !isFunction) {
-		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
+	// Check type if node is substitutable
+	nodeType, err = checkTypeForSubstitutableNode(ctx, deploymentID, nodeName, nodeType)
+	if err != nil {
+		return err
 	}
 
-	// Then look at global node level (not instance-scoped)
-	if value == nil {
-		vaPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName)
-		value, isFunction, err = getValueAssignmentWithoutResolve(ctx, deploymentID, vaPath, attrDataType)
-		if err != nil || (value != nil && !isFunction) {
-			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-		}
+	// Retrieve related propertyDefinition with default property
+	value, isFunction, err := getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName)
+	if err != nil {
+		return err
 	}
-
-	// Not found look at node type
-	if value == nil {
-		value, isFunction, err = getTypeDefaultAttribute(ctx, deploymentID, nodeType, attributeName)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-		}
-		// Publish default value
-		if value != nil && !isFunction {
-			events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
-			return nil
-		}
+	// Publish default value
+	if value != nil && !isFunction {
+		events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
+		return nil
 	}
 
 	if value == nil {
@@ -344,7 +329,7 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 		}
 		if host != "" {
-			addAttributeNotifications(ctx, deploymentID, host, instanceName, attributeName)
+			return addAttributeNotifications(ctx, deploymentID, host, instanceName, attributeName)
 		}
 	}
 
@@ -368,15 +353,11 @@ func addAttributeNotifications(ctx context.Context, deploymentID, nodeName, inst
 // This is looking for Tosca get_attribute and get_operation_output functions
 func (notifiedAttr *notifiedAttribute) parseFunction(ctx context.Context, rawFunction string) error {
 	// Function
-	va := &tosca.ValueAssignment{}
-	err := yaml.Unmarshal([]byte(rawFunction), va)
+	f, err := tosca.ParseFunction(rawFunction)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", rawFunction, notifiedAttr.nodeName)
+		return err
 	}
-	log.Debugf("function = %+v", va.GetFunction())
-
-	f := va.GetFunction()
-
+	log.Debugf("function = %+v", f)
 	fcts := f.GetFunctionsByOperator(tosca.GetAttributeOperator)
 	for _, fct := range fcts {
 		// Find related notifier

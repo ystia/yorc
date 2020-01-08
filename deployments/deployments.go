@@ -17,6 +17,8 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 	"time"
@@ -99,18 +101,6 @@ func GetDeploymentStatus(ctx context.Context, deploymentID string) (DeploymentSt
 		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
 	}
 	return DeploymentStatusFromString(value, true)
-}
-
-//GetDeploymentTemplateName only return the name of the template used during the deployment
-func GetDeploymentTemplateName(ctx context.Context, deploymentID string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"))
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !exist || value == "" {
-		return "", deploymentNotFound{deploymentID: deploymentID}
-	}
-	return value, nil
 }
 
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment
@@ -280,6 +270,12 @@ func acquirePurgedDeploymentsLock(ctx context.Context, cc *api.Client) (*api.Loc
 
 // DeleteDeployment deletes a given deploymentID from the deployments path
 func DeleteDeployment(ctx context.Context, deploymentID string) error {
-	// Remove from KV this purge tasks
-	return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", true)
+	deploymentKeyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID) + "/"
+	// Remove from deployment store
+	err := storage.GetStore(types.StoreTypeDeployment).Delete(ctx, deploymentKeyPath, true)
+	if err != nil {
+		return err
+	}
+	// Remove from KV
+	return consulutil.Delete(deploymentKeyPath, true)
 }

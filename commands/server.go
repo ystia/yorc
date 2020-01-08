@@ -255,6 +255,9 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("disable_ssh_agent", false, "Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.")
 	serverCmd.PersistentFlags().String("locations_file_path", "", "File path to locations configuration. This configuration is taken in account for the first time the server starts.")
 
+	serverCmd.PersistentFlags().Duration("tasks_dispatcher_long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime, "Wait time when long polling for executions tasks to dispatch to workers")
+	serverCmd.PersistentFlags().Duration("tasks_dispatcher_lock_wait_time", config.DefaultTasksDispatcherLockWaitTime, "Wait time for acquiring a lock for an execution task")
+
 	// Flags definition for Yorc HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
 	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Yorc HTTP REST API.")
@@ -315,6 +318,9 @@ func setConfig() {
 	viper.BindPFlag("disable_ssh_agent", serverCmd.PersistentFlags().Lookup("disable_ssh_agent"))
 	viper.BindPFlag("locations_file_path", serverCmd.PersistentFlags().Lookup("locations_file_path"))
 
+	viper.BindPFlag("tasks.dispatcher.long_poll_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_long_poll_wait_time"))
+	viper.BindPFlag("tasks.dispatcher.lock_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_lock_wait_time"))
+
 	//Bind Flags Yorc HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
 	viper.BindPFlag("http_address", serverCmd.PersistentFlags().Lookup("http_address"))
@@ -360,6 +366,8 @@ func setConfig() {
 
 	viper.BindEnv("wf_step_graceful_termination_timeout")
 	viper.BindEnv("purged_deployments_eviction_timeout")
+	viper.BindEnv("tasks.dispatcher.long_poll_wait_time")
+	viper.BindEnv("tasks.dispatcher.lock_wait_time")
 
 	//Bind Ansible environment variables flags
 	for key := range ansibleConfiguration {
@@ -383,6 +391,9 @@ func setConfig() {
 	viper.SetDefault("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout)
 	viper.SetDefault("server_id", host)
 	viper.SetDefault("disable_ssh_agent", false)
+
+	viper.SetDefault("tasks.dispatcher.long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime)
+	viper.SetDefault("tasks.dispatcher.lock_wait_time", config.DefaultTasksDispatcherLockWaitTime)
 
 	// Consul configuration default settings
 	for key, value := range consulConfiguration {

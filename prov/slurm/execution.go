@@ -47,6 +47,7 @@ import (
 
 const home = "~"
 const batchScript = "b-%s.batch"
+const srunCommand = "srun"
 
 type execution interface {
 	resolveExecution(ctx context.Context) error
@@ -440,7 +441,10 @@ func (e *executionCommon) buildJobOpts() string {
 func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
 	if e.jobInfo.ExecutionOptions.Command != "" {
-		inner := fmt.Sprintf("srun %s %s", e.jobInfo.ExecutionOptions.Command, quoteArgs(e.jobInfo.ExecutionOptions.Args))
+		if strings.HasPrefix(strings.TrimSpace(e.jobInfo.ExecutionOptions.Command), srunCommand+" ") {
+			e.jobInfo.ExecutionOptions.Command = e.jobInfo.ExecutionOptions.Command[5:]
+		}
+		inner := fmt.Sprintf("%s %s %s", srunCommand, e.jobInfo.ExecutionOptions.Command, quoteArgs(e.jobInfo.ExecutionOptions.Args))
 		var err error
 		cmd, err = e.wrapCommand(inner)
 		if err != nil {
@@ -617,12 +621,19 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 	// Only operation file is required for Singularity execution
 	if e.isSingularity {
 		e.Primary, err = deployments.GetOperationImplementationFile(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+		if err != nil {
+			return err
+		}
 	} else {
-		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		operationImpl, err := deployments.GetOperationImplementation(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+		if err != nil {
+			return err
+		}
+		if operationImpl != nil {
+			e.Primary = operationImpl.Primary
+		}
 	}
-	if err != nil {
-		return err
-	}
+
 	e.Primary = strings.TrimSpace(e.Primary)
 	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
 		e.Primary = ""
@@ -630,7 +641,6 @@ func (e *executionCommon) resolveOperation(ctx context.Context) error {
 
 	// Get operation implementation file for upload purpose
 	if !e.isSingularity && e.Primary != "" {
-		var err error
 		e.PrimaryFile, err = deployments.GetOperationImplementationFile(ctx, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 		if err != nil {
 			return err
@@ -676,7 +686,7 @@ func (e *executionCommon) resolveInputs(ctx context.Context) error {
 func (e *executionCommon) resolveArtifacts(ctx context.Context) error {
 	var err error
 	log.Debugf("Get artifacts for node:%q", e.NodeName)
-	e.Artifacts, err = deployments.GetArtifactsForNode(ctx, e.deploymentID, e.NodeName)
+	e.Artifacts, err = deployments.GetFileArtifactsForNode(ctx, e.deploymentID, e.NodeName)
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
 	return err
 }

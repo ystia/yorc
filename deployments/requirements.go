@@ -16,159 +16,157 @@ package deployments
 
 import (
 	"context"
-	"path"
-	"sort"
-	"strings"
-
 	"github.com/pkg/errors"
-	"vbom.ml/util/sortorder"
-
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/tosca"
+	"path"
+	"strconv"
+	"strings"
 )
 
-// GetRequirementKeyByNameForNode returns path to requirement which name match with defined requirementName for a given node name
-func GetRequirementKeyByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
+// Requirement describes a requirement assignment with its name and index
+type Requirement struct {
+	tosca.RequirementAssignment
+	Name  string
+	Index string
+}
+
+func getRequirements(ctx context.Context, deploymentID, nodeName string) ([]tosca.RequirementAssignmentMap, error) {
+	node, err := getNodeTemplate(ctx, deploymentID, nodeName)
 	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		if IsNodeNotFoundError(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	for _, reqIndexKey := range reqKVPs {
-		reqIndexKey = path.Clean(reqIndexKey)
-		exist, value, err := consulutil.GetStringValue(path.Join(reqIndexKey, "name"))
-		if err != nil {
-			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return node.Requirements, nil
+}
+
+// GetRequirementsByTypeForNode returns requirements for a defined type for a defined node.
+func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error) {
+	reqs := make([]Requirement, 0)
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return nil, err
+	}
+	for i, reqList := range reqMap {
+		for name, reqAssignment := range reqList {
+			// Search matching with name or type_requirement
+			if name == requirementType || reqAssignment.TypeRequirement == requirementType {
+				reqs = append(reqs, Requirement{reqAssignment, name, strconv.Itoa(i)})
+			}
 		}
-		if !exist || value == "" {
-			return "", errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
-		}
-		if value == requirementName {
-			return reqIndexKey, nil
+	}
+	return reqs, nil
+}
+
+// GetRequirementIndexByNameForNode returns the requirement index which name match with defined requirementName for a given node name
+func GetRequirementIndexByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return "", err
+	}
+	for i, req := range reqMap {
+		for name := range req {
+			if requirementName == name {
+				return strconv.Itoa(i), nil
+			}
 		}
 	}
 	return "", nil
 }
 
-// GetRequirementsKeysByTypeForNode returns paths to requirements whose name or type_requirement match the given requirementType
-//
-// The returned slice may be empty if there is no matching requirements.
-func GetRequirementsKeysByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
-	reqKeys := make([]string, 0)
-	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	for _, reqIndexKey := range reqKVPs {
-		reqIndexKey = path.Clean(reqIndexKey)
-
-		// Search matching with name
-		exist, value, err := consulutil.GetStringValue(path.Join(reqIndexKey, "name"))
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if !exist || value == "" {
-			return nil, errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
-		}
-		if value == requirementType {
-			reqKeys = append(reqKeys, reqIndexKey)
-			// Pass to the next index
-			continue
-		}
-
-		// Search matching with type_requirement
-		exist, value, err = consulutil.GetStringValue(path.Join(reqIndexKey, "type_requirement"))
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if exist && value == requirementType {
-			reqKeys = append(reqKeys, reqIndexKey)
-		}
-	}
-	sort.Sort(sortorder.Natural(reqKeys))
-	return reqKeys, nil
-}
-
-// GetRequirementIndexFromRequirementKey returns the corresponding requirement index from a given requirement key
-// (typically returned by GetRequirementsKeysByTypeForNode)
-func GetRequirementIndexFromRequirementKey(ctx context.Context, requirementKey string) string {
-	return path.Base(requirementKey)
-}
-
-// GetRequirementIndexByNameForNode returns the requirement index which name match with defined requirementName for a given node name
-func GetRequirementIndexByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
-	reqPath, err := GetRequirementKeyByNameForNode(ctx, deploymentID, nodeName, requirementName)
-	if err != nil {
-		return "", err
-	}
-	return path.Base(reqPath), nil
-}
-
 // GetRequirementNameByIndexForNode returns the requirement name for a given node and requirement index
 func GetRequirementNameByIndexForNode(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "name"))
-	if err != nil || !exist || value == "" {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil {
+		return "", err
 	}
-	return value, nil
+	return name, nil
 }
 
 // GetRequirementsIndexes returns the list of requirements indexes for a given node
 func GetRequirementsIndexes(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
-	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
-	reqKVPs, err := consulutil.GetKeys(reqPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, consulutil.ConsulGenericErrMsg)
+	indexes := make([]string, 0)
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return nil, err
 	}
-	for i := range reqKVPs {
-		reqKVPs[i] = path.Base(reqKVPs[i])
+	for i := range reqMap {
+		indexes = append(indexes, strconv.Itoa(i))
 	}
-	return reqKVPs, nil
+	return indexes, nil
 }
 
 // GetNbRequirementsForNode returns the number of requirements declared for the given node
 func GetNbRequirementsForNode(ctx context.Context, deploymentID, nodeName string) (int, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	reqKVPs, err := consulutil.GetKeys(path.Join(nodePath, "requirements"))
-	if err != nil {
-		return 0, errors.Wrapf(err, "Failed to retrieve requirements for node %q", nodeName)
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return 0, err
 	}
-	return len(reqKVPs), nil
+	return len(reqMap), err
 }
 
 // GetRelationshipForRequirement returns the relationship associated with a given requirementIndex for the given nodeName.
 //
 // If there is no relationship defined for this requirement then an empty string is returned.
 func GetRelationshipForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"))
-	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it furthermore it can refer to a relationship_template_name instead of a relationship_type_name
-	if err != nil || !exist || value == "" {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil || name == "" {
+		return "", err
 	}
-	return value, nil
+	return req.Relationship, nil
 }
 
 // GetCapabilityForRequirement returns the capability associated with a given requirementIndex for the given nodeName.
 //
 // If there is no capability defined for this requirement then an empty string is returned.
 func GetCapabilityForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "capability"))
-	if err != nil || !exist || value == "" {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil || name == "" {
+		return "", err
 	}
-	return value, nil
+	return req.Capability, nil
 }
 
 // GetTargetNodeForRequirement returns the target node associated with a given requirementIndex for the given nodeName.
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, error) {
-	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"))
-	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
-	if err != nil || !exist || value == "" {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	name, req, err := getRequirementByIndex(ctx, deploymentID, nodeName, requirementIndex)
+	if err != nil || req == nil || name == "" {
+		return "", err
 	}
-	return value, nil
+	return req.Node, nil
+}
+
+// Return req name and requirement assignment
+func getRequirementByIndex(ctx context.Context, deploymentID, nodeName, requirementIndex string) (string, *tosca.RequirementAssignment, error) {
+	if requirementIndex == "" {
+		return "", nil, nil
+	}
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return "", nil, err
+	}
+
+	ind, err := strconv.Atoi(requirementIndex)
+	if err != nil {
+		return "", nil, errors.Wrapf(err, "requirement index %q is not a valid index", requirementIndex)
+	}
+
+	if ind+1 > len(reqMap) {
+		return "", nil, errors.Wrapf(err, "requirement index %q is not a valid index as node with name %q has only %d requirements", requirementIndex, nodeName, len(reqMap))
+	}
+
+	// Only one requirement Assignment is expected
+	if len(reqMap[ind]) > 1 {
+		return "", nil, errors.Wrapf(err, "more than one requirement assignment for node:%q, index:%q", nodeName, requirementIndex)
+	}
+	for name, req := range reqMap[ind] {
+		return name, &req, nil
+	}
+	return "", nil, nil
 }
 
 // GetTargetInstanceForRequirement returns the target node and instances
@@ -202,93 +200,61 @@ func GetTargetInstanceForRequirement(ctx context.Context, deploymentID, nodeName
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirementByName(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error) {
-	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements")
-	kvp, err := consulutil.GetKeys(reqPath)
-	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
-	if err != nil || kvp == nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	reqMap, err := getRequirements(ctx, deploymentID, nodeName)
+	if err != nil || reqMap == nil {
+		return "", err
 	}
 
-	for _, req := range kvp {
-		existR, value, err := consulutil.GetStringValue(req + "/type_requirement")
-		if err != nil || !existR {
-			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	for _, reqList := range reqMap {
+		req, exist := reqList[requirementName]
+		if exist {
+			return req.Node, nil
 		}
-
-		if value == requirementName {
-			existN, node, err := consulutil.GetStringValue(req + "/node")
-			if err != nil || !existN {
-				return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
-			return node, nil
-		}
-
 	}
-	return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return "", nil
 }
 
-// HasAnyRequirementCapability returns true and the the related node name addressing the capability
-// if node with name nodeName has the requirement with the capability type equal or derived from the provided type
+// HasAnyRequirementCapability returns true and the related target node name addressing the capability
+// if node with name nodeName has the requirement requirement with the capability type equal or derived from the provided type
 // otherwise it returns false and empty string
 func HasAnyRequirementCapability(ctx context.Context, deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
-	reqkKeys, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, requirement)
-	if err != nil {
+	reqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, requirement)
+	if err != nil || reqs == nil {
 		return false, "", err
 	}
-	for _, reqPrefix := range reqkKeys {
-		requirementIndex := GetRequirementIndexFromRequirementKey(ctx, reqPrefix)
-		capability, err := GetCapabilityForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+	for _, req := range reqs {
+		if req.Capability == capabilityType {
+			return true, req.Node, nil
+		}
+		is, err := IsTypeDerivedFrom(ctx, deploymentID, req.Capability, capabilityType)
 		if err != nil {
 			return false, "", err
 		}
-		relatedNodeName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return false, "", err
-		}
-
-		if capability != "" {
-			if capability == capabilityType {
-				return true, relatedNodeName, nil
-			}
-			is, err := IsTypeDerivedFrom(ctx, deploymentID, capability, capabilityType)
-			if err != nil {
-				return false, "", err
-			}
-			return is, relatedNodeName, nil
+		if is {
+			return true, req.Node, nil
 		}
 	}
-
 	return false, "", nil
 }
 
-// HasAnyRequirementFromNodeType returns true and the the related node name addressing the capability
+// HasAnyRequirementFromNodeType returns true and the related node name addressing the capability
 // if node with name nodeName has the requirement with the node type equal or derived from the provided type
 // otherwise it returns false and empty string
 func HasAnyRequirementFromNodeType(ctx context.Context, deploymentID, nodeName, requirement, nodeType string) (bool, string, error) {
-	reqkKeys, err := GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, requirement)
-	if err != nil {
+	reqs, err := GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, requirement)
+	if err != nil || reqs == nil {
 		return false, "", err
 	}
-	for _, reqPrefix := range reqkKeys {
-		requirementIndex := GetRequirementIndexFromRequirementKey(ctx, reqPrefix)
-		capability, err := GetCapabilityForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return false, "", err
-		}
-		relatedNodeName, err := GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return false, "", err
-		}
 
-		if capability != "" {
-			is, err := IsNodeDerivedFrom(ctx, deploymentID, relatedNodeName, nodeType)
+	for _, req := range reqs {
+		if req.Capability != "" {
+			is, err := IsNodeDerivedFrom(ctx, deploymentID, req.Node, nodeType)
 			if err != nil {
 				return false, "", err
 			} else if is {
-				return is, relatedNodeName, nil
+				return is, req.Node, nil
 			}
 		}
 	}
-
 	return false, "", nil
 }

@@ -32,9 +32,8 @@ import (
 
 // BuildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
 func BuildWorkFlow(ctx context.Context, deploymentID, wfName string) (map[string]*Step, error) {
-	wf, err := deployments.ReadWorkflow(ctx, deploymentID, wfName)
-	if err != nil {
-		log.Print(err)
+	wf, err := deployments.GetWorkflow(ctx, deploymentID, wfName)
+	if err != nil || wf == nil {
 		return nil, err
 	}
 
@@ -157,7 +156,7 @@ func buildStepActivities(s *Step, wfStep *tosca.Step) (bool, error) {
 		} else if wfActivity.Inline != "" {
 			s.Activities = append(s.Activities, inlineActivity{inline: wfActivity.Inline})
 		} else {
-			return false, errors.Errorf("Unsupported activity type for step: %q, activity nb: %d", s.Name, i)
+			return false, errors.Errorf("Unsupported activity type for step: %q, activity nb: %d, activity: %+v", s.Name, i, wfActivity)
 		}
 	}
 

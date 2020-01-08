@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/ystia/yorc/v4/config"
 	"testing"
 
 	"github.com/blang/semver"
@@ -63,20 +64,24 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 	initialDataKP := &api.KVPair{Key: consulutil.DeploymentKVPrefix + "/something", Value: []byte{1}}
 	_, err := kv.Put(initialDataKP, nil)
 	require.NoError(t, err)
+	cfg := config.Configuration{
+		WorkingDirectory: "./testdata/",
+		ServerID:         "testUpgrade120_skip_common_types", // this allows to skip tosca commons types upgrade in test
 
-	err = setupConsulDBSchema(client)
+	}
+	err = setupConsulDBSchema(cfg, client)
 	assert.NoError(t, err)
 	checkCurrentSchemaVersion(t, kv)
 
 	// Now set a pre-3.1 schema version
 	setSchemaVersion(t, kv, "0.5.0")
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(cfg, client)
 	assert.NoError(t, err)
 	checkCurrentSchemaVersion(t, kv)
 
 	// Now check current version
 	setSchemaVersion(t, kv, consulutil.YorcSchemaVersion)
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(cfg, client)
 	assert.NoError(t, err)
 	checkCurrentSchemaVersion(t, kv)
 
@@ -84,7 +89,7 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 	v := semver.MustParse(consulutil.YorcSchemaVersion)
 	v.Major++
 	setSchemaVersion(t, kv, v.String())
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(cfg, client)
 
 	assert.Error(t, err)
 	checkSchemaVersion(t, kv, v.String())
@@ -92,13 +97,13 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 	// Check error and auto-rollback
 	currentConsulVersion := semver.MustParse(consulutil.YorcSchemaVersion)
 	currentConsulVersion.Minor--
-	upgradeToMap[consulutil.YorcSchemaVersion] = func(kv *api.KV, lc <-chan struct{}) error {
+	upgradeToMap[consulutil.YorcSchemaVersion] = func(cfg config.Configuration, kv *api.KV, lc <-chan struct{}) error {
 		// Delete something
 		kv.Delete(initialDataKP.Key, nil)
 		return errors.New("This is an expected error")
 	}
 	setSchemaVersion(t, kv, currentConsulVersion.String())
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(cfg, client)
 	// An error is expected
 	assert.Error(t, err)
 	// Version should be restored
@@ -110,7 +115,7 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 
 	// Check case where snapshots are disable
 	disableConsulSnapshotsOnUpgrades = true
-	err = setupConsulDBSchema(client)
+	err = setupConsulDBSchema(cfg, client)
 	// An error is expected
 	assert.Error(t, err)
 

@@ -28,20 +28,20 @@ const (
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
 // NOTE: Here is Alien specific difference with Tosca Specification about Properties/Attributes maps of ValueAssignment instead of maps of PropertyDefinition in Tosca spec
 type CapabilityDefinition struct {
-	Type             string                      `yaml:"type"`
-	Description      string                      `yaml:"description,omitempty"`
-	Properties       map[string]*ValueAssignment `yaml:"properties,omitempty"`
-	Attributes       map[string]*ValueAssignment `yaml:"attributes,omitempty"`
-	ValidSourceTypes []string                    `yaml:"valid_source_types,omitempty,flow"`
-	Occurrences      Range                       `yaml:"occurrences,omitempty"`
+	Type             string                      `yaml:"type" json:"type"`
+	Description      string                      `yaml:"description,omitempty" json:"description,omitempty"`
+	Properties       map[string]*ValueAssignment `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes       map[string]*ValueAssignment `yaml:"attributes,omitempty" json:"attributes,omitempty"`
+	ValidSourceTypes []string                    `yaml:"valid_source_types,omitempty,flow" json:"valid_source_types,omitempty"`
+	Occurrences      Range                       `yaml:"occurrences,omitempty" json:"occurrences,omitempty"`
 }
 
 // An CapabilityAssignment is the representation of a TOSCA Capability Assignment
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_ASSIGNMENT for more details
 type CapabilityAssignment struct {
-	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
-	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`
+	Properties map[string]*ValueAssignment `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty" json:"attributes,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an CapabilityDefinition
