@@ -100,8 +100,21 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	deleteLocationsMap := make(map[string]rest.LocationConfiguration)
 
 	// Get existent locations configuration
-	locsConfig, err := getLocationsConfig(client)
-	for _, locConfig := range locsConfig.Locations {
+	locsConfig, err := getLocationsConfig(client, false)
+	if err != nil {
+		return err
+	}
+	// Use an array for existent locations configuration
+	// to avoid nesting a for that contains if/the/else, in an if
+	var existentLocsConfig []rest.LocationConfiguration
+	if locsConfig != nil {
+		existentLocsConfig = locsConfig.Locations
+	} else {
+		existentLocsConfig = make([]rest.LocationConfiguration, 0)
+	}
+	// update newLocationsMap, updateLocationsMap and deleteLocationsMap
+	// based on already existent locations configurations
+	for _, locConfig := range existentLocsConfig {
 		if newLocConfig, ok := newLocationsMap[locConfig.Name]; ok {
 			// newLocConfig corresponds to an already defined location
 			// Check if there is any change before registering the need to update
