@@ -213,17 +213,13 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName, instanceTagName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
 	devices := make([]string, 0)
 
-	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	storageReqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
 
-	for _, storagePrefix := range storageKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(ctx, storagePrefix)
-		volumeNodeName, err := deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return nil, err
-		}
+	for _, storageReq := range storageReqs {
+		volumeNodeName := storageReq.Node
 
 		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 
