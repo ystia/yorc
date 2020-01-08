@@ -52,20 +52,20 @@ import (
 // If an error occurred during the step execution, task status need to be updated
 // Each done step will register the next ones. In case of join, the last done of previous steps will register the next step
 type worker struct {
-	workerPool   chan chan *taskExecution
-	TaskChannel  chan *taskExecution
-	shutdownCh   chan struct{}
-	consulClient *api.Client
-	cfg          config.Configuration
+	workerPool           chan chan *taskExecution
+	TaskExecutionChannel chan *taskExecution
+	shutdownCh           chan struct{}
+	consulClient         *api.Client
+	cfg                  config.Configuration
 }
 
 func newWorker(workerPool chan chan *taskExecution, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) worker {
 	return worker{
-		workerPool:   workerPool,
-		TaskChannel:  make(chan *taskExecution),
-		shutdownCh:   shutdownCh,
-		consulClient: consulClient,
-		cfg:          cfg,
+		workerPool:           workerPool,
+		TaskExecutionChannel: make(chan *taskExecution),
+		shutdownCh:           shutdownCh,
+		consulClient:         consulClient,
+		cfg:                  cfg,
 	}
 }
 
@@ -75,12 +75,12 @@ func (w *worker) Start() {
 	go func() {
 		for {
 			// register the current worker into the worker queue.
-			w.workerPool <- w.TaskChannel
+			w.workerPool <- w.TaskExecutionChannel
 			select {
-			case task := <-w.TaskChannel:
+			case taskExecution := <-w.TaskExecutionChannel:
 				// we have received a work request.
-				log.Debugf("Worker got Task Execution with id %s", task.taskID)
-				w.handleExecution(task)
+				log.Debugf("Worker reveived a TaskExecution with task id %s", taskExecution.taskID)
+				w.handleExecution(taskExecution)
 
 			case <-w.shutdownCh:
 				// we have received a signal to stop
@@ -178,8 +178,12 @@ func (w *worker) handleExecution(t *taskExecution) {
 			log.Printf("%+v", err)
 		}
 	}()
-
-	metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
+	taskExecutionLabels := []metrics.Label{
+		metrics.Label{Name: "TaskID", Value: t.taskID},
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Type", Value: t.taskType.String()},
+	}
+	metrics.MeasureSinceWithLabels([]string{"taskExecution", "wait"}, t.creationDate, taskExecutionLabels)
 
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
@@ -193,25 +197,12 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func(t *taskExecution, start time.Time) {
-		taskExecutionLabelID := metrics.Label{
-			Name:  "TaskID",
-			Value: t.taskID,
-		}
-		taskExecutionLabelDeployment := metrics.Label{
-			Name:  "Deployment",
-			Value: t.targetID,
-		}
+	defer func(t *taskExecution, start time.Time, taskExecutionLabels []metrics.Label) {
 		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
-			taskExecutionLabelType := metrics.Label{
-				Name:  "Type",
-				Value: t.taskType.String(),
-			}
-			taskExecutionLabels := []metrics.Label{taskExecutionLabelDeployment, taskExecutionLabelType, taskExecutionLabelID}
-			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"task", taskStatus.String()}), 1, taskExecutionLabels)
-			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"task", "duration"}), start, taskExecutionLabels)
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", taskStatus.String()}), 1, taskExecutionLabels)
+			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "duration"}), start, taskExecutionLabels)
 		}
-	}(t, time.Now())
+	}(t, time.Now(), taskExecutionLabels)
 
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
@@ -325,19 +316,11 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	ctx = operations.SetOperationLogFields(ctx, op)
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName, events.OperationName: op.Name})
 
-	executorOperationLabelDeployment := metrics.Label{
-		Name:  "Deployment",
-		Value: t.targetID,
+	executorOperationLabels := []metrics.Label{
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Name", Value: op.Name},
+		metrics.Label{Name: "Node", Value: nodeType},
 	}
-	executorOperationLabelName := metrics.Label{
-		Name:  "Name",
-		Value: op.Name,
-	}
-	executorOperationLabelNode := metrics.Label{
-		Name:  "Node",
-		Value: nodeType,
-	}
-	executorOperationLabels := []metrics.Label{executorOperationLabelDeployment, executorOperationLabelName, executorOperationLabelNode}
 
 	err = func() error {
 		defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
