@@ -19,13 +19,13 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 )
 
-func verifyThatNodeIsTypeOf(g *awsGenerator, nodeType string) error {
-	res, err := deployments.GetNodeType(*g.ctx, g.deploymentID, g.nodeName)
+func verifyThatNodeIsTypeOf(nodeParams nodeParams, nodeType string) error {
+	res, err := deployments.GetNodeType(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName)
 	if err != nil {
 		return err
 	}
 	if res != nodeType {
-		return errors.Errorf("Unsupported node type for %q: %s", g.nodeName, nodeType)
+		return errors.Errorf("Unsupported node type for %q: %s", nodeParams.nodeName, nodeType)
 	}
 	return nil
 }

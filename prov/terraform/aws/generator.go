@@ -35,9 +35,9 @@ import (
 
 const infrastructureType = "aws"
 
-// You should provide fileds during creation
-// Or call GenerateTerraformInfraForNode first to save them
-type awsGenerator struct {
+type awsGenerator struct{}
+
+type nodeParams struct {
 	ctx            *context.Context
 	cfg            *config.Configuration
 	deploymentID   string
@@ -48,14 +48,16 @@ type awsGenerator struct {
 func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 
-	g.ctx = &ctx
-	g.cfg = &cfg
-	g.deploymentID = deploymentID
-	g.nodeName = nodeName
-
 	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 	infrastructure := commons.Infrastructure{}
-	g.infrastructure = &infrastructure
+
+	nodeParams := &nodeParams{
+		ctx:            &ctx,
+		cfg:            &cfg,
+		deploymentID:   deploymentID,
+		nodeName:       nodeName,
+		infrastructure: &infrastructure,
+	}
 
 	var locationProps config.DynamicMap
 	locationMgr, err := locations.GetManager(cfg)
@@ -91,7 +93,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	if err != nil {
 		return false, nil, nil, nil, err
 	}
-	err = g.generateInstances(&instances, outputs, &cmdEnv)
+	err = g.generateInstances(&instances, nodeParams, outputs, &cmdEnv)
 	if err != nil {
 		return false, nil, nil, nil, errors.Wrap(err, "Failed to generate instances")
 	}
@@ -109,14 +111,14 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	return true, outputs, cmdEnv, nil, nil
 }
 
-func (g *awsGenerator) generateInstances(instances *[]string, outputs map[string]string, cmdEnv *[]string) error {
-	nodeType, err := deployments.GetNodeType(*g.ctx, g.deploymentID, g.nodeName)
+func (g *awsGenerator) generateInstances(instances *[]string, nodeParams *nodeParams, outputs map[string]string, cmdEnv *[]string) error {
+	nodeType, err := deployments.GetNodeType(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName)
 	if err != nil {
 		return err
 	}
 
 	for instNb, instanceName := range *instances {
-		instanceState, err := deployments.GetInstanceState(*g.ctx, g.deploymentID, g.nodeName, instanceName)
+		instanceState, err := deployments.GetInstanceState(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName, instanceName)
 		if err != nil {
 			return err
 		}
@@ -127,24 +129,24 @@ func (g *awsGenerator) generateInstances(instances *[]string, outputs map[string
 
 		switch nodeType {
 		case "yorc.nodes.aws.Compute":
-			*instances, err = deployments.GetNodeInstancesIds(*g.ctx, g.deploymentID, g.nodeName)
+			*instances, err = deployments.GetNodeInstancesIds(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName)
 			if err != nil {
 				return err
 			}
 
-			err = g.generateAWSInstance(*g.ctx, *g.cfg, g.deploymentID, g.nodeName, instanceName, g.infrastructure, outputs, cmdEnv)
+			err = g.generateAWSInstance(*nodeParams.ctx, *nodeParams.cfg, nodeParams.deploymentID, nodeParams.nodeName, instanceName, nodeParams.infrastructure, outputs, cmdEnv)
 			if err != nil {
 				return err
 			}
 		case "yorc.nodes.aws.PublicNetwork":
 			// Nothing to do
 		case "yorc.nodes.aws.EBSVolume":
-			err = g.generateEBS(instanceName, instNb, outputs)
+			err = g.generateEBS(*nodeParams, instanceName, instNb, outputs)
 			if err != nil {
 				return err
 			}
 		default:
-			return errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, g.nodeName, g.deploymentID)
+			return errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeParams.nodeName, nodeParams.deploymentID)
 		}
 	}
 
