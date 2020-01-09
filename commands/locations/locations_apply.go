@@ -76,6 +76,15 @@ func readConfigFile(client httputil.HTTPClient, path string) (*rest.LocationsCol
 	return locationsApplied, nil
 }
 
+// Get locations definitions from a file proposed by the client
+func readLocationsConfig(client httputil.HTTPClient, configPath string) (*rest.LocationsCollection, error) {
+	locationsApplied, err := readConfigFile(client, configPath)
+	if err != nil {
+		return nil, err
+	}
+	return locationsApplied, nil
+}
+
 func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove bool) error {
 	colorize := !noColor
 	if len(args) != 1 {
@@ -83,10 +92,7 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	}
 
 	// Get locations definitions proposed by the client
-	locationsApplied, err := readConfigFile(client, args[0])
-	if err != nil {
-		return err
-	}
+	locationsApplied, err := readLocationsConfig(client, args[0])
 
 	// Put all these desfinitions for the momemnt in a map of locations to create
 	newLocationsMap := make(map[string]rest.LocationConfiguration)
