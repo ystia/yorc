@@ -250,7 +250,6 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 		deviceNameID := attachName + ".device_name"
 		deploymentValue := fmt.Sprintf("${aws_volume_attachment.%s.device_name}", attachName)
 		commons.AddOutput(infrastructure, deviceNameID, &commons.Output{Value: deploymentValue})
-		// TODO instanceid, volumeid
 
 		instanceID := attachName + ".instance_id"
 		instanceValue := fmt.Sprintf("${aws_volume_attachment.%s.instance_id}", attachName)
