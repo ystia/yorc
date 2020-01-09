@@ -102,7 +102,7 @@ Yorc REST API metrics
 ~~~~~~~~~~~~~~~~~~~~~
 
 The **method** label represents the HTTP verb.
-The **path** label corresponds to the request URL where slashes are replaced by dashes.
+The **path** label corresponds to the request URL.
 The **status** label represents a HTTP status codes (ie: 200, 404, 500, ...) if a status code is set in the response header.
 
 +------------------------+--------------------+------------------------------------------------------+--------------------+-------------+
