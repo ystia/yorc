@@ -272,7 +272,6 @@ func CommonStoreTest(t *testing.T, store Store) {
 	err = store.SetCollection(ctx, keyValues)
 	require.NoError(t, err)
 
-	t.Skip()
 	kvs, index, err := store.List("testlist", ComplexFoo{}, 0, 0)
 	require.NoError(t, err)
 	require.NotZero(t, index)
@@ -295,6 +294,26 @@ func CommonStoreTest(t *testing.T, store Store) {
 		}
 	}
 
+	// List with blocking query and no new key so timeout si done
+	time.Sleep(time.Second)
+	kvs, nextLastIndex, err = store.List("testlist", ComplexFoo{}, index, 1*time.Second)
+	require.NoError(t, err)
+	require.NotZero(t, nextLastIndex)
+	require.NotNil(t, kvs)
+	require.Equal(t, 2, len(kvs))
+	require.True(t, nextLastIndex == index)
+
+	// List with blocking query and new key so index is changed
+	go func() {
+		kvs, nextLastIndex, err = store.List("testlist", ComplexFoo{}, index, 1*time.Second)
+		require.NoError(t, err)
+		require.NotZero(t, nextLastIndex)
+		require.NotNil(t, kvs)
+		require.Equal(t, 3, len(kvs))
+		require.True(t, nextLastIndex >= lastIndex)
+	}()
+	err = store.Set(ctx, "testlist/three", val1)
+	require.NoError(t, err)
 }
 
 // CommonStoreTestAllTypes allows to test storage of all types

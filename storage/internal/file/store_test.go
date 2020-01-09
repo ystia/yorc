@@ -16,6 +16,7 @@ package file
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -61,6 +62,7 @@ func testFileStoreWithEncryptionWithoutSecretKeyProvided(t *testing.T, cfg confi
 func testFileStoreWithEncryption(t *testing.T, cfg config.Configuration) {
 	props := config.DynamicMap{
 		"secret_key": "myverystrongpasswordo32bitlength",
+		"root_dir":   path.Join(cfg.WorkingDirectory, t.Name()),
 	}
 	fileStore, err := NewStore(cfg, "testStoreID", props, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
@@ -70,6 +72,7 @@ func testFileStoreWithEncryption(t *testing.T, cfg config.Configuration) {
 func testFileStoreTypesWithEncryption(t *testing.T, cfg config.Configuration) {
 	props := config.DynamicMap{
 		"secret_key": "myverystrongpasswordo32bitlength",
+		"root_dir":   path.Join(cfg.WorkingDirectory, t.Name()),
 	}
 	fileStore, err := NewStore(cfg, "testStoreID", props, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
@@ -77,13 +80,19 @@ func testFileStoreTypesWithEncryption(t *testing.T, cfg config.Configuration) {
 }
 
 func testFileStoreWithCache(t *testing.T, cfg config.Configuration) {
-	fileStore, err := NewStore(cfg, "testStoreID", nil, true, false)
+	props := config.DynamicMap{
+		"root_dir": path.Join(cfg.WorkingDirectory, t.Name()),
+	}
+	fileStore, err := NewStore(cfg, "testStoreID", props, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
 
 func testFileStoreTypesWithCache(t *testing.T, cfg config.Configuration) {
-	fileStore, err := NewStore(cfg, "testStoreID", nil, true, false)
+	props := config.DynamicMap{
+		"root_dir": path.Join(cfg.WorkingDirectory, t.Name()),
+	}
+	fileStore, err := NewStore(cfg, "testStoreID", props, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

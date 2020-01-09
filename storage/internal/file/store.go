@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -133,6 +134,15 @@ func (s *fileStore) buildFilePath(k string, withExtension bool) string {
 	return filepath.Join(s.directory, filePath)
 }
 
+func (s *fileStore) extractKeyFromFilePath(filePath string, withExtension bool) string {
+	key := strings.TrimPrefix(filePath, s.directory+string(os.PathSeparator))
+	if !withExtension {
+		return key
+	}
+	key = strings.TrimSuffix(key, "."+s.filenameExtension)
+	return key
+}
+
 func (s *fileStore) Set(ctx context.Context, k string, v interface{}) error {
 	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return err
@@ -205,7 +215,10 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 	}
 
 	filePath := s.buildFilePath(k, true)
+	return s.getValueFromFile(filePath, v)
+}
 
+func (s *fileStore) getValueFromFile(filePath string, v interface{}) (bool, error) {
 	// Prepare file lock.
 	lock := s.prepareFileLock(filePath)
 
@@ -229,7 +242,7 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 		}
 	}
 
-	return true, s.codec.Unmarshal(data, v)
+	return true, errors.Wrapf(s.codec.Unmarshal(data, v), "failed to unmarshal data:%q", string(data))
 }
 
 func (s *fileStore) Exist(k string) (bool, error) {
@@ -260,7 +273,7 @@ func (s *fileStore) Keys(k string) ([]string, error) {
 	result := make([]string, 0)
 	for _, file := range files {
 		fileName := file.Name()
-		// return the whole key path without store specific extension
+		// return the whole key path without specific extension
 		result = append(result, path.Join(k, strings.TrimSuffix(fileName, "."+s.filenameExtension)))
 	}
 
@@ -353,6 +366,73 @@ func (s *fileStore) GetLastIndex(k string) (uint64, error) {
 	return uint64(fInfo.ModTime().UnixNano()), nil
 }
 
-func (c *fileStore) List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error) {
-	return nil, 0, nil
+func (s *fileStore) List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error) {
+	if waitIndex == 0 {
+		return s.list(k, v)
+	}
+
+	// Default timeout to 5 minutes
+	if timeout == 0 {
+		timeout = 5 * time.Minute
+	}
+	// last index Lookup time interval
+	timeAfter := time.After(timeout)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	var stop bool
+	index := uint64(0)
+	var err error
+	for index <= waitIndex && !stop {
+		select {
+		case <-timeAfter:
+			ticker.Stop()
+			stop = true
+		case <-ticker.C:
+			index, err = s.GetLastIndex(k)
+			if err != nil {
+				return nil, index, err
+			}
+		}
+	}
+
+	return s.list(k, v)
+}
+
+func (s *fileStore) list(k string, v interface{}) ([]types.KeyValue, uint64, error) {
+	rootPath := s.buildFilePath(k, false)
+	fInfo, err := os.Stat(rootPath)
+	if err != nil {
+		return nil, 0, err
+	}
+	// Not a directory so nothing to do
+	if !fInfo.IsDir() {
+		return nil, 0, nil
+	}
+	lastIndex := uint64(fInfo.ModTime().UnixNano())
+	// Fill kv collection recursively for the related directory
+	kvs := make([]types.KeyValue, 0)
+
+	err = filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		log.Debugf("Walk path:%s", pathFile)
+		// Add kv for a file
+		if !info.IsDir() {
+
+			vPtr := reflect.New(reflect.TypeOf(v)).Interface()
+			_, err = s.getValueFromFile(pathFile, vPtr)
+			if err != nil {
+				return err
+			}
+			kv := types.KeyValue{
+				Key:       s.extractKeyFromFilePath(pathFile, true),
+				LastIndex: uint64(info.ModTime().UnixNano()),
+				Value:     vPtr,
+			}
+			kvs = append(kvs, kv)
+		}
+		return nil
+	})
+
+	return kvs, lastIndex, err
 }

@@ -51,6 +51,7 @@ type Store interface {
 	// Keys returns all the sub-keys of a specified one.
 	// The key must not be "".
 	// If no sub-key is found, it returns an empty slice.
+	// This is not recursive
 	Keys(k string) ([]string, error)
 	// Delete deletes the stored value for the given key.
 	// Deleting a non-existing key-value pair does NOT lead to an error.
@@ -59,7 +60,7 @@ type Store interface {
 	Delete(ctx context.Context, k string, recursive bool) error
 	// GetLastIndex returns the last index that modified the key k
 	GetLastIndex(k string) (uint64, error)
-	// List allows to lookup all sub-keys under the defined key k and provided associated values.
+	// List allows to lookup all sub-keys recursively under the defined key k and provided associated values.
 	// The key must not be "" and v must not be nil. v is the expected typed element in the collection
 	// waitIndex is used to enable a blocking query (waitIndex != 0) which wait until the timeout or a new index > waitIndex
 	// if waitIndex is > 0, default timeout is 5 minutes. Max timeout allowed is 10 minutes
