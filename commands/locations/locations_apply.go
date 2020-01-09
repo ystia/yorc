@@ -115,19 +115,21 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	// update newLocationsMap, updateLocationsMap and deleteLocationsMap
 	// based on already existent locations configurations
 	for _, locConfig := range existentLocsConfig {
-		if newLocConfig, ok := newLocationsMap[locConfig.Name]; ok {
+		newLocConfig, ok := newLocationsMap[locConfig.Name]
+		checkUpdate := false
+		if ok {
 			// newLocConfig corresponds to an already defined location
-			// Check if there is any change before registering the need to update
-			if locConfig.Type != newLocConfig.Type ||
-				!reflect.DeepEqual(locConfig.Properties, newLocConfig.Properties) {
-				// Add newLocConfig to the map for locations to update
-				updateLocationsMap[locConfig.Name] = newLocConfig
-			}
 			// Delete newLocConfig from the map of locations to create
 			delete(newLocationsMap, locConfig.Name)
+			checkUpdate = true
 		} else {
 			// locConfig is not in the new locations specifications, delete it from consul
 			deleteLocationsMap[locConfig.Name] = locConfig
+		}
+		// Check if there is any change before registering the need to update
+		if checkUpdate && (locConfig.Type != newLocConfig.Type || !reflect.DeepEqual(locConfig.Properties, newLocConfig.Properties)) {
+			// Add newLocConfig to the map for locations to update
+			updateLocationsMap[locConfig.Name] = newLocConfig
 		}
 	}
 
