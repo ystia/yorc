@@ -146,7 +146,7 @@ func initStores(cfg config.Configuration) ([]config.Store, error) {
 
 func getConsulLock(cc *api.Client) (*api.Lock, <-chan struct{}, error) {
 	lock, err := cc.LockOpts(&api.LockOptions{
-		Key:          path.Join(consulutil.StoresPrefix, ".lock"),
+		Key:          ".lock_stores",
 		LockTryOnce:  true,
 		LockWaitTime: 30 * time.Second,
 	})
@@ -178,19 +178,11 @@ func buildDefaultConfigStores() []config.Store {
 	}
 	cfgStores = append(cfgStores, fileStoreWithCache)
 
-	// File with cache and encryption store for logs
-	cipherFileStoreWithCache := config.Store{
-		Name:           "defaultFileStoreWithCacheAndEncryption",
-		Implementation: fileStoreWithCacheAndEncryptionImpl,
-		Types:          []string{types.StoreTypeLog.String()},
-	}
-	cfgStores = append(cfgStores, cipherFileStoreWithCache)
-
-	// File with cache and encryption store for events
+	// Consul store for logs and events
 	consulStore := config.Store{
 		Name:           "defaultConsul",
 		Implementation: consulStoreImpl,
-		Types:          []string{types.StoreTypeEvent.String()},
+		Types:          []string{types.StoreTypeLog.String(), types.StoreTypeEvent.String()},
 	}
 	cfgStores = append(cfgStores, consulStore)
 	return cfgStores
@@ -226,15 +218,8 @@ func checkConfigStores(cfgStores []config.Store) bool {
 func createStoreImpl(cfg config.Configuration, configStore config.Store, storeType types.StoreType) error {
 	var err error
 	switch configStore.Implementation {
-	case fileStoreWithCacheImpl:
-		rootDirectory := path.Join(cfg.WorkingDirectory, "store")
-		stores[storeType], err = file.NewStore(cfg, configStore.Name, rootDirectory, true, false)
-		if err != nil {
-			return err
-		}
-	case fileStoreWithCacheAndEncryptionImpl:
-		rootDirectory := path.Join(cfg.WorkingDirectory, "store")
-		stores[storeType], err = file.NewStore(cfg, configStore.Name, rootDirectory, true, true)
+	case fileStoreWithCacheImpl, fileStoreWithCacheAndEncryptionImpl:
+		stores[storeType], err = file.NewStore(cfg, configStore.Name, configStore.Properties, true, configStore.Implementation == fileStoreWithCacheAndEncryptionImpl)
 		if err != nil {
 			return err
 		}

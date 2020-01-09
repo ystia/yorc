@@ -612,27 +612,28 @@ func testconsulGetStatusEvents(t *testing.T) {
 }
 
 func testconsulGetLogs(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	myErr := errors.New("MyError")
 	deploymentID := testutil.BuildDeploymentID(t)
 	prevIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
-	SimpleLogEntry(LogLevelERROR, deploymentID).RegisterAsString(myErr.Error())
+	SimpleLogEntry(ctx, LogLevelERROR, deploymentID).RegisterAsString(myErr.Error())
 	newIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message1")
+	SimpleLogEntry(ctx, LogLevelINFO, deploymentID).RegisterAsString("message1")
 	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message2")
+	SimpleLogEntry(ctx, LogLevelINFO, deploymentID).RegisterAsString("message2")
 	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message3")
+	SimpleLogEntry(ctx, LogLevelINFO, deploymentID).RegisterAsString("message3")
 	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
@@ -673,11 +674,12 @@ func testPurgeDeploymentEvents(t *testing.T) {
 }
 
 func testPurgeDeploymentLogs(t *testing.T) {
+	ctx := context.Background()
 	deployment1ID := "testPurgeDeploymentLogsA"
 	deployment2ID := "testPurgeDeploymentLogsAA"
 
-	SimpleLogEntry(LogLevelINFO, deployment1ID).RegisterAsString("SomeLog")
-	SimpleLogEntry(LogLevelINFO, deployment2ID).RegisterAsString("SomeOtherLog")
+	SimpleLogEntry(ctx, LogLevelINFO, deployment1ID).RegisterAsString("SomeLog")
+	SimpleLogEntry(ctx, LogLevelINFO, deployment2ID).RegisterAsString("SomeOtherLog")
 	rawEvents, _, err := LogsEvents(deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
@@ -685,7 +687,7 @@ func testPurgeDeploymentLogs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentLogs(deployment1ID)
+	err = PurgeDeploymentLogs(ctx, deployment1ID)
 	require.NoError(t, err)
 
 	rawEvents, _, err = LogsEvents(deployment1ID, 0, 5*time.Minute)

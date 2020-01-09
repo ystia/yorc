@@ -16,6 +16,8 @@ package file
 
 import (
 	"context"
+	"encoding/hex"
+	"github.com/ystia/yorc/v4/config"
 	"io/ioutil"
 	"os"
 	"path"
@@ -25,13 +27,10 @@ import (
 	"time"
 
 	"github.com/dgraph-io/ristretto"
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/encryption"
@@ -41,7 +40,8 @@ import (
 )
 
 type fileStore struct {
-	id string
+	id         string
+	properties config.DynamicMap
 	// For locking the locks map
 	// (no two goroutines may create a lock for a filename that doesn't have a lock yet).
 	locksLock *sync.Mutex
@@ -54,26 +54,26 @@ type fileStore struct {
 	cache             *ristretto.Cache
 	withEncryption    bool
 	encryptor         *encryption.Encryptor
-	cc                *api.Client
 }
 
 // NewStore returns a new File store
-func NewStore(cfg config.Configuration, storeID, rootDir string, withCache, withEncryption bool) (store.Store, error) {
+func NewStore(cfg config.Configuration, storeID string, properties config.DynamicMap, withCache, withEncryption bool) (store.Store, error) {
 	var err error
+
+	if properties == nil {
+		properties = config.DynamicMap{}
+	}
+
 	fs := &fileStore{
 		id:                storeID,
+		properties:        properties,
 		codec:             encoding.JSON,
 		filenameExtension: "json",
-		directory:         rootDir,
+		directory:         properties.GetStringOrDefault("root_dir", path.Join(cfg.WorkingDirectory, "store")),
 		locksLock:         new(sync.Mutex),
 		fileLocks:         make(map[string]*sync.RWMutex),
 		withCache:         withCache,
 		withEncryption:    withEncryption,
-	}
-	// Use consul to store shared encryption key btw yorc instances
-	fs.cc, err = cfg.GetConsulClient()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get consul client for new file store")
 	}
 
 	// Instantiate cache if necessary
@@ -100,50 +100,17 @@ func NewStore(cfg config.Configuration, storeID, rootDir string, withCache, with
 }
 
 func (s *fileStore) buildEncryptor() error {
-	exist, key, err := consulutil.GetStringValue(path.Join(consulutil.StoresPrefix, s.id, "key"))
-	if err != nil {
-		return errors.Wrapf(err, "failed to get withEncryption key for store with ID:%q", s.id)
+	var err error
+	// Check a 32-bits secret key is provided
+	secretKey := s.properties.GetString("secret_key")
+	if secretKey == "" {
+		return errors.Errorf("Missing secret key for file store encryption with ID:%q", s.id)
 	}
-	s.encryptor, err = encryption.NewEncryptor(key)
-	if err != nil {
-		return errors.Wrapf(err, "failed to instantiate encryptor for store with ID:%q", s.id)
+	if len(secretKey) != 32 {
+		return errors.Errorf("The provided secret key for file store encryption with ID:%q must be 32-bits length", s.id)
 	}
-	// save the encryption key if new
-	if !exist {
-		lock, _, err := s.getConsulLock()
-		if err != nil {
-			return err
-		}
-		defer lock.Unlock()
-		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.StoresPrefix, s.id, "key"), s.encryptor.Key)
-		if err != nil {
-			return errors.Wrapf(err, "failed to save encryption key for store with ID:%q", s.id)
-		}
-	}
-	return nil
-}
-
-func (s *fileStore) getConsulLock() (*api.Lock, <-chan struct{}, error) {
-	lock, err := s.cc.LockOpts(&api.LockOptions{
-		Key:          path.Join(consulutil.StoresPrefix, s.id, ".lock"),
-		LockTryOnce:  true,
-		LockWaitTime: 30 * time.Second,
-	})
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get lock options for file store with ID:%q", s.id)
-	}
-
-	var lockCh <-chan struct{}
-	for lockCh == nil {
-		log.Debug("Try to acquire Consul lock for file store with ID:%q")
-		lockCh, err = lock.Lock(nil)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed trying acquiring Consul lock for file store with ID:%q", s.id)
-		}
-
-	}
-	log.Debug("Consul Lock for file store %q acquired", s.id)
-	return lock, lockCh, nil
+	s.encryptor, err = encryption.NewEncryptor(hex.EncodeToString([]byte(secretKey)))
+	return err
 }
 
 // prepareFileLock returns an existing file lock or creates a new one

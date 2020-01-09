@@ -17,6 +17,8 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strconv"
 	"strings"
@@ -256,7 +258,33 @@ func StatusEvents(deploymentID string, waitIndex uint64, timeout time.Duration) 
 
 // LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
 func LogsEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	return getEvents(deploymentID, waitIndex, timeout, consulutil.LogsPrefix)
+	events := make([]json.RawMessage, 0)
+	eventsPrefix := path.Clean(consulutil.LogsPrefix)
+	if deploymentID != "" {
+		// the returned list of events must correspond to the provided deploymentID
+		eventsPrefix = path.Join(consulutil.LogsPrefix, deploymentID)
+	}
+	eventsPrefix = eventsPrefix + "/"
+
+	kvps, lastIndex, err := storage.GetStore(types.StoreTypeLog).List(eventsPrefix, json.RawMessage{}, waitIndex, timeout)
+	if err != nil || lastIndex == 0 {
+		return events, 0, err
+	}
+
+	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(lastIndex, 10))
+	for _, kvp := range kvps {
+		if kvp.LastIndex <= waitIndex {
+			continue
+		}
+
+		eventPtr, cast := kvp.Value.(*json.RawMessage)
+		if !cast {
+			return events, 0, errors.Errorf("failed to cast event into json.RawMessage with value:%+v", kvp.Value)
+		}
+		events = append(events, *eventPtr)
+	}
+	log.Debugf("Found %d events after index", len(events))
+	return events, lastIndex, nil
 }
 
 func getEventsIndex(deploymentID string, eventsPrefix string) (uint64, error) {
@@ -277,7 +305,7 @@ func GetStatusEventsIndex(deploymentID string) (uint64, error) {
 
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
 func GetLogsEventsIndex(deploymentID string) (uint64, error) {
-	return getEventsIndex(deploymentID, consulutil.LogsPrefix)
+	return storage.GetStore(types.StoreTypeLog).GetLastIndex(path.Join(consulutil.LogsPrefix, deploymentID))
 }
 
 // PurgeDeploymentEvents deletes all events for a given deployment
@@ -287,9 +315,8 @@ func PurgeDeploymentEvents(deploymentID string) error {
 }
 
 // PurgeDeploymentLogs deletes all logs for a given deployment
-func PurgeDeploymentLogs(deploymentID string) error {
-	err := consulutil.Delete(path.Join(consulutil.LogsPrefix, deploymentID)+"/", true)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+func PurgeDeploymentLogs(ctx context.Context, deploymentID string) error {
+	return storage.GetStore(types.StoreTypeLog).Delete(ctx, path.Join(consulutil.LogsPrefix, deploymentID)+"/", true)
 }
 
 func buildInfoFromContext(ctx context.Context) Info {

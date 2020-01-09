@@ -637,7 +637,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		return err
 	}
 	// Delete logs tree corresponding to the deployment
-	err = events.PurgeDeploymentLogs(t.targetID)
+	err = events.PurgeDeploymentLogs(ctx, t.targetID)
 	if err != nil {
 		return err
 	}

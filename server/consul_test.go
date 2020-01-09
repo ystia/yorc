@@ -36,7 +36,16 @@ func TestConsulServerPackage(t *testing.T) {
 		os.RemoveAll(workingDir)
 	}()
 
-	t.Run("groupSchema", func(t *testing.T) {
+	t.Run("groupServer", func(t *testing.T) {
+		t.Run("initConsulClient", func(t *testing.T) {
+			testInitConsulClient(t, srv, client)
+		})
+		t.Run("initLocationManager", func(t *testing.T) {
+			testInitLocationManager(t, srv)
+		})
+		t.Run("testRunServer", func(t *testing.T) {
+			testRunServer(t, srv, client)
+		})
 		t.Run("testSetupVersion", func(t *testing.T) {
 			testSetupVersion(t, client)
 		})
@@ -127,4 +136,7 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 	kvp, _, err = kv.Get(initialDataKP.Key, nil)
 	assert.NoError(t, err)
 	assert.Nil(t, kvp)
+
+	// Back to current version for next tests
+	setSchemaVersion(t, kv, "1.3.0")
 }

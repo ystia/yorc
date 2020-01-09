@@ -241,7 +241,7 @@ func cleanupPurgedDeployment(ctx context.Context, deploymentID string) error {
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	err = events.PurgeDeploymentLogs(deploymentID)
+	err = events.PurgeDeploymentLogs(ctx, deploymentID)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

@@ -18,7 +18,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
@@ -27,48 +26,64 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunFileStoragePackageTests(t *testing.T) {
-	srv, _, cfg := store.NewTestConsulInstance(t)
+	cfg := config.Configuration{
+		WorkingDirectory: "./work",
+	}
+
 	defer func() {
-		srv.Stop()
 		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	t.Run("groupFileStore", func(t *testing.T) {
 		t.Run("testFileStoreWithEncryption", func(t *testing.T) {
-			testFileStoreWithEncryption(t, srv, cfg)
+			testFileStoreWithEncryption(t, cfg)
 		})
 		t.Run("testFileStoreTypesWithEncryption", func(t *testing.T) {
-			testFileStoreTypesWithEncryption(t, srv, cfg)
+			testFileStoreTypesWithEncryption(t, cfg)
+		})
+		t.Run("testFileStoreWithEncryptionWithoutSecretKeyProvided", func(t *testing.T) {
+			testFileStoreWithEncryptionWithoutSecretKeyProvided(t, cfg)
 		})
 		t.Run("testFileStoreWithCache", func(t *testing.T) {
-			testFileStoreWithCache(t, srv, cfg)
+			testFileStoreWithCache(t, cfg)
 		})
 		t.Run("testFileStoreTypesWithCache", func(t *testing.T) {
-			testFileStoreTypesWithCache(t, srv, cfg)
+			testFileStoreTypesWithCache(t, cfg)
 		})
 	})
 }
 
-func testFileStoreWithEncryption(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, false, true)
+func testFileStoreWithEncryptionWithoutSecretKeyProvided(t *testing.T, cfg config.Configuration) {
+	_, err := NewStore(cfg, "testStoreID", nil, false, true)
+	require.Error(t, err, "expected error as secrek key is missing")
+}
+
+func testFileStoreWithEncryption(t *testing.T, cfg config.Configuration) {
+	props := config.DynamicMap{
+		"secret_key": "myverystrongpasswordo32bitlength",
+	}
+	fileStore, err := NewStore(cfg, "testStoreID", props, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
 
-func testFileStoreTypesWithEncryption(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, false, true)
+func testFileStoreTypesWithEncryption(t *testing.T, cfg config.Configuration) {
+	props := config.DynamicMap{
+		"secret_key": "myverystrongpasswordo32bitlength",
+	}
+	fileStore, err := NewStore(cfg, "testStoreID", props, false, true)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }
 
-func testFileStoreWithCache(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, true, false)
+func testFileStoreWithCache(t *testing.T, cfg config.Configuration) {
+	fileStore, err := NewStore(cfg, "testStoreID", nil, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTest(t, fileStore)
 }
 
-func testFileStoreTypesWithCache(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	fileStore, err := NewStore(cfg, "testStoreID", cfg.WorkingDirectory, true, false)
+func testFileStoreTypesWithCache(t *testing.T, cfg config.Configuration) {
+	fileStore, err := NewStore(cfg, "testStoreID", nil, true, false)
 	require.NoError(t, err, "failed to instantiate new store")
 	store.CommonStoreTestAllTypes(t, fileStore)
 }

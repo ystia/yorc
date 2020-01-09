@@ -26,18 +26,14 @@ import (
 
 // Encryptor allows to encrypt/Decrypt any date with AES tools
 type Encryptor struct {
-	Key string // encryption 32-bits key encoded in hexadecimal
+	Key string // encryption 256-bits key encoded in hexadecimal
 	gcm cipher.AEAD
 }
 
 // NewEncryptor allows to instantiate a new encryptor with an existing key or a new one if no key is provided
 func NewEncryptor(key string) (*Encryptor, error) {
-	var err error
 	if key == "" {
-		key, err = buildEncryptionKey()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to generate encryption key")
-		}
+		return nil, errors.Errorf("missing encryption key")
 	}
 	// Build GCM for all encryption/decryption
 	decoded, err := hex.DecodeString(key)
@@ -56,16 +52,6 @@ func NewEncryptor(key string) (*Encryptor, error) {
 		Key: key,
 		gcm: gcm,
 	}, nil
-}
-
-// Create 256-bits encryption key encoded in hexadecimal
-func buildEncryptionKey() (string, error) {
-	key := make([]byte, 32)
-	_, err := rand.Read(key)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(key), nil
 }
 
 // Encrypt allows to encrypt data with the encryptor GCM

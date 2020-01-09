@@ -103,13 +103,9 @@ func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) erro
 }
 
 func (c *consulStore) GetLastIndex(k string) (uint64, error) {
-	kvp, qm, err := consulutil.GetKV().Get(k, nil)
+	_, qm, err := consulutil.GetKV().Get(k, nil)
 	if err != nil || qm == nil {
 		return 0, errors.Errorf("Failed to retrieve last index for key:%q", k)
-	}
-	// must be useful that lastIndex is 0 when key doesn't exist
-	if kvp == nil {
-		return 0, nil
 	}
 	return qm.LastIndex, nil
 }
