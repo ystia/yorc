@@ -338,18 +338,13 @@ Add a location defininition in JSON format.
 Flags:
   * ``--data`` or ``-d`` :  Specify a JSON format for location definition to add.
 
-Example of location definition named "testname", having type "t" and two properties "p1" and "p2":
 
-.. code-block:: JSON
+Example of location definition "testname" using ``--data`` flag:
 
-    {
-         "name": "testname",
-         "type": "t",
-         "properties" : {
-              "p1" : "v1",
-              "p2" : "v2"
-         }
-    }
+.. code-block:: bash
+
+     yorc locations add --data '{"name": "testname", "type": "t", "properties" : { "p1" : "v1", "p2" : "v2" }}'
+
 
 Update a location
 ~~~~~~~~~~~~~~~~~
@@ -364,17 +359,12 @@ Flags:
   * ``--data`` or ``-d`` :  Specify a JSON format for the location definition to update.
 
 
-Example:
+Example of "testname" location update using ``--data`` flag:
 
-.. code-block:: JSON
+.. code-block:: bash
 
-    {
-         "name": "testname",
-         "type": "other",
-         "properties" : {
-              "p1" : "v11"
-         }
-    }
+     yorc locations add --data '{"name": "testname", "type": "other", "properties" : { "p1" : "v111" }}'
+
 
 Delete a location
 ~~~~~~~~~~~~~~~~~
