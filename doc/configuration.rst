@@ -1109,6 +1109,86 @@ In this case, Yorc gives priority to the application provided properties.
 Moreover, if all the applications provide their own user credentials, the configuration properties user_name, password and private_key, can be omitted.
 See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
 
+Storage configuration
+---------------------
+
+Different artifacts are stored by Yorc to deploy an application. Previously, everything was stored in Consul KV but mainly for performance reasons, we choose to refactor the way
+we store data in order to make more flexible.
+So, now, user can configure Yorc stores implementations for different kind of artifacts.
+
+A store configuration is defined with:
+
+- its ``name`` to identify it uniquely.
+
+- its ``implementation`` which can be ``consul`` by instance. See the list below.
+
+- The different store ``types`` it handles as "Deployment", "log" or "event".
+
+- ``Properties`` which can allow the store creation:
+    - ``root_dir`` for ``fileCache`` / ``cipherFileCache`` implementations.
+    - ``secret_key`` for a ``cipherFileCache`` implementation.
+
+Store implementations
+~~~~~~~~~~~~~~~~~~~~~
+
+Today, we provide 3 implementations with the following names:
+
+- ``consul``: this is the consul KV store we use for main internal storage stuff.
+
+- ``fileCache``: a file store with a cache system. A ``root_dir`` property allows to specify the root directory of the store.
+
+- ``cipherFileCache``: a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
+
+A ``root_dir`` property allows to specify the root directory of the store.
+
+A ``secret_key`` mandatory property allows to specify the passphrase used to create the encryption key. You can use Vault to store your secret key and specify
+
+it in the configuration: "{{secret \"/secret/yorc/mysecret\" \"data=value\" | print}}"
+
+Store types
+~~~~~~~~~~~
+
+3 different kind of store types are defined:
+
+- ``Deployment``: this corresponds to the data of the Tosca topologies with types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows)
+
+This data is written once when topology is parsed then read many times during application lifecycle. ``fileCache`` is the default implementation for this store type.
+
+- ``Log``: this represents the applicative logs present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
+
+If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
+
+- ``Event``: this represents the applicative events present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
+
+
+Here is a JSON example of stores configuration:
+
+.. code-block:: JSON
+
+  {
+  "stores": [
+    {
+      "name": "myFileStore",
+      "implementation": "fileCache",
+      "types":  ["Deployment"]
+    },
+    {
+      "name": "myCipherFileStore",
+      "implementation": "cipherFileCache",
+      "types":  ["Log"],
+      "properties": {
+        "root_dir": "/mypath/to/store",
+        "secret_key": "myverystrongpasswordo32bitlength"
+      }
+    },
+    {
+      "name": "myConsulStore",
+      "implementation": "consul",
+      "types":  ["Log","Event"]
+    }
+  ],
+    ....
+
 Vault configuration
 -------------------
 
