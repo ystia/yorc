@@ -121,45 +121,29 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	} else {
 		existentLocsConfig = make([]rest.LocationConfiguration, 0)
 	}
+
 	// update newLocationsMap, updateLocationsMap and deleteLocationsMap
 	// based on already existent locations configurations
-	for _, locConfig := range existentLocsConfig {
-		newLocConfig, ok := newLocationsMap[locConfig.Name]
-		checkUpdate := false
-		if ok {
-			// newLocConfig corresponds to an already defined location
-			// Delete newLocConfig from the map of locations to create
-			delete(newLocationsMap, locConfig.Name)
-			checkUpdate = true
-		} else {
-			// locConfig is not in the new locations specifications, delete it from consul
-			deleteLocationsMap[locConfig.Name] = locConfig
-		}
-		// Check if there is any change before registering the need to update
-		if checkUpdate && (locConfig.Type != newLocConfig.Type || !reflect.DeepEqual(locConfig.Properties, newLocConfig.Properties)) {
-			// Add newLocConfig to the map for locations to update
-			updateLocationsMap[locConfig.Name] = newLocConfig
-		}
+	for _, existLocConfig := range existentLocsConfig {
+		amendLocationsMap(newLocationsMap, updateLocationsMap, deleteLocationsMap, existLocConfig)
 	}
 
 	// Present locations to be created
-	presentLocationsMap(&newLocationsMap, colorize, locationCreation)
+	presentLocationsMap(newLocationsMap, colorize, locationCreation)
 
 	// Present locations to be updated
-	presentLocationsMap(&updateLocationsMap, colorize, locationUpdate)
+	presentLocationsMap(updateLocationsMap, colorize, locationUpdate)
 
 	// Present locations to be deleted
-	presentLocationsMap(&deleteLocationsMap, colorize, locationDeletion)
+	presentLocationsMap(deleteLocationsMap, colorize, locationDeletion)
 
-	if (len(newLocationsMap) + len(updateLocationsMap) + len(deleteLocationsMap)) > 0 {
-		// Changes to do. Let's see what user decides
-		if !approveToApply(autoApprove) {
-			return nil
-		}
+	// If changes to do, ask user if he approve these changes
+	if ((len(newLocationsMap) + len(updateLocationsMap) + len(deleteLocationsMap)) > 0) && !approveToApply(autoApprove) {
+		return nil
 	}
 
 	// Proceed to apply changes
-	err = doApply(client, &newLocationsMap, &updateLocationsMap, &deleteLocationsMap)
+	err = doApply(client, newLocationsMap, updateLocationsMap, deleteLocationsMap)
 	if err != nil {
 		return err
 	}
@@ -167,9 +151,9 @@ func applyLocationsConfig(client httputil.HTTPClient, args []string, autoApprove
 	return nil
 }
 
-func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[string]rest.LocationConfiguration) error {
+func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap map[string]rest.LocationConfiguration) error {
 	// Proceed to the create
-	for _, newLocation := range *createMap {
+	for _, newLocation := range createMap {
 		locConfig := rest.LocationConfiguration{
 			Name:       newLocation.Name,
 			Type:       newLocation.Type,
@@ -186,7 +170,7 @@ func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[st
 	}
 
 	// Proceed to update
-	for _, updateLocation := range *updateMap {
+	for _, updateLocation := range updateMap {
 		locConfig := rest.LocationConfiguration{
 			Name:       updateLocation.Name,
 			Type:       updateLocation.Type,
@@ -203,7 +187,7 @@ func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[st
 	}
 
 	// Proceed to delete
-	for locNameToDelete := range *deleteMap {
+	for locNameToDelete := range deleteMap {
 		err := deleteLocationConfig(client, locNameToDelete)
 		if err != nil {
 			return err
@@ -216,17 +200,37 @@ func doApply(client httputil.HTTPClient, createMap, updateMap, deleteMap *map[st
 	return nil
 }
 
-func presentLocationsMap(locationsMap *map[string]rest.LocationConfiguration, colorize bool, op int) {
-	if len(*locationsMap) > 0 {
+func amendLocationsMap(newLocationsMap, updateLocationsMap, deleteLocationsMap map[string]rest.LocationConfiguration, existLocConfig rest.LocationConfiguration) {
+	locName := existLocConfig.Name
+	newLocConfig, ok := newLocationsMap[locName]
+	checkUpdate := false
+	if ok {
+		// newLocConfig corresponds to an already defined location
+		// Delete newLocConfig from the map of locations to create
+		delete(newLocationsMap, locName)
+		checkUpdate = true
+	} else {
+		// locConfig is not in the new locations specifications, delete it from consul
+		deleteLocationsMap[locName] = existLocConfig
+	}
+	// Check if there is any change before registering the need to update
+	if checkUpdate && (existLocConfig.Type != newLocConfig.Type || !reflect.DeepEqual(existLocConfig.Properties, newLocConfig.Properties)) {
+		// Add newLocConfig to the map for locations to update
+		updateLocationsMap[locName] = newLocConfig
+	}
+}
+
+func presentLocationsMap(locationsMap map[string]rest.LocationConfiguration, colorize bool, op int) {
+	if len(locationsMap) > 0 {
 		locationsTable := tabutil.NewTable()
 		locationsTable.AddHeaders("Name", "Type", "Properties")
-		for _, locConfig := range *locationsMap {
+		for _, locConfig := range locationsMap {
 			addRow(locationsTable, colorize, op, locConfig)
 		}
 		fmt.Printf("\n- Locations to %s:", opNames[op])
 		fmt.Println("")
 		fmt.Println(locationsTable.Render())
-		fmt.Printf("Number of locations to %s : %v ", opNames[op], len(*locationsMap))
+		fmt.Printf("Number of locations to %s : %v ", opNames[op], len(locationsMap))
 		fmt.Println("")
 	}
 }
