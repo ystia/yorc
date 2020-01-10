@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +35,6 @@ import (
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/encryption"
 	"github.com/ystia/yorc/v4/storage/store"
-	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/storage/utils"
 )
 
@@ -150,7 +148,7 @@ func (s *fileStore) Set(ctx context.Context, k string, v interface{}) error {
 
 	data, err := s.codec.Marshal(v)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to marshal value %+v due to error:%+v", v, err)
 	}
 
 	// Prepare file lock.
@@ -181,7 +179,7 @@ func (s *fileStore) Set(ctx context.Context, k string, v interface{}) error {
 	return ioutil.WriteFile(filePath, data, 0600)
 }
 
-func (s *fileStore) SetCollection(ctx context.Context, keyValues []*types.KeyValue) error {
+func (s *fileStore) SetCollection(ctx context.Context, keyValues []store.KeyValueIn) error {
 	if keyValues == nil {
 		return nil
 	}
@@ -207,18 +205,18 @@ func (s *fileStore) Get(k string, v interface{}) (bool, error) {
 		if has {
 			data, ok := value.([]byte)
 			if ok {
-				log.Debugf("Value has been retrieved from cache for key:%q", k)
-				return true, s.codec.Unmarshal(data, v)
+				return true, errors.Wrapf(s.codec.Unmarshal(data, v), "failed to unmarshal data:%q", string(data))
 			}
 			log.Printf("[WARNING] Failed to cast retrieved value from cache to bytes array for key:%q. Data will be retrieved from store.", k)
 		}
 	}
 
 	filePath := s.buildFilePath(k, true)
-	return s.getValueFromFile(filePath, v)
+	exist, _, err := s.getValueFromFile(filePath, v)
+	return exist, err
 }
 
-func (s *fileStore) getValueFromFile(filePath string, v interface{}) (bool, error) {
+func (s *fileStore) getValueFromFile(filePath string, v interface{}) (bool, []byte, error) {
 	// Prepare file lock.
 	lock := s.prepareFileLock(filePath)
 
@@ -229,20 +227,20 @@ func (s *fileStore) getValueFromFile(filePath string, v interface{}) (bool, erro
 	lock.RUnlock()
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, nil
+			return false, nil, nil
 		}
-		return false, err
+		return false, nil, err
 	}
 
 	// decrypt if necessary
 	if s.withEncryption {
 		data, err = s.encryptor.Decrypt(data)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 	}
 
-	return true, errors.Wrapf(s.codec.Unmarshal(data, v), "failed to unmarshal data:%q", string(data))
+	return true, data, errors.Wrapf(s.codec.Unmarshal(data, v), "failed to unmarshal data:%q", string(data))
 }
 
 func (s *fileStore) Exist(k string) (bool, error) {
@@ -340,11 +338,11 @@ func (s *fileStore) clearCache(ctx context.Context, k string, recursive bool) er
 	return errGroup.Wait()
 }
 
-func (s *fileStore) GetLastIndex(k string) (uint64, error) {
+func (s *fileStore) GetLastModifyIndex(k string) (uint64, error) {
 	// key can be directory or file, ie with or without extension
 	// let's try first without extension as it can be the most current case
-	fp := s.buildFilePath(k, false)
-	fInfo, err := os.Stat(fp)
+	rootPath := s.buildFilePath(k, false)
+	fInfo, err := os.Stat(rootPath)
 
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -361,14 +359,29 @@ func (s *fileStore) GetLastIndex(k string) (uint64, error) {
 				return 0, nil
 			}
 		}
+		return uint64(fInfo.ModTime().UnixNano()), nil
 	}
 
-	return uint64(fInfo.ModTime().UnixNano()), nil
+	// For a directory, lastIndex is determined by the max modify index of sub-directories
+	var index, lastIndex uint64
+	err = filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			index = uint64(info.ModTime().UnixNano())
+			if index > lastIndex {
+				lastIndex = index
+			}
+		}
+		return nil
+	})
+	return lastIndex, err
 }
 
-func (s *fileStore) List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error) {
+func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
 	if waitIndex == 0 {
-		return s.list(k, v)
+		return s.list(k)
 	}
 
 	// Default timeout to 5 minutes
@@ -383,21 +396,26 @@ func (s *fileStore) List(k string, v interface{}, waitIndex uint64, timeout time
 	var err error
 	for index <= waitIndex && !stop {
 		select {
+		case <-ctx.Done():
+			log.Debugf("Cancel signal has been received: the store List query is stopped")
+			ticker.Stop()
+			stop = true
 		case <-timeAfter:
+			log.Debugf("Timeout has been reached: the store List query is stopped")
 			ticker.Stop()
 			stop = true
 		case <-ticker.C:
-			index, err = s.GetLastIndex(k)
+			index, err = s.GetLastModifyIndex(k)
 			if err != nil {
 				return nil, index, err
 			}
 		}
 	}
 
-	return s.list(k, v)
+	return s.list(k)
 }
 
-func (s *fileStore) list(k string, v interface{}) ([]types.KeyValue, uint64, error) {
+func (s *fileStore) list(k string) ([]store.KeyValueOut, uint64, error) {
 	rootPath := s.buildFilePath(k, false)
 	fInfo, err := os.Stat(rootPath)
 	if err != nil {
@@ -407,29 +425,36 @@ func (s *fileStore) list(k string, v interface{}) ([]types.KeyValue, uint64, err
 	if !fInfo.IsDir() {
 		return nil, 0, nil
 	}
-	lastIndex := uint64(fInfo.ModTime().UnixNano())
+	var index, lastIndex uint64
 	// Fill kv collection recursively for the related directory
-	kvs := make([]types.KeyValue, 0)
+	kvs := make([]store.KeyValueOut, 0)
 
 	err = filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("Walk path:%s", pathFile)
 		// Add kv for a file
+		// determine lastIndex for a directory
 		if !info.IsDir() {
-
-			vPtr := reflect.New(reflect.TypeOf(v)).Interface()
-			_, err = s.getValueFromFile(pathFile, vPtr)
+			var raw []byte
+			var value map[string]interface{}
+			_, raw, err = s.getValueFromFile(pathFile, &value)
 			if err != nil {
 				return err
 			}
-			kv := types.KeyValue{
-				Key:       s.extractKeyFromFilePath(pathFile, true),
-				LastIndex: uint64(info.ModTime().UnixNano()),
-				Value:     vPtr,
+
+			kv := store.KeyValueOut{
+				Key:             s.extractKeyFromFilePath(pathFile, true),
+				LastModifyIndex: uint64(info.ModTime().UnixNano()),
+				Value:           value,
+				RawValue:        raw,
 			}
 			kvs = append(kvs, kv)
+		} else {
+			index = uint64(info.ModTime().UnixNano())
+			if index > lastIndex {
+				lastIndex = index
+			}
 		}
 		return nil
 	})

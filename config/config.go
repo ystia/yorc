@@ -194,7 +194,7 @@ type Dispatcher struct {
 // Stores configuration
 type Store struct {
 	Name           string     `yaml:"name" mapstructure:"name"`
-	Implementation string     `yaml:"implementation,omitempty" mapstructure:"type"` // not an enum as it could be extended by plugins
+	Implementation string     `yaml:"implementation,omitempty" mapstructure:"implementation"` // not an enum as it could be extended by plugins
 	Types          []string   `yaml:"types" mapstructure:"types"`
 	Properties     DynamicMap `yaml:"properties,omitempty" mapstructure:"properties"`
 }

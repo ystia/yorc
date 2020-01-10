@@ -86,7 +86,9 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 	// Load stores
 	// Load main stores used for deployments, logs, events
 	err = storage.LoadStores(cfg)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatalf("Failed to load stores due to error: %v", err)
+	}
 
 	if storeCommons {
 		storeCommonDefinitions()

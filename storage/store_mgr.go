@@ -34,9 +34,9 @@ import (
 
 const consulStoreImpl = "consul"
 
-const fileStoreWithCacheImpl = "fileWithCache"
+const fileStoreWithCacheImpl = "fileCache"
 
-const fileStoreWithCacheAndEncryptionImpl = "fileWithCacheAndEncryption"
+const fileStoreWithCacheAndEncryptionImpl = "cipherFileCache"
 
 var once sync.Once
 var stores map[types.StoreType]store.Store
@@ -82,6 +82,10 @@ func LoadStores(cfg config.Configuration) error {
 			}
 		}
 	})
+
+	if err != nil {
+		clearConfigStore()
+	}
 	return err
 }
 
@@ -102,6 +106,7 @@ func getConfigStores(cfg config.Configuration) ([]config.Store, error) {
 	}
 
 	if len(kvps) > 0 {
+		log.Debugf("Found %d stores already saved", len(kvps))
 		configStores := make([]config.Store, len(kvps))
 		for _, kvp := range kvps {
 			name := path.Base(kvp.Key)
@@ -115,11 +120,11 @@ func getConfigStores(cfg config.Configuration) ([]config.Store, error) {
 		return configStores, nil
 	}
 
-	// Initialize stores in Consul
-	return initStores(cfg)
+	return initConfigStores(cfg)
 }
 
-func initStores(cfg config.Configuration) ([]config.Store, error) {
+// Initialize config stores in Consul
+func initConfigStores(cfg config.Configuration) ([]config.Store, error) {
 	cfgStores := cfg.Stores
 	// Check provided config stores
 	ok := checkConfigStores(cfgStores)
@@ -131,17 +136,18 @@ func initStores(cfg config.Configuration) ([]config.Store, error) {
 
 	// Save stores config in Consul
 	for _, configStore := range cfgStores {
-		b, err := json.Marshal(configStore)
+		err := consulutil.StoreConsulKeyWithJSONValue(path.Join(consulutil.StoresPrefix, configStore.Name), configStore)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to marshal store with name:%q", configStore.Name)
-		}
-		err = consulutil.StoreConsulKey(path.Join(consulutil.StoresPrefix, configStore.Name), b)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to store store %s in consul", configStore.Name)
+			return nil, errors.Wrapf(err, "failed to save store %s in consul", configStore.Name)
 		}
 		log.Debugf("Save store config with name:%q", configStore.Name)
 	}
 	return cfgStores, nil
+}
+
+// Clear config stores in Consul
+func clearConfigStore() error {
+	return consulutil.Delete(consulutil.StoresPrefix, true)
 }
 
 func getConsulLock(cc *api.Client) (*api.Lock, <-chan struct{}, error) {
@@ -159,7 +165,7 @@ func getConsulLock(cc *api.Client) (*api.Lock, <-chan struct{}, error) {
 		log.Debug("Try to acquire Consul lock for stores")
 		lockCh, err = lock.Lock(nil)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed trying acquiring Consul lock for stores")
+			return nil, nil, errors.Wrapf(err, "failed trying to acquire Consul lock for stores")
 		}
 
 	}
@@ -217,13 +223,14 @@ func checkConfigStores(cfgStores []config.Store) bool {
 
 func createStoreImpl(cfg config.Configuration, configStore config.Store, storeType types.StoreType) error {
 	var err error
-	switch configStore.Implementation {
-	case fileStoreWithCacheImpl, fileStoreWithCacheAndEncryptionImpl:
-		stores[storeType], err = file.NewStore(cfg, configStore.Name, configStore.Properties, true, configStore.Implementation == fileStoreWithCacheAndEncryptionImpl)
+	impl := strings.ToLower(configStore.Implementation)
+	switch impl {
+	case strings.ToLower(fileStoreWithCacheImpl), strings.ToLower(fileStoreWithCacheAndEncryptionImpl):
+		stores[storeType], err = file.NewStore(cfg, configStore.Name, configStore.Properties, true, impl == strings.ToLower(fileStoreWithCacheAndEncryptionImpl))
 		if err != nil {
 			return err
 		}
-	case consulStoreImpl:
+	case strings.ToLower(consulStoreImpl):
 		stores[storeType] = consul.NewStore()
 	default:
 		log.Printf("[WARNING] unknown store implementation:%q. This will be ignored.", storeType)

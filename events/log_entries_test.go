@@ -68,6 +68,7 @@ func TestSimpleLogEntry(t *testing.T) {
 
 func testRegisterLogsInConsul(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	tests := []struct {
 		name      string
@@ -87,16 +88,14 @@ func testRegisterLogsInConsul(t *testing.T) {
 	}
 
 	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
-	kvps, _, err := storage.GetStore(types.StoreTypeLog).List(logsPrefix, json.RawMessage{}, 0, 0)
+	kvps, _, err := storage.GetStore(types.StoreTypeLog).List(ctx, logsPrefix, 0, 0)
 
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
 	for index, kvp := range kvps {
 		tc := tests[index]
-		logPtr, cast := kvp.Value.(*json.RawMessage)
-		require.True(t, cast)
-		assert.Equal(t, tc.wantValue, getLogEntryExceptTimestamp(t, string(*logPtr)))
+		assert.Equal(t, tc.wantValue, getLogEntryExceptTimestamp(t, string(kvp.RawValue)))
 	}
 }
 
@@ -116,7 +115,7 @@ func getLogEntryExceptTimestamp(t *testing.T, log string) string {
 // Check sorting by timestamp preserves the order of log entries stored in Consul
 func testLogsSortedByTimestamp(t *testing.T) {
 	t.Parallel()
-
+	ctx := context.Background()
 	// Register log entries in Consul
 	const NumberOfLogs = 100
 	const ContentFormat = "Log id %d"
@@ -129,14 +128,11 @@ func testLogsSortedByTimestamp(t *testing.T) {
 	// Retrieve key/value pairs stored in Consul
 	logEntries := make([]map[string]string, NumberOfLogs)
 	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
-	kvps, _, err := storage.GetStore(types.StoreTypeLog).List(logsPrefix, json.RawMessage{}, 0, 0)
+	kvps, _, err := storage.GetStore(types.StoreTypeLog).List(ctx, logsPrefix, 0, 0)
 	require.NoError(t, err, "Failure getting log entries from consul")
 	require.Len(t, kvps, NumberOfLogs, "Got unexpected number of log entries from Consul")
 	for i, kvp := range kvps {
-		logPtr, cast := kvp.Value.(*json.RawMessage)
-		require.True(t, cast)
-
-		err := json.Unmarshal(*logPtr, &logEntries[i])
+		err := json.Unmarshal(kvp.RawValue, &logEntries[i])
 		require.NoError(t, err, "Failure unmarshalling value from consul")
 	}
 

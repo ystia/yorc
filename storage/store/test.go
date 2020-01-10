@@ -18,11 +18,11 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/storage/types"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -131,7 +131,7 @@ func CommonStoreTest(t *testing.T, store Store) {
 	}
 
 	// Get last Index
-	lastIndex, err := store.GetLastIndex(key)
+	lastIndex, err := store.GetLastModifyIndex(key)
 	require.NoError(t, err)
 
 	// Storing it again should not lead to an error but just overwrite it
@@ -141,7 +141,7 @@ func CommonStoreTest(t *testing.T, store Store) {
 	}
 	time.Sleep(10 * time.Millisecond)
 	// The last Index should be greater than previous one
-	nextLastIndex, err := store.GetLastIndex(key)
+	nextLastIndex, err := store.GetLastModifyIndex(key)
 	require.NoError(t, err)
 	require.True(t, nextLastIndex >= lastIndex)
 
@@ -258,13 +258,13 @@ func CommonStoreTest(t *testing.T, store Store) {
 		},
 	}
 
-	keyValues := []*types.KeyValue{
+	keyValues := []KeyValueIn{
 		{
-			Key:   "testlist/one",
+			Key:   "rootList/testlist/one",
 			Value: val1,
 		},
 		{
-			Key:   "testlist/two",
+			Key:   "rootList/testlist/two",
 			Value: val2,
 		},
 	}
@@ -272,20 +272,22 @@ func CommonStoreTest(t *testing.T, store Store) {
 	err = store.SetCollection(ctx, keyValues)
 	require.NoError(t, err)
 
-	kvs, index, err := store.List("testlist", ComplexFoo{}, 0, 0)
+	kvs, index, err := store.List(ctx, "rootList", 0, 0)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.NotNil(t, kvs)
 	require.Equal(t, 2, len(kvs))
 
 	for _, kv := range kvs {
-		value := *kv.Value.(*ComplexFoo)
+		value := ComplexFoo{}
+		err = mapstructure.Decode(kv.Value, &value)
+		require.NoError(t, err)
 		switch kv.Key {
-		case "testlist/one":
+		case "rootList/testlist/one":
 			if !reflect.DeepEqual(value, val1) {
 				t.Errorf("List() = %v, want %v", value, val1)
 			}
-		case "testlist/two":
+		case "rootList/testlist/two":
 			if !reflect.DeepEqual(value, val2) {
 				t.Errorf("List() = %v, want %v", value, val2)
 			}
@@ -296,7 +298,7 @@ func CommonStoreTest(t *testing.T, store Store) {
 
 	// List with blocking query and no new key so timeout si done
 	time.Sleep(time.Second)
-	kvs, nextLastIndex, err = store.List("testlist", ComplexFoo{}, index, 1*time.Second)
+	kvs, nextLastIndex, err = store.List(ctx, "rootList", index, 1*time.Second)
 	require.NoError(t, err)
 	require.NotZero(t, nextLastIndex)
 	require.NotNil(t, kvs)
@@ -305,14 +307,14 @@ func CommonStoreTest(t *testing.T, store Store) {
 
 	// List with blocking query and new key so index is changed
 	go func() {
-		kvs, nextLastIndex, err = store.List("testlist", ComplexFoo{}, index, 1*time.Second)
+		kvs, nextLastIndex, err = store.List(ctx, "rootList", index, 1*time.Second)
 		require.NoError(t, err)
 		require.NotZero(t, nextLastIndex)
 		require.NotNil(t, kvs)
 		require.Equal(t, 3, len(kvs))
 		require.True(t, nextLastIndex >= lastIndex)
 	}()
-	err = store.Set(ctx, "testlist/three", val1)
+	err = store.Set(ctx, "rootList/testlist/three", val1)
 	require.NoError(t, err)
 }
 

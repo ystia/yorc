@@ -12,13 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package types
+package store
 
-//go:generate go-enum -f=structs.go  --names
+// KeyValueIn describes a Key-Value representation Input for storing data
+type KeyValueIn struct {
+	Key   string
+	Value interface{}
+}
 
-// StoreType x ENUM(
-// Deployment,
-// Log,
-// Event
-// )
-type StoreType int
+// KeyValueOut describes a Key-Value representation Output for retrieving data
+type KeyValueOut struct {
+	Key string
+	// Last modification index for the KeyValue
+	LastModifyIndex uint64
+	// Value in generic format map[string]interface{} which can be cast to struct with mapstructure.Decode by instance
+	Value map[string]interface{}
+	// RawValue is the raw value representation without decode
+	RawValue []byte
+}

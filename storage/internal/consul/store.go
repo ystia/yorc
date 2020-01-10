@@ -21,9 +21,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/store"
-	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/storage/utils"
-	"reflect"
 	"time"
 )
 
@@ -43,13 +41,13 @@ func (c *consulStore) Set(ctx context.Context, k string, v interface{}) error {
 
 	data, err := c.codec.Marshal(v)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to marshal value %+v due to error:%+v", v, err)
 	}
 
 	return consulutil.StoreConsulKey(k, data)
 }
 
-func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyValue) error {
+func (c *consulStore) SetCollection(ctx context.Context, keyValues []store.KeyValueIn) error {
 	if keyValues == nil || len(keyValues) == 0 {
 		return nil
 	}
@@ -61,7 +59,7 @@ func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyV
 
 		data, err := c.codec.Marshal(kv.Value)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to marshal value %+v due to error:%+v", kv.Value, err)
 		}
 
 		consulStore.StoreConsulKey(kv.Key, data)
@@ -79,7 +77,7 @@ func (c *consulStore) Get(k string, v interface{}) (bool, error) {
 		return found, err
 	}
 
-	return true, c.codec.Unmarshal(value, v)
+	return true, errors.Wrapf(c.codec.Unmarshal(value, v), "failed to unmarshal data:%q", string(value))
 }
 
 func (c *consulStore) Exist(k string) (bool, error) {
@@ -102,7 +100,7 @@ func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) erro
 	return consulutil.Delete(k, recursive)
 }
 
-func (c *consulStore) GetLastIndex(k string) (uint64, error) {
+func (c *consulStore) GetLastModifyIndex(k string) (uint64, error) {
 	_, qm, err := consulutil.GetKV().Get(k, nil)
 	if err != nil || qm == nil {
 		return 0, errors.Errorf("Failed to retrieve last index for key:%q", k)
@@ -110,7 +108,7 @@ func (c *consulStore) GetLastIndex(k string) (uint64, error) {
 	return qm.LastIndex, nil
 }
 
-func (c *consulStore) List(k string, v interface{}, waitIndex uint64, timeout time.Duration) ([]types.KeyValue, uint64, error) {
+func (c *consulStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
 	if err := utils.CheckKey(k); err != nil {
 		return nil, 0, err
 	}
@@ -120,17 +118,18 @@ func (c *consulStore) List(k string, v interface{}, waitIndex uint64, timeout ti
 		return nil, 0, err
 	}
 
-	values := make([]types.KeyValue, 0)
+	values := make([]store.KeyValueOut, 0)
 	for _, kvp := range kvps {
-		value := reflect.New(reflect.TypeOf(v)).Interface()
+		var value map[string]interface{}
 		if err := c.codec.Unmarshal(kvp.Value, &value); err != nil {
-			return nil, 0, errors.Wrapf(err, "failed to unmarshal stored value into %q instance", reflect.TypeOf(v))
+			return nil, 0, errors.Wrapf(err, "failed to unmarshal stored value: %q", string(kvp.Value))
 		}
 
-		values = append(values, types.KeyValue{
-			Key:       kvp.Key,
-			LastIndex: kvp.ModifyIndex,
-			Value:     value,
+		values = append(values, store.KeyValueOut{
+			Key:             kvp.Key,
+			LastModifyIndex: kvp.ModifyIndex,
+			Value:           value,
+			RawValue:        kvp.Value,
 		})
 	}
 	return values, qm.LastIndex, nil

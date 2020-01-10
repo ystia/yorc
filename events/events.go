@@ -257,7 +257,7 @@ func StatusEvents(deploymentID string, waitIndex uint64, timeout time.Duration) 
 }
 
 // LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
-func LogsEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+func LogsEvents(ctx context.Context, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
 	events := make([]json.RawMessage, 0)
 	eventsPrefix := path.Clean(consulutil.LogsPrefix)
 	if deploymentID != "" {
@@ -265,25 +265,19 @@ func LogsEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([
 		eventsPrefix = path.Join(consulutil.LogsPrefix, deploymentID)
 	}
 	eventsPrefix = eventsPrefix + "/"
-
-	kvps, lastIndex, err := storage.GetStore(types.StoreTypeLog).List(eventsPrefix, json.RawMessage{}, waitIndex, timeout)
+	kvps, lastIndex, err := storage.GetStore(types.StoreTypeLog).List(ctx, eventsPrefix, waitIndex, timeout)
 	if err != nil || lastIndex == 0 {
 		return events, 0, err
 	}
 
-	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(lastIndex, 10))
+	log.Debugf("Found %d logs before accessing index[%q]", len(kvps), strconv.FormatUint(lastIndex, 10))
 	for _, kvp := range kvps {
-		if kvp.LastIndex <= waitIndex {
+		if kvp.LastModifyIndex <= waitIndex {
 			continue
 		}
-
-		eventPtr, cast := kvp.Value.(*json.RawMessage)
-		if !cast {
-			return events, 0, errors.Errorf("failed to cast event into json.RawMessage with value:%+v", kvp.Value)
-		}
-		events = append(events, *eventPtr)
+		events = append(events, kvp.RawValue)
 	}
-	log.Debugf("Found %d events after index", len(events))
+	log.Debugf("Found %d logs after index", len(events))
 	return events, lastIndex, nil
 }
 
@@ -305,7 +299,7 @@ func GetStatusEventsIndex(deploymentID string) (uint64, error) {
 
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
 func GetLogsEventsIndex(deploymentID string) (uint64, error) {
-	return storage.GetStore(types.StoreTypeLog).GetLastIndex(path.Join(consulutil.LogsPrefix, deploymentID))
+	return storage.GetStore(types.StoreTypeLog).GetLastModifyIndex(path.Join(consulutil.LogsPrefix, deploymentID))
 }
 
 // PurgeDeploymentEvents deletes all events for a given deployment
