@@ -46,7 +46,7 @@ var listCmd = &cobra.Command{
 
 func listLocations(client httputil.HTTPClient, args []string) error {
 	// Get locations definitions
-	locsConfig, err := getLocationsConfig(client)
+	locsConfig, err := getLocationsConfig(client, true)
 	if err != nil {
 		httputil.ErrExit(err)
 	}
@@ -72,8 +72,12 @@ func listLocations(client httputil.HTTPClient, args []string) error {
 	return nil
 }
 
-// getLocationsConfig makes a GET request to locations API and returns the existent location definitions
-func getLocationsConfig(client httputil.HTTPClient) (*rest.LocationsCollection, error) {
+// getLocationsConfig uses the HTTP client to make a request to locations API.
+// It returns a collection of existent location definitions. If no location definition exist,
+// the treatement depends on retOnError value :
+// - true : the command returns and status code displayed
+// - false: the function returns a nil value to the caller
+func getLocationsConfig(client httputil.HTTPClient, retOnError bool) (*rest.LocationsCollection, error) {
 	request, err := client.NewRequest("GET", "/locations", nil)
 	if err != nil {
 		return nil, err
@@ -84,13 +88,20 @@ func getLocationsConfig(client httputil.HTTPClient) (*rest.LocationsCollection, 
 		return nil, err
 	}
 	defer response.Body.Close()
-	httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
-	var locRefs rest.LocationCollection
-
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
+	if retOnError {
+		httputil.HandleHTTPStatusCode(response, "", "locations", http.StatusOK)
+	} else {
+		// check for body content and renturn nil result if no values found
+		if len(body) == 0 {
+			return nil, nil
+		}
+	}
+
+	var locRefs rest.LocationCollection
 	err = json.Unmarshal(body, &locRefs)
 	if err != nil {
 		return nil, err

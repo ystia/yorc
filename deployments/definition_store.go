@@ -583,11 +583,6 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 This function create a given number of floating IP instances
 */
 func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uint32, deploymentID, nodeName string) {
-
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-
-	consulStore.StoreConsulKeyAsString(path.Join(nodePath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
-
 	for i := uint32(0); i < numberInstances; i++ {
 		instanceName := strconv.FormatUint(uint64(i), 10)
 		createNodeInstance(consulStore, deploymentID, nodeName, instanceName)
