@@ -135,8 +135,8 @@ func testLoadStoresWithMissingPassphraseForCipherFileCache(t *testing.T, srv1 *t
 		Name:           "myPersonalStore",
 		Implementation: "cipherFileCache",
 		Types:          []string{"Log", "Event"},
-		Properties: config.DynamicMap{
-//			"passphrase": "myverystrongpasswordo32bitlength",
+		Properties:     config.DynamicMap{
+			//			"passphrase": "myverystrongpasswordo32bitlength",
 		},
 	}
 
