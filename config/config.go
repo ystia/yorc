@@ -103,7 +103,7 @@ type Configuration struct {
 	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
-	Stores                           []Store       `yaml:"stores,omitempty" mapstructure:"stores"`
+	Storage                          Storage       `yaml:"storage,omitempty" mapstructure:"storage"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -191,10 +191,16 @@ type Dispatcher struct {
 	LockWaitTime     time.Duration `yaml:"lock_wait_time,omitempty" mapstructure:"lock_wait_time" json:"lock_wait_time,omitempty"`
 }
 
+// Storage configuration
+type Storage struct {
+	Reset  bool    `yaml:"reset,omitempty" json:"reset,omitempty" mapstructure:"reset"`
+	Stores []Store `yaml:"stores,omitempty" json:"stores,omitempty" mapstructure:"stores"`
+}
+
 // Stores configuration
 type Store struct {
 	Name           string     `yaml:"name" mapstructure:"name"`
-	Implementation string     `yaml:"implementation,omitempty" mapstructure:"implementation"` // not an enum as it could be extended by plugins
+	Implementation string     `yaml:"implementation,omitempty" mapstructure:"implementation"` // not an enum as it may be extended by plugins
 	Types          []string   `yaml:"types" mapstructure:"types"`
 	Properties     DynamicMap `yaml:"properties,omitempty" mapstructure:"properties"`
 }

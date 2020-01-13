@@ -1112,9 +1112,19 @@ See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.ht
 Storage configuration
 ---------------------
 
-Different artifacts are stored by Yorc to deploy an application. Previously, everything was stored in Consul KV but mainly for performance reasons, we choose to refactor the way
-we store data in order to make more flexible.
-So, now, user can configure Yorc stores implementations for different kind of artifacts.
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                |                          Description                             | Data Type |   Required       | Default         |
+|                                  |                                                                  |           |                  |                 |
++==================================+==================================================================+===========+==================+=================+
+| ``reset``                        | If set to True, reset the stores configuration                   | boolean   | no               |   False         |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``stores``                       | Stores configuration                                             | array     | no               | See Store types |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+
+Different artifacts (topologies, logs, events, tasks...) are stored by Yorc to deploy an application.
+
+Previously, everything was stored in Consul KV but mainly for performance reasons, we choose to refactor the way we store data in order to make it more flexible.
+So now, user can configure Yorc stores implementations for different kind of artifacts.
 
 A store configuration is defined with:
 
@@ -1122,9 +1132,9 @@ A store configuration is defined with:
 
 - its ``implementation`` which can be ``consul`` by instance. See the list below.
 
-- The different store ``types`` it handles as "Deployment", "log" or "event".
+- The different store ``types`` it handles as "Deployment", "log" or "event" for the moment.
 
-- ``Properties`` which can allow the store creation:
+- ``Properties`` which can allow to tweak the store creation:
     - ``root_dir`` for ``fileCache`` / ``cipherFileCache`` implementations.
     - ``secret_key`` for a ``cipherFileCache`` implementation.
 
@@ -1135,7 +1145,7 @@ Today, we provide 3 implementations with the following names:
 
 - ``consul``: this is the consul KV store we use for main internal storage stuff.
 
-- ``fileCache``: a file store with a cache system. A ``root_dir`` property allows to specify the root directory of the store.
+- ``fileCache``: a file store with a cache system.
 
 - ``cipherFileCache``: a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
 
@@ -1143,7 +1153,7 @@ A ``root_dir`` property allows to specify the root directory of the store.
 
 A ``secret_key`` mandatory property allows to specify the passphrase used to create the encryption key. You can use Vault to store your secret key and specify
 
-it in the configuration: "{{secret \"/secret/yorc/mysecret\" \"data=value\" | print}}"
+Secret key can be set with ``Secret function`` ("{{secret \"/secret/yorc/mysecret\" \"data=value\" | print}}"] and retrieved from Vault as explained int the Vault integration chapter.
 
 Store types
 ~~~~~~~~~~~
@@ -1166,28 +1176,37 @@ Here is a JSON example of stores configuration:
 .. code-block:: JSON
 
   {
-  "stores": [
-    {
-      "name": "myFileStore",
-      "implementation": "fileCache",
-      "types":  ["Deployment"]
-    },
-    {
-      "name": "myCipherFileStore",
-      "implementation": "cipherFileCache",
-      "types":  ["Log"],
-      "properties": {
-        "root_dir": "/mypath/to/store",
-        "secret_key": "myverystrongpasswordo32bitlength"
+  "storage": {
+    "reset": false,
+    "stores": [
+      {
+        "name": "myFileStore",
+        "implementation": "fileCache",
+        "types":  ["Deployment"]
+      },
+      {
+        "name": "myCipherFileStore",
+        "implementation": "cipherFileCache",
+        "types":  ["Log"],
+        "properties": {
+          "root_dir": "/mypath/to/store",
+          "secret_key": "myverystrongpasswordo32bitlength"
+        }
+      },
+      {
+        "name": "myConsulStore",
+        "implementation": "consul",
+        "types":  ["Log","Event"]
       }
-    },
-    {
-      "name": "myConsulStore",
-      "implementation": "consul",
-      "types":  ["Log","Event"]
-    }
-  ],
+    ]
+  }
     ....
+
+Stores configuration is saved once when Yorc server starts. If you want to re-initialize storage, you have to set the ``reset`` property to True and restart Yorc.
+
+If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
+
+If any storage configuration is set with partial stores types, the missing store types will be added with default implementations.
 
 Vault configuration
 -------------------
