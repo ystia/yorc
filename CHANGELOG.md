@@ -9,6 +9,25 @@
 In order to improve the observability of Yorc execution, the exposed metrics' names were modified.
 Now labels are used which allow to provide metric trees ([GH-297](https://github.com/ystia/yorc/issues/297))
 
+#### Changes on the deployments API
+
+As deployments are from now stored by JSON, some functions have been changed:
+
+```
+func GetOperationPathAndPrimaryImplementation(ctx context.Context, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, string, error)
+func GetRequirementsKeysByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]string, error)
+func GetRequirementKeyByNameForNode(ctx context.Context, deploymentID, nodeName, requirementName string) (string, error)
+func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow, error)
+```
+
+And substituted by:
+
+```
+func GetOperationImplementation(ctx context.Context, ...) (*tosca.Implementation, error)
+func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, requirementType string) ([]Requirement, error)
+func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca.Workflow, error)
+```
+
 ### ENHANCEMENTS
 
 * Should be able to bootstrap Yorc on OpenStack with Identity API v3 ([GH-575](https://github.com/ystia/yorc/issues/575))
@@ -19,6 +38,7 @@ Now labels are used which allow to provide metric trees ([GH-297](https://github
 * Deployment stuck and cannot be resumed in certain circumstances ([GH-563](https://github.com/ystia/yorc/issues/563))
 * Yorc bootstrap on 4.0.0-M7 doesn't work unless an alternative download URL is provided for Yorc ([GH-561](https://github.com/ystia/yorc/issues/561))
 * Location properties stored in Vault are no longer resolvable ([GH-565](https://github.com/ystia/yorc/issues/565))
+* If no locations configured when first starting a Yorc server, the command "locations apply config_locations_file_path" won't work ([GH-574](https://github.com/ystia/yorc/issues/5674))
 * An error during deployment purge may let the deployment in a wrong state ([GH-572](https://github.com/ystia/yorc/issues/572))
 * Can have current deployment and undeployment on the same application on specific conditions ([GH-567](https://github.com/ystia/yorc/issues/567))
 * API calls to deploy and update a deployment will now prevent other API calls that may modify a deployment to run at the same time

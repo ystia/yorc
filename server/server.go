@@ -68,7 +68,7 @@ func initConsulClient(configuration config.Configuration) (*api.Client, error) {
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores()
+	err = storage.LoadStores(configuration)
 	if err != nil {
 		return nil, err
 	}

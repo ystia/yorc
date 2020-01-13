@@ -15,6 +15,7 @@
 package plugin
 
 import (
+	"github.com/ystia/yorc/v4/storage"
 	"net/rpc"
 	"text/template"
 
@@ -54,7 +55,9 @@ func (cm *defaultConfigManager) SetupConfig(cfg config.Configuration) error {
 		maxPubSub = config.DefaultConsulPubMaxRoutines
 	}
 	consulutil.InitConsulPublisher(maxPubSub, kv)
-	return nil
+
+	// Load stores in order to allow plugins to access different stores
+	return storage.LoadStores(cfg)
 }
 
 // ConfigManagerPlugin is public for use by reflexion and should be considered as private to this package.
