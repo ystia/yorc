@@ -1171,7 +1171,7 @@ If you face some Consul memory usage issues, you can choose ``fileCache`` or ``c
 - ``Event``: this represents the applicative events present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
 
 
-Here is a JSON example of stores configuration:
+Here is a JSON example of stores configuration with a cipherFileStore implementation for logs.
 
 .. code-block:: JSON
 
@@ -1180,11 +1180,6 @@ Here is a JSON example of stores configuration:
     "reset": false,
     "stores": [
       {
-        "name": "myFileStore",
-        "implementation": "fileCache",
-        "types":  ["Deployment"]
-      },
-      {
         "name": "myCipherFileStore",
         "implementation": "cipherFileCache",
         "types":  ["Log"],
@@ -1192,11 +1187,6 @@ Here is a JSON example of stores configuration:
           "root_dir": "/mypath/to/store",
           "passphrase": "myverystrongpasswordo32bitlength"
         }
-      },
-      {
-        "name": "myConsulStore",
-        "implementation": "consul",
-        "types":  ["Log","Event"]
       }
     ]
   }
