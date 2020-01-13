@@ -53,6 +53,7 @@ require (
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/labstack/gommon v0.2.9 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/mitchellh/mapstructure v1.1.2

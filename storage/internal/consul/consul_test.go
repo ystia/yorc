@@ -32,7 +32,7 @@ func TestRunConsulStoragePackageTests(t *testing.T) {
 		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
-	t.Run("groupStorage", func(t *testing.T) {
+	t.Run("groupConsulStore", func(t *testing.T) {
 		t.Run("testConsulTypes", func(t *testing.T) {
 			testTypes(t, srv)
 		})

@@ -16,8 +16,14 @@ package storage
 
 import (
 	"encoding/json"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
+	"github.com/matryer/resync"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -26,10 +32,6 @@ import (
 	"github.com/ystia/yorc/v4/storage/internal/file"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
-	"path"
-	"strings"
-	"sync"
-	"time"
 )
 
 const consulStoreImpl = "consul"
@@ -38,7 +40,7 @@ const fileStoreWithCacheImpl = "fileCache"
 
 const fileStoreWithCacheAndEncryptionImpl = "cipherFileCache"
 
-var once sync.Once
+var once resync.Once
 var stores map[types.StoreType]store.Store
 
 // LoadStores reads/saves stores configuration and load store implementations in mem.
@@ -174,7 +176,7 @@ func buildDefaultConfigStores() []config.Store {
 
 	// Consul store for logs and events
 	consulStore := config.Store{
-		Name:           "defaultConsul",
+		Name:           "defaultConsulStore",
 		Implementation: consulStoreImpl,
 		Types:          []string{types.StoreTypeLog.String(), types.StoreTypeEvent.String()},
 	}
