@@ -100,13 +100,13 @@ func NewStore(cfg config.Configuration, storeID string, properties config.Dynami
 
 func (s *fileStore) buildEncryptor() error {
 	var err error
-	// Check a 32-bits secret key is provided
-	secretKey := s.properties.GetString("secret_key")
+	// Check a 32-bits passphrase key is provided
+	secretKey := s.properties.GetString("passphrase")
 	if secretKey == "" {
-		return errors.Errorf("Missing secret key for file store encryption with ID:%q", s.id)
+		return errors.Errorf("Missing passphrase for file store encryption with ID:%q", s.id)
 	}
 	if len(secretKey) != 32 {
-		return errors.Errorf("The provided secret key for file store encryption with ID:%q must be 32-bits length", s.id)
+		return errors.Errorf("The provided passphrase for file store encryption with ID:%q must be 32-bits length", s.id)
 	}
 	s.encryptor, err = encryption.NewEncryptor(hex.EncodeToString([]byte(secretKey)))
 	return err
@@ -354,10 +354,9 @@ func (s *fileStore) GetLastModifyIndex(k string) (uint64, error) {
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return 0, errors.Wrapf(err, "failed to get last index for key:%q", k)
-			} else {
-				// File not found : the key doesn't exist
-				return 0, nil
 			}
+			// File not found : the key doesn't exist
+			return 0, nil
 		}
 		return uint64(fInfo.ModTime().UnixNano()), nil
 	}

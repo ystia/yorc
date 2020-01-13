@@ -1136,7 +1136,7 @@ A store configuration is defined with:
 
 - ``Properties`` which can allow to tweak the store creation:
     - ``root_dir`` for ``fileCache`` / ``cipherFileCache`` implementations.
-    - ``secret_key`` for a ``cipherFileCache`` implementation.
+    - ``passphrase`` for a ``cipherFileCache`` implementation.
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
@@ -1146,19 +1146,19 @@ Today, we provide 3 implementations with the following names:
 - ``consul``: this is the consul KV store we use for main internal storage stuff.
 
 - ``fileCache``: a file store with a cache system.
+    - A ``root_dir`` property allows to specify the root directory of the store.
 
 - ``cipherFileCache``: a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
+    - A ``root_dir`` property allows to specify the root directory of the store.
 
-A ``root_dir`` property allows to specify the root directory of the store.
+    - A ``passphrase`` mandatory property allows to specify the passphrase used to create the encryption key.
 
-A ``secret_key`` mandatory property allows to specify the passphrase used to create the encryption key. You can use Vault to store your secret key and specify
-
-Secret key can be set with ``Secret function`` ("{{secret \"/secret/yorc/mysecret\" \"data=value\" | print}}"] and retrieved from Vault as explained int the Vault integration chapter.
+``Passphrase`` can be set with ``Secret function`` and retrieved from Vault as explained in the Vault integration chapter.
 
 Store types
 ~~~~~~~~~~~
 
-3 different kind of store types are defined:
+3 different kinds of store types are defined:
 
 - ``Deployment``: this corresponds to the data of the Tosca topologies with types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows)
 
@@ -1190,7 +1190,7 @@ Here is a JSON example of stores configuration:
         "types":  ["Log"],
         "properties": {
           "root_dir": "/mypath/to/store",
-          "secret_key": "myverystrongpasswordo32bitlength"
+          "passphrase": "myverystrongpasswordo32bitlength"
         }
       },
       {

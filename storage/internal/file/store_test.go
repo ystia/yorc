@@ -61,7 +61,7 @@ func testFileStoreWithEncryptionWithoutSecretKeyProvided(t *testing.T, cfg confi
 
 func testFileStoreWithEncryption(t *testing.T, cfg config.Configuration) {
 	props := config.DynamicMap{
-		"secret_key": "myverystrongpasswordo32bitlength",
+		"passphrase": "myverystrongpasswordo32bitlength",
 		"root_dir":   path.Join(cfg.WorkingDirectory, t.Name()),
 	}
 	fileStore, err := NewStore(cfg, "testStoreID", props, false, true)
@@ -71,7 +71,7 @@ func testFileStoreWithEncryption(t *testing.T, cfg config.Configuration) {
 
 func testFileStoreTypesWithEncryption(t *testing.T, cfg config.Configuration) {
 	props := config.DynamicMap{
-		"secret_key": "myverystrongpasswordo32bitlength",
+		"passphrase": "myverystrongpasswordo32bitlength",
 		"root_dir":   path.Join(cfg.WorkingDirectory, t.Name()),
 	}
 	fileStore, err := NewStore(cfg, "testStoreID", props, false, true)

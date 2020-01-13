@@ -197,7 +197,7 @@ type Storage struct {
 	Stores []Store `yaml:"stores,omitempty" json:"stores,omitempty" mapstructure:"stores"`
 }
 
-// Stores configuration
+// Store configuration
 type Store struct {
 	Name           string     `yaml:"name" mapstructure:"name"`
 	Implementation string     `yaml:"implementation,omitempty" mapstructure:"implementation"` // not an enum as it may be extended by plugins

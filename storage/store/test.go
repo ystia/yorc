@@ -43,6 +43,7 @@ type privateFoo struct {
 	privateBar string
 }
 
+// ComplexFoo is just a complex struct for common tests.
 type ComplexFoo struct {
 	FooData   Foo
 	Value     string
