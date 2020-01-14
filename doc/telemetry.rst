@@ -135,19 +135,19 @@ Yorc TaskExecution metrics
 |           Metric Name                 |         Labels        |                Description                      |      Unit       | Metric Type |
 |                                       |                       |                                                 |                 |             |
 +=======================================+=======================+=================================================+=================+=============+
-| ``yorc.taskExecutions.nbWaiting``     |                       | Tracks the number of taskExecutions waiting for |number of waiting| gauge       |
+|``yorc.taskExecutions.nbWaiting``      |                       | Tracks the number of taskExecutions waiting for |number of waiting| gauge       |
 |                                       |                       |   being processed                               |taskExecutions   |             |
 +---------------------------------------+-----------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.taskExecution.<FinalStatus>``  | Deployment            | Counts the number of taskExecutions ending      | number of tasks | counter     |
-|                                       | Type                  |         in a given final status                 |                 |             |
+| ``yorc.taskExecution.total``          | Deployment            | Counts the number of terminated                 | number of ended | counter     |
+|                                       | Type                  |   taskExecutions                                | taskExecutions  |             |
 |                                       | TaskID                |                                                 |                 |             |
 +---------------------------------------+-----------------------+-------------------------------------------------+-----------------+-------------+
 | ``yorc.taskExecution.duration``       | Deployment            | Measures a taskExecution's processing duration  | milliseconds    | timer       |
 |                                       | Type                  |                                                 |                 |             |
 |                                       | TaskID                |                                                 |                 |             |
 +---------------------------------------+-----------------------+-------------------------------------------------+-----------------+-------------+
-| ``yorc.taskExecution.wait``           | Deployment            | Measures the time waited by a task              | milliseconds    | timer       |
-|                                       | Type                  |       for being processed                       |                 |             |
+| ``yorc.taskExecution.wait``           | Deployment            | Measures the time waited by a taskExecution     | milliseconds    | timer       |
+|                                       | Type                  |       before being processed                    |                 |             |
 |                                       | TaskID                |                                                 |                 |             |
 +---------------------------------------+-----------------------+-------------------------------------------------+-----------------+-------------+
 
@@ -155,6 +155,7 @@ The **Deployment** label is set to the deployment ID of the monitored taskExecut
 The **Type** label corresponds to the taskExecution type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``ScaleIn``, ``CustomCommand``,
 ``CustomWorkflow``, ``Query``, ``Action``, ``ForcePurge``, ``AddNodes``, ``RemoveNodes``).
 The **TaskID** label is set to the task ID of the taskExecution.
+The **Status** label gives the status in which the taskExecution ended.
 
 Yorc Executors metrics
 ~~~~~~~~~~~~~~~~~~~~~~

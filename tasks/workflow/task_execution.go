@@ -98,11 +98,7 @@ func numberOfWaitingExecutionsForTask(cc *api.Client, taskID string) (int, error
 	}
 	for _, execKey := range keys {
 		execID := path.Base(execKey)
-		execWaiting, err := isWaitingExec(taskID, execID)
-		if err != nil {
-			return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if execWaiting {
+		if execWaiting, err := isWaitingExec(taskID, execID); err == nil && execWaiting {
 			nbWaiting++
 		}
 	}

@@ -163,12 +163,25 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func() {
+	taskExecutionLabels := []metrics.Label{
+		metrics.Label{Name: "TaskID", Value: t.taskID},
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Type", Value: t.taskType.String()},
+	}
+	metrics.MeasureSinceWithLabels([]string{"taskExecution", "wait"}, t.creationDate, taskExecutionLabels)
+	defer func(t *taskExecution, start time.Time, taskExecutionLabels []metrics.Label) {
 		// Remove currently processing execution flag
 		err := t.notifyEnd()
 		if err != nil {
 			log.Printf("%+v", err)
 		}
+		// emit metrics on taskExecution duration and status on termination
+		if taskStatus, err := t.getTaskStatus(); err == nil && taskStatus != tasks.TaskStatusRUNNING {
+			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "duration"}), start, taskExecutionLabels)
+			taskExecutionLabels = append(taskExecutionLabels, metrics.Label{Name: "Status", Value: taskStatus.String()})
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "total"}), 1, taskExecutionLabels)
+		}
+		// clean-up
 		t.delete()
 		if err != nil {
 			log.Printf("%+v", err)
@@ -177,13 +190,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 		if err != nil {
 			log.Printf("%+v", err)
 		}
-	}()
-	taskExecutionLabels := []metrics.Label{
-		metrics.Label{Name: "TaskID", Value: t.taskID},
-		metrics.Label{Name: "Deployment", Value: t.targetID},
-		metrics.Label{Name: "Type", Value: t.taskType.String()},
-	}
-	metrics.MeasureSinceWithLabels([]string{"taskExecution", "wait"}, t.creationDate, taskExecutionLabels)
+	}(t, time.Now(), taskExecutionLabels)
 
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
@@ -197,12 +204,6 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func(t *taskExecution, start time.Time, taskExecutionLabels []metrics.Label) {
-		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
-			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", taskStatus.String()}), 1, taskExecutionLabels)
-			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "duration"}), start, taskExecutionLabels)
-		}
-	}(t, time.Now(), taskExecutionLabels)
 
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
