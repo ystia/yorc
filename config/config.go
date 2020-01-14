@@ -279,6 +279,12 @@ func (dm DynamicMap) GetInt(name string) int {
 	return cast.ToInt(dm.Get(name))
 }
 
+// GetInt64 returns the value of the given key casted into an int64.
+// 0 is returned if not found.
+func (dm DynamicMap) GetInt64(name string) int64 {
+	return cast.ToInt64(dm.Get(name))
+}
+
 // GetDuration returns the value of the given key casted into a Duration.
 // A 0 duration is returned if not found.
 func (dm DynamicMap) GetDuration(name string) time.Duration {

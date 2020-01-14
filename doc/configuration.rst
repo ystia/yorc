@@ -1135,23 +1135,54 @@ A store configuration is defined with:
 - The different store ``types`` it handles as "Deployment", "log" or "event" for the moment.
 
 - ``Properties`` which can allow to tweak the store creation:
-    - ``root_dir`` for ``fileCache`` / ``cipherFileCache`` implementations.
-    - ``passphrase`` for a ``cipherFileCache`` implementation.
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
 
 Today, we provide 3 implementations with the following names:
 
-- ``consul``: this is the consul KV store we use for main internal storage stuff.
+consul
+^^^^^^
 
-- ``fileCache``: a file store with a cache system.
-    - A ``root_dir`` property allows to specify the root directory of the store.
+This is the consul KV store we use for main internal storage stuff.
 
-- ``cipherFileCache``: a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
-    - A ``root_dir`` property allows to specify the root directory of the store.
+fileCache
+^^^^^^^^^
 
-    - A ``passphrase`` mandatory property allows to specify the passphrase used to create the encryption key.
+This is a file store with a cache system.
+
+Here are specific properties for this implementation:
+
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                   |           Description                              | Data Type |   Required       | Default         |
++=====================================+====================================================+===========+==================+=================+
+| ``root_dir``                        | Root directory used for file storage               | string    | no               |   work/store    |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e7 (10 M)    |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |  1 << 30 (1 GB) |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``blocking_query_default_timeout``  | default timeout for blocking queries               | string    | no               |   5m (5 minutes)|
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
+For more information on cache properties, you can refer to `Ristretto README  <https://github.com/dgraph-io/ristretto>`_
+
+cipherFileCache
+^^^^^^^^^^^^^^^
+
+This is a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
+
+Here are specific properties for this implementation in addition to ``fileCache`` properties:
+
++----------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                |           Description                              | Data Type |   Required       | Default         |
++==================================+====================================================+===========+==================+=================+
+| ``passphrase``                   | Passphrase used to generate the encryption key     | string    | yes              |                 |
+|                                  | Required to be 32-bits length                      |           |                  |                 |
++----------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
 
 ``Passphrase`` can be set with ``Secret function`` and retrieved from Vault as explained in the Vault integration chapter.
 

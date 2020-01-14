@@ -77,13 +77,8 @@ func NewStore(cfg config.Configuration, storeID string, properties config.Dynami
 
 	// Instantiate cache if necessary
 	if withCache {
-		fs.cache, err = ristretto.NewCache(&ristretto.Config{
-			NumCounters: 1e7,     // number of keys to track frequency of (10M).
-			MaxCost:     1 << 30, // maximum cost of cache (1GB).
-			BufferItems: 64,      // number of keys per Get buffer.
-		})
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to instantiate new cache for file store")
+		if err = fs.initCache(); err != nil {
+			return nil, errors.Wrapf(err, "failed to instantiate cache for file store")
 		}
 	}
 
@@ -96,6 +91,30 @@ func NewStore(cfg config.Configuration, storeID string, properties config.Dynami
 	}
 
 	return fs, nil
+}
+
+func (s *fileStore) initCache() error {
+	var err error
+	// Set Cache config
+	numCounters := s.properties.GetInt64("cache_num_counters")
+	if numCounters == 0 {
+		numCounters = 1e7
+	}
+	maxCost := s.properties.GetInt64("cache_max_cost")
+	if maxCost == 0 {
+		maxCost = 1 << 30
+	}
+	bufferItems := s.properties.GetInt64("cache_buffer_items")
+	if bufferItems == 0 {
+		bufferItems = 64
+	}
+
+	s.cache, err = ristretto.NewCache(&ristretto.Config{
+		NumCounters: numCounters, // number of keys to track frequency of (10M).
+		MaxCost:     maxCost,     // maximum cost of cache (1GB).
+		BufferItems: bufferItems, // number of keys per Get buffer.
+	})
+	return err
 }
 
 func (s *fileStore) buildEncryptor() error {
@@ -383,9 +402,12 @@ func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeou
 		return s.list(k)
 	}
 
-	// Default timeout to 5 minutes
+	// Default timeout to 5 minutes if not set as param or as config property
 	if timeout == 0 {
-		timeout = 5 * time.Minute
+		timeout = s.properties.GetDuration("blocking_query_default_timeout")
+		if timeout == 0 {
+			timeout = 5 * time.Minute
+		}
 	}
 	// last index Lookup time interval
 	timeAfter := time.After(timeout)

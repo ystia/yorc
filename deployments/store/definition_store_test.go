@@ -53,13 +53,13 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 // Warning: You need to defer the working directory removal
 // Remarque: can't use util functions from testutil package in order to avoid import cycles
 func setupTestConfig(t testing.TB) config.Configuration {
-	rootDir := "./testdata"
+	rootDir := "/tmp"
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
 		err = os.Mkdir(rootDir, 0755)
 		assert.Nil(t, err)
 	}
 
-	workingDir, err := ioutil.TempDir("./testdata", "work")
+	workingDir, err := ioutil.TempDir(rootDir, "work")
 	assert.Nil(t, err)
 
 	return config.Configuration{

@@ -95,13 +95,13 @@ func BuildDeploymentID(t testing.TB) string {
 // SetupTestConfig sets working directory configuration
 // Warning: You need to defer the working directory removal
 func SetupTestConfig(t testing.TB) config.Configuration {
-	rootDir := "./testdata"
+	rootDir := "/tmp"
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
 		err = os.Mkdir(rootDir, 0755)
 		assert.Nil(t, err)
 	}
 
-	workingDir, err := ioutil.TempDir("./testdata", "work")
+	workingDir, err := ioutil.TempDir(rootDir, "work")
 	assert.Nil(t, err)
 
 	return config.Configuration{

@@ -27,10 +27,7 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunFileStoragePackageTests(t *testing.T) {
-	cfg := config.Configuration{
-		WorkingDirectory: "./work",
-	}
-
+	cfg := store.SetupTestConfig(t)
 	defer func() {
 		os.RemoveAll(cfg.WorkingDirectory)
 	}()
