@@ -33,6 +33,8 @@ type pool struct {
 	mu  sync.Mutex
 }
 
+const SSH_CONNECTION_POOL = "ssh-connections-pool"
+
 // openSession starts a new SSH session on the given server, reusing
 // an existing connection if possible. If no connection exists,
 // or if opening the session fails, openSession attempts to dial a new
@@ -56,7 +58,7 @@ func (p *pool) openSession(client *SSHClient) (*sshSession, error) {
 			return s, nil
 		}
 		labels := []metrics.Label{metrics.Label{Name: "ConnectionName", Value: c.name}}
-		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "sessions", "open-failed"}), 1, labels)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "sessions", "open-failed"}), 1, labels)
 		// can't open session this is probably due to too many session open
 		// remove this connection from cache
 		p.removeConn(k, c)
@@ -78,8 +80,8 @@ func (s *sshSession) Close() error {
 	defer s.conn.lockSessionsCount.Unlock()
 	s.conn.opennedSessions--
 	labels := []metrics.Label{metrics.Label{Name: "ConnectionName", Value: s.conn.name}}
-	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "sessions", "closes"}), 1, labels)
-	metrics.SetGaugeWithLabels(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "sessions", "open"}), float32(s.conn.opennedSessions), labels)
+	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "sessions", "closes"}), 1, labels)
+	metrics.SetGaugeWithLabels(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "sessions", "open"}), float32(s.conn.opennedSessions), labels)
 	return errors.Wrap(err, "failed to close ssh session")
 }
 
@@ -96,7 +98,7 @@ type conn struct {
 // closes the ssh client
 func (c *conn) close() {
 	c.c.Close()
-	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "closes"}), 1)
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "closes"}), 1)
 }
 
 // asynchronously wait for all openned sessions to finish and then close the connection.
@@ -126,8 +128,8 @@ func (c *conn) newSession() (*sshSession, error) {
 	defer c.lockSessionsCount.Unlock()
 	c.opennedSessions++
 	labels := []metrics.Label{metrics.Label{Name: "ConnectionName", Value: c.name}}
-	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "sessions", "creations"}), 1, labels)
-	metrics.SetGaugeWithLabels(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "sessions", "open"}), float32(c.opennedSessions), labels)
+	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "sessions", "creations"}), 1, labels)
+	metrics.SetGaugeWithLabels(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "sessions", "open"}), float32(c.opennedSessions), labels)
 
 	return &sshSession{Session: ss, conn: c}, nil
 }
@@ -154,11 +156,11 @@ func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
 	if c.err == nil {
 		// Connection succeeded
 		c.name = fmt.Sprintf("%s-%s-%x", addr, config.User, c.c.SessionID())
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "creations"}), 1)
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "creations"}), 1)
 	} else {
 		// Connection failed
 		c.name = fmt.Sprintf("%s-%s", addr, config.User)
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "create-failed"}), 1)
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{SSH_CONNECTION_POOL, "create-failed"}), 1)
 	}
 	close(c.ok)
 	return c
