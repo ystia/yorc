@@ -62,10 +62,29 @@ func handleGetError(t *testing.T, err error, found bool) {
 	}
 }
 
+// SetupTestConfig sets working directory configuration
+// Warning: You need to defer the working directory removal
+// This is a private Consul server instantiation as done in github.com/ystia/yorc/v4/testutil
+// This allows avoiding cyclic dependencies with deployments store package
+func SetupTestConfig(t testing.TB) config.Configuration {
+	rootDir := "./testdata"
+	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
+		err = os.Mkdir(rootDir, 0755)
+		assert.Nil(t, err)
+	}
+
+	workingDir, err := ioutil.TempDir("./testdata", "work")
+	assert.Nil(t, err)
+
+	return config.Configuration{
+		WorkingDirectory: workingDir,
+	}
+}
+
 // NewTestConsulInstance allows to provide new Consul instance for tests
 // This is a private Consul server instantiation as done in github.com/ystia/yorc/v4/testutil
 // This allows avoiding cyclic dependencies with deployments store package
-func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, config.Configuration) {
+func NewTestConsulInstance(t testing.TB, cfg *config.Configuration) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -81,24 +100,15 @@ func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client, con
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
-	workingDir, err := ioutil.TempDir("/tmp", "work")
-	assert.Nil(t, err)
-
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv1.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-		WorkingDirectory: workingDir,
-	}
-
+	cfg.Consul.Address = srv1.HTTPAddr
+	cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
 	client, err := cfg.GetNewConsulClient()
 	assert.Nil(t, err)
 
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
 
-	return srv1, client, cfg
+	return srv1, client
 }
 
 // CommonStoreTest allows to test storage by storing, reading and deleting data

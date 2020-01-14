@@ -1182,10 +1182,11 @@ func BenchmarkDefinitionStore(b *testing.B) {
 		c.Stderr = ioutil.Discard
 	}
 
-	srv, _, workingDir := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb)
+	cfg := testutil.SetupTestConfig(b)
+	srv, _ := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 	deploymentID := testutil.BuildDeploymentID(b)
 	ctx := context.Background()

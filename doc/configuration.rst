@@ -1116,7 +1116,7 @@ Storage configuration
 |     Property Name                |                          Description                             | Data Type |   Required       | Default         |
 |                                  |                                                                  |           |                  |                 |
 +==================================+==================================================================+===========+==================+=================+
-| ``reset``                        | If set to True, reset the stores configuration                   | boolean   | no               |   False         |
+| ``reset``                        | See :ref:`Storage reset note <storage_reset_note>`               | boolean   | no               |   False         |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``stores``                       | Stores configuration                                             | array     | no               | See Store types |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
@@ -1188,11 +1188,30 @@ Here is a JSON example of stores configuration with a cipherFileStore implementa
           "passphrase": "myverystrongpasswordo32bitlength"
         }
       }
-    ]
+   ]}
   }
-    ....
+
+The same sample in YAML
+
+.. code-block:: YAML
+
+    storage:
+      reset: false
+      stores:
+      - name: myCipherFileStore
+        implementation: cipherFileCache
+        types:
+        - Log
+        properties:
+          root_dir: "/mypath/to/store"
+          passphrase: "myverystrongpasswordo32bitlength"
+
+.. _storage_reset_note:
 
 Stores configuration is saved once when Yorc server starts. If you want to re-initialize storage, you have to set the ``reset`` property to True and restart Yorc.
+
+.. warning::
+    Pay attention that if any data is still existing before reset, Yorc will ignore it.
 
 If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
 

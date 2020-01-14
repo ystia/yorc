@@ -25,11 +25,13 @@ import (
 
 func TestAssets(t *testing.T) {
 
-	srv, _, workingDir := NewTestConsulInstance(t)
+	cfg := SetupTestConfig(t)
+	srv, _ := NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
+
 	t.Run("TestAssets", func(t *testing.T) {
 		t.Run("NormativeTypes", testAssetNormativeParsing)
 		t.Run("OpenstackTypes", testAssetYorcOpenStackParsing)

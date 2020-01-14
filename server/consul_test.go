@@ -30,10 +30,11 @@ import (
 )
 
 func TestConsulServerPackage(t *testing.T) {
-	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	t.Run("groupServer", func(t *testing.T) {

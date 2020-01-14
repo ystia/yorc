@@ -26,7 +26,8 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulStoragePackageTests(t *testing.T) {
-	srv, _, cfg := store.NewTestConsulInstance(t)
+	cfg := store.SetupTestConfig(t)
+	srv, _ := store.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
 		os.RemoveAll(cfg.WorkingDirectory)

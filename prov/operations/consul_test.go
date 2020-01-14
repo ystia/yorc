@@ -30,10 +30,11 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	populateKV(t, srv)

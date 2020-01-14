@@ -23,14 +23,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulSchedulingPackageTests(t *testing.T) {
-	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -40,15 +40,9 @@ func TestRunConsulSchedulingPackageTests(t *testing.T) {
 	require.NoError(t, err)
 	port, err := strconv.Atoi(u.Port())
 	require.NoError(t, err)
-	cfg := config.Configuration{
-		HTTPAddress: u.Hostname(),
-		HTTPPort:    port,
-		ServerID:    "0",
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
+	cfg.HTTPAddress = u.Hostname()
+	cfg.HTTPPort = port
+	cfg.ServerID = "0"
 	// Register the consul service
 	chStop := make(chan struct{})
 	consulutil.RegisterServerAsConsulService(cfg, client, chStop)
@@ -58,7 +52,7 @@ func TestRunConsulSchedulingPackageTests(t *testing.T) {
 	defer func() {
 		Stop()
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	t.Run("groupScheduling", func(t *testing.T) {

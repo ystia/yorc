@@ -255,6 +255,10 @@ func createStoreImpl(cfg config.Configuration, configStore config.Store, storeTy
 }
 
 // GetStore returns the store related to a defined store type
-func GetStore(typ types.StoreType) store.Store {
-	return stores[typ]
+func GetStore(tType types.StoreType) store.Store {
+	store, ok := stores[tType]
+	if !ok {
+		log.Panic("Store %q is missing. This is not expected.", tType.String())
+	}
+	return store
 }

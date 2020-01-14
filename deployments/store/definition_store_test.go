@@ -36,12 +36,12 @@ import (
 // TestRunDefinitionStoreTests aims to run a max of tests on store functions
 func TestRunDefinitionStoreTests(t *testing.T) {
 	// create consul server and consul client
-	srv, _, workingDir := newTestConsulInstance(t)
+	cfg := setupTestConfig(t)
+	srv, _ := newTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
-
 	t.Run("StoreTests", func(t *testing.T) {
 		t.Run("TestTypesPath", func(t *testing.T) {
 			testTypesPath(t)
@@ -49,10 +49,28 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 	})
 }
 
+// SetupTestConfig sets working directory configuration
+// Warning: You need to defer the working directory removal
+// Remarque: can't use util functions from testutil package in order to avoid import cycles
+func setupTestConfig(t testing.TB) config.Configuration {
+	rootDir := "./testdata"
+	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
+		err = os.Mkdir(rootDir, 0755)
+		assert.Nil(t, err)
+	}
+
+	workingDir, err := ioutil.TempDir("./testdata", "work")
+	assert.Nil(t, err)
+
+	return config.Configuration{
+		WorkingDirectory: workingDir,
+	}
+}
+
 // newTestConsulInstance creates and configures Consul instance
 // for testing functions in the store package
 // Remarque: can't use util functions from testutil package in order to avoid import cycles
-func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client, string) {
+func newTestConsulInstance(t *testing.T, cfg *config.Configuration) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -66,16 +84,8 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client, str
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
-	workingDir, err := ioutil.TempDir("/tmp", "work")
-	assert.Nil(t, err)
-
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv1.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-		WorkingDirectory: workingDir,
-	}
+	cfg.Consul.Address = srv1.HTTPAddr
+	cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
 
 	client, err := cfg.GetNewConsulClient()
 	assert.Nil(t, err)
@@ -85,9 +95,9 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client, str
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores(cfg)
+	err = storage.LoadStores(*cfg)
 	assert.Nil(t, err)
-	return srv1, client, workingDir
+	return srv1, client
 }
 
 func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {

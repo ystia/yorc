@@ -26,10 +26,11 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulDeploymentsPackageTests(t *testing.T) {
-	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	t.Run("groupDeployments", func(t *testing.T) {

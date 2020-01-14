@@ -35,10 +35,11 @@ func loadTestYaml(t *testing.T) string {
 }
 
 func TestRunConsulProvutilPackageTests(t *testing.T) {
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 	log.SetDebug(true)
 

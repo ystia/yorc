@@ -28,20 +28,14 @@ var slumTestLocationProps config.DynamicMap
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulSlurmPackageTests(t *testing.T) {
-	srv, _, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	// Create a slurm location
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
-
 	locationMgr, err := locations.GetManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 

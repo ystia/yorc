@@ -62,10 +62,11 @@ func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 }
 
 func TestRunConsulRestPackageTests(t *testing.T) {
-	srv, client, workingDir := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(workingDir)
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	t.Run("groupRest", func(t *testing.T) {
