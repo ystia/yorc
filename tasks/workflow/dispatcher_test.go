@@ -115,7 +115,7 @@ func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Clien
 
 	dispatcher.emitWorkersMetrics()
 	lastWarn := time.Now().Add(-6 * time.Minute)
-	dispatcher.emitTasksMetrics(&lastWarn)
+	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
 
 	createTaskKV(t, "task1")
 	dispatcher.getTasksNbWaitAndMaxWaitTimeMs()

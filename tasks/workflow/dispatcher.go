@@ -51,7 +51,7 @@ type Dispatcher struct {
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
 	pool := make(chan chan *taskExecution, cfg.WorkersNumber)
 	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg, createWorkerFunc: createWorker}
-	dispatcher.emitMetrics()
+	dispatcher.emitMetrics(client)
 	return dispatcher
 }
 
@@ -83,7 +83,25 @@ func (d *Dispatcher) getTasksNbWaitAndMaxWaitTimeMs() (float32, float64, error) 
 	return nb, max, nil
 }
 
-func (d *Dispatcher) emitMetrics() {
+// getTaskExecsNbWait calculates the number of task executions that wait
+func (d *Dispatcher) getTaskExecsNbWait(client *api.Client) (float32, error) {
+	var nb float32
+	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
+	if err != nil {
+		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, taskKey := range tasksKeys {
+		taskID := path.Base(taskKey)
+		nbExec, err := numberOfWaitingExecutionsForTask(client, taskID)
+		if err != nil {
+			return 0, err
+		}
+		nb = nb + float32(nbExec)
+	}
+	return nb, nil
+}
+
+func (d *Dispatcher) emitMetrics(client *api.Client) {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
@@ -92,7 +110,7 @@ func (d *Dispatcher) emitMetrics() {
 			select {
 			case <-time.After(time.Second):
 				d.emitWorkersMetrics()
-				d.emitTasksMetrics(&lastWarn)
+				d.emitTaskExecutionsMetrics(client, &lastWarn)
 			case <-d.shutdownCh:
 				return
 			}
@@ -104,8 +122,8 @@ func (d *Dispatcher) emitWorkersMetrics() {
 	metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
 }
 
-func (d *Dispatcher) emitTasksMetrics(lastWarn *time.Time) {
-	nbWaiting, maxWait, err := d.getTasksNbWaitAndMaxWaitTimeMs()
+func (d *Dispatcher) emitTaskExecutionsMetrics(client *api.Client, lastWarn *time.Time) {
+	nbWaiting, err := d.getTaskExecsNbWait(client)
 	if err != nil {
 		now := time.Now()
 		if now.Sub(*lastWarn) > 5*time.Minute {
@@ -115,8 +133,7 @@ func (d *Dispatcher) emitTasksMetrics(lastWarn *time.Time) {
 		}
 		return
 	}
-	metrics.SetGauge([]string{"tasks", "nbWaiting"}, nbWaiting)
-	metrics.AddSample([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait))
+	metrics.SetGauge([]string{"taskExecutions", "nbWaiting"}, nbWaiting)
 }
 
 func getExecutionKeyValue(execID, execKey string) (string, error) {
