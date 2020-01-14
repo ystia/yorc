@@ -141,6 +141,7 @@ Yorc TaskExecution metrics
 | ``yorc.taskExecution.total``          | Deployment            | Counts the number of terminated                 | number of ended | counter     |
 |                                       | Type                  |   taskExecutions                                | taskExecutions  |             |
 |                                       | TaskID                |                                                 |                 |             |
+|                                       | Status                |                                                 |                 |             |
 +---------------------------------------+-----------------------+-------------------------------------------------+-----------------+-------------+
 | ``yorc.taskExecution.duration``       | Deployment            | Measures a taskExecution's processing duration  | milliseconds    | timer       |
 |                                       | Type                  |                                                 |                 |             |
@@ -152,9 +153,12 @@ Yorc TaskExecution metrics
 +---------------------------------------+-----------------------+-------------------------------------------------+-----------------+-------------+
 
 The **Deployment** label is set to the deployment ID of the monitored taskExecution.
+
 The **Type** label corresponds to the taskExecution type (``Deploy``, ``Undeploy``, ``Purge``, ``ScaleOut``, ``ScaleIn``, ``CustomCommand``,
 ``CustomWorkflow``, ``Query``, ``Action``, ``ForcePurge``, ``AddNodes``, ``RemoveNodes``).
+
 The **TaskID** label is set to the task ID of the taskExecution.
+
 The **Status** label gives the status in which the taskExecution ended.
 
 Yorc Executors metrics
