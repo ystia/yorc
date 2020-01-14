@@ -15,7 +15,6 @@
 package workflow
 
 import (
-	"math"
 	"path"
 	"strings"
 	"sync"
@@ -53,34 +52,6 @@ func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *a
 	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg, createWorkerFunc: createWorker}
 	dispatcher.emitMetrics(client)
 	return dispatcher
-}
-
-// getTasksNbWaitAndMaxWaitTimeMs calculates the number of tasks that wait (are in INITIAL status),
-// and for the task that is waiting from the longest time, return its waiting time
-func (d *Dispatcher) getTasksNbWaitAndMaxWaitTimeMs() (float32, float64, error) {
-	now := time.Now()
-	var max float64
-	var nb float32
-	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
-	if err != nil {
-		return nb, max, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	for _, taskKey := range tasksKeys {
-		taskID := path.Base(taskKey)
-		taskStatus, err := tasks.GetTaskStatus(taskID)
-		if err != nil {
-			return nb, max, err
-		}
-		if taskStatus == tasks.TaskStatusINITIAL {
-			nb++
-			createDate, err := tasks.GetTaskCreationDate(path.Base(taskKey))
-			if err != nil {
-				return nb, max, err
-			}
-			max = math.Max(max, float64(now.Sub(createDate)/time.Millisecond))
-		}
-	}
-	return nb, max, nil
 }
 
 // getTaskExecsNbWait calculates the number of task executions that wait

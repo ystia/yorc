@@ -118,7 +118,7 @@ func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
 
 	createTaskKV(t, "task1")
-	dispatcher.getTasksNbWaitAndMaxWaitTimeMs()
+	dispatcher.getTaskExecsNbWait(client)
 
 	go dispatcher.Run()
 
