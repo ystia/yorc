@@ -63,7 +63,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If id parameter not set (id == ""), StatusEvents returns events for all the deployments
-	evts, lastIdx, err := events.StatusEvents(id, waitIndex, timeout)
+	evts, lastIdx, err := events.StatusEvents(ctx, id, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}

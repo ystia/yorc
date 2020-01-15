@@ -237,7 +237,7 @@ func cleanupPurgedDeployment(ctx context.Context, deploymentID string) error {
 	// Delete events & logs tree corresponding to the deployment
 	// This is useful when redeploying an application that has been previously purged
 	// as it may still have the purged event and log.
-	err := events.PurgeDeploymentEvents(deploymentID)
+	err := events.PurgeDeploymentEvents(ctx, deploymentID)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

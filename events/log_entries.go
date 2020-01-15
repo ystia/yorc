@@ -169,7 +169,7 @@ func (e LogEntry) Register(content []byte) {
 	//err := consulutil.StoreConsulKey(e.generateKey(), val)
 	err := storage.GetStore(types.StoreTypeLog).Set(e.ctx, e.generateKey(), val)
 	if err != nil {
-		log.Printf("Failed to register log in consul for entry:%+v due to error:%+v", e, err)
+		log.Printf("Failed to register log for entry:%+v due to error:%+v", e, err)
 	}
 
 	// log the entry in stdout/stderr in DEBUG mode
