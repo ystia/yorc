@@ -15,7 +15,9 @@
 package upgradeschema
 
 import (
+	"context"
 	"github.com/ystia/yorc/v4/config"
+	"golang.org/x/sync/errgroup"
 	"path"
 	"strings"
 
@@ -89,18 +91,23 @@ func up111UpgradeCommonsTypes(kv *api.KV) error {
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for _, deploymentPrefix := range depKeys {
-		err = up111RemoveCommonsTypes(kv, commons, deploymentPrefix)
-		if err != nil {
-			return err
-		}
-		err = up111RemoveCommonsImports(kv, deploymentPrefix)
-		if err != nil {
-			return err
-		}
 
+	ctx := context.Background()
+	errGroup, ctx := errgroup.WithContext(ctx)
+	for _, deploymentPrefix := range depKeys {
+		errGroup.Go(func() error {
+			err = up111RemoveCommonsTypes(kv, commons, deploymentPrefix)
+			if err != nil {
+				return err
+			}
+			err = up111RemoveCommonsImports(kv, deploymentPrefix)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 	}
-	return nil
+	return errGroup.Wait()
 }
 
 // UpgradeTo111 allows to upgrade Consul schema from 1.1.0 to 1.1.1

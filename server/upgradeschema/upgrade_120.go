@@ -25,6 +25,7 @@ import (
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/resources"
 	"github.com/ystia/yorc/v4/tosca"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -41,7 +42,6 @@ func UpgradeTo120(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}
 func upgradeDeploymentsRefactoring(cfg config.Configuration, targetVersion string) error {
 	log.Print("Upgrade deployments store refactoring...")
 
-	ctx := context.Background()
 	deps, err := consulutil.GetKeys(consulutil.DeploymentKVPrefix)
 	if err != nil {
 		return err
@@ -52,42 +52,53 @@ func upgradeDeploymentsRefactoring(cfg config.Configuration, targetVersion strin
 		return err
 	}
 	log.Debugf("Upgrade %s: Tosca resources commons types successfully upgraded", targetVersion)
+
+	ctx := context.Background()
+	errGroup, ctx := errgroup.WithContext(ctx)
 	for _, deployment := range deps {
 		deploymentID := path.Base(deployment)
-		log.Debugf("Upgrade %s: Handling deployment with deploymentID:%q", targetVersion, deploymentID)
-		// Remove all previous tree keys for all deployments
-		deploymentPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID)
-		topologyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology")
-		trees := []string{
-			path.Join(topologyPath, "nodes"),
-			path.Join(topologyPath, "policies"),
-			path.Join(topologyPath, "repositories"),
-			path.Join(topologyPath, "substitution_mappings"),
-			path.Join(topologyPath, "metadata"),
-			path.Join(topologyPath, "outputs"),
-			path.Join(topologyPath, "inputs"),
-			path.Join(topologyPath, "types"),
-			path.Join(topologyPath, "implementation_artifacts_extensions"),
-			path.Join(topologyPath, "imports"),
-			path.Join(deploymentPath, "workflows"),
-		}
-
-		for _, tree := range trees {
-			log.Debugf("Upgrade %s:  Delete tree with path:%q", targetVersion, tree)
-			err = consulutil.Delete(tree, true)
-			if err != nil {
-				return err
-			}
-		}
-		log.Debugf("Upgrade %s: removal of existing topology successfully done for deploymentID:%q", targetVersion, deploymentID)
-		// Store topology from original file
-		err = storeTopologyInNewSchema(ctx, cfg, deploymentID, targetVersion)
-		if err != nil {
-			return err
-		}
-		log.Debugf("Upgrade %s: upgrade topology schema successfully done for deploymentID:%q", targetVersion, deploymentID)
+		errGroup.Go(func() error {
+			return upgradeDeployment(ctx, cfg, targetVersion, deploymentID)
+		})
 	}
 
+	return errGroup.Wait()
+}
+
+func upgradeDeployment(ctx context.Context, cfg config.Configuration, targetVersion, deploymentID string) error {
+	var err error
+	log.Debugf("Upgrade %s: Handling deployment with deploymentID:%q", targetVersion, deploymentID)
+	// Remove all previous tree keys for all deployments
+	deploymentPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID)
+	topologyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology")
+	trees := []string{
+		path.Join(topologyPath, "nodes"),
+		path.Join(topologyPath, "policies"),
+		path.Join(topologyPath, "repositories"),
+		path.Join(topologyPath, "substitution_mappings"),
+		path.Join(topologyPath, "metadata"),
+		path.Join(topologyPath, "outputs"),
+		path.Join(topologyPath, "inputs"),
+		path.Join(topologyPath, "types"),
+		path.Join(topologyPath, "implementation_artifacts_extensions"),
+		path.Join(topologyPath, "imports"),
+		path.Join(deploymentPath, "workflows"),
+	}
+
+	for _, tree := range trees {
+		log.Debugf("Upgrade %s:  Delete tree with path:%q", targetVersion, tree)
+		err = consulutil.Delete(tree, true)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete tree with path:%q for deploymentID:%", tree, deploymentID)
+		}
+	}
+	log.Debugf("Upgrade %s: removal of existing topology successfully done for deploymentID:%q", targetVersion, deploymentID)
+	// Store topology from original file
+	err = storeTopologyInNewSchema(ctx, cfg, deploymentID, targetVersion)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Upgrade %s: upgrade topology schema successfully done for deploymentID:%q", targetVersion, deploymentID)
 	return nil
 }
 
