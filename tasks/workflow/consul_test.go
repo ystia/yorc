@@ -34,6 +34,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
+		t.Run("testMetrics", func(t *testing.T) {
+			testMetrics(t, client)
+		})
 		t.Run("testRunStep", func(t *testing.T) {
 			testRunStep(t, srv, client)
 		})
@@ -48,9 +51,6 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		})
 		t.Run("testDispatcherRun", func(t *testing.T) {
 			testDispatcherRun(t, srv, client)
-		})
-		t.Run("testMetrics", func(t *testing.T) {
-			testWorkerMetrics(t, client)
 		})
 	})
 }

@@ -24,7 +24,7 @@ import (
 	"github.com/ystia/yorc/v4/config"
 )
 
-func testWorkerMetrics(t *testing.T, client *api.Client) {
+func testMetrics(t *testing.T, client *api.Client) {
 	shutdownCh := make(chan struct{})
 	defer close(shutdownCh)
 
@@ -32,7 +32,12 @@ func testWorkerMetrics(t *testing.T, client *api.Client) {
 	wg := &sync.WaitGroup{}
 	dispatcher := NewDispatcher(cfg, shutdownCh, client, wg)
 
+	// emit metrics with no tasks
 	dispatcher.emitWorkersMetrics()
 	lastWarn := time.Now().Add(-6 * time.Minute)
+	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
+
+	// create a task and emit metrics
+	createTaskKV(t, "taskM")
 	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
 }
