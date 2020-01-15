@@ -49,6 +49,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testDispatcherRun", func(t *testing.T) {
 			testDispatcherRun(t, srv, client)
 		})
+		t.Run("testMetrics", func(t *testing.T) {
+			testWorkerMetrics(t, client)
+		})
 	})
 }
 

@@ -61,6 +61,9 @@ func (d *Dispatcher) getTaskExecsNbWait(client *api.Client) (float32, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	if tasksKeys == nil {
+		return 0, errors.Errorf("No keys:%v", consulutil.TasksPrefix)
+	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
 		nbExec, err := numberOfWaitingExecutionsForTask(client, taskID)
@@ -100,7 +103,7 @@ func (d *Dispatcher) emitTaskExecutionsMetrics(client *api.Client, lastWarn *tim
 		if now.Sub(*lastWarn) > 5*time.Minute {
 			// Do not print each time
 			*lastWarn = now
-			log.Printf("Warning: Failed to get Max Blocked duration for tasks: %+v", err)
+			log.Printf("Warning: Failed to get metrics for taskExecutions: %+v", err)
 		}
 		return
 	}

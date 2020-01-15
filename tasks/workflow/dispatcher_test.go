@@ -113,13 +113,6 @@ func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	tChan := make(chan *taskExecution)
 	createWorkerFuncMock(dispatcher, tChan)
 
-	dispatcher.emitWorkersMetrics()
-	lastWarn := time.Now().Add(-6 * time.Minute)
-	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
-
-	createTaskKV(t, "task1")
-	dispatcher.getTaskExecsNbWait(client)
-
 	go dispatcher.Run()
 
 	select {
