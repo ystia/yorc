@@ -51,17 +51,10 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 
 // SetupTestConfig sets working directory configuration
 // Warning: You need to defer the working directory removal
-// Remarque: can't use util functions from testutil package in order to avoid import cycles
+// Note: can't use util functions from testutil package in order to avoid import cycles
 func setupTestConfig(t testing.TB) config.Configuration {
-	rootDir := "/tmp"
-	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		err = os.Mkdir(rootDir, 0755)
-		assert.Nil(t, err)
-	}
-
-	workingDir, err := ioutil.TempDir(rootDir, "work")
+	workingDir, err := ioutil.TempDir(os.TempDir(), "work")
 	assert.Nil(t, err)
-
 	return config.Configuration{
 		WorkingDirectory: workingDir,
 	}
@@ -69,7 +62,7 @@ func setupTestConfig(t testing.TB) config.Configuration {
 
 // newTestConsulInstance creates and configures Consul instance
 // for testing functions in the store package
-// Remarque: can't use util functions from testutil package in order to avoid import cycles
+// Note: can't use util functions from testutil package in order to avoid import cycles
 func newTestConsulInstance(t *testing.T, cfg *config.Configuration) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
