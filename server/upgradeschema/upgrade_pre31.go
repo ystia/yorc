@@ -36,11 +36,12 @@ func UpgradeFromPre31(cfg config.Configuration, kv *api.KV, leaderch <-chan stru
 	return eventsChange(kv, leaderch)
 }
 
-type StatusUpdateType uint64
+// statusUpdateType was the old Status type used
+type statusUpdateType uint64
 
 const (
 	// InstanceStatusChangeType is the StatusUpdate type for an instance state change event
-	InstanceStatusChangeType StatusUpdateType = iota
+	InstanceStatusChangeType statusUpdateType = iota
 	// DeploymentStatusChangeType is the StatusUpdate type for an deployment status change event
 	DeploymentStatusChangeType
 	// CustomCommandStatusChangeType is the StatusUpdate type for an custom command status change event
@@ -51,7 +52,7 @@ const (
 	WorkflowStatusChangeType
 )
 
-func stringStatusUpdate(s StatusUpdateType) string {
+func stringStatusUpdate(s statusUpdateType) string {
 	switch s {
 	case InstanceStatusChangeType:
 		return events.StatusChangeTypeInstance.String()
@@ -69,7 +70,7 @@ func stringStatusUpdate(s StatusUpdateType) string {
 
 func eventsChange(kv *api.KV, leaderch <-chan struct{}) error {
 	// Events format has changed
-	// Need to retrieve the previous StatusUpdateType and related event information
+	// Need to retrieve the previous statusUpdateType and related event information
 	// To store with the new format (JSON)
 	log.Print("Update events format change")
 	eventsPrefix := path.Join(consulutil.EventsPrefix)
@@ -97,7 +98,7 @@ func upgradeEvent(eventsPrefix string, kvp *api.KVPair) error {
 	eventTimestamp := depIDAndTimestamp[1]
 
 	values := strings.Split(string(kvp.Value), "\n")
-	eventType := StatusUpdateType(kvp.Flags)
+	eventType := statusUpdateType(kvp.Flags)
 	switch eventType {
 	case InstanceStatusChangeType:
 		if len(values) != 3 {
