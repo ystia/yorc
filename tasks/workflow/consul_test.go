@@ -34,24 +34,25 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
+
 		t.Run("testMetrics", func(t *testing.T) {
 			testMetrics(t, client)
-		})
-		t.Run("testRunStep", func(t *testing.T) {
-			testRunStep(t, srv, client)
-		})
-		t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
-			testRegisterInlineWorkflow(t, srv, client)
-		})
-		t.Run("testDeleteExecutionTreeSamePrefix", func(t *testing.T) {
-			testDeleteExecutionTreeSamePrefix(t, client)
-		})
-		t.Run("testDeleteTaskExecutionSamePrefix", func(t *testing.T) {
-			testDeleteTaskExecutionSamePrefix(t, client)
-		})
-		t.Run("testDispatcherRun", func(t *testing.T) {
-			testDispatcherRun(t, srv, client)
-		})
+		}) /*
+				t.Run("testRunStep", func(t *testing.T) {
+					testRunStep(t, srv, client)
+				})
+				t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
+					testRegisterInlineWorkflow(t, srv, client)
+				})
+				t.Run("testDeleteExecutionTreeSamePrefix", func(t *testing.T) {
+					testDeleteExecutionTreeSamePrefix(t, client)
+				})
+				t.Run("testDeleteTaskExecutionSamePrefix", func(t *testing.T) {
+					testDeleteTaskExecutionSamePrefix(t, client)
+				})
+			t.Run("testDispatcherRun", func(t *testing.T) {
+				testDispatcherRun(t, srv, client)
+			})*/
 	})
 }
 
@@ -90,5 +91,32 @@ func createTaskKV(t *testing.T, taskID string) {
 	creationDate := time.Now()
 	keyValue = creationDate.Format(time.RFC3339Nano)
 	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "creationDate"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+}
+
+func createWfStepStatusInitial(t *testing.T, taskID, stepName string) {
+	t.Helper()
+
+	keyValue := "INITIAL"
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, stepName), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+}
+
+func createTaskKVWithExecution(t *testing.T, taskID string) {
+	t.Helper()
+
+	var keyValue string
+	keyValue = strconv.Itoa(int(tasks.TaskStatusINITIAL))
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+
+	creationDate := time.Now()
+	keyValue = creationDate.Format(time.RFC3339Nano)
+	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "creationDate"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+
+	keyValue = "yorcnode"
+	execID := "2c6a9f86-a63d-4774-9f2b-ed53f96349d7"
+	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions", execID), Value: []byte(keyValue)}, nil)
 	require.NoError(t, err)
 }

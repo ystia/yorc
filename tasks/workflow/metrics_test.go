@@ -32,12 +32,19 @@ func testMetrics(t *testing.T, client *api.Client) {
 	wg := &sync.WaitGroup{}
 	dispatcher := NewDispatcher(cfg, shutdownCh, client, wg)
 
-	// emit metrics with no tasks
+	// emit workers metrics
 	dispatcher.emitWorkersMetrics()
+
+	// emit taskExecution metrics with no tasks
 	lastWarn := time.Now().Add(-6 * time.Minute)
 	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
 
-	// create a task and emit metrics
-	createTaskKV(t, "taskM")
+	// create a task and emit taskExecutions metrics
+	execID := "2c6a9f86-a63d-4774-9f2b-ed53f96349d7"
+	taskID := "taskM"
+	stepName := "stepM"
+	createTaskExecutionKVWithKey(t, execID, "step", stepName)
+	createWfStepStatusInitial(t, taskID, stepName)
+	createTaskKVWithExecution(t, taskID)
 	dispatcher.emitTaskExecutionsMetrics(client, &lastWarn)
 }
