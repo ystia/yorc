@@ -29,6 +29,7 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 * Refactor deployments package to be able to use different storage backends - part Two: Consul as default Deployments store implementation ([GH-530](https://github.com/ystia/yorc/issues/530))
 * Implement a File+Cache storage backend for static parts of deployments (GH-554](https://github.com/ystia/yorc/issues/554))
 * Refactor logs to allow to config new implementations (GH-552](https://github.com/ystia/yorc/issues/552))
+* Refactor deployments events to allow to use different backends (GH-553](https://github.com/ystia/yorc/issues/553))
 
 ### BUG FIXES
 

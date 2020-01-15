@@ -89,7 +89,7 @@ func upgradeDeployment(ctx context.Context, cfg config.Configuration, targetVers
 		log.Debugf("Upgrade %s:  Delete tree with path:%q", targetVersion, tree)
 		err = consulutil.Delete(tree, true)
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete tree with path:%q for deploymentID:%", tree, deploymentID)
+			return errors.Wrapf(err, "failed to delete tree with path:%q for deploymentID:%q", tree, deploymentID)
 		}
 	}
 	log.Debugf("Upgrade %s: removal of existing topology successfully done for deploymentID:%q", targetVersion, deploymentID)
