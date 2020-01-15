@@ -37,22 +37,22 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 
 		t.Run("testMetrics", func(t *testing.T) {
 			testMetrics(t, client)
-		}) /*
-				t.Run("testRunStep", func(t *testing.T) {
-					testRunStep(t, srv, client)
-				})
-				t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
-					testRegisterInlineWorkflow(t, srv, client)
-				})
-				t.Run("testDeleteExecutionTreeSamePrefix", func(t *testing.T) {
-					testDeleteExecutionTreeSamePrefix(t, client)
-				})
-				t.Run("testDeleteTaskExecutionSamePrefix", func(t *testing.T) {
-					testDeleteTaskExecutionSamePrefix(t, client)
-				})
-			t.Run("testDispatcherRun", func(t *testing.T) {
-				testDispatcherRun(t, srv, client)
-			})*/
+		})
+		t.Run("testRunStep", func(t *testing.T) {
+			testRunStep(t, srv, client)
+		})
+		t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
+			testRegisterInlineWorkflow(t, srv, client)
+		})
+		t.Run("testDeleteExecutionTreeSamePrefix", func(t *testing.T) {
+			testDeleteExecutionTreeSamePrefix(t, client)
+		})
+		t.Run("testDeleteTaskExecutionSamePrefix", func(t *testing.T) {
+			testDeleteTaskExecutionSamePrefix(t, client)
+		})
+		t.Run("testDispatcherRun", func(t *testing.T) {
+			testDispatcherRun(t, srv, client)
+		})
 	})
 }
 
