@@ -44,11 +44,6 @@ curl -fL https://getcli.jfrog.io | sh
 
 build_name="yorc-travis-ci"
 
-set -x
-echo "Trying to disable interactive jfrog cli"
-./jfrog rt c --interactive=false --apikey="AWrongPass" --user=travis --url=https://ystia.jfrog.io/ystia ystia
-echo "Trying to disable interactive jfrog cli"
-set +x
 # Disabling interactive mode as config ask for a question about client certificates we do not use
 ./jfrog rt c --interactive=false --apikey="${ARTIFACTORY_API_KEY}" --user=travis --url=https://ystia.jfrog.io/ystia ystia
 
