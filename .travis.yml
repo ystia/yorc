@@ -2,6 +2,7 @@ language: go
 go:
   - "stable"
 
+dist: trusty
 sudo: required
 
 services:
@@ -48,7 +49,7 @@ deploy:
   - provider: bintray
     file: "build/bintray_release.json"
     user: "loicalbertin"
-    key: 
+    key:
       secure: "qC48VD6cU2jxx1Px+jsu3s3D7Qz9dAMSrNwLEoV4h+qG0TYR/2qLuHQIWj4amO4aLXjDQKxg8YcUb5Z63a8AKDoaXH5kiWoYt3+zNj0Sv5C9kv+/DqA4T/G63mOZXxbDkD/3WYxslZhnB4R4/qMhK+yyZNRp7BmuO1IDj320fTyZqBd4ZoHM29ihOHIr/+GRENXY+VSHFvyiZ7JMOiUwWVyR/8miBaNLblQqU5vTy0HdJmuJD4jlNaS68pnvuhSnIGuVHuYbdo9BOHemw1XYCt7T3te8C1CkMk9eGhuBlhxlFDZeKInqioaquoD7dcz7kw1tvfD5kM/XrZ4fw+E2yOP3ZY9bIkHzh9kFh+mknT3VHQ7K8BWT5OPHLoFmTtdld9q96PRVvBQMiBssckBqnxD/MFiym/498L4nN7R6E4yydkHeH9RWkPn7LMjfGJl/GbkThGXg4aViNbs0a9XpVGl+TcKKY7zZdh+Wj/OvEHZZbpmm44EcnMcyE04AMyhgVqEipB61FhIMDXWwlQRJX0wF+YKMJo0BfDjU2YEeNYL87bhslQQf4z46ZHL9EAAaqq74r5KI6ivvLK8hYpYRSkS0l3DOmNunbnfw38MxHNTZUMer7pD8quRhdHCBiSwPbj/FIKeY4/Ujt66evkASqEkKR20y1MYmE3N1VI0DusE="
     skip_cleanup: true
     on:
