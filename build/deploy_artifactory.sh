@@ -44,11 +44,13 @@ curl -fL https://getcli.jfrog.io | sh
 
 build_name="yorc-travis-ci"
 
+set -x
 echo "Trying to disable interactive jfrog cli"
+./jfrog rt c --interactive=false --apikey="AWrongPass" --user=travis --url=https://ystia.jfrog.io/ystia ystia
+echo "Trying to disable interactive jfrog cli"
+set +x
 # Disabling interactive mode as config ask for a question about client certificates we do not use
-export JFROG_CLI_OFFER_CONFIG=false
-# The echo pipe is a trick that should not be there as --interactive=false should prevent jfrog to ask question but it is not the case unfortunately
-echo "" | ./jfrog rt c --interactive=false --apikey="${ARTIFACTORY_API_KEY}" --user=travis --url=https://ystia.jfrog.io/ystia ystia
+./jfrog rt c --interactive=false --apikey="${ARTIFACTORY_API_KEY}" --user=travis --url=https://ystia.jfrog.io/ystia ystia
 
 ./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
 ./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
