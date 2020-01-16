@@ -44,6 +44,7 @@ curl -fL https://getcli.jfrog.io | sh
 
 build_name="yorc-travis-ci"
 
+echo "Trying to disable interactive jfrog cli"
 # Disabling interactive mode as config ask for a question about client certificates we do not use
 export JFROG_CLI_OFFER_CONFIG=false
 # The echo pipe is a trick that should not be there as --interactive=false should prevent jfrog to ask question but it is not the case unfortunately
