@@ -44,7 +44,8 @@ curl -fL https://getcli.jfrog.io | sh
 
 build_name="yorc-travis-ci"
 
-# Added --interactive=false as config ask for a question about client certificates we do not use
+# Disabling interactive mode as config ask for a question about client certificates we do not use
+export JFROG_CLI_OFFER_CONFIG=false
 ./jfrog rt c --interactive=false --apikey="${ARTIFACTORY_API_KEY}" --user=travis --url=https://ystia.jfrog.io/ystia ystia
 
 ./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
