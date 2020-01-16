@@ -47,6 +47,18 @@ You can find below some configuration options that could be adapted to fit your 
     We had pretty good results by setting this property to ``10ms``. This feature may become the default in the future after being tested
     against different use cases and getting some feedback from production deployments.
 
+
+Yorc 4.0 comes with more flexibility around storage and Consul KV use:
+
+  * Data has been wrapped in JSON to reduce the number of keys stored.
+  * Deployment data is stored in a file with cache storage system by default.
+  * Log and Event data are still stored by default in Consul but they can also be stored in the file system with custom configuration as
+    explained here :ref:`Storage configuration<option_storage_config>`.
+  * Storing deployment, log and event data in other stores than Consul KV reduces considerably the memory consumed by Consul.
+  * Deployment storage itself is faster according to the Distributed File System used in HA mode and its performances.
+    For a local file system in dev mode, it's about 15 times faster.
+
+
 .. _tosca_operations_performance_section:
 
 TOSCA Operations

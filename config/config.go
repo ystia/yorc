@@ -199,10 +199,11 @@ type Storage struct {
 
 // Store configuration
 type Store struct {
-	Name           string     `yaml:"name" mapstructure:"name"`
-	Implementation string     `yaml:"implementation,omitempty" mapstructure:"implementation"` // not an enum as it may be extended by plugins
-	Types          []string   `yaml:"types" mapstructure:"types"`
-	Properties     DynamicMap `yaml:"properties,omitempty" mapstructure:"properties"`
+	Name                  string     `yaml:"name" json:"name" mapstructure:"name"`
+	MigrateDataFromConsul bool       `yaml:"migrate_data_from_consul,omitempty" json:"migrate_data_from_consul,omitempty"  mapstructure:"migrate_data_from_consul"`
+	Implementation        string     `yaml:"implementation" json:"implementation" mapstructure:"implementation"` // not an enum as it may be extended by plugins
+	Types                 []string   `yaml:"types" json:"types" mapstructure:"types"`
+	Properties            DynamicMap `yaml:"properties,omitempty" json:"properties,omitempty" mapstructure:"properties"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.

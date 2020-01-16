@@ -1109,6 +1109,8 @@ In this case, Yorc gives priority to the application provided properties.
 Moreover, if all the applications provide their own user credentials, the configuration properties user_name, password and private_key, can be omitted.
 See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
 
+.. _option_storage_config:
+
 Storage configuration
 ---------------------
 
@@ -1123,18 +1125,29 @@ Storage configuration
 
 Different artifacts (topologies, logs, events, tasks...) are stored by Yorc to deploy an application.
 
-Previously, everything was stored in Consul KV but mainly for performance reasons, we choose to refactor the way we store data in order to make it more flexible.
+Previously, everything was stored in Consul KV but mainly for performance reasons, we choose to refactor the way we save data in order to make it more flexible.
 So now, user can configure Yorc stores implementations for different kind of artifacts.
 
 A store configuration is defined with:
 
-- its ``name`` to identify it uniquely.
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                |                          Description                             | Data Type |   Required       | Default         |
+|                                  |                                                                  |           |                  |                 |
++==================================+==================================================================+===========+==================+=================+
+| ``name``                         | unique store ID                                                  | string    | yes              |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``migrate_data_from_consul``     | Log and Event data migration from Consul. See note below.        | bool      | no               | false           |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``implementation``               | Store implementation. See the list below.                        | string    | yes              |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``types``                        | Store types handled by this instance. See the list below.        | array     | yes              |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
-- its ``implementation`` which can be ``consul`` by instance. See the list below.
+``migrate_data_from_consul`` allows to migrate data from Consul in particular case of the very first time a new store is configured (different from consul...) and existing data are still present in Consul.
+This is only possible for logs and events.
 
-- The different store ``types`` it handles as "Deployment", "log" or "event" for the moment.
-
-- ``Properties`` which can allow to tweak the store creation:
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
@@ -1145,6 +1158,7 @@ consul
 ^^^^^^
 
 This is the consul KV store we use for main internal storage stuff.
+As it's already configurable here: :ref:`Consul configuration<yorc_config_file_consul_section>`, so no other configuration is provided in this section.
 
 fileCache
 ^^^^^^^^^
@@ -1213,6 +1227,7 @@ Here is a JSON example of stores configuration with a cipherFileStore implementa
       {
         "name": "myCipherFileStore",
         "implementation": "cipherFileCache",
+        "migrate_data_from_consul": true,
         "types":  ["Log"],
         "properties": {
           "root_dir": "/mypath/to/store",
@@ -1231,6 +1246,7 @@ The same sample in YAML
       stores:
       - name: myCipherFileStore
         implementation: cipherFileCache
+        migrate_data_from_consul: true
         types:
         - Log
         properties:

@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"path"
 	"strings"
@@ -52,8 +53,9 @@ func LoadStores(cfg config.Configuration) error {
 	// load stores once
 	once.Do(func() {
 		var cfgStores []config.Store
+		var init bool
 		// load stores config from Consul if already present or save them from configuration
-		cfgStores, err = getConfigStores(cfg)
+		init, cfgStores, err = getConfigStores(cfg)
 		if err != nil {
 			return
 		}
@@ -69,6 +71,14 @@ func LoadStores(cfg config.Configuration) error {
 					if err != nil {
 						return
 					}
+
+					// Handle Consul data migration for log/event stores
+					if configStore.MigrateDataFromConsul && init && configStore.Implementation != consulStoreImpl {
+						err = migrateData(configStore.Name, st, stores[st])
+						if err != nil {
+							return
+						}
+					}
 				}
 			}
 		}
@@ -80,20 +90,20 @@ func LoadStores(cfg config.Configuration) error {
 	return err
 }
 
-func getConfigStores(cfg config.Configuration) ([]config.Store, error) {
+func getConfigStores(cfg config.Configuration) (bool, []config.Store, error) {
 	consulClient, err := cfg.GetConsulClient()
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	lock, _, err := getConsulLock(consulClient)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	defer lock.Unlock()
 
 	kvps, _, err := consulClient.KV().List(consulutil.StoresPrefix, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	// Get config Store from Consul if reset is false and exists any store
@@ -105,23 +115,26 @@ func getConfigStores(cfg config.Configuration) ([]config.Store, error) {
 			configStore := new(config.Store)
 			err = json.Unmarshal(kvp.Value, configStore)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to unmarshal store with name:%q", name)
+				return false, nil, errors.Wrapf(err, "failed to unmarshal store with name:%q", name)
 			}
 			configStores = append(configStores, *configStore)
 		}
-		return configStores, nil
+		return false, configStores, nil
 	}
-
-	return initConfigStores(cfg)
+	configStores, err := initConfigStores(cfg)
+	return true, configStores, err
 }
 
 // Initialize config stores in Consul
 func initConfigStores(cfg config.Configuration) ([]config.Store, error) {
-	if err := clearConfigStore(); err != nil {
+	cfgStores, err := checkAndBuildConfigStores(cfg)
+	if err != nil {
 		return nil, err
 	}
 
-	cfgStores := checkAndBuildConfigStores(cfg)
+	if err := clearConfigStore(); err != nil {
+		return nil, err
+	}
 	// Save stores config in Consul
 	for _, configStore := range cfgStores {
 		err := consulutil.StoreConsulKeyWithJSONValue(path.Join(consulutil.StoresPrefix, configStore.Name), configStore)
@@ -187,26 +200,46 @@ func buildDefaultConfigStores() []config.Store {
 // Check if all stores types are provided by stores config
 // If no config is provided, global default config store is added
 // If any store type is missing, a related default config store is added
-func checkAndBuildConfigStores(cfg config.Configuration) []config.Store {
+func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error) {
 	if cfg.Storage.Stores == nil {
-		return buildDefaultConfigStores()
+		return buildDefaultConfigStores(), nil
 	}
 
 	cfgStores := cfg.Storage.Stores
-	checkStores := make([]string, 0)
+	checkStoreTypes := make([]string, 0)
+	checkStoreNames := make([]string, 0)
 	for _, configStore := range cfg.Storage.Stores {
+		if configStore.Name == "" {
+			return nil, errors.Errorf("Missing mandatory property \"Name\" for store with no name...")
+		}
+		if configStore.Implementation == "" {
+			return nil, errors.Errorf("Missing mandatory property \"implementation\" for store with name:%q", configStore.Name)
+		}
+		if configStore.Types == nil || len(configStore.Types) == 0 {
+			return nil, errors.Errorf("Missing mandatory property \"types\" for store with name:%q", configStore.Name)
+		}
+
+		// Check store name is unique
+		if collections.ContainsString(checkStoreNames, configStore.Name) {
+			return nil, errors.Errorf("At least, 2 different stores have the same name:%q", configStore.Name)
+		}
+		checkStoreNames = append(checkStoreNames, configStore.Name)
+
+		// Prepare store types check
 		for _, storeTypeName := range configStore.Types {
 			// let's do this case insensitive
 			name := strings.ToLower(storeTypeName)
-			if !collections.ContainsString(checkStores, name) {
-				checkStores = append(checkStores, name)
+			if !collections.ContainsString(checkStoreTypes, name) {
+				checkStoreTypes = append(checkStoreTypes, name)
 			}
 		}
 	}
 
+	// Check each store type has its implementation.
+	// Add default if none is provided by config
 	for _, storeTypeName := range types.StoreTypeNames() {
 		name := strings.ToLower(storeTypeName)
-		if !collections.ContainsString(checkStores, name) {
+		if !collections.ContainsString(checkStoreTypes, name) {
 			log.Printf("Default config store will be used for store type:%q.", storeTypeName)
 			var defaultStore config.Store
 			switch storeTypeName {
@@ -233,7 +266,7 @@ func checkAndBuildConfigStores(cfg config.Configuration) []config.Store {
 			cfgStores = append(cfgStores, defaultStore)
 		}
 	}
-	return cfgStores
+	return cfgStores, nil
 }
 
 // Create store implementations
@@ -252,6 +285,44 @@ func createStoreImpl(cfg config.Configuration, configStore config.Store, storeTy
 		log.Printf("[WARNING] unknown store implementation:%q. This will be ignored.", storeType)
 	}
 	return nil
+}
+
+// this allows to migrate log or events from Consul to new store implementations (other than Consul)
+func migrateData(storeName string, storeType types.StoreType, storeImpl store.Store) error {
+
+	var rootPath string
+	switch storeType {
+	case types.StoreTypeLog:
+		rootPath = consulutil.LogsPrefix
+	case types.StoreTypeEvent:
+		rootPath = consulutil.EventsPrefix
+	default:
+		log.Printf("[WARNING] No migration handled for type:%q (demanded in config for store name:%q)", storeType, storeName)
+		return nil
+	}
+	kvps, _, err := consulutil.GetKV().List(rootPath, nil)
+	if err != nil {
+		errors.Wrapf(err, "failed to migrate data from Consul for root path:%q in store with name:%q", rootPath, storeName)
+	}
+	if kvps == nil || len(kvps) == 0 {
+		return nil
+	}
+	keyValues := make([]store.KeyValueIn, 0)
+	var value json.RawMessage
+	for _, kvp := range kvps {
+		value = kvp.Value
+		keyValues = append(keyValues, store.KeyValueIn{
+			Key:   kvp.Key,
+			Value: value,
+		})
+
+	}
+	err = storeImpl.SetCollection(context.Background(), keyValues)
+	if err != nil {
+		errors.Wrapf(err, "failed to migrate data from Consul for root path:%q in store with name:%q", rootPath, storeName)
+	}
+
+	return consulutil.Delete(rootPath, true)
 }
 
 // GetStore returns the store related to a defined store type
