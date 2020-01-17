@@ -112,7 +112,7 @@ func TestLocationApplyWithDirPath(t *testing.T) {
 	require.Error(t, err, "Expecting a path to a file")
 }
 
-func TestLocationApply(t *testing.T) {
+func TestLocationApplyOk(t *testing.T) {
 	err := applyLocationsConfig(&httpMockClientApply{}, []string{"./testdata/locations.json"}, true)
 	require.NoError(t, err, "Failed to apply locations config")
 }

@@ -16,6 +16,7 @@ package storage
 
 import (
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/internal/consul"
 	"github.com/ystia/yorc/v4/storage/types"
@@ -33,9 +34,19 @@ func init() {
 
 // LoadStores fetch all store implementations found in plugins (ie for deployments, logs and events storage
 // If no external store is found, default store is used
-func LoadStores() error {
+func LoadStores(cfg config.Configuration) error {
 	stores = make(map[types.StoreType]Store, 0)
-	storePlugins, err := filepath.Glob("plugins/store_*.so")
+
+	pluginsPath := cfg.PluginsDirectory
+	if pluginsPath == "" {
+		pluginsPath = config.DefaultPluginDir
+	}
+	pluginPath, err := filepath.Abs(pluginsPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to explore plugins directory")
+	}
+
+	storePlugins, err := filepath.Glob(filepath.Join(pluginPath, "store_*.so"))
 	if err != nil {
 		return err
 	}

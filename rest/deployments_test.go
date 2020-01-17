@@ -55,12 +55,15 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, srv *testutil.Test
 	t.Run("testListDeploymentHandler", func(t *testing.T) {
 		testListDeploymentHandler(t, client, srv)
 	})
-	t.Run("testUpdateDeploymentsOSS", func(t *testing.T) {
-		testUpdateDeploymentsOSS(t, client, srv)
+	t.Run("testUpdateDeployments", func(t *testing.T) {
+		testUpdateDeployments(t, client, srv)
 	})
 	t.Run("testNewDeployments", func(t *testing.T) {
 		testNewDeployments(t, client, srv)
 	})
+
+	// Cleanup work
+	os.RemoveAll("./testdata/work")
 }
 
 func loadTestYaml(t *testing.T, deploymentID string) {
@@ -75,7 +78,7 @@ func cleanTest(deploymentID, taskID string) {
 	}
 	if deploymentID != "" {
 		consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID), true)
-		os.RemoveAll("../work/deployments/" + deploymentID)
+		os.RemoveAll("./testdata/work/deployments/" + deploymentID)
 	}
 }
 
@@ -320,49 +323,6 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 				}
 			}
 			cleanTest(tt.name, "")
-		})
-	}
-}
-
-func testUpdateDeploymentsOSS(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-	depID := ytestutil.BuildDeploymentID(t)
-
-	type result struct {
-		statusCode int
-		errors     *Errors
-	}
-
-	tests := []struct {
-		name         string
-		deploymentID string
-		want         *result
-	}{
-		{"updateExistingDep", depID, &result{statusCode: http.StatusForbidden, errors: &Errors{[]*Error{newForbiddenRequest(fmt.Sprintf("Trying to update deployment %q on an open source version. Updates are supported only on premium versions.", depID))}}}},
-		{"updateNotExistingDep", "noDeployment", &result{statusCode: http.StatusNotFound, errors: &Errors{[]*Error{errNotFound}}}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			prepareTest(t, tt.deploymentID, client, srv)
-
-			req := httptest.NewRequest("PATCH", "/deployments/"+tt.deploymentID, nil)
-			req.Header.Set("Content-Type", mimeTypeApplicationZip)
-			resp := newTestHTTPRouter(client, req)
-			require.NotNil(t, resp, "unexpected nil response")
-			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
-
-			body, err := ioutil.ReadAll(resp.Body)
-			require.Nil(t, err, "unexpected error reading body response")
-
-			if tt.want.errors != nil {
-				var errorsFound Errors
-				err := json.Unmarshal(body, &errorsFound)
-				require.Nil(t, err, "unexpected error unmarshalling json body")
-				if !reflect.DeepEqual(errorsFound, *tt.want.errors) {
-					t.Errorf("errors = %v, want %v", errorsFound, *tt.want.errors)
-				}
-			}
-			cleanTest(tt.deploymentID, "")
 		})
 	}
 }
