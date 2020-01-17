@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
@@ -51,6 +52,9 @@ func TestRunConsulStoragePackageTests(t *testing.T) {
 		})
 		t.Run("testLoadStoresWithMissingMandatoryParameters", func(t *testing.T) {
 			testLoadStoresWithMissingMandatoryParameters(t, srv, cfg)
+		})
+		t.Run("testLoadStoresWithGeneratedName", func(t *testing.T) {
+			testLoadStoresWithGeneratedName(t, srv, cfg)
 		})
 	})
 }
@@ -220,11 +224,6 @@ func testLoadStoresWithMissingMandatoryParameters(t *testing.T, srv1 *testutil.T
 		name     string
 		myStores []config.Store
 	}{
-		{"storeWithoutName", []config.Store{{
-			Name:           "",
-			Implementation: "consul",
-			Types:          []string{"Log", "Event"},
-		}}},
 		{"storeWithoutImplementation", []config.Store{{
 			Name:  "myStore",
 			Types: []string{"Log", "Event"},
@@ -270,4 +269,51 @@ func testLoadStoresWithMissingMandatoryParameters(t *testing.T, srv1 *testutil.T
 		})
 	}
 
+}
+
+func testLoadStoresWithGeneratedName(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		myStores []config.Store
+	}{
+		{"storeWithoutName", []config.Store{{
+			Name:           "",
+			Implementation: "consul",
+			Types:          []string{"Log", "Event"},
+		},
+			{
+				Name:           "",
+				Implementation: "consul",
+				Types:          []string{"Log", "Event"},
+			},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset once to allow reload config
+			once.Reset()
+
+			cfg.Storage = config.Storage{
+				Reset:  true,
+				Stores: tt.myStores,
+			}
+
+			err := LoadStores(cfg)
+			require.NoError(t, err)
+			MapStores, err := consulutil.List(consulutil.StoresPrefix)
+			require.NoError(t, err)
+			require.NotNil(t, MapStores)
+			require.Len(t, MapStores, 2)
+
+			for k, _ := range MapStores {
+				if !strings.Contains(k, "default") {
+					store := new(config.Store)
+					err = json.Unmarshal(MapStores[k], store)
+					require.True(t, strings.HasPrefix(store.Name, "consulLogEvent-"))
+					require.NoError(t, err)
+				}
+			}
+		})
+	}
 }

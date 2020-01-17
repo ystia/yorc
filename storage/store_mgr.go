@@ -17,10 +17,13 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"github.com/matryer/resync"
-	"github.com/pkg/errors"
+	"fmt"
+	uuid "github.com/satori/go.uuid"
 	"path"
 	"strings"
+
+	"github.com/matryer/resync"
+	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
@@ -39,7 +42,48 @@ const fileStoreWithCacheImpl = "fileCache"
 const fileStoreWithCacheAndEncryptionImpl = "cipherFileCache"
 
 var once resync.Once
+
+// stores implementations provided with GetStore(types.StoreType)
 var stores map[types.StoreType]store.Store
+
+// default config stores loaded at init
+var defaultConfigStores map[string]config.Store
+
+func init() {
+	defaultConfigStores = make(map[string]config.Store, 0)
+
+	// File with cache store for deployments
+	fileStoreWithCache := config.Store{
+		Name:           "defaultFileStoreWithCache",
+		Implementation: fileStoreWithCacheImpl,
+		Types:          []string{types.StoreTypeDeployment.String()},
+	}
+	defaultConfigStores[fileStoreWithCache.Name] = fileStoreWithCache
+
+	// Consul store for both logs and events
+	consulStore := config.Store{
+		Name:           "defaultConsulStore",
+		Implementation: consulStoreImpl,
+		Types:          []string{types.StoreTypeLog.String(), types.StoreTypeEvent.String()},
+	}
+	defaultConfigStores[consulStore.Name] = consulStore
+
+	// Consul store for logs only
+	consulStoreLog := config.Store{
+		Name:           "defaultConsulStore" + types.StoreTypeLog.String(),
+		Implementation: consulStoreImpl,
+		Types:          []string{types.StoreTypeLog.String()},
+	}
+	defaultConfigStores[consulStoreLog.Name] = consulStore
+
+	// Consul store for events only
+	consulStoreEvent := config.Store{
+		Name:           "defaultConsulStore" + types.StoreTypeEvent.String(),
+		Implementation: consulStoreImpl,
+		Types:          []string{types.StoreTypeEvent.String()},
+	}
+	defaultConfigStores[consulStoreEvent.Name] = consulStoreEvent
+}
 
 // LoadStores reads/saves stores configuration and load store implementations in mem.
 // The store config needs to provide store for all defined types. ie. deployments, logs and events.
@@ -150,25 +194,33 @@ func clearConfigStore() error {
 
 // Build default config stores if no custom config provided
 func buildDefaultConfigStores() []config.Store {
-	log.Print("Default config stores is set")
-	cfgStores := make([]config.Store, 0)
-
-	// File with cache store for deployments
-	fileStoreWithCache := config.Store{
-		Name:           "defaultFileStoreWithCache",
-		Implementation: fileStoreWithCacheImpl,
-		Types:          []string{types.StoreTypeDeployment.String()},
+	return []config.Store{
+		defaultConfigStores["defaultFileStoreWithCache"],
+		defaultConfigStores["defaultConsulStore"],
 	}
-	cfgStores = append(cfgStores, fileStoreWithCache)
+}
 
-	// Consul store for logs and events
-	consulStore := config.Store{
-		Name:           "defaultConsulStore",
-		Implementation: consulStoreImpl,
-		Types:          []string{types.StoreTypeLog.String(), types.StoreTypeEvent.String()},
+// Build default config stores for missing one of specified type
+func buildDefaultConfigStore(storeTypeName string) config.Store {
+	var defaultStore config.Store
+	switch storeTypeName {
+	case types.StoreTypeDeployment.String():
+		defaultStore = defaultConfigStores["defaultFileStoreWithCache"]
+	case types.StoreTypeEvent.String():
+		defaultStore = defaultConfigStores["defaultConsulStore"+types.StoreTypeEvent.String()]
+	case types.StoreTypeLog.String():
+		defaultStore = defaultConfigStores["defaultFileStoreWithCache"+types.StoreTypeLog.String()]
 	}
-	cfgStores = append(cfgStores, consulStore)
-	return cfgStores
+	return defaultStore
+}
+
+func storeExists(stores []config.Store, name string) bool {
+	for _, storeItem := range stores {
+		if storeItem.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Check if all stores types are provided by stores config
@@ -179,32 +231,40 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 		return buildDefaultConfigStores(), nil
 	}
 
-	cfgStores := cfg.Storage.Stores
+	cfgStores := make([]config.Store, 0)
 	checkStoreTypes := make([]string, 0)
 	checkStoreNames := make([]string, 0)
-	for _, configStore := range cfg.Storage.Stores {
-		if configStore.Name == "" {
-			return nil, errors.Errorf("Missing mandatory property \"Name\" for store with no name...")
+	for _, cfgStore := range cfg.Storage.Stores {
+		if cfgStore.Implementation == "" {
+			return nil, errors.Errorf("Missing mandatory property \"implementation\" for store with name:%q", cfgStore.Name)
 		}
-		if configStore.Implementation == "" {
-			return nil, errors.Errorf("Missing mandatory property \"implementation\" for store with name:%q", configStore.Name)
+		if cfgStore.Types == nil || len(cfgStore.Types) == 0 {
+			return nil, errors.Errorf("Missing mandatory property \"types\" for store with name:%q", cfgStore.Name)
 		}
-		if configStore.Types == nil || len(configStore.Types) == 0 {
-			return nil, errors.Errorf("Missing mandatory property \"types\" for store with name:%q", configStore.Name)
+
+		if cfgStore.Name == "" {
+			extra := uuid.NewV4()
+			cfgStore.Name = fmt.Sprintf("%s%s-%s", cfgStore.Implementation, strings.Join(cfgStore.Types, ""), extra[0:3])
 		}
 
 		// Check store name is unique
-		if collections.ContainsString(checkStoreNames, configStore.Name) {
-			return nil, errors.Errorf("At least, 2 different stores have the same name:%q", configStore.Name)
+		if collections.ContainsString(checkStoreNames, cfgStore.Name) {
+			return nil, errors.Errorf("At least, 2 different stores have the same name:%q", cfgStore.Name)
 		}
-		checkStoreNames = append(checkStoreNames, configStore.Name)
+		checkStoreNames = append(checkStoreNames, cfgStore.Name)
 
 		// Prepare store types check
-		for _, storeTypeName := range configStore.Types {
+		// First store type occurrence is taken in account
+		for _, storeTypeName := range cfgStore.Types {
 			// let's do this case insensitive
 			name := strings.ToLower(storeTypeName)
 			if !collections.ContainsString(checkStoreTypes, name) {
 				checkStoreTypes = append(checkStoreTypes, name)
+				// Add the store for this store type if not already added
+				if !storeExists(cfgStores, cfgStore.Name) {
+					log.Printf("Provided config store will be used for store type:%q.", storeTypeName)
+					cfgStores = append(cfgStores, cfgStore)
+				}
 			}
 		}
 	}
@@ -215,29 +275,7 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 		name := strings.ToLower(storeTypeName)
 		if !collections.ContainsString(checkStoreTypes, name) {
 			log.Printf("Default config store will be used for store type:%q.", storeTypeName)
-			var defaultStore config.Store
-			switch storeTypeName {
-			case types.StoreTypeDeployment.String():
-				defaultStore = config.Store{
-					Name:           "defaultFileStoreWithCache",
-					Implementation: fileStoreWithCacheImpl,
-					Types:          []string{types.StoreTypeDeployment.String()},
-				}
-			case types.StoreTypeEvent.String():
-				defaultStore = config.Store{
-					Name:           "defaultConsulStore" + types.StoreTypeEvent.String(),
-					Implementation: consulStoreImpl,
-					Types:          []string{types.StoreTypeEvent.String()},
-				}
-			case types.StoreTypeLog.String():
-				defaultStore = config.Store{
-					Name:           "defaultConsulStore" + types.StoreTypeLog.String(),
-					Implementation: consulStoreImpl,
-					Types:          []string{types.StoreTypeLog.String()},
-				}
-			}
-
-			cfgStores = append(cfgStores, defaultStore)
+			cfgStores = append(cfgStores, buildDefaultConfigStore(storeTypeName))
 		}
 	}
 	return cfgStores, nil
