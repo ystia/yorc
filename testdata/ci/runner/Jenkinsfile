@@ -1,0 +1,142 @@
+pipeline {
+    agent none
+    parameters {
+        choice(name: 'INFRA_FILTER', choices: ['all', 'openstack', 'gcp'], description: 'Run on specific infrastructure (all by default)')
+        booleanParam defaultValue: false, description: 'Are we testing a premium version', name: 'PREMIUM'
+        booleanParam defaultValue: false, description: 'Should we run slow tests? (run nightly)', name: 'NIGHTLY'
+    }
+
+
+    environment {
+        // ENV_HTTP_PROXY is a global property defined in http://jenkins.url/configure just like GOPROXY
+        HTTP_PROXY=getEnvOrDefault("ENV_HTTP_PROXY", "")
+        K8S_CLOUD_NAME=getEnvOrDefault("ENV_YORC_CI_K8S", "kubernetes")
+    }
+
+    stages {
+        stage('Build Yorc') {
+            agent {
+                kubernetes {
+                    cloud "${K8S_CLOUD_NAME}"
+                    defaultContainer 'yorc-ci-builder'
+                    yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: yorc-ci-builder
+    image: golang:1-stretch
+    command:
+    - cat
+    tty: true
+    env:
+    - name: "HOME"
+      value: "/tmp/buildhome"
+    - name: "XDG_CACHE_HOME"
+      value: "/tmp/.cache"
+    - name: "no_proxy"
+      value: "127.0.0.1"
+    - name: "http_proxy"
+      value: "${HTTP_PROXY}"
+    - name: "https_proxy"
+      value: "${HTTP_PROXY}"
+"""
+                }
+            }
+            steps {
+                sh("""
+                    apt-get update && apt-get -qy install zip unzip
+                    SKIP_TEST=1 make
+                    tar czvf yorc.tgz yorc
+                    """
+                )
+                stash includes: 'yorc.tgz', name: 'yorc_tgz'
+            }
+        }
+        stage('Compute Generic Behave Tags') {
+            steps {
+
+                script {
+                    def godog_tags = " -t '@CI"
+                    if ("${env.PREMIUM}" != "true") {
+                        godog_tags += " && ~@premium"
+                    }
+                    if ("${env.NIGHTLY}" != "true") {
+                        godog_tags += " && ~@slow"
+                    }
+                    env.godog_tags = godog_tags+'\''
+                }
+
+                echo "godog_tags: ${env.godog_tags}"
+            }
+        }
+        stage('Run on infra') {
+            matrix {
+                agent {
+                    kubernetes {
+                        cloud "${K8S_CLOUD_NAME}"
+                        defaultContainer 'yorc-ci-exec'
+                        yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: yorc-ci-exec
+    image: ystia/yorc-ci-it-runner:latest
+    command:
+    - cat
+    tty: true
+    env:
+    - name: "http_proxy"
+      value: "${HTTP_PROXY}"
+    - name: "https_proxy"
+      value: "${HTTP_PROXY}"
+"""
+                    }
+                }
+                when { anyOf {
+                    expression { params.INFRA_FILTER == 'all' }
+                    expression { params.INFRA_FILTER == env.INFRASTRUCTURE }
+                } }
+                environment {
+                    // Those should be matrix cell scoped
+                    dep_id = ''
+                }
+                axes {
+                    axis {
+                        name 'INFRASTRUCTURE'
+                        values 'openstack', 'gcp'
+                    }
+                }
+
+                stages {
+                    stage('Download Forge components') {
+                        steps {
+                            sh 'mkdir -p testdata/ci/components'
+                            dir('testdata/ci/components') {
+                            sh """#!/usr/bin/env bash
+                                source ${env.WORKSPACE}/utils.sh
+                                rm -f *.zip
+                                forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/develop" 'all-types-[0-9].*?.zip')"
+                                echo "Downloading Forge components from \${forgeCompsURL}"
+                                curl -L "\${forgeCompsURL}" -o all-types.zip
+                                unzip all-types.zip
+                            """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+def getEnvOrDefault(String envVar, String defaultValue) {
+    node('master') {
+        def envVars = env.getEnvironment()
+        if (!envVars.containsKey(envVar)){
+            return defaultValue
+        }
+        return envVars.get(envVar)
+    }
+}
