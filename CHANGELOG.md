@@ -7,7 +7,7 @@
 #### Changes in Yorc metric namespace
 
 In order to improve the observability of Yorc execution, the exposed metrics' names were modified.
-Now labels are used which allow to provide metric trees ([GH-297](https://github.com/ystia/yorc/issues/297))
+Now labels are used which allow to provide metric trees ([GH-297](https://github.com/ystia/yorc/issues/297)).
 
 #### Changes on the deployments API
 
