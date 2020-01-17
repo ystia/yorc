@@ -8,9 +8,9 @@ pipeline {
 
 
     environment {
-        // ENV_HTTP_PROXY is a global property defined in http://jenkins.url/configure just like GOPROXY
-        HTTP_PROXY=getEnvOrDefault("ENV_HTTP_PROXY", "")
-        K8S_CLOUD_NAME=getEnvOrDefault("ENV_YORC_CI_K8S", "kubernetes")
+        K8S_CLOUD_NAME="${ENV_YORC_CI_K8S}"
+        GCP_CREDS_ID="${ENV_YORC_CI_GCP_CREDS_ID}"
+        GCP_BUCKET_NAME="${ENV_YORC_CI_GCP_BUCKET_NAME}"
     }
 
     stages {
@@ -34,23 +34,33 @@ spec:
       value: "/tmp/buildhome"
     - name: "XDG_CACHE_HOME"
       value: "/tmp/.cache"
-    - name: "no_proxy"
-      value: "127.0.0.1"
-    - name: "http_proxy"
-      value: "${HTTP_PROXY}"
-    - name: "https_proxy"
-      value: "${HTTP_PROXY}"
 """
                 }
             }
             steps {
-                sh("""
+                script {
+                    if (env.PREMIUM) {
+                        env.BUILD_TAGS="premium"
+                    } else {
+                        env.BUILD_TAGS=""
+                    }
+
+                    def randomPath = UUID.randomUUID().toString()
+                    env.gsPath = "${GCP_BUCKET_NAME}/${randomPath}/"
+                    env.yorcDownloadURL = "https://storage.googleapis.com/${env.gsPath}yorc.tgz"
+                }
+                echo "gs path: ${env.gsPath}"
+                echo "yorc DL URL: ${env.yorcDownloadURL}"
+
+                sh("""#!/usr/bin/env bash
+                    unset GOPPROXY
                     apt-get update && apt-get -qy install zip unzip
-                    SKIP_TEST=1 make
+                    make tools
+                    SKIP_TESTS=1 BUILD_TAGS="${env.BUILD_TAGS}" make
                     tar czvf yorc.tgz yorc
                     """
                 )
-                stash includes: 'yorc.tgz', name: 'yorc_tgz'
+                googleStorageUpload bucket: "gs://${env.gsPath}", pattern: 'yorc.tgz', sharedPublicly: true, credentialsId: "${GCP_CREDS_ID}", showInline: true
             }
         }
         stage('Compute Generic Behave Tags') {
@@ -86,11 +96,6 @@ spec:
     command:
     - cat
     tty: true
-    env:
-    - name: "http_proxy"
-      value: "${HTTP_PROXY}"
-    - name: "https_proxy"
-      value: "${HTTP_PROXY}"
 """
                     }
                 }
@@ -98,10 +103,6 @@ spec:
                     expression { params.INFRA_FILTER == 'all' }
                     expression { params.INFRA_FILTER == env.INFRASTRUCTURE }
                 } }
-                environment {
-                    // Those should be matrix cell scoped
-                    dep_id = ''
-                }
                 axes {
                     axis {
                         name 'INFRASTRUCTURE'
@@ -114,14 +115,26 @@ spec:
                         steps {
                             sh 'mkdir -p testdata/ci/components'
                             dir('testdata/ci/components') {
-                            sh """#!/usr/bin/env bash
-                                source ${env.WORKSPACE}/utils.sh
-                                rm -f *.zip
-                                forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/develop" 'all-types-[0-9].*?.zip')"
-                                echo "Downloading Forge components from \${forgeCompsURL}"
-                                curl -L "\${forgeCompsURL}" -o all-types.zip
-                                unzip all-types.zip
-                            """
+                                sh """#!/usr/bin/env bash
+                                    source /usr/local/lib/yorc-ci-utils.sh
+                                    forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/develop" 'all-types-[0-9].*?.zip')"
+                                    echo "Downloading Forge components from \${forgeCompsURL}"
+                                    curl -L "\${forgeCompsURL}" -o all-types.zip
+                                    unzip all-types.zip
+                                """
+                            }
+                        }
+                    }
+
+                    stage('Download yorc') {
+                        steps {
+                            dir('testdata/ci') {
+                                // this could also be done using stash/unstash but this way we can test before bootstrap if it works
+                                echo "downloading Yorc from ${env.yorcDownloadURL}"
+                                sh """#!/usr/bin/env bash
+                                    curl -L "${env.yorcDownloadURL}" -o yorc.tgz
+                                    tar xzvf yorc.tgz
+                                """
                             }
                         }
                     }
@@ -131,12 +144,3 @@ spec:
     }
 }
 
-def getEnvOrDefault(String envVar, String defaultValue) {
-    node('master') {
-        def envVars = env.getEnvironment()
-        if (!envVars.containsKey(envVar)){
-            return defaultValue
-        }
-        return envVars.get(envVar)
-    }
-}
