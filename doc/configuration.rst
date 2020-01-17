@@ -206,6 +206,10 @@ Globals Command-line options
 
   * ``--disable_ssh_agent``: Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.
 
+.. _option_upgrades_concurrency_cmd:
+
+  * ``--concurrency_limit_for_upgrades``: Limit of concurrency used in Upgrade processes. If not set the default value of `1000` will be used.
+
 .. _yorc_config_file_section:
 
 Configuration files
@@ -299,6 +303,10 @@ Below is an example of configuration file with TLS enabled.
 .. _option_disable_ssh_agent_cfg:
 
   * ``disable_ssh_agent``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
+
+.. _option_upgrades_concurrency_cfg:
+
+  * ``concurrency_limit_for_upgrades``: Equivalent to :ref:`--concurrency_limit_for_upgrades <option_upgrades_concurrency_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -846,6 +854,10 @@ Environment variables
 .. _option_disable_ssh_agent_env:
 
   * ``YORC_DISABLE_SSH_AGENT``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
+
+.. _option_upgrades_concurrency_env:
+
+  * ``YORC_CONCURRENCY_LIMIT_FOR_UPGRADES``: Equivalent to :ref:`--concurrency_limit_for_upgrades <option_upgrades_concurrency_cmd>` command-line flag.
 
 .. _option_log_env:
 

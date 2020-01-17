@@ -48,7 +48,7 @@ func TestConsulServerPackage(t *testing.T) {
 			testRunServer(t, srv, client)
 		})
 		t.Run("testSetupVersion", func(t *testing.T) {
-			testSetupVersion(t, client)
+			testSetupVersion(t, client, cfg)
 		})
 	})
 }
@@ -72,17 +72,16 @@ func checkCurrentSchemaVersion(t *testing.T, kv *api.KV) {
 	checkSchemaVersion(t, kv, consulutil.YorcSchemaVersion)
 }
 
-func testSetupVersion(t *testing.T, client *api.Client) {
+func testSetupVersion(t *testing.T, client *api.Client, cfg config.Configuration) {
 	// Test without any version set
 	kv := client.KV()
 	initialDataKP := &api.KVPair{Key: consulutil.DeploymentKVPrefix + "/something", Value: []byte{1}}
 	_, err := kv.Put(initialDataKP, nil)
 	require.NoError(t, err)
-	cfg := config.Configuration{
-		WorkingDirectory: "./testdata/",
-		ServerID:         "testUpgrade120_skip_common_types", // this allows to skip tosca commons types upgrade in test
 
-	}
+	cfg.WorkingDirectory = "./testdata/"
+	cfg.UpgradeConcurrencyLimit = config.DefaultUpgradesConcurrencyLimit
+	cfg.ServerID = "testUpgrade120_skip_common_types" // this allows to skip tosca commons types upgrade in test
 	err = setupConsulDBSchema(cfg, client)
 	assert.NoError(t, err)
 	checkCurrentSchemaVersion(t, kv)

@@ -37,10 +37,15 @@ func UpgradeTo110(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}
 	}
 
 	ctx := context.Background()
+	sem := make(chan struct{}, cfg.UpgradeConcurrencyLimit)
 	errGroup, ctx := errgroup.WithContext(ctx)
 	for _, deploymentPrefix := range keys {
 		topologyPrefix := path.Join(deploymentPrefix, "topology")
+		sem <- struct{}{}
 		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
 			if err = deleteElementsFromConsulPrefix(kv, topologyPrefix, "description", "tosca_version"); err != nil {
 				return err
 			}

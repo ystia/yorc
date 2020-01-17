@@ -78,6 +78,9 @@ const DefaultTasksDispatcherLongPollWaitTime = 1 * time.Minute
 // DefaultTasksDispatcherLockWaitTime is the default wait time for acquiring a lock for an execution task
 const DefaultTasksDispatcherLockWaitTime = 50 * time.Millisecond
 
+// DefaultUpgradesConcurrencyLimit is the default limit of concurrency used in Upgrade processes
+const DefaultUpgradesConcurrencyLimit = 1000
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
@@ -104,6 +107,7 @@ type Configuration struct {
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
 	Storage                          Storage       `yaml:"storage,omitempty" mapstructure:"storage"`
+	UpgradeConcurrencyLimit          int           `yaml:"concurrency_limit_for_upgrades,omitempty" mapstructure:"concurrency_limit_for_upgrades"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox

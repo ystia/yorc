@@ -54,10 +54,15 @@ func upgradeDeploymentsRefactoring(cfg config.Configuration, targetVersion strin
 	log.Debugf("Upgrade %s: Tosca resources commons types successfully upgraded", targetVersion)
 
 	ctx := context.Background()
+	sem := make(chan struct{}, cfg.UpgradeConcurrencyLimit)
 	errGroup, ctx := errgroup.WithContext(ctx)
 	for _, deployment := range deps {
+		sem <- struct{}{}
 		deploymentID := path.Base(deployment)
 		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
 			return upgradeDeployment(ctx, cfg, targetVersion, deploymentID)
 		})
 	}

@@ -33,7 +33,7 @@ import (
 // UpgradeFromPre31 allows to upgrade Consul schema from schema version before 1.0.0 (pre 3.1 yorc version)
 func UpgradeFromPre31(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Preparing upgrade database schema to 1.0.0 schema version")
-	return eventsChange(kv, leaderch)
+	return eventsChange(cfg, kv, leaderch)
 }
 
 // statusUpdateType was the old Status type used
@@ -68,7 +68,7 @@ func stringStatusUpdate(s statusUpdateType) string {
 	return ""
 }
 
-func eventsChange(kv *api.KV, leaderch <-chan struct{}) error {
+func eventsChange(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	// Events format has changed
 	// Need to retrieve the previous statusUpdateType and related event information
 	// To store with the new format (JSON)
@@ -81,9 +81,14 @@ func eventsChange(kv *api.KV, leaderch <-chan struct{}) error {
 	}
 
 	ctx := context.Background()
+	sem := make(chan struct{}, cfg.UpgradeConcurrencyLimit)
 	errGroup, ctx := errgroup.WithContext(ctx)
 	for _, kvp := range kvps {
+		sem <- struct{}{}
 		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
 			kvpItem := kvp
 			return upgradeEvent(eventsPrefix, kvpItem)
 		})

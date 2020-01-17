@@ -17,13 +17,10 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"path"
-	"strings"
-	"time"
-
-	"github.com/hashicorp/consul/api"
 	"github.com/matryer/resync"
 	"github.com/pkg/errors"
+	"path"
+	"strings"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/collections"
@@ -95,7 +92,7 @@ func getConfigStores(cfg config.Configuration) (bool, []config.Store, error) {
 	if err != nil {
 		return false, nil, err
 	}
-	lock, _, err := getConsulLock(consulClient)
+	lock, err := consulutil.AcquireConsulLock(consulClient, ".lock_stores", 0)
 	if err != nil {
 		return false, nil, err
 	}
@@ -149,29 +146,6 @@ func initConfigStores(cfg config.Configuration) ([]config.Store, error) {
 // Clear config stores in Consul
 func clearConfigStore() error {
 	return consulutil.Delete(consulutil.StoresPrefix, true)
-}
-
-func getConsulLock(cc *api.Client) (*api.Lock, <-chan struct{}, error) {
-	lock, err := cc.LockOpts(&api.LockOptions{
-		Key:          ".lock_stores",
-		LockTryOnce:  true,
-		LockWaitTime: 30 * time.Second,
-	})
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get lock options for stores")
-	}
-
-	var lockCh <-chan struct{}
-	for lockCh == nil {
-		log.Debug("Try to acquire Consul lock for stores")
-		lockCh, err = lock.Lock(nil)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed trying to acquire Consul lock for stores")
-		}
-
-	}
-	log.Debug("Consul Lock for stores acquired")
-	return lock, lockCh, nil
 }
 
 // Build default config stores if no custom config provided
