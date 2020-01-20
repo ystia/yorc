@@ -39,7 +39,7 @@ spec:
             }
             steps {
                 script {
-                    if (env.PREMIUM) {
+                    if (params.PREMIUM) {
                         env.BUILD_TAGS="premium"
                     } else {
                         env.BUILD_TAGS=""
@@ -48,7 +48,17 @@ spec:
                     def randomPath = UUID.randomUUID().toString()
                     env.gsPath = "${GCP_BUCKET_NAME}/${randomPath}/"
                     env.yorcDownloadURL = "https://storage.googleapis.com/${env.gsPath}yorc.tgz"
+
+                    def sha1Str = sh(returnStdout: true, script: """#!/usr/bin/env bash
+                        sha=\$(echo "${randomPath}" | sha1sum)
+                        echo "\${sha:0:5}" """)
+                    env.yorcResourcesPrefix = "yorcci-" + sha1Str.trim() + "-"
+
+
                 }
+
+                echo "yorcResourcesPrefix: ${env.yorcResourcesPrefix}"
+                echo "build tags: ${env.BUILD_TAGS}"
                 echo "gs path: ${env.gsPath}"
                 echo "yorc DL URL: ${env.yorcDownloadURL}"
 
@@ -63,21 +73,23 @@ spec:
                 googleStorageUpload bucket: "gs://${env.gsPath}", pattern: 'yorc.tgz', sharedPublicly: true, credentialsId: "${GCP_CREDS_ID}", showInline: true
             }
         }
-        stage('Compute Generic Behave Tags') {
+        stage('Compute Generic GoDog Tags & A4C Password') {
             steps {
 
                 script {
                     def godog_tags = " -t '@CI"
-                    if ("${env.PREMIUM}" != "true") {
+                    if (!params.PREMIUM) {
                         godog_tags += " && ~@premium"
                     }
-                    if ("${env.NIGHTLY}" != "true") {
+                    if (!params.NIGHTLY) {
                         godog_tags += " && ~@slow"
                     }
-                    env.godog_tags = godog_tags+'\''
+
+                    env.a4cPassword = UUID.randomUUID().toString()
                 }
 
                 echo "godog_tags: ${env.godog_tags}"
+                echo "a4cPassword: ${env.a4cPassword}"
             }
         }
         stage('Run on infra') {
@@ -128,13 +140,174 @@ spec:
 
                     stage('Download yorc') {
                         steps {
-                            dir('testdata/ci') {
+                            dir('testdata/ci/runner') {
                                 // this could also be done using stash/unstash but this way we can test before bootstrap if it works
                                 echo "downloading Yorc from ${env.yorcDownloadURL}"
                                 sh """#!/usr/bin/env bash
                                     curl -L "${env.yorcDownloadURL}" -o yorc.tgz
                                     tar xzvf yorc.tgz
                                 """
+                            }
+                        }
+                    }
+
+                    stage('Bootstrap & test') {
+                        stages {
+                            stage('Prepare OpenStack values.yaml file for bootstrap') {
+                                when {
+                                    environment name: 'INFRASTRUCTURE', value: 'openstack'
+                                }
+                                steps {
+                                    configFileProvider([configFile(fileId: 'yorc-ci-openstack-bootstrap', targetLocation: 'testdata/ci/runner/values_openstack_template.yaml')]) {
+                                        dir('testdata/ci/runner') {
+                                            sh "rm -f values.yaml"
+                                            echo '- Read provided values_openstack_template.yaml file and update them'
+                                            withCredentials(
+                                                [file(credentialsId: 'yorc-ci-root-ca-key', variable: 'YORC_ROOT_CA_FILE'),
+                                                sshUserPrivateKey(credentialsId: 'centos-yorc', keyFileVariable: 'YORC_SSH_PRIVATE_KEY', passphraseVariable: '', usernameVariable: ''),
+                                                usernamePassword(credentialsId: '03d4bd89-bac0-4212-bb28-06a7391e1b71', passwordVariable: 'OS_PASSWORD', usernameVariable: 'OS_USER_NAME')
+                                                ]) {
+                                                sh ("""
+                                                    cp "${YORC_ROOT_CA_FILE}" ./ssl/rootCA.key
+                                                """)
+                                                script {
+                                                    def keyFile = readFile YORC_SSH_PRIVATE_KEY
+                                                    def values = readYaml file: './values_openstack_template.yaml'
+                                                    values.yorc.private_key_content = keyFile
+                                                    values.locations[0].properties.password = OS_PASSWORD
+                                                    values.locations[0].properties.user_name = OS_USER_NAME
+                                                    values.yorc.download_url="${env.yorcDownloadURL}"
+                                                    values.alien4cloud.password="${env.a4cPassword}"
+                                                    values.yorc.resources_prefix="${env.yorcResourcesPrefix}"
+                                                    writeYaml file: './values.yaml', data: values
+                                                }
+                                            }
+                                            echo '- Wrote updated values to values.yaml'
+                                        }
+                                    }
+                                }
+                            }
+                            stage('Prepare GCP values.yaml file for bootstrap') {
+                                when {
+                                    environment name: 'INFRASTRUCTURE', value: 'gcp'
+                                }
+                                steps {
+                                    configFileProvider([configFile(fileId: 'yorc-ci-gcp-bootstrap', targetLocation: 'testdata/ci/runner/values_gcp_template.yaml')]) {
+                                        dir('testdata/ci/runner') {
+                                            echo '- Read provided values_gcp_template.yaml file and update them'
+                                            withCredentials(
+                                                [file(credentialsId: 'yorc-ci-root-ca-key', variable: 'YORC_ROOT_CA_FILE'),
+                                                string(credentialsId: '51a9c309-d10d-48f9-8d4c-68fafef415d8', variable: 'GCP_CREDS'),
+                                                sshUserPrivateKey(credentialsId: '736c2593-609f-42b1-a9d7-d97763190459', keyFileVariable: 'YORC_SSH_PRIVATE_KEY', passphraseVariable: '', usernameVariable: '')]) {
+                                                sh ("""
+                                                    cp "${YORC_ROOT_CA_FILE}" ./ssl/rootCA.key
+                                                """)
+                                                script {
+                                                    def keyFile = readFile YORC_SSH_PRIVATE_KEY
+                                                    def values = readYaml file: 'values_gcp_template.yaml'
+                                                    values.ca_key_file=
+                                                    values.yorc.private_key_content = keyFile
+                                                    values.locations[0].properties.credentials = GCP_CREDS
+                                                    values.yorc.download_url="${env.yorcDownloadURL}"
+                                                    values.alien4cloud.password="${env.a4cPassword}"
+                                                    values.yorc.resources_prefix="${env.yorcResourcesPrefix}"
+                                                    writeYaml file: 'values.yaml', data: values
+                                                }
+                                            }
+                                            echo '- Wrote updated values to values.yaml'
+                                        }
+                                    }
+                                }
+                            }
+                            stage('Bootstrap Yorc') {
+                                steps {
+                                    dir('testdata/ci/runner') {
+                                        sh """#!/usr/bin/env bash
+                                            set +x
+                                            set -eo pipefail
+                                            rm -fr yorcenv
+                                            python3 -m venv yorcenv
+                                            source yorcenv/bin/activate
+                                            pip install wheel
+                                            YORC_RESOURCES_PREFIX="${env.yorcResourcesPrefix}" ./yorc bootstrap --values ./values.yaml
+                                        """
+
+                                        script {
+                                            def response = httpRequest acceptType: 'APPLICATION_JSON', url: 'http://localhost:8800/deployments'
+                                            def r  = readJSON text: response.content
+                                            nbDeployments = r["deployments"].size()
+                                            def dep_id = r["deployments"][nbDeployments - 1]["id"]
+                                            echo "Deployment ID: ${dep_id}"
+                                            writeFile file: "./bootstrap-depid.txt", text: "${dep_id}"
+                                            response = httpRequest acceptType: 'APPLICATION_JSON', url: 'http://localhost:8800/deployments/' + dep_id
+                                            r  = readJSON text: response.content
+                                            def dep_status = r['status']
+                                            if (dep_status == 'DEPLOYMENT_FAILED') {
+                                                sh ("./yorc d logs -n ${dep_id}")
+                                                error("bootstrap deployment failed!")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            stage('Retrieve Alien URL') {
+                                steps {
+                                    dir('testdata/ci/runner') {
+                                        script {
+                                            def dep_id = readFile "./bootstrap-depid.txt"
+                                            def response = httpRequest acceptType: 'APPLICATION_JSON', url: "http://localhost:8800/deployments/${dep_id}/outputs/Alien4Cloud_alien_url"
+                                            def r  = readJSON text: response.content
+                                            def alien_url = r['value']
+                                            echo "Alien URL: ${alien_url}"
+                                            writeFile file: "./bootstrap-alienurl.txt", text: "${alien_url}"
+                                        }
+                                    }
+                                }
+                            }
+                            stage('Run tests') {
+                                steps {
+                                    dir('testdata/ci/') {
+                                        sh """#!/usr/bin/env bash
+                                            set -x
+                                            set -eo pipefail
+                                            mkdir -p reports
+                                            alien_url=\$(cat ./runner/bootstrap-alienurl.txt)
+                                            export ALIEN4CLOUD_URL="\${alien_url}"
+                                            export ALIEN4CLOUD_CA="./runner/ssl/rootCA.crt"
+                                            export ALIEN4CLOUD_PASSWORD="${env.a4cPassword}"
+                                            godog ${godog_tags}&&@${env.INFRASTRUCTURE}' -f junit | tee ./reports/tests-godog-junit.xml
+                                        """
+                                    }
+                                }
+                                post {
+                                    always {
+                                        dir('testdata/ci') {
+                                            echo currentBuild.currentResult
+                                            echo currentBuild.result
+                                            junit './reports/tests-godog-junit.xml'
+                                        }
+                                    }
+                                    success {
+                                        echo 'Test successful'
+                                    }
+                                    failure {
+                                        echo 'Test failures'
+                                        emailext body: '${DEFAULT_CONTENT}', mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: '${DEFAULT_SUBJECT}', to: '$DEFAULT_RECIPIENTS'
+                                    }
+                                }
+                            }
+                        }
+                        post {
+                            cleanup {
+                                dir('testdata/ci/runner') {
+                                    echo 'Un-bootstrap'
+                                    sh """#!/usr/bin/env bash
+                                        dep_id=\$(cat ./bootstrap-depid.txt)
+                                        ./yorc d undeploy -p \${dep_id}
+                                        ./yorc d info --follow \${dep_id}
+                                        ./yorc bootstrap cleanup
+                                    """
+                                }
                             }
                         }
                     }
