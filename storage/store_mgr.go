@@ -136,7 +136,7 @@ func getConfigStores(cfg config.Configuration) (bool, []config.Store, error) {
 	if err != nil {
 		return false, nil, err
 	}
-	lock, err := consulutil.AcquireConsulLock(consulClient, ".lock_stores", 0)
+	lock, err := consulutil.AcquireLock(consulClient, ".lock_stores", 0)
 	if err != nil {
 		return false, nil, err
 	}

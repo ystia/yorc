@@ -17,6 +17,7 @@ package consulutil
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"strings"
 	"time"
 )
 
@@ -34,9 +35,10 @@ func (adl *AutoDeleteLock) Unlock() error {
 	return errors.Wrap(adl.Lock.Destroy(), ConsulGenericErrMsg)
 }
 
-// AcquireConsulLock returns an AutoDeleteLock on a specified key
+// AcquireLock returns an AutoDeleteLock on a specified key
+// it skips "Missing check 'serfHealth' registration" error
 // With specified timeout or default 10s
-func AcquireConsulLock(cc *api.Client, key string, timeout time.Duration) (*AutoDeleteLock, error) {
+func AcquireLock(cc *api.Client, key string, timeout time.Duration) (*AutoDeleteLock, error) {
 	lock, err := cc.LockKey(key)
 	if err != nil {
 		return nil, errors.Wrap(err, ConsulGenericErrMsg)
@@ -50,6 +52,14 @@ func AcquireConsulLock(cc *api.Client, key string, timeout time.Duration) (*Auto
 	timeAfter := time.After(timeout)
 	for lockCh == nil {
 		lockCh, err = lock.Lock(nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "Missing check 'serfHealth' registration") {
+				// Skip this error as it means that Consul has not correctly started abd register checks
+				continue
+			} else {
+				return nil, err
+			}
+		}
 		// error is not blocking until timeout
 		select {
 		case <-timeAfter:
