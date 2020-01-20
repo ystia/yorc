@@ -84,7 +84,7 @@ spec:
                     if (!params.NIGHTLY) {
                         godog_tags += " && ~@slow"
                     }
-
+                    env.godog_tags = godog_tags
                     env.a4cPassword = UUID.randomUUID().toString()
                 }
 
