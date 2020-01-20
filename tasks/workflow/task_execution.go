@@ -83,6 +83,43 @@ func (t *taskExecution) notifyStart() error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions", t.id), consulNodeName)
 }
 
+func numberOfWaitingExecutionsForTask(cc *api.Client, taskID string) (int, error) {
+	var nbWaiting int
+	l, err := acquireRunningExecLock(cc, taskID)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Unlock()
+	execPath := path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions")
+	kv := cc.KV()
+	keys, _, err := kv.Keys(execPath+"/", "/", nil)
+	if err != nil {
+		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, execKey := range keys {
+		execID := path.Base(execKey)
+		if execWaiting, err := isWaitingExec(taskID, execID); err == nil && execWaiting {
+			nbWaiting++
+		}
+	}
+	return nbWaiting, nil
+}
+
+func isWaitingExec(taskID, execID string) (bool, error) {
+	exist, step, err := consulutil.GetStringValue(path.Join(consulutil.ExecutionsTaskPrefix, execID, "step"))
+	if err != nil || !exist {
+		return false, errors.Errorf("Cannot get the step of execution %q", execID)
+	}
+	status, err := tasks.GetTaskStepStatus(taskID, step)
+	if err != nil {
+		return false, errors.Errorf("Cannot get status for step %q in task %q", step, taskID)
+	}
+	if status == tasks.TaskStepStatusINITIAL {
+		return true, nil
+	}
+	return false, nil
+}
+
 func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consulutil.AutoDeleteLock, int, error) {
 	l, err := acquireRunningExecLock(cc, taskID)
 	if err != nil {

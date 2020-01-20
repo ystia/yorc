@@ -15,7 +15,6 @@
 package workflow
 
 import (
-	"math"
 	"path"
 	"strings"
 	"sync"
@@ -51,37 +50,32 @@ type Dispatcher struct {
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
 	pool := make(chan chan *taskExecution, cfg.WorkersNumber)
 	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg, createWorkerFunc: createWorker}
-	dispatcher.emitTasksMetrics()
+	dispatcher.emitMetrics(client)
 	return dispatcher
 }
 
-func getNbAndMaxTasksWaitTimeMs() (float32, float64, error) {
-	now := time.Now()
-	var max float64
+// getTaskExecsNbWait calculates the number of task executions that wait
+func (d *Dispatcher) getTaskExecsNbWait(client *api.Client) (float32, error) {
 	var nb float32
 	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix)
 	if err != nil {
-		return nb, max, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if tasksKeys == nil {
+		return 0, errors.Errorf("No keys:%v", consulutil.TasksPrefix)
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
-		status, err := tasks.GetTaskStatus(taskID)
+		nbExec, err := numberOfWaitingExecutionsForTask(client, taskID)
 		if err != nil {
-			return nb, max, err
+			return 0, err
 		}
-		if status == tasks.TaskStatusINITIAL {
-			nb++
-			createDate, err := tasks.GetTaskCreationDate(path.Base(taskKey))
-			if err != nil {
-				return nb, max, err
-			}
-			max = math.Max(max, float64(now.Sub(createDate)/time.Millisecond))
-		}
+		nb = nb + float32(nbExec)
 	}
-	return nb, max, nil
+	return nb, nil
 }
 
-func (d *Dispatcher) emitTasksMetrics() {
+func (d *Dispatcher) emitMetrics(client *api.Client) {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
@@ -89,24 +83,31 @@ func (d *Dispatcher) emitTasksMetrics() {
 		for {
 			select {
 			case <-time.After(time.Second):
-				metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
-				nb, maxWait, err := getNbAndMaxTasksWaitTimeMs()
-				if err != nil {
-					now := time.Now()
-					if now.Sub(lastWarn) > 5*time.Minute {
-						// Do not print each time
-						lastWarn = now
-						log.Printf("Warning: Failed to get Max Blocked duration for tasks: %+v", err)
-					}
-					continue
-				}
-				metrics.AddSample([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait))
-				metrics.SetGauge([]string{"tasks", "nbWaiting"}, nb)
+				d.emitWorkersMetrics()
+				d.emitTaskExecutionsMetrics(client, &lastWarn)
 			case <-d.shutdownCh:
 				return
 			}
 		}
 	}()
+}
+
+func (d *Dispatcher) emitWorkersMetrics() {
+	metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
+}
+
+func (d *Dispatcher) emitTaskExecutionsMetrics(client *api.Client, lastWarn *time.Time) {
+	nbWaiting, err := d.getTaskExecsNbWait(client)
+	if err != nil {
+		now := time.Now()
+		if now.Sub(*lastWarn) > 5*time.Minute {
+			// Do not print each time
+			*lastWarn = now
+			log.Printf("Warning: Failed to get metrics for taskExecutions: %+v", err)
+		}
+		return
+	}
+	metrics.SetGauge([]string{"taskExecutions", "nbWaiting"}, nbWaiting)
 }
 
 func getExecutionKeyValue(execID, execKey string) (string, error) {
