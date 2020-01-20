@@ -774,6 +774,10 @@ Environment variables
 
   * ``YORC_CONSUL_TLS_HANDSHAKE_TIMEOUT``: Equivalent to :ref:`--consul_tls_handshake_timeout <option_consul_tls_handshake_timeout_cmd>` command-line flag.
 
+.. _option_consul_store_txn_timeout_env:
+
+  * ``YORC_CONSUL_STORE_TXN_TIMEOUT``: Allows to activate the feature that packs ConsulStore operations into transactions. If set to a valid Go duration, operations are packed into transactions up to 64 ops. 
+  This timeout represent the time to wait for new operations before sending an incomplete (less than 64 ops) transaction to Consul.
 
 .. _option_pub_routines_env:
 
@@ -1279,7 +1283,7 @@ The same sample in YAML
 Stores configuration is saved once when Yorc server starts. If you want to re-initialize storage, you have to set the ``reset`` property to True and restart Yorc.
 
 .. warning::
-    Pay attention that if any data is still existing before reset, Yorc will ignore it.
+    Pay attention that if any data is still existing after reset, Yorc will ignore it.
 
 If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
 
