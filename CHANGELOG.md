@@ -4,6 +4,11 @@
 
 ### BREAKING CHANGES
 
+#### Changes in Yorc metric namespace
+
+In order to improve the observability of Yorc execution, the exposed metrics' names were modified.
+Now labels are used which allow to provide metric trees ([GH-297](https://github.com/ystia/yorc/issues/297)).
+
 #### Changes on the deployments API
 
 As deployments are from now stored by JSON, some functions have been changed:
@@ -45,7 +50,7 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 
 ### BREAKING CHANGES
 
-#### Changes on the REST API
+#### Changes in the REST API
 
 ##### Deployment updates
 

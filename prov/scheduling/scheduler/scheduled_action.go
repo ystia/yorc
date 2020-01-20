@@ -87,7 +87,11 @@ func (sca *scheduledAction) schedule() {
 }
 
 func (sca *scheduledAction) proceed() error {
-	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"scheduling", sca.ActionType, sca.ID, "ticks"}), 1)
+	labels := []metrics.Label{
+		metrics.Label{Name: "ActionType", Value: sca.ActionType},
+		metrics.Label{Name: "ActionID", Value: sca.ID},
+	}
+	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"scheduling", "ticks"}), 1, labels)
 	// To fit with Task Manager, pass the id/actionType in data
 	err := sca.updateData()
 	if err != nil {
@@ -117,8 +121,9 @@ func (sca *scheduledAction) proceed() error {
 					events.OperationName: stringutil.GetLastElement(sca.AsyncOperation.Operation.Name, "."),
 				})
 			}
+			labels = append(labels, metrics.Label{Name: "TaskID", Value: sca.latestTaskID})
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, sca.deploymentID).Registerf("Scheduled action: %+v miss trigger due to another execution (task ID: %q) already planned or running. Will try to be rescheduled on next trigger.", sca, sca.latestTaskID)
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"scheduling", sca.ActionType, sca.ID, "misses"}), 1)
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"scheduling", "misses"}), 1, labels)
 			return nil
 		}
 	}

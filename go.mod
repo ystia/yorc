@@ -11,7 +11,7 @@ require (
 	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000 // indirect
 	github.com/abice/go-enum v0.1.4
 	github.com/alecthomas/participle v0.3.0
-	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
+	github.com/armon/go-metrics v0.3.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cheggaaa/pb/v3 v3.0.3
 	github.com/dgraph-io/ristretto v0.0.1
@@ -28,7 +28,6 @@ require (
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/addlicense v0.0.0-20190107131845-2e5cf00261bf
-	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/goware/urlx v0.3.1
@@ -63,10 +62,9 @@ require (
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pkg/errors v0.8.0
-	github.com/prometheus/client_golang v1.0.0
-	github.com/prometheus/common v0.6.0 // indirect
-	github.com/prometheus/procfs v0.0.3 // indirect
+	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/satori/go.uuid v1.0.0
 	github.com/sethgrid/pester v0.0.0-20190127155807-68a33a018ad0 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
@@ -82,7 +80,7 @@ require (
 	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
-	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.3
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
@@ -97,6 +95,6 @@ require (
 )
 
 // Due to this capital letter thing we have troubles and we have to replace it explicitly
-replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.1
 
 go 1.13
