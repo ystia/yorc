@@ -776,8 +776,7 @@ Environment variables
 
 .. _option_consul_store_txn_timeout_env:
 
-  * ``YORC_CONSUL_STORE_TXN_TIMEOUT``: Allows to activate the feature that packs ConsulStore operations into transactions. If set to a valid Go duration, operations are packed into transactions up to 64 ops. 
-  This timeout represent the time to wait for new operations before sending an incomplete (less than 64 ops) transaction to Consul.
+  * ``YORC_CONSUL_STORE_TXN_TIMEOUT``: Allows to activate the feature that packs ConsulStore operations into transactions. If set to a valid Go duration, operations are packed into transactions up to 64 ops. This timeout represent the time to wait for new operations before sending an incomplete (less than 64 ops) transaction to Consul.
 
 .. _option_pub_routines_env:
 
@@ -1149,9 +1148,10 @@ The ``reset`` property allows to redefine the stores when Yorc re-starts with a 
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
 So now, users can configure different store types for storing the different kind of artifacts, and using different stores implementations.
+
 Currently Yorc supports 3 store types: ``Deployment``, ``Log`` and ``Event``. 
-Yorc supports 3 store implementations: ``consul``, ``fileCache`` and ``cipherFileCache``.
-By default, ``Log`` and ``Event`` store types use ``Consul`` implementation, and ``Deployment`` store uses ``fileCache``.
+Yorc also supports 3 store implementations: ``consul``, ``fileCache`` and ``cipherFileCache``.
+By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
 
 A store configuration is defined with:
 
@@ -1177,17 +1177,26 @@ This is usefull when a new store is configured (different from consul...) for lo
 Store types
 ~~~~~~~~~~~
 
-Currently 3 different store types are defined:
+Currently 3 different store types are supported by Yorc:
 
-- ``Deployment``: this corresponds to the data representing the Tosca topologies types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows).
+Deployment
+^^^^^^^^^^
 
-This data is written once when a topology is parsed, then read many times during application lifecycle. ``fileCache`` is the default implementation for this store type.
+This store type contains data representing the Tosca topologies types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows).
 
-- ``Log``: this represents the applicative logs, also present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
+Data in this store is written once when a topology is parsed, then read many times during application lifecycle. ``fileCache`` is the default implementation for this store type.
+
+Log
+^^^
+
+Store that contains the applicative logs, also present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
 
 If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
 
-- ``Event``: this represents the applicative events, also present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
+Event
+^^^^^
+
+Store that contains the applicative events, also present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
