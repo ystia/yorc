@@ -4,6 +4,11 @@
 
 ### BREAKING CHANGES
 
+#### Refactor Yorc storage system
+
+Yorc supports several store types and store implementations that can be configured by users correspondingly with their needs.
+See below enhancement allowing to implement a File+Cache sorage backend.
+
 #### Changes on the deployments API
 
 As deployments are from now stored by JSON, some functions have been changed:
