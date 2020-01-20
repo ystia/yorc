@@ -4,6 +4,11 @@
 
 ### BREAKING CHANGES
 
+#### Refactor Yorc storage system
+
+Yorc supports several store types and store implementations that can be configured by users correspondingly with their needs.
+See below enhancement allowing to implement a File+Cache sorage backend.
+
 #### Changes in Yorc metric namespace
 
 In order to improve the observability of Yorc execution, the exposed metrics' names were modified.

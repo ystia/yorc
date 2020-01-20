@@ -774,6 +774,10 @@ Environment variables
 
   * ``YORC_CONSUL_TLS_HANDSHAKE_TIMEOUT``: Equivalent to :ref:`--consul_tls_handshake_timeout <option_consul_tls_handshake_timeout_cmd>` command-line flag.
 
+.. _option_consul_store_txn_timeout_env:
+
+  * ``YORC_CONSUL_STORE_TXN_TIMEOUT``: Allows to activate the feature that packs ConsulStore operations into transactions. If set to a valid Go duration, operations are packed into transactions up to 64 ops. 
+  This timeout represent the time to wait for new operations before sending an incomplete (less than 64 ops) transaction to Consul.
 
 .. _option_pub_routines_env:
 
@@ -890,7 +894,7 @@ Environment variables
 .. _locations_configuration:
 
 Locations configuration
------------------------------
+-----------------------
 
 A location allows Yorc to connect to an infrastructure. A location is identified uniquely by its ``name`` property.
 Its ``type`` property Specifies the infrastructure related to this location. Yorc can handle multiple locations of the same infrastructure.
@@ -1126,6 +1130,15 @@ See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.ht
 Storage configuration
 ---------------------
 
+Different artifacts (topologies, logs, events, tasks...) are stored by Yorc during an application deployment.
+
+Previously, everything was stored in Consul KV. 
+Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
+Yorc can now store the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
+
+If defined, the ``storage`` entry may specify a ``reset`` property and a ``stores`` property that contains the different store definitions.
+The ``reset`` property allows to redefine the stores when Yorc re-starts with a modified storage configuration.
+
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                |                          Description                             | Data Type |   Required       | Default         |
 |                                  |                                                                  |           |                  |                 |
@@ -1135,10 +1148,10 @@ Storage configuration
 | ``stores``                       | Stores configuration                                             | array     | no               | See Store types |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
-Different artifacts (topologies, logs, events, tasks...) are stored by Yorc to deploy an application.
-
-Previously, everything was stored in Consul KV but mainly for performance reasons, we choose to refactor the way we save data in order to make it more flexible.
-So now, user can configure Yorc stores implementations for different kind of artifacts.
+So now, users can configure different store types for storing the different kind of artifacts, and using different stores implementations.
+Currently Yorc supports 3 store types: ``Deployment``, ``Log`` and ``Event``. 
+Yorc supports 3 store implementations: ``consul``, ``fileCache`` and ``cipherFileCache``.
+By default, ``Log`` and ``Event`` store types use ``Consul`` implementation, and ``Deployment`` store uses ``fileCache``.
 
 A store configuration is defined with:
 
@@ -1148,7 +1161,7 @@ A store configuration is defined with:
 +==================================+==================================================================+===========+==================+=================+
 | ``name``                         | unique store ID                                                  | string    | no               |  generated      |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
-| ``migrate_data_from_consul``     | Log and Event data migration from Consul. See note below.        | bool      | no               | false           |
+| ``migrate_data_from_consul``     | Log and Event data migration from consul. See note below.        | bool      | no               | false           |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``implementation``               | Store implementation. See the list below.                        | string    | yes              |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
@@ -1157,20 +1170,35 @@ A store configuration is defined with:
 | ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
-``migrate_data_from_consul`` allows to migrate data from Consul in particular case of the very first time a new store is configured (different from consul...) and existing data are still present in Consul.
-This is only possible for logs and events.
+``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation. 
+This is usefull when a new store is configured (different from consul...) for logs or events.
 
+
+Store types
+~~~~~~~~~~~
+
+Currently 3 different store types are defined:
+
+- ``Deployment``: this corresponds to the data representing the Tosca topologies types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows).
+
+This data is written once when a topology is parsed, then read many times during application lifecycle. ``fileCache`` is the default implementation for this store type.
+
+- ``Log``: this represents the applicative logs, also present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
+
+If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
+
+- ``Event``: this represents the applicative events, also present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
 
-Today, we provide 3 implementations with the following names:
+Currently Yorc provide 3 implementations with the following names:
 
 consul
 ^^^^^^
 
-This is the consul KV store we use for main internal storage stuff.
-As it's already configurable here: :ref:`Consul configuration<yorc_config_file_consul_section>`, so no other configuration is provided in this section.
+This is the Consul KV store used by Yorc for main internal storage stuff. For example, the configuration of the stores is kept in the Consul KV.
+As Consul is already configurable here: :ref:`Consul configuration<yorc_config_file_consul_section>`, no other configuration is provided in this section.
 
 fileCache
 ^^^^^^^^^
@@ -1211,21 +1239,6 @@ Here are specific properties for this implementation in addition to ``fileCache`
 
 
 ``Passphrase`` can be set with ``Secret function`` and retrieved from Vault as explained in the Vault integration chapter.
-
-Store types
-~~~~~~~~~~~
-
-3 different kinds of store types are defined:
-
-- ``Deployment``: this corresponds to the data of the Tosca topologies with types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows)
-
-This data is written once when topology is parsed then read many times during application lifecycle. ``fileCache`` is the default implementation for this store type.
-
-- ``Log``: this represents the applicative logs present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
-
-If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
-
-- ``Event``: this represents the applicative events present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
 
 
 Here is a JSON example of stores configuration with a cipherFileStore implementation for logs.
@@ -1270,7 +1283,7 @@ The same sample in YAML
 Stores configuration is saved once when Yorc server starts. If you want to re-initialize storage, you have to set the ``reset`` property to True and restart Yorc.
 
 .. warning::
-    Pay attention that if any data is still existing before reset, Yorc will ignore it.
+    Pay attention that if any data is still existing after reset, Yorc will ignore it.
 
 If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
 
