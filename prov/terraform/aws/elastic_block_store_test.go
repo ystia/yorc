@@ -59,4 +59,10 @@ func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	assert.Equal(t, true, ebsvolume.Encrypted)
 	assert.Equal(t, "projects/project/global/snapshots/snapshot", ebsvolume.SnapshotID)
 	assert.Equal(t, "arn:aws:kms:us-east-2:607034132673:key/8f947919-3432-4ace-ab11-d445a893d390", ebsvolume.KMSKeyID)
+	assert.Equal(t, "500", ebsvolume.IOPS)
+	assert.Equal(t, "standard", ebsvolume.Type)
+	assert.NotNil(t, ebsvolume.Tags, "volume tags are not expected to be null")
+	assert.Equal(t, 2, len(ebsvolume.Tags))
+	assert.Equal(t, "foo", ebsvolume.Tags["tag1"])
+	assert.Equal(t, "bar", ebsvolume.Tags["tag2"])
 }

@@ -205,9 +205,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		return err
 	}
 
-	addAttachedDisks(ctx, cfg, deploymentID, nodeName, instanceName, instance.Tags.Name, infrastructure, outputs)
-
-	return nil
+	return addAttachedDisks(ctx, cfg, deploymentID, nodeName, instanceName, instance.Tags.Name, infrastructure, outputs)
 }
 
 func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName, instanceTagName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
@@ -226,18 +224,16 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 			return err
 		}
 
-		deviceNameTosca, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device")
-		deviceName := deviceNameTosca.RawString()
-
-		if err != nil {
-			return errors.Wrap(err, "Can't find the required disk name")
+		deviceNameVal, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device")
+		if err != nil || deviceNameVal == nil{
+			return errors.Wrapf(err, "Can't find the required device name for deploymentID:%q, volume name:%q, instance name:%q", deploymentID, volumeNodeName, instanceName)
 		}
+		deviceName := deviceNameVal.RawString()
 
 		attachedDisk := &VolumeAttachment{
 			DeviceName:  deviceName,
 			InstanceID:  fmt.Sprintf("${aws_instance.%s.id}", instanceTagName),
 			VolumeID:    volumeID,
-			SkipDestroy: false,
 		}
 
 		attachName := strings.ToLower(volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)

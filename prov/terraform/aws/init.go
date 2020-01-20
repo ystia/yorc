@@ -16,10 +16,11 @@ package aws
 
 import (
 	"github.com/ystia/yorc/v4/prov/terraform"
+	"github.com/ystia/yorc/v4/prov/terraform/commons"
 	"github.com/ystia/yorc/v4/registry"
 )
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.aws\..*`}, terraform.NewExecutor(&awsGenerator{}, nil), registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.aws\..*`}, terraform.NewExecutor(&awsGenerator{}, commons.PreDestroyStorageInfraCallback), registry.BuiltinOrigin)
 }
