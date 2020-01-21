@@ -225,41 +225,29 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentI
 		}
 
 		deviceNameVal, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device")
-		if err != nil || deviceNameVal == nil{
+		if err != nil || deviceNameVal == nil {
 			return errors.Wrapf(err, "Can't find the required device name for deploymentID:%q, volume name:%q, instance name:%q", deploymentID, volumeNodeName, instanceName)
 		}
 		deviceName := deviceNameVal.RawString()
 
 		attachedDisk := &VolumeAttachment{
-			DeviceName:  deviceName,
-			InstanceID:  fmt.Sprintf("${aws_instance.%s.id}", instanceTagName),
-			VolumeID:    volumeID,
+			DeviceName: deviceName,
+			InstanceID: fmt.Sprintf("${aws_instance.%s.id}", instanceTagName),
+			VolumeID:   volumeID,
 		}
 
 		attachName := strings.ToLower(volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
 		attachName = strings.Replace(attachName, "_", "-", -1)
-
-		// Provide file outputs for device attributes which can't be resolved with Terraform
 		commons.AddResource(infrastructure, "aws_volume_attachment", attachName, attachedDisk)
 
-		// Terraform outputs
-		deviceNameID := attachName + ".device_name"
-		deploymentValue := fmt.Sprintf("${aws_volume_attachment.%s.device_name}", attachName)
-		commons.AddOutput(infrastructure, deviceNameID, &commons.Output{Value: deploymentValue})
-
-		instanceID := attachName + ".instance_id"
-		instanceValue := fmt.Sprintf("${aws_volume_attachment.%s.instance_id}", attachName)
-		commons.AddOutput(infrastructure, instanceID, &commons.Output{Value: instanceValue})
-
-		volumeID2 := attachName + ".volume_id"
-		volumeValue := fmt.Sprintf("${aws_volume_attachment.%s.volume_id}", attachName)
-		commons.AddOutput(infrastructure, volumeID2, &commons.Output{Value: volumeValue})
-
-		// Yorc outputs
-		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, storageReq.Index, instanceName, "attributes/device_name")
-		outputs[path.Join(instancesPrefix, "/attributes/device_name")] = deviceNameID
-		outputs[path.Join(instancesPrefix, "/attributes/instance_id")] = instanceID
-		outputs[path.Join(instancesPrefix, "/attributes/volume_id")] = volumeID2
+		// Terraform device_name output
+		deviceKey := attachName + ".device_name"
+		deviceValue := fmt.Sprintf("${aws_volume_attachment.%s.device_name}", attachName)
+		commons.AddOutput(infrastructure, deviceKey, &commons.Output{Value: deviceValue})
+		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+		outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = deviceKey
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, storageReq.Index, instanceName, "attributes/device")] = deviceKey
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, storageReq.Index, instanceName, "attributes/device")] = deviceKey
 	}
 	return nil
 }

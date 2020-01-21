@@ -15,12 +15,13 @@
 package aws
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/deployments"
 )
 
-func verifyThatNodeIsTypeOf(nodeParams nodeParams, nodeType string) error {
-	res, err := deployments.GetNodeType(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName)
+func verifyThatNodeIsTypeOf(ctx context.Context, nodeParams nodeParams, nodeType string) error {
+	res, err := deployments.GetNodeType(ctx, nodeParams.deploymentID, nodeParams.nodeName)
 	if err != nil {
 		return err
 	}

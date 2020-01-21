@@ -72,6 +72,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleEBS", func(t *testing.T) {
 			testSimpleEBS(t, cfg)
 		})
+		t.Run("simpleEBSWithVolumeID", func(t *testing.T) {
+			testSimpleEBSWithVolumeID(t, cfg)
+		})
 		t.Run("simpleAWSInstanceWithPersistentDisk", func(t *testing.T) {
 			testSimpleAWSInstanceWithPersistentDisk(t, cfg, srv)
 		})

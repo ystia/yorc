@@ -32,14 +32,12 @@ func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	outputs := make(map[string]string, 0)
 	g := awsGenerator{}
 	nodeParams := nodeParams{
-		ctx:            &ctx,
-		cfg:            &cfg,
 		deploymentID:   deploymentID,
 		nodeName:       "EBSVolume",
 		infrastructure: &infrastructure,
 	}
 
-	err := g.generateEBS(nodeParams, "0", 0, outputs)
+	err := g.generateEBS(ctx, nodeParams, "0", 0, outputs)
 	if err != nil {
 		panic(err)
 	}
@@ -65,4 +63,31 @@ func testSimpleEBS(t *testing.T, cfg config.Configuration) {
 	assert.Equal(t, 2, len(ebsvolume.Tags))
 	assert.Equal(t, "foo", ebsvolume.Tags["tag1"])
 	assert.Equal(t, "bar", ebsvolume.Tags["tag2"])
+}
+
+func testSimpleEBSWithVolumeID(t *testing.T, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+	infrastructure := commons.Infrastructure{}
+	ctx := context.Background()
+	outputs := make(map[string]string, 0)
+	g := awsGenerator{}
+	nodeParams := nodeParams{
+		deploymentID:   deploymentID,
+		nodeName:       "EBSVolume",
+		infrastructure: &infrastructure,
+	}
+
+	err := g.generateEBS(ctx, nodeParams, "0", 0, outputs)
+	if err != nil {
+		panic(err)
+	}
+
+	require.NoError(t, err, "Unexpected error attempting to generate EBS for %s", deploymentID)
+	require.Nil(t, infrastructure.Resource["aws_ebs_volume"], "Expected no ebs volume")
+
+	volumeIDKey := nodeParams.nodeName + "-0-id"
+	require.NotNil(t, infrastructure.Output[volumeIDKey], "Expected related output to EBS volume ID")
+	output := infrastructure.Output[volumeIDKey]
+	require.Equal(t, output.Value, "vol-04313e68765dd91fb")
 }

@@ -15,6 +15,7 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"path"
@@ -27,25 +28,89 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *awsGenerator) generateEBS(nodeParams nodeParams, instanceName string, instanceID int, outputs map[string]string) error {
-	err := verifyThatNodeIsTypeOf(nodeParams, "yorc.nodes.aws.EBSVolume")
+func (g *awsGenerator) generateEBS(ctx context.Context, nodeParams nodeParams, instanceName string, instanceID int, outputs map[string]string) error {
+	err := verifyThatNodeIsTypeOf(ctx, nodeParams, "yorc.nodes.aws.EBSVolume")
 	if err != nil {
 		return err
 	}
 
-	ebs := &EBSVolume{}
-
-	// Get string params
-	var size, deviceName, volumes string
-	g.getEBSProperties(nodeParams, ebs, &size, &deviceName, &volumes)
-
+	// Check first if Volume already provided
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, nodeParams.deploymentID, "topology", "instances", nodeParams.nodeName, instanceName)
 	var volumeID string
+	volumes, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "volume_id", false)
+	if err != nil {
+		return err
+	}
 	if volumes != "" {
 		tabVol := strings.Split(volumes, ",")
 		if len(tabVol) > instanceID {
 			volumeID = strings.TrimSpace(tabVol[instanceID])
+
+			// as the volume already exists, just add output on volume id
+			volumeIDKey := nodeParams.nodeName + "-" + instanceName + "-id" // ex : "BlockStorage-0-id"
+			commons.AddOutput(nodeParams.infrastructure, volumeIDKey, &commons.Output{Value: volumeID})
+			outputs[path.Join(instancesPrefix, "/attributes/volume_id")] = volumeIDKey
+			return nil
 		}
 	}
+
+	// As no volume is provided, we create one
+	ebs := &EBSVolume{}
+
+	// Get EBS props
+	err = g.getEBSProperties(ctx, nodeParams, ebs)
+	if err != nil {
+		return err
+	}
+
+	// Create the name for the resource
+	name := strings.ToLower(nodeParams.nodeName + "-" + instanceName)
+	commons.AddResource(nodeParams.infrastructure, "aws_ebs_volume", name, ebs)
+
+	// Terraform Outputs
+	volumeIDKey := nodeParams.nodeName + "-" + instanceName + "-id" // ex : "BlockStorage-0-id"
+	volumeIDValue := fmt.Sprintf("${aws_ebs_volume.%s.id}", name)   // ex : ${aws_ebs_volume.blockstorage-0.id}
+	volumeARNKey := nodeParams.nodeName + "-" + instanceName + "-arn"
+	volumeARNValue := fmt.Sprintf("${aws_ebs_volume.%s.arn}", name)
+	commons.AddOutput(nodeParams.infrastructure, volumeIDKey, &commons.Output{Value: volumeIDValue})
+	commons.AddOutput(nodeParams.infrastructure, volumeARNKey, &commons.Output{Value: volumeARNValue})
+
+	// Yorc outputs
+	outputs[path.Join(instancesPrefix, "/attributes/volume_id")] = volumeIDKey
+	outputs[path.Join(instancesPrefix, "/attributes/volume_arn")] = volumeARNKey
+	return nil
+}
+
+func (g *awsGenerator) getEBSProperties(ctx context.Context, nodeParams nodeParams, ebs *EBSVolume) error {
+	var size string
+	// Get string params
+	stringParams := []struct {
+		pAttr        *string
+		propertyName string
+		mandatory    bool
+	}{
+		{&ebs.AvailabilityZone, "availability_zone", true},
+		{&ebs.SnapshotID, "snapshot_id", false},
+		{&ebs.KMSKeyID, "kms_key_id", false},
+		{&size, "size", false},
+		{&ebs.Type, "volume_type", false},
+		{&ebs.IOPS, "iops", false},
+	}
+
+	for _, stringParam := range stringParams {
+		val, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, stringParam.propertyName, stringParam.mandatory)
+		if err != nil {
+			return err
+		}
+		*stringParam.pAttr = val
+	}
+
+	// Get bool properties
+	val, err := deployments.GetBooleanNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "encrypted")
+	if err != nil {
+		return err
+	}
+	ebs.Encrypted = val
 
 	// Convert human readable size into GB
 	if size != "" {
@@ -63,60 +128,8 @@ func (g *awsGenerator) generateEBS(nodeParams nodeParams, instanceName string, i
 		ebs.Encrypted = true
 	}
 
-	// Create the name for the ressource
-	name := strings.ToLower(nodeParams.nodeName + "-" + instanceName)
-	// name = strings.Replace(name, "_", "-", -1)
-	commons.AddResource(nodeParams.infrastructure, "aws_ebs_volume", name, ebs)
-
-	// Terraform Outputs
-	volumeID = nodeParams.nodeName + "-" + instanceName + "-id"   // ex : "BlockStorage-0-id"
-	volumeIDValue := fmt.Sprintf("${aws_ebs_volume.%s.id}", name) // ex : ${aws_ebs_volume.blockstorage-0.id}
-	volumeARN := nodeParams.nodeName + "-" + instanceName + "-arn"
-	volumeARNValue := fmt.Sprintf("${aws_ebs_volume.%s.arn}", name)
-	commons.AddOutput(nodeParams.infrastructure, volumeID, &commons.Output{Value: volumeIDValue})
-	commons.AddOutput(nodeParams.infrastructure, volumeARN, &commons.Output{Value: volumeARNValue})
-
-	// Yorc outputs
-	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, nodeParams.deploymentID, "topology", "instances", nodeParams.nodeName, instanceName)
-	outputs[path.Join(instancesPrefix, "/attributes/volume_id")] = volumeID
-
-	return nil
-}
-
-func (g *awsGenerator) getEBSProperties(nodeParams nodeParams, ebs *EBSVolume, size *string, deviceName *string, volumes *string) error {
-	// Get string params
-	stringParams := []struct {
-		pAttr        *string
-		propertyName string
-		mandatory    bool
-	}{
-		{volumes, "volume_id", false},
-		{&ebs.AvailabilityZone, "availability_zone", true},
-		{&ebs.SnapshotID, "snapshot_id", false},
-		{&ebs.KMSKeyID, "kms_key_id", false},
-		{size, "size", false},
-		{deviceName, "device", false},
-		{&ebs.Type, "volume_type", false},
-		{&ebs.IOPS, "iops", false},
-	}
-
-	for _, stringParam := range stringParams {
-		val, err := deployments.GetStringNodeProperty(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName, stringParam.propertyName, stringParam.mandatory)
-		if err != nil {
-			return err
-		}
-		*stringParam.pAttr = val
-	}
-
-	// Get bool properties
-	val, err := deployments.GetBooleanNodeProperty(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName, "encrypted")
-	if err != nil {
-		return err
-	}
-	ebs.Encrypted = val
-
 	// Get tags map
-	tagsVal, err := deployments.GetNodePropertyValue(*nodeParams.ctx, nodeParams.deploymentID, nodeParams.nodeName, "tags")
+	tagsVal, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "tags")
 	if tagsVal != nil && tagsVal.RawString() != "" {
 		d, ok := tagsVal.Value.(map[string]interface{})
 		if !ok {
