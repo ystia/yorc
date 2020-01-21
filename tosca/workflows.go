@@ -14,14 +14,14 @@
 
 package tosca
 
-// An Workflow is the representation of a TOSCA Workflow
+// A Workflow is the representation of a TOSCA Workflow
 //
-// Currently Workflows are not part of the TOSCA specification
 type Workflow struct {
-	Steps map[string]*Step `yaml:"steps,omitempty" json:"steps,omitempty"`
+	Inputs map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Steps  map[string]*Step               `yaml:"steps,omitempty" json:"steps,omitempty"`
 }
 
-// An Step is the representation of a TOSCA Workflow Step
+// A Step is the representation of a TOSCA Workflow Step
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_WORKFLOW_STEP_DEFN
 // for more details

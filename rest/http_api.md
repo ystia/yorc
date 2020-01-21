@@ -680,6 +680,11 @@ By default the execution of the workflow's steps take place on all the instances
 It is possible to select instances for the workflow's nodes by adding selection data in the request body.
 For nodes that have no selected instances specified, the execution steps take place on all instances.
 
+The request bdoy can also contain input values assignments, that will be provided
+to the task handling this workflow execution.
+
+'Content-Type' header should be set to 'application/json'.
+
 `POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
 
 Request body allowing to execute a workflow's steps on selected node instances :
@@ -691,7 +696,11 @@ Request body allowing to execute a workflow's steps on selected node instances :
          "node": "Node_Name",
          "instances": [ "0", "2" ]
        }
-    ]
+    ],
+    "inputs": {
+      "param1":"",
+      "param2":"2"
+    }
 }
 ```
 

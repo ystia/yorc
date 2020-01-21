@@ -109,6 +109,11 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 			instances := strings.Join(nodeInstances.Instances, ",")
 			data["nodes/"+nodeName] = instances
 		}
+
+		// Adding workflow inputs in task data
+		for inputName, inputValue := range wfRequest.Inputs {
+			data[path.Join("inputs", inputName)] = inputValue.String()
+		}
 	}
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
