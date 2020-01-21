@@ -275,17 +275,18 @@ spec:
                                             export ALIEN4CLOUD_URL="\${alien_url}"
                                             export ALIEN4CLOUD_CA="./runner/ssl/rootCA.crt"
                                             export ALIEN4CLOUD_PASSWORD="${env.a4cPassword}"
-                                            godog ${godog_tags}&&@${env.INFRASTRUCTURE}' -f junit | tee ./reports/tests-godog-junit.xml
+                                            godog ${godog_tags}&&@${env.INFRASTRUCTURE}' -f cucumber >  ./reports/tests-godog-junit.xml
+                                            cat ./reports/tests-godog-junit.xml
                                         """
                                     }
                                 }
                                 post {
                                     always {
-                                        dir('testdata/ci') {
-                                            echo currentBuild.currentResult
-                                            echo currentBuild.result
-                                            junit './reports/tests-godog-junit.xml'
-                                        }
+
+                                        echo currentBuild.currentResult
+                                        echo currentBuild.result
+                                        cucumber 'testdata/ci/reports/tests-godog-junit.xml'
+
                                     }
                                     success {
                                         echo 'Test successful'
