@@ -1133,7 +1133,7 @@ Different artifacts (topologies, logs, events, tasks...) are stored by Yorc duri
 
 Previously, everything was stored in Consul KV. 
 Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
-Yorc can now store the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
+Yorc can now stores the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
 
 If defined, the ``storage`` entry may specify a ``reset`` property and a ``stores`` property that contains the different store definitions.
 The ``reset`` property allows to redefine the stores when Yorc re-starts with a modified storage configuration.
