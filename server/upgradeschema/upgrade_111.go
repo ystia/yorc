@@ -97,15 +97,16 @@ func up111UpgradeCommonsTypes(cfg config.Configuration, kv *api.KV) error {
 	sem := make(chan struct{}, cfg.UpgradeConcurrencyLimit)
 	for _, deploymentPrefix := range depKeys {
 		sem <- struct{}{}
+		depItem := deploymentPrefix
 		errGroup.Go(func() error {
 			defer func() {
 				<-sem
 			}()
-			err = up111RemoveCommonsTypes(kv, commons, deploymentPrefix)
+			err = up111RemoveCommonsTypes(kv, commons, depItem)
 			if err != nil {
 				return err
 			}
-			err = up111RemoveCommonsImports(kv, deploymentPrefix)
+			err = up111RemoveCommonsImports(kv, depItem)
 			if err != nil {
 				return err
 			}

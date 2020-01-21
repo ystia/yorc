@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"golang.org/x/sync/errgroup"
 	"path"
 	"strings"
@@ -85,11 +87,12 @@ func eventsChange(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}
 	errGroup, ctx := errgroup.WithContext(ctx)
 	for _, kvp := range kvps {
 		sem <- struct{}{}
+
+		kvpItem := kvp
 		errGroup.Go(func() error {
 			defer func() {
 				<-sem
 			}()
-			kvpItem := kvp
 			return upgradeEvent(eventsPrefix, kvpItem)
 		})
 	}
@@ -137,12 +140,14 @@ func upgradeEvent(eventsPrefix string, kvp *api.KVPair) error {
 	}
 
 	// Save new format value
+	var val json.RawMessage
 	log.Debugf("Convert event format with event:%+v", event)
-	b, err := json.Marshal(event)
+	val, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("failed to upgrade consul database schema from 100:  failed to marshal event [%+v]: due to error:%+v", event, err)
 	}
-	err = consulutil.StoreConsulKey(path.Join(eventsPrefix, deploymentID, event["timestamp"]), b)
+
+	storage.GetStore(types.StoreTypeEvent).Set(context.Background(), path.Join(eventsPrefix, deploymentID, event["timestamp"]), val)
 	if err != nil {
 		return errors.Wrapf(err, "failed to upgrade consul database schema from 100")
 	}

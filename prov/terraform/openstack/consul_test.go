@@ -89,5 +89,8 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("TestComputeBootVolumeWrongType", func(t *testing.T) {
 			testComputeBootVolumeWrongType(t, srv)
 		})
+		t.Run("ComputeNetworkAttributes", func(t *testing.T) {
+			testComputeNetworkAttributes(t, srv)
+		})
 	})
 }
