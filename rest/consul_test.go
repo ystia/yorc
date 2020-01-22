@@ -17,6 +17,7 @@ package rest
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
@@ -61,8 +62,12 @@ func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 }
 
 func TestRunConsulRestPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	t.Run("groupRest", func(t *testing.T) {
 		t.Run("testHostsPoolHandlers", func(t *testing.T) {

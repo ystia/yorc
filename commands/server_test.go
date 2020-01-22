@@ -53,17 +53,19 @@ var expectedDefaultConsulConfig = config.Consul{
 func TestServerConfigWithEnvVars(t *testing.T) {
 
 	expectedConfig := struct {
-		LocationsFilePath string
-		ResourcesPrefix   string
-		WorkingDirectory  string
-		PluginsDirectory  string
-		WorkersNumber     int
+		LocationsFilePath       string
+		ResourcesPrefix         string
+		WorkingDirectory        string
+		PluginsDirectory        string
+		WorkersNumber           int
+		UpgradeConcurrencyLimit int
 	}{
-		LocationsFilePath: "/path/to/locations/file",
-		ResourcesPrefix:   "pref-",
-		WorkingDirectory:  "workdir",
-		PluginsDirectory:  "plugdir",
-		WorkersNumber:     42,
+		LocationsFilePath:       "/path/to/locations/file",
+		ResourcesPrefix:         "pref-",
+		WorkingDirectory:        "workdir",
+		PluginsDirectory:        "plugdir",
+		WorkersNumber:           42,
+		UpgradeConcurrencyLimit: 100,
 	}
 
 	// Set server env variables
@@ -72,6 +74,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 	os.Setenv("YORC_WORKING_DIRECTORY", expectedConfig.WorkingDirectory)
 	os.Setenv("YORC_PLUGINS_DIRECTORY", expectedConfig.PluginsDirectory)
 	os.Setenv("YORC_WORKERS_NUMBER", strconv.Itoa(expectedConfig.WorkersNumber))
+	os.Setenv("YORC_CONCURRENCY_LIMIT_FOR_UPGRADES", strconv.Itoa(expectedConfig.UpgradeConcurrencyLimit))
 
 	testResetConfig()
 	setConfig()
@@ -83,6 +86,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 	assert.Equal(t, expectedConfig.WorkingDirectory, testConfig.WorkingDirectory, "Working Directory configuration differs from expected environment configuration")
 	assert.Equal(t, expectedConfig.PluginsDirectory, testConfig.PluginsDirectory, "Plugins Directory configuration differs from expected environment configuration")
 	assert.Equal(t, expectedConfig.WorkersNumber, testConfig.WorkersNumber, "Workers Number configuration differs from expected environment configuration")
+	assert.Equal(t, expectedConfig.UpgradeConcurrencyLimit, testConfig.UpgradeConcurrencyLimit, "Upgrade concurrency limit configuration differs from expected environment configuration")
 
 	// cleanup env
 	os.Unsetenv("YORC_LOCATIONS_FILE_PATH")
@@ -90,6 +94,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 	os.Unsetenv("YORC_WORKING_DIRECTORY")
 	os.Unsetenv("YORC_PLUGINS_DIRECTORY")
 	os.Unsetenv("YORC_WORKERS_NUMBER")
+	os.Unsetenv("YORC_CONCURRENCY_LIMIT_FOR_UPGRADES")
 }
 
 // Test the following args:

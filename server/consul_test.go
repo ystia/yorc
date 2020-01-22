@@ -16,6 +16,7 @@ package server
 
 import (
 	"github.com/ystia/yorc/v4/config"
+	"os"
 	"testing"
 
 	"github.com/blang/semver"
@@ -29,12 +30,25 @@ import (
 )
 
 func TestConsulServerPackage(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
-	t.Run("groupSchema", func(t *testing.T) {
+	t.Run("groupServer", func(t *testing.T) {
+		t.Run("initConsulClient", func(t *testing.T) {
+			testInitConsulClient(t, srv, client)
+		})
+		t.Run("initLocationManager", func(t *testing.T) {
+			testInitLocationManager(t, srv)
+		})
+		t.Run("testRunServer", func(t *testing.T) {
+			testRunServer(t, srv, client)
+		})
 		t.Run("testSetupVersion", func(t *testing.T) {
-			testSetupVersion(t, client)
+			testSetupVersion(t, client, cfg)
 		})
 	})
 }
@@ -58,17 +72,16 @@ func checkCurrentSchemaVersion(t *testing.T, kv *api.KV) {
 	checkSchemaVersion(t, kv, consulutil.YorcSchemaVersion)
 }
 
-func testSetupVersion(t *testing.T, client *api.Client) {
+func testSetupVersion(t *testing.T, client *api.Client, cfg config.Configuration) {
 	// Test without any version set
 	kv := client.KV()
 	initialDataKP := &api.KVPair{Key: consulutil.DeploymentKVPrefix + "/something", Value: []byte{1}}
 	_, err := kv.Put(initialDataKP, nil)
 	require.NoError(t, err)
-	cfg := config.Configuration{
-		WorkingDirectory: "./testdata/",
-		ServerID:         "testUpgrade120_skip_common_types", // this allows to skip tosca commons types upgrade in test
 
-	}
+	cfg.WorkingDirectory = "./testdata/"
+	cfg.UpgradeConcurrencyLimit = config.DefaultUpgradesConcurrencyLimit
+	cfg.ServerID = "testUpgrade120_skip_common_types" // this allows to skip tosca commons types upgrade in test
 	err = setupConsulDBSchema(cfg, client)
 	assert.NoError(t, err)
 	checkCurrentSchemaVersion(t, kv)
@@ -123,4 +136,7 @@ func testSetupVersion(t *testing.T, client *api.Client) {
 	kvp, _, err = kv.Get(initialDataKP.Key, nil)
 	assert.NoError(t, err)
 	assert.Nil(t, kvp)
+
+	// Back to current version for next tests
+	setSchemaVersion(t, kv, "1.3.0")
 }

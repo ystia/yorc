@@ -15,7 +15,9 @@
 package upgradeschema
 
 import (
+	"context"
 	"github.com/ystia/yorc/v4/config"
+	"golang.org/x/sync/errgroup"
 	"path"
 	"strings"
 
@@ -34,37 +36,42 @@ func UpgradeTo110(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
+	ctx := context.Background()
+	sem := make(chan struct{}, cfg.UpgradeConcurrencyLimit)
+	errGroup, ctx := errgroup.WithContext(ctx)
 	for _, deploymentPrefix := range keys {
 		topologyPrefix := path.Join(deploymentPrefix, "topology")
-		if err = deleteElementsFromConsulPrefix(kv, topologyPrefix, "description", "tosca_version"); err != nil {
-			return err
-		}
-
-		if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "imports"), "description", "tosca_version"); err != nil {
-			return err
-		}
-
-		if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "repositories"), "description"); err != nil {
-			return err
-		}
-		if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "outputs"), "description", "name"); err != nil {
-			return err
-		}
-		if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "inputs"), "description", "name"); err != nil {
-			return err
-		}
-
-		if err = up110CleanupTypes(kv, topologyPrefix); err != nil {
-			return err
-		}
-
-		if err = up110CleanupNodes(kv, topologyPrefix); err != nil {
-			return err
-		}
-
+		sem <- struct{}{}
+		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
+			if err = deleteElementsFromConsulPrefix(kv, topologyPrefix, "description", "tosca_version"); err != nil {
+				return err
+			}
+			if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "imports"), "description", "tosca_version"); err != nil {
+				return err
+			}
+			if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "repositories"), "description"); err != nil {
+				return err
+			}
+			if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "outputs"), "description", "name"); err != nil {
+				return err
+			}
+			if err = deleteElementsFromAllSubPathsOfPrefix(kv, path.Join(topologyPrefix, "inputs"), "description", "name"); err != nil {
+				return err
+			}
+			if err = up110CleanupTypes(kv, topologyPrefix); err != nil {
+				return err
+			}
+			if err = up110CleanupNodes(kv, topologyPrefix); err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 
-	return nil
+	return errGroup.Wait()
 }
 
 func up110CleanupTypes(kv *api.KV, topoPrefix string) error {

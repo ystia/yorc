@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -23,15 +24,18 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulWorkflowPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
 
@@ -54,23 +58,18 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 			testDispatcherRun(t, srv, client)
 		})
 	})
-}
-
-func TestRunConsulWorkerTests(t *testing.T) {
-	log.SetDebug(true)
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
 
 	populateKV(t, srv)
-
-	t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
-		testRunQueryInfraUsage(t, srv, client)
-	})
-	t.Run("TestRunPurge", func(t *testing.T) {
-		testRunPurge(t, srv, client)
-	})
-	t.Run("TestRunPurgeFails", func(t *testing.T) {
-		testRunPurgeFails(t, srv, client)
+	t.Run("groupWorker", func(t *testing.T) {
+		t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
+			testRunQueryInfraUsage(t, srv, client)
+		})
+		t.Run("TestRunPurge", func(t *testing.T) {
+			testRunPurge(t, srv, client)
+		})
+		t.Run("TestRunPurgeFails", func(t *testing.T) {
+			testRunPurgeFails(t, srv, client)
+		})
 	})
 }
 

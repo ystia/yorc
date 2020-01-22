@@ -15,60 +15,39 @@
 package consul
 
 import (
-	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"os"
 	"testing"
+
+	"github.com/ystia/yorc/v4/storage/encoding"
+	"github.com/ystia/yorc/v4/storage/store"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulStoragePackageTests(t *testing.T) {
-	srv, _ := newTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := store.SetupTestConfig(t)
+	srv, _ := store.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
-	t.Run("groupStorage", func(t *testing.T) {
-		t.Run("testTypes", func(t *testing.T) {
+	t.Run("groupConsulStore", func(t *testing.T) {
+		t.Run("testConsulTypes", func(t *testing.T) {
 			testTypes(t, srv)
 		})
-		t.Run("testStore", func(t *testing.T) {
+		t.Run("testConsulStore", func(t *testing.T) {
 			testStore(t, srv)
 		})
 	})
 }
 
-// This is a private Consul server instantiation as done in github.com/ystia/yorc/v4/testutil
-// This allows avoiding cyclic dependencies with deployments store package
-func newTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
-	logLevel := "debug"
-	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
-		logLevel = "warn"
-	}
+func testStore(t *testing.T, srv1 *testutil.TestServer) {
+	csStore := &consulStore{encoding.JSON}
+	store.CommonStoreTest(t, csStore)
+}
 
-	cb := func(c *testutil.TestServerConfig) {
-		c.Args = []string{"-ui"}
-		c.LogLevel = logLevel
-	}
-
-	srv1, err := testutil.NewTestServerConfig(cb)
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv1.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
-
-	client, err := cfg.GetNewConsulClient()
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
-
-	return srv1, client
+func testTypes(t *testing.T, srv1 *testutil.TestServer) {
+	csStore := &consulStore{encoding.JSON}
+	store.CommonStoreTestAllTypes(t, csStore)
 }
