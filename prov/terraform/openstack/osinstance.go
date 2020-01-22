@@ -460,33 +460,14 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	instance *ComputeInstance, outputs map[string]string) error {
 
 	log.Debugf("Looking for Network id for %q", networkNodeName)
-	var networkID string
-	resultChan := make(chan string, 1)
-	go func() {
-		for {
-			nID, err := deployments.GetInstanceAttributeValue(ctx, opts.deploymentID, networkNodeName, opts.instanceName, "network_id")
-			if err != nil {
-				log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
-			}
-			// As networkID is an optional property GetInstanceAttribute then GetProperty
-			// may return an empty networkID so keep checking as long as we have it
-			if nID != nil && nID.RawString() != "" {
-				resultChan <- nID.RawString()
-				return
-			}
-			select {
-			case <-time.After(1 * time.Second):
-			case <-ctx.Done():
-				// context cancelled, give up!
-				return
-			}
-		}
-	}()
-	select {
-	case networkID = <-resultChan:
-	case <-ctx.Done():
-		return ctx.Err()
+
+	// As Network instance is unique
+	defaultNetworkInstanceName := "0"
+	networkID, err := deployments.LookupInstanceAttributeValue(ctx, opts.deploymentID, networkNodeName, defaultNetworkInstanceName, "network_id")
+	if err != nil {
+		return err
 	}
+
 	cn := ComputeNetwork{UUID: networkID, AccessNetwork: false}
 	i := len(instance.Networks)
 	if instance.Networks == nil {
