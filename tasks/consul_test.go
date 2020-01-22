@@ -15,6 +15,7 @@
 package tasks
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/log"
@@ -26,8 +27,12 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	populateKV(t, srv)
 

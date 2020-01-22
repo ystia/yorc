@@ -17,6 +17,7 @@ package internal
 import (
 	"context"
 	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
@@ -25,12 +26,12 @@ import (
 // storePolicies stores topology policies
 func storePolicies(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	nodesPrefix := path.Join(topologyPrefix, "policies")
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for _, policyMap := range topology.TopologyTemplate.Policies {
 		for policyName, policy := range policyMap {
 			nodePrefix := nodesPrefix + "/" + policyName
 
-			kv = append(kv, &types.KeyValue{
+			kv = append(kv, store.KeyValueIn{
 				Key:   nodePrefix,
 				Value: policy,
 			})

@@ -16,6 +16,7 @@ package testutil
 
 import (
 	"github.com/ystia/yorc/v4/storage"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -31,9 +32,10 @@ import (
 // NewTestConsulInstance allows to :
 //  - creates and returns a new Consul server and client
 //  - starts a Consul Publisher
+//  - loads stores
 //  - stores common-types to Consul
 // Warning: You need to defer the server stop command in the caller
-func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstance(t testing.TB, cfg *config.Configuration) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -43,13 +45,13 @@ func NewTestConsulInstance(t testing.TB) (*testutil.TestServer, *api.Client) {
 		c.Args = []string{"-ui"}
 		c.LogLevel = logLevel
 	}
-	return NewTestConsulInstanceWithConfigAndStore(t, cb)
+	return NewTestConsulInstanceWithConfigAndStore(t, cb, cfg)
 }
 
 // NewTestConsulInstanceWithConfigAndStore sets up a consul instance for testing
-func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerConfigCallback) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerConfigCallback, cfg *config.Configuration) (*testutil.TestServer, *api.Client) {
 
-	return NewTestConsulInstanceWithConfig(t, cb, true)
+	return NewTestConsulInstanceWithConfig(t, cb, cfg, true)
 }
 
 // NewTestConsulInstanceWithConfig sets up a consul instance for testing :
@@ -57,19 +59,14 @@ func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerCon
 //  - starts a Consul Publisher
 //  - stores common-types to Consul only if storeCommons bool parameter is true
 // Warning: You need to defer the server stop command in the caller
-func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, storeCommons bool) (*testutil.TestServer, *api.Client) {
+func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, cfg *config.Configuration, storeCommons bool) (*testutil.TestServer, *api.Client) {
 	srv1, err := testutil.NewTestServerConfig(cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv1.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
-
+	cfg.Consul.Address = srv1.HTTPAddr
+	cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
 	client, err := cfg.GetNewConsulClient()
 	assert.Nil(t, err)
 
@@ -78,8 +75,10 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores(cfg)
-	assert.Nil(t, err)
+	err = storage.LoadStores(*cfg)
+	if err != nil {
+		t.Fatalf("Failed to load stores due to error: %v", err)
+	}
 
 	if storeCommons {
 		storeCommonDefinitions()
@@ -91,4 +90,15 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 // BuildDeploymentID allows to create a deploymentID from the test name value
 func BuildDeploymentID(t testing.TB) string {
 	return strings.Replace(t.Name(), "/", "_", -1)
+}
+
+// SetupTestConfig sets working directory configuration
+// Warning: You need to defer the working directory removal
+func SetupTestConfig(t testing.TB) config.Configuration {
+	workingDir, err := ioutil.TempDir(os.TempDir(), "work")
+	assert.Nil(t, err)
+
+	return config.Configuration{
+		WorkingDirectory: workingDir,
+	}
 }

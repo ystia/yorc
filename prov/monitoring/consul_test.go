@@ -19,12 +19,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
@@ -34,7 +34,8 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulMonitoringPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -45,15 +46,10 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	port, err := strconv.Atoi(u.Port())
 	require.NoError(t, err)
 	ctx := context.Background()
-	cfg := config.Configuration{
-		HTTPAddress: u.Hostname(),
-		HTTPPort:    port,
-		ServerID:    "0",
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
+
+	cfg.HTTPAddress = u.Hostname()
+	cfg.HTTPPort = port
+	cfg.ServerID = "0"
 
 	// Register the consul service
 	chStop := make(chan struct{})
@@ -66,6 +62,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	defer func() {
 		Stop()
 		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
 	}()
 
 	policy1 := tosca.Policy{

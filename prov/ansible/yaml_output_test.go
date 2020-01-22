@@ -55,7 +55,7 @@ func testLogAnsibleOutputInConsul(t *testing.T) {
 	ctx := events.NewContext(context.Background(), logOptFields)
 	logAnsibleOutputInConsul(ctx, deploymentID, nodeName, hosts, file)
 
-	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(ctx, deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 
 	// Check the content of a task output INFO log on instance 1
@@ -146,7 +146,7 @@ func testLogAnsibleOutputInConsulFromScript(t *testing.T) {
 	ctx := events.NewContext(context.Background(), logOptFields)
 	logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, hosts, file)
 
-	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(ctx, deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 
 	// Check the content of a task output INFO log on instance 0
@@ -200,7 +200,7 @@ func testLogAnsibleOutputInConsulFromScriptFailure(t *testing.T) {
 	ctx := events.NewContext(context.Background(), logOptFields)
 	logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, hosts, file)
 
-	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(ctx, deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 
 	// Check the content of a task output ERROR log on instance 1

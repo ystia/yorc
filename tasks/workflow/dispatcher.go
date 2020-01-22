@@ -62,7 +62,7 @@ func (d *Dispatcher) getTaskExecsNbWait(client *api.Client) (float32, error) {
 		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if tasksKeys == nil {
-		return 0, errors.Errorf("No keys:%v", consulutil.TasksPrefix)
+		return 0, nil
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)

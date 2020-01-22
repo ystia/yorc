@@ -15,6 +15,7 @@
 package events
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/testutil"
@@ -22,9 +23,12 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulEventsPackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
-
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	t.Run("groupEvents", func(t *testing.T) {
 		t.Run("TestConsulPubSubStatusChange", func(t *testing.T) {
 			testConsulPubSubStatusChange(t)

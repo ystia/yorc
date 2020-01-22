@@ -22,11 +22,13 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	stdlog "log"
+	"os"
 	"path"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 	"vbom.ml/util/sortorder"
 
 	ctu "github.com/hashicorp/consul/testutil"
@@ -1057,6 +1059,9 @@ func testDeleteWorkflow(t *testing.T) {
 	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
 
+	// wait for value to be deleted
+	time.Sleep(10 * time.Millisecond)
+
 	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
 	require.Nil(t, wfInstall, "Expected nil workflow")
@@ -1166,6 +1171,7 @@ func testNotifyAttributeOnValueChange(t *testing.T, deploymentID string) {
 }
 
 func BenchmarkDefinitionStore(b *testing.B) {
+	topoFilePath := "testdata/test_topology.yml"
 	log.SetDebug(false)
 	log.SetOutput(ioutil.Discard)
 	stdlog.SetOutput(ioutil.Discard)
@@ -1176,13 +1182,18 @@ func BenchmarkDefinitionStore(b *testing.B) {
 		c.Stderr = ioutil.Discard
 	}
 
-	srv, _ := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(b)
+	srv, _ := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	deploymentID := testutil.BuildDeploymentID(b)
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		StoreDeploymentDefinition(ctx, fmt.Sprintf("%s-%d", deploymentID, i), "testdata/import_many_types.yaml")
+		err := StoreDeploymentDefinition(ctx, fmt.Sprintf("%s-%d", deploymentID, i), topoFilePath)
+		require.NoError(b, err, "Error storing deployment definition from file:%s", topoFilePath)
 	}
 	b.StopTimer()
 

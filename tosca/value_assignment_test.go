@@ -421,7 +421,6 @@ func TestValueAssignment_MarshalJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			val := &ValueAssignment{Type: tt.valType, Value: tt.value}
 			bytesVal, err := json.Marshal(val)
-			log.Printf("*********************** =%q", string(bytesVal))
 			if err != nil {
 				t.Errorf("ValueAssignment.MarshalJSON() error = %v marshalling %q", err, val)
 			} else {

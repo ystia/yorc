@@ -15,14 +15,19 @@
 package kubernetes
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 func TestConsulKubernetesPackage(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	t.Run("groupK8S", func(t *testing.T) {
 		t.Run("testExecutionCancelJob", func(t *testing.T) {
@@ -31,5 +36,15 @@ func TestConsulKubernetesPackage(t *testing.T) {
 		t.Run("testsController", func(t *testing.T) {
 			testsController(t, srv)
 		})
+		t.Run("testExecutionExecuteInvalidOperation", func(t *testing.T) {
+			testExecutionExecuteInvalidOperation(t)
+		})
+		t.Run("testExecutionGetExpectedInstances", func(t *testing.T) {
+			testExecutionGetExpectedInstances(t)
+		})
+		t.Run("testExecutionManageNamespaceDeletion", func(t *testing.T) {
+			testExecutionManageNamespaceDeletion(t)
+		})
+
 	})
 }

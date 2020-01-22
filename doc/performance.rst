@@ -26,14 +26,14 @@ Consul Storage
 
 Yorc heavily relies on Consul to synchronize Yorc instances and store configurations, runtime data and TOSCA data models.
 This leads to generate an important load pressure on Consul, under specific circumstances (thousands of deployments having
-each an high number of TOSCA types and templates and poor latency performances on networks between Yorc and Consul server)
-you may experience some performance issues specially during the initialization phase of a deployment. This is because this is when we store most of the data into Consul. To deal with this we recommend to carefully read
-`the Consul documentation on performance <https://www.consul.io/docs/install/performance.html>`_ and update the default
+each an high number of TOSCA types and templates and poor latency performances on networks between Yorc and Consul server).
+You may experience some performance issues specially during the initialization phase of a deployment, when Yorc stores most of the data into Consul. 
+To deal with this issues we recommend to carefully read `the Consul documentation on performance <https://www.consul.io/docs/install/performance.html>`_ and update the default
 configuration if needed.
 
 You can find below some configuration options that could be adapted to fit your specific use case:
 
-  * Yorc stores keys into Consul in highly parallel way, to prevent consuming too much connections and specially getting
+  * Yorc stores keys into Consul in highly parallel way. To prevent consuming too much connections and specially getting
     into a ``max open file descriptor issue`` we use a mechanism that limits the number of open connections to Consul.
     The number open connections can be set using :ref:`consul_publisher_max_routines <option_pub_routines_cmd>`. The default value of ``500`` was determined
     empirically to fit the default ``1024`` maximum number of open file descriptors. Increasing this value could improve performances
@@ -46,6 +46,18 @@ You can find below some configuration options that could be adapted to fit your 
     it as it to Consul.
     We had pretty good results by setting this property to ``10ms``. This feature may become the default in the future after being tested
     against different use cases and getting some feedback from production deployments.
+
+
+Yorc 4.0 comes with more flexibility around storage and Consul KV use:
+
+  * Data has been wrapped in JSON to reduce the number of keys stored.
+  * Deployment description data is stored in a file with cache storage system by default.
+  * Log and Event data are still stored by default in Consul but they can also be stored in the file system with custom configuration as
+    explained here :ref:`Storage configuration<option_storage_config>`.
+  * Storing deployment, log and event data in other stores than Consul KV reduces considerably the memory consumed by Consul.
+  * Deployment storage itself is faster according to the Distributed File System used in HA mode and its performances.
+    For a local file system in dev mode, it's about 15 times faster.
+
 
 .. _tosca_operations_performance_section:
 

@@ -1,0 +1,26 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: EBSVolume
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-aws-types.yml>
+
+topology_template:
+  node_templates:
+    EBSVolume:
+      type: yorc.nodes.aws.EBSVolume
+      properties:
+        availability_zone: "europe-west1-b"
+        size: "12 GB"
+        encrypted: true
+        snapshot_id: projects/project/global/snapshots/snapshot
+        kms_key_id: arn:aws:kms:us-east-2:607034132673:key/8f947919-3432-4ace-ab11-d445a893d390
+        volume_type: "standard"
+        iops: "500"
+        tags: {"tag1": "foo", "tag2": "bar"}

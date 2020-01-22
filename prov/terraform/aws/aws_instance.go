@@ -205,6 +205,50 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		return err
 	}
 
+	return addAttachedDisks(ctx, cfg, deploymentID, nodeName, instanceName, instance.Tags.Name, infrastructure, outputs)
+}
+
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, instanceName, instanceTagName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
+	storageReqs, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return err
+	}
+
+	for _, storageReq := range storageReqs {
+		volumeNodeName := storageReq.Node
+
+		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
+
+		volumeID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "volume_id")
+		if err != nil {
+			return err
+		}
+
+		deviceNameVal, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "device")
+		if err != nil || deviceNameVal == nil {
+			return errors.Wrapf(err, "Can't find the required device name for deploymentID:%q, volume name:%q, instance name:%q", deploymentID, volumeNodeName, instanceName)
+		}
+		deviceName := deviceNameVal.RawString()
+
+		attachedDisk := &VolumeAttachment{
+			DeviceName: deviceName,
+			InstanceID: fmt.Sprintf("${aws_instance.%s.id}", instanceTagName),
+			VolumeID:   volumeID,
+		}
+
+		attachName := strings.ToLower(volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
+		attachName = strings.Replace(attachName, "_", "-", -1)
+		commons.AddResource(infrastructure, "aws_volume_attachment", attachName, attachedDisk)
+
+		// Terraform device_name output
+		deviceKey := attachName + ".device_name"
+		deviceValue := fmt.Sprintf("${aws_volume_attachment.%s.device_name}", attachName)
+		commons.AddOutput(infrastructure, deviceKey, &commons.Output{Value: deviceValue})
+		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+		outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = deviceKey
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, storageReq.Index, instanceName, "attributes/device")] = deviceKey
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, storageReq.Index, instanceName, "attributes/device")] = deviceKey
+	}
 	return nil
 }
 

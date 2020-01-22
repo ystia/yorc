@@ -15,6 +15,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"path"
 	"strings"
@@ -24,6 +25,8 @@ import (
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 )
 
 //go:generate go-enum -f=structs.go --lower
@@ -121,6 +124,7 @@ func (i InfoType) String() string {
 
 // statusChange represents status change event
 type statusChange struct {
+	ctx          context.Context
 	timestamp    string
 	eventType    StatusChangeType
 	deploymentID string
@@ -148,12 +152,13 @@ func (e *statusChange) register() (string, error) {
 	eventsPrefix := path.Join(consulutil.EventsPrefix, e.deploymentID)
 
 	// For presentation purpose, each field is in flat json object
+	var val json.RawMessage
 	flat := e.flat()
-	b, err := json.Marshal(flat)
+	val, err := json.Marshal(flat)
 	if err != nil {
 		log.Printf("Failed to marshal event [%+v]: due to error:%+v", e, err)
 	}
-	err = consulutil.StoreConsulKey(path.Join(eventsPrefix, e.timestamp), b)
+	err = storage.GetStore(types.StoreTypeEvent).Set(e.ctx, path.Join(eventsPrefix, e.timestamp), val)
 	if err != nil {
 		return "", err
 	}
@@ -177,8 +182,8 @@ func (e *statusChange) flat() map[string]interface{} {
 }
 
 // newStatusChange allows to create a new statusChange if mandatory information is ok
-func newStatusChange(eventType StatusChangeType, info Info, deploymentID, status string) (*statusChange, error) {
-	e := &statusChange{info: info, eventType: eventType, status: status, deploymentID: deploymentID}
+func newStatusChange(ctx context.Context, eventType StatusChangeType, info Info, deploymentID, status string) (*statusChange, error) {
+	e := &statusChange{ctx: ctx, info: info, eventType: eventType, status: status, deploymentID: deploymentID}
 	if err := e.check(); err != nil {
 		// Just print Warning log if any mandatory field is not set
 		// But let's us the possibility to return an error

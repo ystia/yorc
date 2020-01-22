@@ -15,7 +15,9 @@
 package upgradeschema
 
 import (
+	"context"
 	"github.com/ystia/yorc/v4/config"
+	"golang.org/x/sync/errgroup"
 	"path"
 	"strings"
 
@@ -79,7 +81,7 @@ func up111RemoveCommonsTypes(kv *api.KV, commons []string, deploymentPrefix stri
 	}
 	return nil
 }
-func up111UpgradeCommonsTypes(kv *api.KV) error {
+func up111UpgradeCommonsTypes(cfg config.Configuration, kv *api.KV) error {
 	log.Print("\tRemoving commons types...")
 	commons, err := getCommonsTypesList(kv)
 	if err != nil {
@@ -89,22 +91,33 @@ func up111UpgradeCommonsTypes(kv *api.KV) error {
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for _, deploymentPrefix := range depKeys {
-		err = up111RemoveCommonsTypes(kv, commons, deploymentPrefix)
-		if err != nil {
-			return err
-		}
-		err = up111RemoveCommonsImports(kv, deploymentPrefix)
-		if err != nil {
-			return err
-		}
 
+	ctx := context.Background()
+	errGroup, ctx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, cfg.UpgradeConcurrencyLimit)
+	for _, deploymentPrefix := range depKeys {
+		sem <- struct{}{}
+		depItem := deploymentPrefix
+		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
+			err = up111RemoveCommonsTypes(kv, commons, depItem)
+			if err != nil {
+				return err
+			}
+			err = up111RemoveCommonsImports(kv, depItem)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 	}
-	return nil
+	return errGroup.Wait()
 }
 
 // UpgradeTo111 allows to upgrade Consul schema from 1.1.0 to 1.1.1
 func UpgradeTo111(cfg config.Configuration, kv *api.KV, leaderch <-chan struct{}) error {
 	log.Print("Upgrading to database version 1.1.1...")
-	return up111UpgradeCommonsTypes(kv)
+	return up111UpgradeCommonsTypes(cfg, kv)
 }

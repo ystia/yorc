@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/log"
@@ -26,8 +27,12 @@ func TestRunConsulCollectorPackageTests(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	populateKV(t, srv)
 

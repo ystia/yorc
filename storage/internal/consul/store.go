@@ -16,9 +16,13 @@ package consul
 
 import (
 	"context"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage/encoding"
-	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/storage/store"
+	"github.com/ystia/yorc/v4/storage/utils"
+	"time"
 )
 
 type consulStore struct {
@@ -26,36 +30,36 @@ type consulStore struct {
 }
 
 // NewStore returns a new Consul store
-func NewStore() *consulStore {
+func NewStore() store.Store {
 	return &consulStore{encoding.JSON}
 }
 
 func (c *consulStore) Set(ctx context.Context, k string, v interface{}) error {
-	if err := types.CheckKeyAndValue(k, v); err != nil {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return err
 	}
 
 	data, err := c.codec.Marshal(v)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to marshal value %+v due to error:%+v", v, err)
 	}
 
 	return consulutil.StoreConsulKey(k, data)
 }
 
-func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyValue) error {
+func (c *consulStore) SetCollection(ctx context.Context, keyValues []store.KeyValueIn) error {
 	if keyValues == nil || len(keyValues) == 0 {
 		return nil
 	}
 	ctx, errGroup, consulStore := consulutil.WithContext(ctx)
 	for _, kv := range keyValues {
-		if err := types.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
+		if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
 			return err
 		}
 
 		data, err := c.codec.Marshal(kv.Value)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to marshal value %+v due to error:%+v", kv.Value, err)
 		}
 
 		consulStore.StoreConsulKey(kv.Key, data)
@@ -64,7 +68,7 @@ func (c *consulStore) SetCollection(ctx context.Context, keyValues []*types.KeyV
 }
 
 func (c *consulStore) Get(k string, v interface{}) (bool, error) {
-	if err := types.CheckKeyAndValue(k, v); err != nil {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return false, err
 	}
 
@@ -73,11 +77,11 @@ func (c *consulStore) Get(k string, v interface{}) (bool, error) {
 		return found, err
 	}
 
-	return true, c.codec.Unmarshal(value, v)
+	return true, errors.Wrapf(c.codec.Unmarshal(value, v), "failed to unmarshal data:%q", string(value))
 }
 
 func (c *consulStore) Exist(k string) (bool, error) {
-	if err := types.CheckKey(k); err != nil {
+	if err := utils.CheckKey(k); err != nil {
 		return false, err
 	}
 
@@ -96,6 +100,40 @@ func (c *consulStore) Delete(ctx context.Context, k string, recursive bool) erro
 	return consulutil.Delete(k, recursive)
 }
 
-func (c *consulStore) Types() []types.StoreType {
-	return nil
+func (c *consulStore) GetLastModifyIndex(k string) (uint64, error) {
+	_, qm, err := consulutil.GetKV().Get(k, nil)
+	if err != nil || qm == nil {
+		return 0, errors.Errorf("Failed to retrieve last index for key:%q", k)
+	}
+	return qm.LastIndex, nil
+}
+
+func (c *consulStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
+	if err := utils.CheckKey(k); err != nil {
+		return nil, 0, err
+	}
+
+	kvps, qm, err := consulutil.GetKV().List(k, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	if err != nil || qm == nil {
+		return nil, 0, err
+	}
+	if kvps == nil {
+		return nil, qm.LastIndex, err
+	}
+
+	values := make([]store.KeyValueOut, 0)
+	for _, kvp := range kvps {
+		var value map[string]interface{}
+		if err := c.codec.Unmarshal(kvp.Value, &value); err != nil {
+			return nil, 0, errors.Wrapf(err, "failed to unmarshal stored value: %q", string(kvp.Value))
+		}
+
+		values = append(values, store.KeyValueOut{
+			Key:             kvp.Key,
+			LastModifyIndex: kvp.ModifyIndex,
+			Value:           value,
+			RawValue:        kvp.Value,
+		})
+	}
+	return values, qm.LastIndex, nil
 }

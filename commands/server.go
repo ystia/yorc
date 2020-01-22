@@ -254,6 +254,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().String("server_id", host, "The server ID used to identify the server node in a cluster.")
 	serverCmd.PersistentFlags().Bool("disable_ssh_agent", false, "Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.")
 	serverCmd.PersistentFlags().String("locations_file_path", "", "File path to locations configuration. This configuration is taken in account for the first time the server starts.")
+	serverCmd.PersistentFlags().Int("concurrency_limit_for_upgrades", config.DefaultUpgradesConcurrencyLimit, "Limit of concurrency used in Upgrade processes. If not set the default value will be used")
 
 	serverCmd.PersistentFlags().Duration("tasks_dispatcher_long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime, "Wait time when long polling for executions tasks to dispatch to workers")
 	serverCmd.PersistentFlags().Duration("tasks_dispatcher_lock_wait_time", config.DefaultTasksDispatcherLockWaitTime, "Wait time for acquiring a lock for an execution task")
@@ -317,6 +318,7 @@ func setConfig() {
 	viper.BindPFlag("server_id", serverCmd.PersistentFlags().Lookup("server_id"))
 	viper.BindPFlag("disable_ssh_agent", serverCmd.PersistentFlags().Lookup("disable_ssh_agent"))
 	viper.BindPFlag("locations_file_path", serverCmd.PersistentFlags().Lookup("locations_file_path"))
+	viper.BindPFlag("concurrency_limit_for_upgrades", serverCmd.PersistentFlags().Lookup("concurrency_limit_for_upgrades"))
 
 	viper.BindPFlag("tasks.dispatcher.long_poll_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_long_poll_wait_time"))
 	viper.BindPFlag("tasks.dispatcher.lock_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_lock_wait_time"))
@@ -358,6 +360,7 @@ func setConfig() {
 	viper.BindEnv("server_id")
 	viper.BindEnv("disable_ssh_agent")
 	viper.BindEnv("locations_file_path")
+	viper.BindEnv("concurrency_limit_for_upgrades")
 
 	//Bind Consul environment variables flags
 	for key := range consulConfiguration {
@@ -391,6 +394,7 @@ func setConfig() {
 	viper.SetDefault("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout)
 	viper.SetDefault("server_id", host)
 	viper.SetDefault("disable_ssh_agent", false)
+	viper.SetDefault("concurrency_limit_for_upgrades", config.DefaultUpgradesConcurrencyLimit)
 
 	viper.SetDefault("tasks.dispatcher.long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime)
 	viper.SetDefault("tasks.dispatcher.lock_wait_time", config.DefaultTasksDispatcherLockWaitTime)

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -327,4 +328,48 @@ func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, cfg config.Con
 			require.Equal(t, "13.13.13.13", assoc.PublicIP)
 		}
 	}
+}
+
+func testSimpleAWSInstanceWithPersistentDisk(t *testing.T, cfg config.Configuration, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+	g := awsGenerator{}
+	infrastructure := commons.Infrastructure{}
+	ctx := context.Background()
+	env := make([]string, 0)
+	outputs := make(map[string]string)
+
+	// Simulate the aws ebs "volume_id" attribute registration
+	srv.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/BlockStorage/type"):                       []byte("yorc.nodes.aws.EBSVolume"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/BlockStorage/0/attributes/volume_id"): []byte("my_vol_id"),
+	})
+
+	err := g.generateAWSInstance(ctx, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, outputs, &env)
+	require.Nil(t, err)
+	require.Len(t, infrastructure.Resource["aws_instance"], 1)
+
+	instancesMap := infrastructure.Resource["aws_instance"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "ComputeAWS-0")
+
+	compute, ok := instancesMap["ComputeAWS-0"].(*ComputeInstance)
+	require.True(t, ok, "ComputeAWS-0 is not a ComputeInstance")
+	require.Equal(t, "yorc-keypair", compute.KeyName)
+	require.Equal(t, "ami-16dffe73", compute.ImageID)
+	require.Equal(t, "t2.micro", compute.InstanceType)
+	require.Equal(t, "ComputeAWS-0", compute.Tags.Name)
+	require.Len(t, compute.SecurityGroups, 1)
+	require.Contains(t, compute.SecurityGroups, "yorc-securityGroup")
+
+	require.Len(t, infrastructure.Resource["aws_volume_attachment"], 1, "Expected one attached disk")
+	instancesMap = infrastructure.Resource["aws_volume_attachment"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+
+	attachmentResourceName := "blockstorage-0-to-computeaws-0"
+	require.Contains(t, instancesMap, attachmentResourceName)
+	attachedDisk, ok := instancesMap[attachmentResourceName].(*VolumeAttachment)
+	require.True(t, ok, "%s is not a VolumeAttachment", attachmentResourceName)
+	assert.Equal(t, "/dev/sdf", attachedDisk.DeviceName)
+
 }

@@ -35,6 +35,7 @@ var upgradeToMap = map[string]func(config.Configuration, *api.KV, <-chan struct{
 	"1.1.1": upgradeschema.UpgradeTo111,
 	"1.1.2": upgradeschema.UpgradeTo112,
 	"1.2.0": upgradeschema.UpgradeTo120,
+	"1.3.0": upgradeschema.UpgradeTo130,
 }
 
 var orderedUpgradesVersions []semver.Version

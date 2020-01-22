@@ -18,6 +18,7 @@ import (
 	"context"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -35,9 +36,12 @@ import (
 // TestRunDefinitionStoreTests aims to run a max of tests on store functions
 func TestRunDefinitionStoreTests(t *testing.T) {
 	// create consul server and consul client
-	srv, _ := newTestConsulInstance(t)
-	defer srv.Stop()
-
+	cfg := setupTestConfig(t)
+	srv, _ := newTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	t.Run("StoreTests", func(t *testing.T) {
 		t.Run("TestTypesPath", func(t *testing.T) {
 			testTypesPath(t)
@@ -45,10 +49,21 @@ func TestRunDefinitionStoreTests(t *testing.T) {
 	})
 }
 
+// SetupTestConfig sets working directory configuration
+// Warning: You need to defer the working directory removal
+// Note: can't use util functions from testutil package in order to avoid import cycles
+func setupTestConfig(t testing.TB) config.Configuration {
+	workingDir, err := ioutil.TempDir(os.TempDir(), "work")
+	assert.Nil(t, err)
+	return config.Configuration{
+		WorkingDirectory: workingDir,
+	}
+}
+
 // newTestConsulInstance creates and configures Consul instance
 // for testing functions in the store package
-// Remarque: can't use util functions from testutil package in order to avoid import cycles
-func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
+// Note: can't use util functions from testutil package in order to avoid import cycles
+func newTestConsulInstance(t *testing.T, cfg *config.Configuration) (*testutil.TestServer, *api.Client) {
 	logLevel := "debug"
 	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
 		logLevel = "warn"
@@ -62,12 +77,8 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
 
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv1.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
+	cfg.Consul.Address = srv1.HTTPAddr
+	cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
 
 	client, err := cfg.GetNewConsulClient()
 	assert.Nil(t, err)
@@ -77,25 +88,22 @@ func newTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
-	err = storage.LoadStores(cfg)
+	err = storage.LoadStores(*cfg)
 	assert.Nil(t, err)
 	return srv1, client
 }
 
 func storeCommonTypePath(ctx context.Context, t *testing.T, paths []string) {
-	_, errGrp, consulStore := consulutil.WithContext(ctx)
-
 	// Store someValue (here "1") with key "_yorc/commons_types/some_type/some_version/some_name"
 	// Where "some_type/some_value" is one of the existingPath slice element provided in the tests structure,
-	// for example "toto/1.0.0",
-	// and "some_name" (here ".exist") represents some element (like a property) name of the some_type type
+	// for example "toto/1.0.0"
 	someValue := "1"
 	for _, p := range paths {
 		// Store value "1" with key _yorc/commons_types/toto/1.0.0/.exist
-		consulStore.StoreConsulKeyAsString(path.Join(consulutil.CommonsTypesKVPrefix, p, ".exist"), someValue)
+		err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.CommonsTypesKVPrefix, p), someValue)
+		require.NoError(t, err)
 	}
-	//
-	require.NoError(t, errGrp.Wait())
+
 }
 
 // testTypePath aims to test getLatestCommonsTypesPath by storing some_value with a path constructed by joining :
