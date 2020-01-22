@@ -117,6 +117,9 @@ func (c *consulStore) List(ctx context.Context, k string, waitIndex uint64, time
 	if err != nil || qm == nil {
 		return nil, 0, err
 	}
+	if kvps == nil {
+		return nil, qm.LastIndex, err
+	}
 
 	values := make([]store.KeyValueOut, 0)
 	for _, kvp := range kvps {

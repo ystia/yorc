@@ -321,6 +321,11 @@ func CommonStoreTest(t *testing.T, store Store) {
 	}()
 	err = store.Set(ctx, "rootList/testlist/three", val1)
 	require.NoError(t, err)
+
+	// List on non-existing path
+	kvs, index, err = store.List(ctx, "this/path/dont/exist", 0, 0)
+	require.NoError(t, err)
+	require.Nil(t, kvs)
 }
 
 // CommonStoreTestAllTypes allows to test storage of all types

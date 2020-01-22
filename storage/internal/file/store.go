@@ -38,6 +38,8 @@ import (
 	"github.com/ystia/yorc/v4/storage/utils"
 )
 
+const indexFileNotExist = uint64(1)
+
 type fileStore struct {
 	id         string
 	properties config.DynamicMap
@@ -375,7 +377,7 @@ func (s *fileStore) GetLastModifyIndex(k string) (uint64, error) {
 				return 0, errors.Wrapf(err, "failed to get last index for key:%q", k)
 			}
 			// File not found : the key doesn't exist
-			return 0, nil
+			return indexFileNotExist, nil
 		}
 		return uint64(fInfo.ModTime().UnixNano()), nil
 	}
@@ -440,6 +442,9 @@ func (s *fileStore) list(k string) ([]store.KeyValueOut, uint64, error) {
 	rootPath := s.buildFilePath(k, false)
 	fInfo, err := os.Stat(rootPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, indexFileNotExist, nil
+		}
 		return nil, 0, err
 	}
 	// Not a directory so nothing to do
