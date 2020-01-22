@@ -33,6 +33,10 @@ func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, r
 func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca.Workflow, error)
 ```
 
+### FEATURES
+
+* Volume attachment on AWS Compute nodes ([GH-122](https://github.com/ystia/yorc/issues/122))
+
 ### ENHANCEMENTS
 
 * Should be able to bootstrap Yorc on OpenStack with Identity API v3 ([GH-575](https://github.com/ystia/yorc/issues/575))

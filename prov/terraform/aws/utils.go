@@ -1,4 +1,4 @@
-// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+// Copyright 2019 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,12 +15,18 @@
 package aws
 
 import (
-	"github.com/ystia/yorc/v4/prov/terraform"
-	"github.com/ystia/yorc/v4/prov/terraform/commons"
-	"github.com/ystia/yorc/v4/registry"
+	"context"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/deployments"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.aws\..*`}, terraform.NewExecutor(&awsGenerator{}, commons.PreDestroyStorageInfraCallback), registry.BuiltinOrigin)
+func verifyThatNodeIsTypeOf(ctx context.Context, nodeParams nodeParams, nodeType string) error {
+	res, err := deployments.GetNodeType(ctx, nodeParams.deploymentID, nodeParams.nodeName)
+	if err != nil {
+		return err
+	}
+	if res != nodeType {
+		return errors.Errorf("Unsupported node type for %q: %s", nodeParams.nodeName, nodeType)
+	}
+	return nil
 }

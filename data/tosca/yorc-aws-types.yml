@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-aws-types
   template_author: yorc
-  template_version: 1.0.0
+  template_version: 1.1.0
 
 imports:
   - yorc: <yorc-types.yml>
@@ -55,3 +55,50 @@ node_types:
 
   yorc.nodes.aws.PublicNetwork:
     derived_from: tosca.nodes.Network
+
+  yorc.nodes.aws.EBSVolume:
+    derived_from: tosca.nodes.BlockStorage
+    properties:
+      device:
+        type: string
+        description: >
+          The device name to expose to the instance (for example, /dev/sdh or xvdh).
+          See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html#available-ec2-device-names for more information.
+        required: true
+      availability_zone:
+        type: string
+        description: The AZ where the EBS volume will exist.
+        required: true
+      encrypted:
+        type: boolean
+        description: If true, the disk will be encrypted. If no km_key_id is provied, one will be generated.
+        required: false
+      kms_key_id:
+        type: string
+        description: The ARN for the KMS encryption key. When specifying kms_key_id, encrypted will be always considered to be true.
+        required: false
+      volume_type:
+        type: string
+        description: >
+          The type of EBS volume. Can be "standard", "gp2", "io1", "sc1" or "st1" (Default: "standard").
+        required: false
+      iops:
+        type: string
+        description: >
+          IOPS (input/output operations per second) is a popular performance metric used to distinguish one storage type from another.
+          Similar to device makers, AWS associates IOPS values to the volume component backing the storage option.
+          As IOPS values increase, performance needs and costs rise.
+        required: false
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+      deletable:
+        type: boolean
+        description: should this volume be deleted at undeployment
+        required: false
+        default: false
+
+

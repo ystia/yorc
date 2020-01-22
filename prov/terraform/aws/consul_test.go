@@ -67,6 +67,14 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
 			testGenerateTerraformInfraForAWSNode(t, cfg, locationMgr)
 		})
-
+		t.Run("simpleEBS", func(t *testing.T) {
+			testSimpleEBS(t, cfg)
+		})
+		t.Run("simpleEBSWithVolumeID", func(t *testing.T) {
+			testSimpleEBSWithVolumeID(t, cfg)
+		})
+		t.Run("simpleAWSInstanceWithPersistentDisk", func(t *testing.T) {
+			testSimpleAWSInstanceWithPersistentDisk(t, cfg, srv)
+		})
 	})
 }

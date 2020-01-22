@@ -50,3 +50,24 @@ type ElasticIPAssociation struct {
 	AllocationID string `json:"allocation_id,omitempty"`
 	PublicIP     string `json:"public_ip,omitempty"`
 }
+
+// EBSVolume represents an EBS Volume
+// see : https://www.terraform.io/docs/providers/aws/r/ebs_volume.html
+type EBSVolume struct {
+	AvailabilityZone string            `json:"availability_zone,omitempty"`
+	Encrypted        bool              `json:"encrypted,omitempty"`
+	Size             int               `json:"size,omitempty"`
+	SnapshotID       string            `json:"snapshot_id,omitempty"`
+	KMSKeyID         string            `json:"kms_key_id,omitempty"`
+	Type             string            `json:"type,omitempty"`
+	IOPS             string            `json:"iops,omitempty"`
+	Tags             map[string]string `json:"tags,omitempty"`
+}
+
+// VolumeAttachment provide a way to attach an EBS volume to an EC2 instance
+// see : https://www.terraform.io/docs/providers/aws/r/volume_attachment.html
+type VolumeAttachment struct {
+	DeviceName string `json:"device_name,omitempty"`
+	InstanceID string `json:"instance_id,omitempty"`
+	VolumeID   string `json:"volume_id,omitempty"`
+}
