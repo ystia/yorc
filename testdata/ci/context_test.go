@@ -71,6 +71,12 @@ func FeatureContext(s *godog.Suite) {
 
 	s.BeforeScenario(c.reset)
 
+	s.BeforeFeature(func(f *gherkin.Feature) {
+		if c.config.Infrastructure.Name != "" {
+			f.Name = fmt.Sprintf("[%s] %s", c.config.Infrastructure.Name, f.Name)
+		}
+	})
+
 	s.AfterScenario(func(s interface{}, scErr error) {
 		if c.cancel != nil {
 			defer c.cancel()

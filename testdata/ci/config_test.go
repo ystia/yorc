@@ -8,10 +8,15 @@ import (
 )
 
 type Config struct {
-	KeepFailedApplications bool     `mapstructure:"keep_failed_applications"`
-	Alien4Cloud            Alien    `mapstructure:"alien4cloud"`
-	Yorc                   Yorc     `mapstructure:"yorc"`
-	ChromeDP               ChromeDP `mapstructure:"chromedp"`
+	KeepFailedApplications bool           `mapstructure:"keep_failed_applications"`
+	Alien4Cloud            Alien          `mapstructure:"alien4cloud"`
+	Yorc                   Yorc           `mapstructure:"yorc"`
+	ChromeDP               ChromeDP       `mapstructure:"chromedp"`
+	Infrastructure         Infrastructure `mapstructure:"infrastructure"`
+}
+
+type Infrastructure struct {
+	Name string `mapstructure:"name"`
 }
 
 type Alien struct {
@@ -46,6 +51,7 @@ func initConfig() {
 	viper.BindEnv("yorc.resources_prefix", "YORC_RESOURCES_PREFIX")
 	viper.BindEnv("chromedp.no_headless", "CHROMEDP_NO_HEADLESS")
 	viper.BindEnv("chromedp.timeout", "CHROMEDP_TIMEOUT")
+	viper.BindEnv("infrastructure.name", "INFRASTRUCTURE_NAME")
 
 	viper.SetDefault("keep_failed_applications", false)
 	viper.SetDefault("alien4cloud.url", "http://127.0.0.1:8088")
