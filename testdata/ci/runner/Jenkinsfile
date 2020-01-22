@@ -275,8 +275,9 @@ spec:
                                             export ALIEN4CLOUD_URL="\${alien_url}"
                                             export ALIEN4CLOUD_CA="./runner/ssl/rootCA.crt"
                                             export ALIEN4CLOUD_PASSWORD="${env.a4cPassword}"
-                                            godog ${godog_tags}&&@${env.INFRASTRUCTURE}' -f cucumber >  ./reports/tests-godog-junit.xml
-                                            cat ./reports/tests-godog-junit.xml
+                                            export INFRASTRUCTURE_NAME="${env.INFRASTRUCTURE}"
+                                            godog ${godog_tags}&&@${env.INFRASTRUCTURE}' -f cucumber >  ./reports/tests-godog.xml
+                                            cat ./reports/tests-godog.xml
                                         """
                                     }
                                 }
@@ -285,7 +286,7 @@ spec:
 
                                         echo currentBuild.currentResult
                                         echo currentBuild.result
-                                        cucumber 'testdata/ci/reports/tests-godog-junit.xml'
+                                        cucumber 'testdata/ci/reports/tests-godog.xml'
 
                                     }
                                     success {
