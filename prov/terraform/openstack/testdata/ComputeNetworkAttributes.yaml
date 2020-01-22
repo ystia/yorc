@@ -1,0 +1,39 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: test
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+description: ""
+
+imports:
+  - <yorc-openstack-types.yml>
+
+topology_template:
+  node_templates:
+    Network:
+      type: yorc.nodes.openstack.Network
+      properties:
+        admin_network: false
+        ip_version: 4
+    ComputeA:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        flavor: 2
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
+      requirements:
+        - network:
+            type_requirement: network
+            node: Network
+            capability: tosca.capabilities.Connectivity
+            relationship: tosca.relationships.Network
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: u
+            secure: true
+            protocol: tcp
+            network_name: PUBLIC
+            initiator: source

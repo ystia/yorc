@@ -17,6 +17,7 @@ package internal
 import (
 	"context"
 	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
@@ -27,7 +28,9 @@ import (
 
 // StoreAllTypes stores all types of a given topology
 func StoreAllTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
-	storeDataTypes(ctx, topology, topologyPrefix, importPath)
+	if err := storeDataTypes(ctx, topology, topologyPrefix, importPath); err != nil {
+		return err
+	}
 	if err := storeNodeTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
@@ -48,13 +51,13 @@ func StoreAllTypes(ctx context.Context, topology tosca.Topology, topologyPrefix,
 
 // storePolicyTypes stores topology policy types
 func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for policyName, policyType := range topology.PolicyTypes {
 		key := path.Join(topologyPrefix, "types", policyName)
 		policyType.ImportPath = importPath
 		policyType.Base = tosca.TypeBasePOLICY
 
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   key,
 			Value: policyType,
 		})
@@ -65,12 +68,12 @@ func storePolicyTypes(ctx context.Context, topology tosca.Topology, topologyPref
 // storeDataTypes store data types
 func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	dataTypesPrefix := path.Join(topologyPrefix, "types")
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for dataTypeName, dataType := range topology.DataTypes {
 		dtPrefix := path.Join(dataTypesPrefix, dataTypeName)
 		dataType.ImportPath = importPath
 		dataType.Base = tosca.TypeBaseDATA
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   dtPrefix,
 			Value: dataType,
 		})
@@ -81,13 +84,13 @@ func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix
 
 // storeNodeTypes stores topology types
 func storeNodeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
 		nodeType.ImportPath = importPath
 		nodeType.Base = tosca.TypeBaseNODE
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   nodeTypePrefix,
 			Value: nodeType,
 		})
@@ -97,12 +100,12 @@ func storeNodeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix
 
 // storeRelationshipTypes stores topology relationships types
 func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for relationName, relationType := range topology.RelationshipTypes {
 		relationTypePrefix := path.Join(topologyPrefix, "types", relationName)
 		relationType.ImportPath = importPath
 		relationType.Base = tosca.TypeBaseRELATIONSHIP
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   relationTypePrefix,
 			Value: relationType,
 		})
@@ -112,12 +115,12 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 
 // storeCapabilityTypes stores topology capabilities types
 func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for capabilityTypeName, capabilityType := range topology.CapabilityTypes {
 		capabilityTypePrefix := path.Join(topologyPrefix, "types", capabilityTypeName)
 		capabilityType.ImportPath = importPath
 		capabilityType.Base = tosca.TypeBaseCAPABILITY
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   capabilityTypePrefix,
 			Value: capabilityType,
 		})
@@ -127,7 +130,7 @@ func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topology
 
 // storeArtifactTypes stores topology artifacts types
 func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	typesPrefix := path.Join(topologyPrefix, "types")
 	for artTypeName, artType := range topology.ArtifactTypes {
 		// TODO(loicalbertin): remove it when migrating to Alien 2.2. Currently alien-base-types has org.alien4cloud.artifacts.AnsiblePlaybook types that do not derives from tosca.artifacts.Implementation
@@ -140,7 +143,7 @@ func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPr
 		artTypePrefix := path.Join(typesPrefix, artTypeName)
 		artType.ImportPath = importPath
 		artType.Base = tosca.TypeBaseARTIFACT
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   artTypePrefix,
 			Value: artType,
 		})

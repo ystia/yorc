@@ -191,7 +191,7 @@ func registerImplementationTypes(ctx context.Context, deploymentID string) error
 		if err != nil {
 			if IsTypeMissingError(err) {
 				// Bypassing this error it may happen in case of an used type let's trust Alien
-				events.SimpleLogEntry(events.LogLevelWARN, deploymentID).RegisterAsString(fmt.Sprintf("[WARNING] %s", err))
+				events.SimpleLogEntry(ctx, events.LogLevelWARN, deploymentID).RegisterAsString(fmt.Sprintf("[WARNING] %s", err))
 				continue
 			}
 			return err

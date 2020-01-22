@@ -206,6 +206,10 @@ Globals Command-line options
 
   * ``--disable_ssh_agent``: Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.
 
+.. _option_upgrades_concurrency_cmd:
+
+  * ``--concurrency_limit_for_upgrades``: Limit of concurrency used in Upgrade processes. If not set the default value of `1000` will be used.
+
 .. _yorc_config_file_section:
 
 Configuration files
@@ -299,6 +303,10 @@ Below is an example of configuration file with TLS enabled.
 .. _option_disable_ssh_agent_cfg:
 
   * ``disable_ssh_agent``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
+
+.. _option_upgrades_concurrency_cfg:
+
+  * ``concurrency_limit_for_upgrades``: Equivalent to :ref:`--concurrency_limit_for_upgrades <option_upgrades_concurrency_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -766,6 +774,9 @@ Environment variables
 
   * ``YORC_CONSUL_TLS_HANDSHAKE_TIMEOUT``: Equivalent to :ref:`--consul_tls_handshake_timeout <option_consul_tls_handshake_timeout_cmd>` command-line flag.
 
+.. _option_consul_store_txn_timeout_env:
+
+  * ``YORC_CONSUL_STORE_TXN_TIMEOUT``: Allows to activate the feature that packs ConsulStore operations into transactions. If set to a valid Go duration, operations are packed into transactions up to 64 ops. This timeout represent the time to wait for new operations before sending an incomplete (less than 64 ops) transaction to Consul.
 
 .. _option_pub_routines_env:
 
@@ -847,6 +858,10 @@ Environment variables
 
   * ``YORC_DISABLE_SSH_AGENT``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
 
+.. _option_upgrades_concurrency_env:
+
+  * ``YORC_CONCURRENCY_LIMIT_FOR_UPGRADES``: Equivalent to :ref:`--concurrency_limit_for_upgrades <option_upgrades_concurrency_cmd>` command-line flag.
+
 .. _option_log_env:
 
   * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
@@ -878,7 +893,7 @@ Environment variables
 .. _locations_configuration:
 
 Locations configuration
------------------------------
+-----------------------
 
 A location allows Yorc to connect to an infrastructure. A location is identified uniquely by its ``name`` property.
 Its ``type`` property Specifies the infrastructure related to this location. Yorc can handle multiple locations of the same infrastructure.
@@ -1108,6 +1123,180 @@ An alternative way to specify user credentials for SSH connection to the Slurm C
 In this case, Yorc gives priority to the application provided properties.
 Moreover, if all the applications provide their own user credentials, the configuration properties user_name, password and private_key, can be omitted.
 See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
+
+.. _option_storage_config:
+
+Storage configuration
+---------------------
+
+Different artifacts (topologies, logs, events, tasks...) are stored by Yorc during an application deployment.
+
+Previously, everything was stored in Consul KV. 
+Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
+Yorc can now stores the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
+
+If defined, the ``storage`` entry may specify a ``reset`` property and a ``stores`` property that contains the different store definitions.
+The ``reset`` property allows to redefine the stores when Yorc re-starts with a modified storage configuration.
+
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                |                          Description                             | Data Type |   Required       | Default         |
+|                                  |                                                                  |           |                  |                 |
++==================================+==================================================================+===========+==================+=================+
+| ``reset``                        | See :ref:`Storage reset note <storage_reset_note>`               | boolean   | no               |   False         |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``stores``                       | Stores configuration                                             | array     | no               | See Store types |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+
+So now, users can configure different store types for storing the different kind of artifacts, and using different stores implementations.
+
+Currently Yorc supports 3 store types: ``Deployment``, ``Log`` and ``Event``. 
+Yorc also supports 3 store implementations: ``consul``, ``fileCache`` and ``cipherFileCache``.
+By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
+
+A store configuration is defined with:
+
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                |                          Description                             | Data Type |   Required       | Default         |
+|                                  |                                                                  |           |                  |                 |
++==================================+==================================================================+===========+==================+=================+
+| ``name``                         | unique store ID                                                  | string    | no               |  generated      |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``migrate_data_from_consul``     | Log and Event data migration from consul. See note below.        | bool      | no               | false           |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``implementation``               | Store implementation. See the list below.                        | string    | yes              |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``types``                        | Store types handled by this instance. See the list below.        | array     | yes              |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+
+``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation. 
+This is usefull when a new store is configured (different from consul...) for logs or events.
+
+
+Store types
+~~~~~~~~~~~
+
+Currently 3 different store types are supported by Yorc:
+
+Deployment
+^^^^^^^^^^
+
+This store type contains data representing the Tosca topologies types (data, nodes, policies, artifacts, relationships, capabilities) and templates (nodes, polocies, repositories, imports, workflows).
+
+Data in this store is written once when a topology is parsed, then read many times during application lifecycle. ``fileCache`` is the default implementation for this store type.
+
+Log
+^^^
+
+Store that contains the applicative logs, also present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
+
+If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
+
+Event
+^^^^^
+
+Store that contains the applicative events, also present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
+
+Store implementations
+~~~~~~~~~~~~~~~~~~~~~
+
+Currently Yorc provide 3 implementations with the following names:
+
+consul
+^^^^^^
+
+This is the Consul KV store used by Yorc for main internal storage stuff. For example, the configuration of the stores is kept in the Consul KV.
+As Consul is already configurable here: :ref:`Consul configuration<yorc_config_file_consul_section>`, no other configuration is provided in this section.
+
+fileCache
+^^^^^^^^^
+
+This is a file store with a cache system.
+
+Here are specific properties for this implementation:
+
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                   |           Description                              | Data Type |   Required       | Default         |
++=====================================+====================================================+===========+==================+=================+
+| ``root_dir``                        | Root directory used for file storage               | string    | no               |   work/store    |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e7 (10 M)    |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |  1 << 30 (1 GB) |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``blocking_query_default_timeout``  | default timeout for blocking queries               | string    | no               |   5m (5 minutes)|
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
+For more information on cache properties, you can refer to `Ristretto README  <https://github.com/dgraph-io/ristretto>`_
+
+cipherFileCache
+^^^^^^^^^^^^^^^
+
+This is a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
+
+Here are specific properties for this implementation in addition to ``fileCache`` properties:
+
++----------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                |           Description                              | Data Type |   Required       | Default         |
++==================================+====================================================+===========+==================+=================+
+| ``passphrase``                   | Passphrase used to generate the encryption key     | string    | yes              |                 |
+|                                  | Required to be 32-bits length                      |           |                  |                 |
++----------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
+
+``Passphrase`` can be set with ``Secret function`` and retrieved from Vault as explained in the Vault integration chapter.
+
+
+Here is a JSON example of stores configuration with a cipherFileStore implementation for logs.
+
+.. code-block:: JSON
+
+  {
+  "storage": {
+    "reset": false,
+    "stores": [
+      {
+        "name": "myCipherFileStore",
+        "implementation": "cipherFileCache",
+        "migrate_data_from_consul": true,
+        "types":  ["Log"],
+        "properties": {
+          "root_dir": "/mypath/to/store",
+          "passphrase": "myverystrongpasswordo32bitlength"
+        }
+      }
+   ]}
+  }
+
+The same sample in YAML
+
+.. code-block:: YAML
+
+    storage:
+      reset: false
+      stores:
+      - name: myCipherFileStore
+        implementation: cipherFileCache
+        migrate_data_from_consul: true
+        types:
+        - Log
+        properties:
+          root_dir: "/mypath/to/store"
+          passphrase: "myverystrongpasswordo32bitlength"
+
+.. _storage_reset_note:
+
+Stores configuration is saved once when Yorc server starts. If you want to re-initialize storage, you have to set the ``reset`` property to True and restart Yorc.
+
+.. warning::
+    Pay attention that if any data is still existing after reset, Yorc will ignore it.
+
+If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
+
+If any storage configuration is set with partial stores types, the missing store types will be added with default implementations.
 
 Vault configuration
 -------------------

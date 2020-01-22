@@ -63,7 +63,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If id parameter not set (id == ""), StatusEvents returns events for all the deployments
-	evts, lastIdx, err := events.StatusEvents(id, waitIndex, timeout)
+	evts, lastIdx, err := events.StatusEvents(ctx, id, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
@@ -111,9 +111,9 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var lastIdx uint64
 
 	// If id parameter not set (id == ""), LogsEvents returns logs for all the deployments
-	logs, idx, err := events.LogsEvents(id, waitIndex, timeout)
+	logs, idx, err := events.LogsEvents(ctx, id, waitIndex, timeout)
 	if err != nil {
-		log.Panicf("Can't retrieve events: %v", err)
+		log.Panicf("Can't retrieve logs: %v", err)
 	}
 	lastIdx = idx
 

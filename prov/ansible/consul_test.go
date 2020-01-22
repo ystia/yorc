@@ -15,6 +15,7 @@
 package ansible
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ystia/yorc/v4/log"
@@ -23,8 +24,12 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulAnsiblePackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	log.SetDebug(true)
 	t.Run("TestExecution", func(t *testing.T) {
 		testExecution(t, srv)

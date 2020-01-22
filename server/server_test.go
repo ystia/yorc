@@ -27,7 +27,6 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/registry"
-	"github.com/ystia/yorc/v4/testutil"
 	"github.com/ystia/yorc/v4/vault"
 )
 
@@ -88,21 +87,6 @@ func Test_initVaultClient(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestServerWithConsul(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
-
-	t.Run("initConsulClient", func(t *testing.T) {
-		testInitConsulClient(t, srv, client)
-	})
-	t.Run("initLocationManager", func(t *testing.T) {
-		testInitLocationManager(t, srv)
-	})
-	t.Run("testRunServer", func(t *testing.T) {
-		testRunServer(t, srv, client)
-	})
 }
 
 func testInitConsulClient(t *testing.T, srv *ctu.TestServer, client *api.Client) {

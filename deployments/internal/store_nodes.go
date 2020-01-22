@@ -17,6 +17,7 @@ package internal
 import (
 	"context"
 	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
@@ -27,7 +28,7 @@ import (
 func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath, rootDefPath string) error {
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
 		for _, artDef := range node.Artifacts {
@@ -35,7 +36,7 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			artDef.File = artFile
 		}
 
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   nodePrefix,
 			Value: node,
 		})
