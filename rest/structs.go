@@ -202,8 +202,8 @@ type NodeInstances struct {
 
 // WorkflowRequest allows to provide instances selection for nodes in a workflow
 type WorkflowRequest struct {
-	NodesInstances []NodeInstances                   `json:"nodesinstances"`
-	Inputs         map[string]*tosca.ValueAssignment `json:"inputs"`
+	NodesInstances []NodeInstances        `json:"nodesinstances"`
+	Inputs         map[string]interface{} `json:"inputs"`
 }
 
 // WorkflowsCollection is a collection of workflows links

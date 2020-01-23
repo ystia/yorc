@@ -112,7 +112,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Adding workflow inputs in task data
 		for inputName, inputValue := range wfRequest.Inputs {
-			data[path.Join("inputs", inputName)] = inputValue.String()
+			data[path.Join("inputs", inputName)] = fmt.Sprintf("%v", inputValue)
 		}
 	}
 

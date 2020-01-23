@@ -26,8 +26,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ystia/yorc/v4/tosca"
 )
 
 func testDeploymentWorkflowHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -46,10 +44,8 @@ func testExecuteWorkflow(t *testing.T, client *api.Client, srv *testutil.TestSer
 	}{
 		{"execWithInput",
 			WorkflowRequest{
-				Inputs: map[string]*tosca.ValueAssignment{
-					"param1": &tosca.ValueAssignment{
-						Type:  tosca.ValueAssignmentLiteral,
-						Value: "value1"}}},
+				Inputs: map[string]interface{}{
+					"param1": "value1"}},
 			false},
 	}
 	for _, tt := range tests {
@@ -59,9 +55,6 @@ func testExecuteWorkflow(t *testing.T, client *api.Client, srv *testutil.TestSer
 			wfEndpoint := fmt.Sprintf("/deployments/%s/workflows/%s", deploymentID, "testWorkflow")
 
 			body, err := json.Marshal(tt.request)
-			if tt.wantErr {
-
-			}
 			require.NoError(t, err, "unexpected error marshalling data to provide body request")
 			req := httptest.NewRequest("POST", wfEndpoint, bytes.NewBuffer(body))
 			req.Header.Add("Content-Type", mimeTypeApplicationJSON)
