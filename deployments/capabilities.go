@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -354,6 +355,35 @@ func GetInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, node
 	}
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	return GetCapabilityPropertyValue(ctx, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
+}
+
+// LookupInstanceCapabilityAttributeValue executes a lookup to retrieve instance capability attribute value when attribute can be long to retrieve
+func LookupInstanceCapabilityAttributeValue(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, nestedKeys ...string) (string, error) {
+	log.Debugf("Capability attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q, capability:%q", attributeName, deploymentID, nodeName, instanceName, capabilityName)
+	res := make(chan string, 1)
+	go func() {
+		for {
+			if attr, _ := GetInstanceCapabilityAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, nestedKeys...); attr != nil && attr.RawString() != "" {
+				if attr != nil && attr.RawString() != "" {
+					res <- attr.RawString()
+					return
+				}
+			}
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	select {
+	case val := <-res:
+		return val, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }
 
 func getEndpointCapabilitityHostIPAttributeNameAndNetName(ctx context.Context, deploymentID, nodeName, capabilityName string) (string, *TOSCAValue, error) {

@@ -17,12 +17,10 @@ package openstack
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"path"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -93,7 +91,7 @@ func addServerGroupMembership(ctx context.Context, deploymentID, nodeName string
 	}
 
 	if len(reqs) == 1 {
-		id, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, reqs[0].Node, "0", "id")
+		id, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, reqs[0].Node, deployments.DefaultInstanceName, "id")
 		if err != nil {
 			return err
 		}
@@ -246,40 +244,11 @@ func getVolumeID(ctx context.Context, deploymentID, volumeNodeName, instanceName
 	var volumeID string
 	log.Debugf("Looking for volume_id")
 	volumeIDValue, err := deployments.GetNodePropertyValue(ctx, deploymentID, volumeNodeName, "volume_id")
-	if err != nil {
+	if err != nil || volumeIDValue != nil && volumeIDValue.RawString() != "" {
 		return volumeID, err
 	}
-	if volumeIDValue == nil || volumeIDValue.RawString() == "" {
-		resultChan := make(chan string, 1)
-		go func() {
-			for {
-				// ignore errors and retry
-				volID, _ := deployments.GetInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "volume_id")
-				// As volumeID is an optional property GetInstanceAttribute then GetProperty
-				// may return an empty volumeID so keep checking as long as we have it
-				if volID != nil && volID.RawString() != "" {
-					resultChan <- volID.RawString()
-					return
-				}
-				select {
-				case <-time.After(1 * time.Second):
-				case <-ctx.Done():
-					// context cancelled, give up!
-					return
-				}
-			}
-		}()
-		select {
-		case volumeID = <-resultChan:
-		case <-ctx.Done():
-			return volumeID, ctx.Err()
 
-		}
-	} else {
-		volumeID = volumeIDValue.RawString()
-	}
-
-	return volumeID, err
+	return deployments.LookupInstanceAttributeValue(ctx, deploymentID, volumeNodeName, instanceName, "volume_id")
 }
 
 func getComputeInstanceNetworks(ctx context.Context, opts osInstanceOptions) ([]ComputeNetwork, error) {
@@ -414,28 +383,12 @@ func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
 	instanceName := opts.instanceName
 
 	log.Debugf("Looking for Floating IP")
-	var floatingIP string
-	resultChan := make(chan string, 1)
-	go func() {
-		for {
-			if fip, _ := deployments.GetInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, "0", "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
-				resultChan <- fip.RawString()
-				return
-			}
 
-			select {
-			case <-time.After(1 * time.Second):
-			case <-ctx.Done():
-				// context cancelled, give up!
-				return
-			}
-		}
-	}()
-	select {
-	case floatingIP = <-resultChan:
-	case <-ctx.Done():
-		return ctx.Err()
+	floatingIP, err := deployments.LookupInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, deployments.DefaultInstanceName, "endpoint", "floating_ip_address")
+	if err != nil {
+		return err
 	}
+
 	floatingIPAssociate := ComputeFloatingIPAssociate{
 		Region:     instance.Region,
 		FloatingIP: floatingIP,
@@ -460,10 +413,7 @@ func computeNetworkAttributes(ctx context.Context, opts osInstanceOptions,
 	instance *ComputeInstance, outputs map[string]string) error {
 
 	log.Debugf("Looking for Network id for %q", networkNodeName)
-
-	// As Network instance is unique
-	defaultNetworkInstanceName := "0"
-	networkID, err := deployments.LookupInstanceAttributeValue(ctx, opts.deploymentID, networkNodeName, defaultNetworkInstanceName, "network_id")
+	networkID, err := deployments.LookupInstanceAttributeValue(ctx, opts.deploymentID, networkNodeName, deployments.DefaultInstanceName, "network_id")
 	if err != nil {
 		return err
 	}
