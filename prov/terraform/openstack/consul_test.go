@@ -47,6 +47,9 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("fipOSInstance", func(t *testing.T) {
 			testFipOSInstance(t, srv)
 		})
+		t.Run("fipMissingOSInstance", func(t *testing.T) {
+			testFipMissingOSInstance(t, srv)
+		})
 		t.Run("fipOSInstanceNotAllowed", func(t *testing.T) {
 			testFipOSInstanceNotAllowed(t, srv)
 		})

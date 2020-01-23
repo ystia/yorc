@@ -21,6 +21,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -229,6 +230,42 @@ func testFipOSInstance(t *testing.T, srv *testutil.TestServer) {
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "attributes/private_address"), "expected private_address instance attribute output")
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 
+}
+
+func testFipMissingOSInstance(t *testing.T, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": true,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
+
+	g := osGenerator{}
+	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
+	outputs := make(map[string]string, 0)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(3 * time.Second)
+		cancel()
+	}()
+
+	err := g.generateOSInstance(
+		ctx,
+		osInstanceOptions{
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			locationProps:  locationProps,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
+	require.Errorf(t, err, "expected context canceled")
 }
 
 func testFipOSInstanceNotAllowed(t *testing.T, srv *testutil.TestServer) {
