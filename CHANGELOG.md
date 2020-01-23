@@ -54,6 +54,7 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 * An error during deployment purge may let the deployment in a wrong state ([GH-572](https://github.com/ystia/yorc/issues/572))
 * Can have current deployment and undeployment on the same application on specific conditions ([GH-567](https://github.com/ystia/yorc/issues/567))
 * API calls to deploy and update a deployment will now prevent other API calls that may modify a deployment to run at the same time
+* Yorc HTTP health check is defined on localhost address ([GH-585](https://github.com/ystia/yorc/issues/585))
 
 ## 4.0.0-M7 (November 29, 2019)
 
