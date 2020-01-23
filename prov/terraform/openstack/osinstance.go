@@ -384,7 +384,7 @@ func computeFloatingIPAddress(ctx context.Context, opts osInstanceOptions,
 
 	log.Debugf("Looking for Floating IP")
 
-	floatingIP, err := deployments.LookupInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, deployments.DefaultInstanceName, "endpoint", "floating_ip_address")
+	floatingIP, err := deployments.LookupInstanceCapabilityAttributeValue(ctx, deploymentID, networkNodeName, opts.instanceName, "endpoint", "floating_ip_address")
 	if err != nil {
 		return err
 	}
