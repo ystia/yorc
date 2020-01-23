@@ -42,14 +42,18 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chS
 	var sslEnabled bool
 	sslEnabled = ((&cfg.KeyFile != nil) && len(cfg.KeyFile) != 0) || ((&cfg.CertFile != nil) && len(cfg.CertFile) != 0)
 
-	var httpString string
+	protocol := "http"
 	if sslEnabled {
-		httpString = fmt.Sprintf("https://localhost:%d/server/health", cfg.HTTPPort)
-		log.Debugf("Register Yorc service with HTTPS check: %s", httpString)
-	} else {
-		httpString = fmt.Sprintf("http://localhost:%d/server/health", cfg.HTTPPort)
-		log.Debugf("Register Yorc service with HTTP check: %s", httpString)
+		protocol = "https"
 	}
+
+	address := "localhost"
+	if cfg.HTTPAddress != config.DefaultHTTPAddress {
+		address = cfg.HTTPAddress
+	}
+
+	yorcURL := fmt.Sprintf("%s://%s:%d/server/health", protocol, address, cfg.HTTPPort)
+	log.Debugf("Register Yorc service with check on URL: %s", yorcURL)
 
 	service = &api.AgentServiceRegistration{
 		Name: YorcService,
@@ -58,7 +62,7 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chS
 		Check: &api.AgentServiceCheck{
 			Name:          "HTTP check on yorc port",
 			Interval:      "5s",
-			HTTP:          httpString,
+			HTTP:          yorcURL,
 			Method:        "GET",
 			TLSSkipVerify: false,
 			Header:        map[string][]string{"Accept": []string{"application/json"}},
