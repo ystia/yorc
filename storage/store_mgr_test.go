@@ -219,7 +219,6 @@ func testLoadStoresWithMissingPassphraseForCipherFileCache(t *testing.T, srv1 *t
 }
 
 func testLoadStoresWithMissingMandatoryParameters(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	t.Parallel()
 	tests := []struct {
 		name     string
 		myStores []config.Store
@@ -272,7 +271,6 @@ func testLoadStoresWithMissingMandatoryParameters(t *testing.T, srv1 *testutil.T
 }
 
 func testLoadStoresWithGeneratedName(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	t.Parallel()
 	tests := []struct {
 		name     string
 		myStores []config.Store

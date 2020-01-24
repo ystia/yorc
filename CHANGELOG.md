@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 4.0.0-M8 (January 24, 2020)
+
 ### BREAKING CHANGES
 
 #### Refactor Yorc storage system
@@ -55,6 +57,7 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 * Can have current deployment and undeployment on the same application on specific conditions ([GH-567](https://github.com/ystia/yorc/issues/567))
 * API calls to deploy and update a deployment will now prevent other API calls that may modify a deployment to run at the same time
 * Yorc HTTP health check is defined on localhost address ([GH-585](https://github.com/ystia/yorc/issues/585))
+* Unable to get network ID attribute for Openstack many compute instances ([GH-584](https://github.com/ystia/yorc/issues/584))
 
 ## 4.0.0-M7 (November 29, 2019)
 
