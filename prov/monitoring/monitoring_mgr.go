@@ -115,7 +115,6 @@ func (mgr *monitoringMgr) startMonitoring() {
 
 			q := &api.QueryOptions{WaitIndex: waitIndex}
 			checks, rMeta, err := mgr.cc.KV().Keys(path.Join(consulutil.MonitoringKVPrefix, "checks")+"/", "/", q)
-			log.Debugf("Found %d checks", len(checks))
 			if err != nil {
 				handleError(err)
 				continue
@@ -126,7 +125,6 @@ func (mgr *monitoringMgr) startMonitoring() {
 				continue
 			}
 			waitIndex = rMeta.LastIndex
-			log.Debugf("Monitoring Wait index: %d", waitIndex)
 			for _, key := range checks {
 				id := path.Base(key)
 				check, err := NewCheckFromID(id)

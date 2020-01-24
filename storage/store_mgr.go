@@ -18,9 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	uuid "github.com/satori/go.uuid"
+	"math/rand"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/matryer/resync"
 	"github.com/pkg/errors"
@@ -243,8 +244,9 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 		}
 
 		if cfgStore.Name == "" {
-			extra := uuid.NewV4()
-			cfgStore.Name = fmt.Sprintf("%s%s-%s", cfgStore.Implementation, strings.Join(cfgStore.Types, ""), extra[0:3])
+			rand.Seed(time.Now().UnixNano())
+			extra := rand.Intn(100)
+			cfgStore.Name = fmt.Sprintf("%s%s-%d", cfgStore.Implementation, strings.Join(cfgStore.Types, ""), extra)
 		}
 
 		// Check store name is unique
