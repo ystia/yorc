@@ -1,0 +1,174 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: Test
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+  - test_input_types.yaml
+
+topology_template:
+  node_templates:
+    VirtualMachine:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials: 
+              keys: 
+                0: "/var/yorc/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            num_cpus: 2
+            disk_size: "40 GB"
+            mem_size: "4 GB"
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    GreetingsComponent:
+      type: org.ystia.yorc.samples.GreetingsComponentType
+      interfaces:
+        custom:
+          inputs:
+            greetings_user: {get_input: user}
+          say_goodbye:
+            implementation: scripts/goodbye.sh
+          say_hello:
+            implementation: scripts/hello.sh
+      requirements:
+        - hostedOnVirtualMachineHost:
+            type_requirement: host
+            node: VirtualMachine
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+  workflows:
+    greet:
+      inputs:
+        user:
+          type: string
+      steps:
+        GreetingsComponent_say_goodbye:
+          target: GreetingsComponent
+          activities:
+            - call_operation: custom.say_goodbye
+        GreetingsComponent_say_hello:
+          target: GreetingsComponent
+          activities:
+            - call_operation: custom.say_hello
+          on_success:
+            - GreetingsComponent_say_goodbye
+    install:
+      steps:
+        VirtualMachine_install:
+          target: VirtualMachine
+          activities:
+            - delegate: install
+          on_success:
+            - GreetingsComponent_initial
+        GreetingsComponent_creating:
+          target: GreetingsComponent
+          activities:
+            - set_state: creating
+          on_success:
+            - GreetingsComponent_create
+        GreetingsComponent_started:
+          target: GreetingsComponent
+          activities:
+            - set_state: started
+        GreetingsComponent_created:
+          target: GreetingsComponent
+          activities:
+            - set_state: created
+          on_success:
+            - GreetingsComponent_starting
+        GreetingsComponent_starting:
+          target: GreetingsComponent
+          activities:
+            - set_state: starting
+          on_success:
+            - GreetingsComponent_start
+        GreetingsComponent_start:
+          target: GreetingsComponent
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - GreetingsComponent_started
+        GreetingsComponent_create:
+          target: GreetingsComponent
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - GreetingsComponent_created
+        GreetingsComponent_initial:
+          target: GreetingsComponent
+          activities:
+            - set_state: initial
+          on_success:
+            - GreetingsComponent_creating
+    uninstall:
+      steps:
+        GreetingsComponent_deleted:
+          target: GreetingsComponent
+          activities:
+            - set_state: deleted
+          on_success:
+            - VirtualMachine_uninstall
+        GreetingsComponent_deleting:
+          target: GreetingsComponent
+          activities:
+            - set_state: deleting
+          on_success:
+            - GreetingsComponent_deleted
+        VirtualMachine_uninstall:
+          target: VirtualMachine
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        GreetingsComponent_starting:
+          target: GreetingsComponent
+          activities:
+            - set_state: starting
+          on_success:
+            - GreetingsComponent_start
+        VirtualMachine_start:
+          target: VirtualMachine
+          activities:
+            - delegate: start
+          on_success:
+            - GreetingsComponent_starting
+        GreetingsComponent_start:
+          target: GreetingsComponent
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - GreetingsComponent_started
+        GreetingsComponent_started:
+          target: GreetingsComponent
+          activities:
+            - set_state: started
+    stop:
+      steps:
+        VirtualMachine_stop:
+          target: VirtualMachine
+          activities:
+            - delegate: stop
+    run:
+    cancel:
