@@ -355,7 +355,6 @@ spec:
                                         cp /use/src/app/out/* ${env.WORKSPACE}/html-reports/
                                         cd ${env.WORKSPACE}/html-reports
                                         apk add --update wget sed ca-certificates openssl
-                                        ca-certificates
                                         wget -p -k --force-html -i index-${env.INFRASTRUCTURE}.html
                                         sed -i -e 's@https\\?://@./@g' index-${env.INFRASTRUCTURE}.html
                                     """
