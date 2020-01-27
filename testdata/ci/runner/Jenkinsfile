@@ -77,7 +77,7 @@ spec:
             steps {
 
                 script {
-                    def godog_tags = " -t '@CI"
+                    def godog_tags = "@CI"
                     if (!params.PREMIUM) {
                         godog_tags += " && ~@premium"
                     }
@@ -267,26 +267,34 @@ spec:
                             stage('Run tests') {
                                 steps {
                                     dir('testdata/ci/') {
-                                        sh """#!/usr/bin/env bash
-                                            set -x
-                                            set -eo pipefail
-                                            mkdir -p reports
-                                            alien_url=\$(cat ./runner/bootstrap-alienurl.txt)
-                                            export ALIEN4CLOUD_URL="\${alien_url}"
-                                            export ALIEN4CLOUD_CA="./runner/ssl/rootCA.crt"
-                                            export ALIEN4CLOUD_PASSWORD="${env.a4cPassword}"
-                                            export INFRASTRUCTURE_NAME="${env.INFRASTRUCTURE}"
-                                            godog ${godog_tags}&&@${env.INFRASTRUCTURE}' -f cucumber >  ./reports/tests-godog.xml
-                                            cat ./reports/tests-godog.xml
-                                        """
+                                        catchError(buildResult: 'SUCCESS', message: 'Tests failed', stageResult: 'UNSTABLE') {
+
+                                            sh("""#!/usr/bin/env bash
+                                                set -x
+                                                set -eo pipefail
+                                                mkdir -p reports
+                                                alien_url=\$(cat ./runner/bootstrap-alienurl.txt)
+                                                export ALIEN4CLOUD_URL="\${alien_url}"
+                                                export ALIEN4CLOUD_CA="./runner/ssl/rootCA.crt"
+                                                export ALIEN4CLOUD_PASSWORD="${env.a4cPassword}"
+                                                export INFRASTRUCTURE_NAME="${env.INFRASTRUCTURE}"
+                                                godog -t '${godog_tags} && @${env.INFRASTRUCTURE}' -f cucumber >  ./reports/tests-godog.json
+                                                cat ./reports/tests-godog.json
+                                            """)
+
+                                            script {
+                                                env."tests_${env.INFRASTRUCTURE}_succeeded" = true
+                                            }
+                                        }
                                     }
+                                    stash includes: 'testdata/ci/reports/tests-godog.json', name: 'godog-json-report'
+
                                 }
                                 post {
                                     always {
-
                                         echo currentBuild.currentResult
                                         echo currentBuild.result
-                                        cucumber 'testdata/ci/reports/tests-godog.xml'
+                                        cucumber 'testdata/ci/reports/tests-godog.json'
 
                                     }
                                     success {
@@ -298,8 +306,61 @@ spec:
                                     }
                                 }
                             }
+                            stage('Generate HTML reports') {
+                                agent {
+                                    kubernetes {
+                                        cloud "${K8S_CLOUD_NAME}"
+                                        defaultContainer 'yorc-ci-exec'
+                                        yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: yorc-ci-exec
+    image: ystia/cucumber-html-reporter:latest
+    command:
+    - cat
+    tty: true
+    env:
+    - name: "CHR_APP_launchReport"
+      value: "false"
+    - name: "CHR_APP_jsonFile"
+      value: "in/tests-godog.json"
+    - name: "CHR_APP_output"
+      value: "out/index-${env.INFRASTRUCTURE}.html"
+    - name: "CHR_APP_metadata_infrastructure"
+      value: "${env.INFRASTRUCTURE}"
+
+"""
+                                    }
+                                }
+                                steps {
+                                    sh 'mkdir -p /use/src/app/in /use/src/app/out'
+                                    unstash name: 'godog-json-report'
+                                    sh """
+                                        cp ${env.WORKSPACE}/testdata/ci/reports/tests-godog.json /use/src/app/in/
+                                        cd /use/src/app
+                                        npm start
+                                        mkdir -p ${env.WORKSPACE}/html-reports
+                                        cp /use/src/app/out/* ${env.WORKSPACE}/html-reports/
+                                        cd ${env.WORKSPACE}/html-reports
+                                        apk add --update wget sed
+                                        wget -p -k --force-html -i index-${env.INFRASTRUCTURE}.html
+                                        sed -i -e 's@https\\?://@./@g' index-${env.INFRASTRUCTURE}.html
+                                    """
+
+                                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'html-reports', reportFiles: "index-${env.INFRASTRUCTURE}.html", reportName: "Integration tests Report [${env.INFRASTRUCTURE}]", reportTitles: ''])
+                                }
+                            }
                         }
                         post {
+                            always {
+                                script {
+                                    if (!env."tests_${env.INFRASTRUCTURE}_succeeded") {
+                                        currentBuild.result = "FAILURE"
+                                    }
+                                }
+                            }
                             cleanup {
                                 dir('testdata/ci/runner') {
                                     echo 'Un-bootstrap'
