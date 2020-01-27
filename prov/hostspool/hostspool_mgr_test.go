@@ -1166,6 +1166,78 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }
 
+func testConsulManagerAllocateWithRoundRobinPlacement(t *testing.T, cc *api.Client) {
+	location := "myLocation1"
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+	noFilters := make([]labelsutil.Filter, 0)
+	var hostpool = createHosts(2)
+
+	resources := map[string]string{"host.num_cpus": "1", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+
+	// Apply this definition
+	var checkpoint uint64
+	err := cm.Apply(location, hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+	// Check the pool now
+	hosts, warnings, newCkpt, err := cm.List(location)
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 2)
+	assert.NotEqual(t, uint64(0), newCkpt)
+	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
+
+	// Allocate host1: first allocation
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources, PlacementPolicy: roundRobinPlacement}
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err := cm.Allocate(location, alloc1, noFilters...)
+	assert.Equal(t, hostpool[0].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err := cm.GetHost(location, allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test1", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test1", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test1", allocatedHost.Allocations[0].NodeName)
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
+
+	// Allocate host1: 2nd allocation
+	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: resources, PlacementPolicy: roundRobinPlacement}
+	allocatedName, warnings, err = cm.Allocate(location, alloc2, noFilters...)
+	assert.Equal(t, hostpool[1].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err = cm.GetHost(location, allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test2", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test2", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test2", allocatedHost.Allocations[0].NodeName)
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
+
+	// Release 2nd allocation
+	err = cm.Release(location, hostpool[1].Name, alloc2)
+	require.NoError(t, err, "Unexpected error releasing host allocation1")
+	allocatedHost, err = cm.GetHost(location, allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 0, len(allocatedHost.Allocations))
+	require.Equal(t, HostStatusFree, allocatedHost.Status)
+
+	// Release 1st allocation
+	err = cm.Release(location, hostpool[0].Name, alloc1)
+	require.NoError(t, err, "Unexpected error releasing host allocation2")
+	allocatedHost, err = cm.GetHost(location, allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 0, len(allocatedHost.Allocations))
+	require.Equal(t, HostStatusFree, allocatedHost.Status)
+}
+
 func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testing.T, cc *api.Client) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)

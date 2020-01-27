@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-hostspool-types
   template_author: yorc
-  template_version: 1.0.0
+  template_version: 1.1.0
 
 imports:
   - yorc: <yorc-types.yml>
@@ -33,3 +33,23 @@ node_types:
         properties:
           credentials:
             user: "not significant, will be set by yorc itself"
+
+policy_types:
+  yorc.policies.hostspool.Placement:
+    abstract: true
+    derived_from: tosca.policies.Placement
+    description: The yorc hostpool TOSCA Policy Placement.
+
+  yorc.policies.hostspool.RoundRobinPlacement:
+    derived_from: yorc.policies.hostspool.Placement
+    description: >
+      The yorc hostpool TOSCA Policy placement which allows to allocate a host with a round robin algorithm.
+      It means the host with the less related allocations will be elect preferentially.
+    targets: [ tosca.nodes.Compute ]
+
+  yorc.policies.hostspool.BinPackingPlacement:
+    derived_from: yorc.policies.hostspool.Placement
+    description: >
+      The yorc hostpool TOSCA Policy placement which allows to allocate a host with a bin packing algorithm.
+      It means the host with the more related allocations will be elect preferentially.
+    targets: [ tosca.nodes.Compute ]

@@ -182,12 +182,37 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 		}
 	}
 
+	placement, err := e.getPlacementPolicy(ctx, op.deploymentID, op.nodeName)
+	if err != nil {
+		return err
+	}
+
 	instances, err := tasks.GetInstances(ctx, op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
 	}
 
-	return e.allocateHostsToInstances(ctx, instances, shareable, filters, op, allocatedResources)
+	return e.allocateHostsToInstances(ctx, instances, shareable, filters, op, allocatedResources, placement)
+}
+
+func (e *defaultExecutor) getPlacementPolicy(ctx context.Context, deploymentID, target string) (string, error) {
+	var placement string
+	placementPolicies, err := deployments.GetPoliciesForTypeAndNode(ctx, deploymentID, placementPolicy, target)
+	if err != nil {
+		return "", err
+	}
+	if len(placementPolicies) > 1 {
+		return "", errors.Errorf("Found more than one placement policy to apply to node name:%q.", target)
+	}
+
+	if len(placementPolicies) == 0 {
+		// Default placement policy
+		placement = binPackingPlacement
+	} else {
+		placement = placementPolicies[0]
+	}
+
+	return placement, nil
 }
 
 func (e *defaultExecutor) allocateHostsToInstances(
@@ -196,17 +221,19 @@ func (e *defaultExecutor) allocateHostsToInstances(
 	shareable bool,
 	filters []labelsutil.Filter,
 	op operationParameters,
-	allocatedResources map[string]string) error {
+	allocatedResources map[string]string,
+	placement string) error {
 
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
 		allocation := &Allocation{
-			NodeName:     op.nodeName,
-			Instance:     instance,
-			DeploymentID: op.deploymentID,
-			Shareable:    shareable,
-			Resources:    allocatedResources}
+			NodeName:        op.nodeName,
+			Instance:        instance,
+			DeploymentID:    op.deploymentID,
+			Shareable:       shareable,
+			Resources:       allocatedResources,
+			PlacementPolicy: placement}
 
 		// Protecting the allocation and update of resources labels by a mutex, to
 		// ensure no other worker will attempt to over-allocate resources of a
