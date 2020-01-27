@@ -1,5 +1,8 @@
 pipeline {
     agent none
+    options {
+        skipDefaultCheckout true
+    }
     parameters {
         choice(name: 'INFRA_FILTER', choices: ['all', 'openstack', 'gcp'], description: 'Run on specific infrastructure (all by default)')
         booleanParam defaultValue: false, description: 'Are we testing a premium version', name: 'PREMIUM'
@@ -62,6 +65,8 @@ spec:
                 echo "gs path: ${env.gsPath}"
                 echo "yorc DL URL: ${env.yorcDownloadURL}"
 
+                checkout scm
+
                 sh("""#!/usr/bin/env bash
                     unset GOPPROXY
                     apt-get update && apt-get -qy install zip unzip
@@ -123,6 +128,11 @@ spec:
                 }
 
                 stages {
+                    stage('Checkout code') {
+                        steps {
+                            checkout scm
+                        }
+                    }
                     stage('Download Forge components') {
                         steps {
                             sh 'mkdir -p testdata/ci/components'
