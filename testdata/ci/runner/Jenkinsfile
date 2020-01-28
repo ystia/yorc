@@ -353,10 +353,6 @@ spec:
                                         npm start
                                         mkdir -p ${env.WORKSPACE}/html-reports
                                         cp /use/src/app/out/* ${env.WORKSPACE}/html-reports/
-                                        cd ${env.WORKSPACE}/html-reports
-                                        apk add --update wget sed ca-certificates openssl
-                                        wget -p -k --force-html -i index-${env.INFRASTRUCTURE}.html
-                                        sed -i -e 's@https\\?://@./@g' index-${env.INFRASTRUCTURE}.html
                                     """
 
                                     publishHTML([allowMissing: false, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'html-reports', reportFiles: "index-${env.INFRASTRUCTURE}.html", reportName: "Integration tests Report [${env.INFRASTRUCTURE}]", reportTitles: ''])
