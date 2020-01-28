@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
@@ -193,4 +194,35 @@ func testRegisterInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api
 	_, err = builder.BuildWorkFlow(context.Background(), deploymentID, "install")
 	require.NoError(t, err, "Unexpected error building workflow for %s", topologyPath)
 
+}
+
+func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topo_workflow_inputs.yaml")
+	require.NoError(t, err, "Failed to store deployment definition")
+
+	mockExecutor := &mockExecutor{}
+	registry.GetRegistry().RegisterDelegates([]string{"org.ystia.yorc.samples.GreetingsComponentType"}, mockExecutor, "tests")
+	registry.GetRegistry().RegisterOperationExecutor([]string{"ystia.yorc.tests.artifacts.Implementation.Custom"}, mockExecutor, "tests")
+
+	workflowName := "greet"
+	stepName := "GreetingsComponent_say_hello"
+	wfSteps, err := builder.BuildWorkFlow(context.Background(), deploymentID, workflowName)
+	require.NoError(t, err, "Failed to build workflow %s", workflowName)
+	bs := wfSteps[stepName]
+	require.NotNil(t, bs, "Failed to find step %s in workflow %s", stepName, workflowName)
+
+	bs.Next = nil
+	te := &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
+	s := wrapBuilderStep(bs, cc, te)
+	srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "GreetingsComponent_say_hello"), []byte("initial"))
+
+	mockExecutor.callOpsCalled = false
+	mockExecutor.errorsCallOps = false
+	mockExecutor.delegateCalled = false
+	mockExecutor.errorsDelegate = false
+	err = s.run(context.Background(), config.Configuration{}, deploymentID, false, workflowName, &worker{})
+	require.NoError(t, err, "Failed running step %s in workflow %s", stepName, workflowName)
+
+	assert.Equal(t, true, mockExecutor.callOpsCalled, "Expected an opreation to be called running step %s", stepName)
 }

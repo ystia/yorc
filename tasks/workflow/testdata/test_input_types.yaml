@@ -1,0 +1,34 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: org.ystia.yorc.samples.Greetings
+  template_version: 1.0.0-SNAPSHOT
+  template_author: yorc
+
+
+node_types:
+  org.ystia.yorc.samples.GreetingsComponentType:
+    description: "Sample component having an operation needing an input"
+    derived_from: tosca.nodes.SoftwareComponent
+    interfaces:
+      custom:
+        inputs:
+          greetings_user:
+            type: string
+        say_goodbye:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: say_goodbye
+        say_hello:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: say_hello
+      Standard:
+        start:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: start
+        create:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: create

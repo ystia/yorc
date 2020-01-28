@@ -57,6 +57,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testDispatcherRun", func(t *testing.T) {
 			testDispatcherRun(t, srv, client)
 		})
+		t.Run("testWorkflowInputs", func(t *testing.T) {
+			testWorkflowInputs(t, srv, client)
+		})
 	})
 
 	populateKV(t, srv)

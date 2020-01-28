@@ -49,9 +49,13 @@ topology_template:
           inputs:
             greetings_user: {get_input: user}
           say_goodbye:
-            implementation: scripts/goodbye.sh
+            implementation:
+              type: ystia.yorc.tests.artifacts.Implementation.Custom
+              file: say_goodbye
           say_hello:
-            implementation: scripts/hello.sh
+            implementation:
+              type: ystia.yorc.tests.artifacts.Implementation.Custom
+              file: say_hello
       requirements:
         - hostedOnVirtualMachineHost:
             type_requirement: host
