@@ -345,6 +345,14 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 		}
 		alloc.Resources = resources
 
+		kvp, _, err = cm.cc.KV().Get(path.Join(key, "placement_policy"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			alloc.PlacementPolicy = string(kvp.Value)
+		}
+
 		allocations = append(allocations, alloc)
 	}
 	return allocations, nil

@@ -19,12 +19,14 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
-	"fmt"
 	"github.com/pkg/errors"
-	"net/url"
+
+	"github.com/ystia/yorc/v4/helper/stringutil"
 )
 
 // HostStatus x ENUM(
@@ -123,7 +125,7 @@ type Allocation struct {
 }
 
 func (alloc *Allocation) String() string {
-	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t, placement policy:%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, alloc.PlacementPolicy)
+	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t, placement:%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, stringutil.GetLastElement(alloc.PlacementPolicy, "."))
 	if alloc.Resources != nil && len(alloc.Resources) > 0 {
 		for k, v := range alloc.Resources {
 			allocStr += "," + k + ": " + v

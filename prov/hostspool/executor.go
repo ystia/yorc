@@ -196,23 +196,22 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 }
 
 func (e *defaultExecutor) getPlacementPolicy(ctx context.Context, deploymentID, target string) (string, error) {
-	var placement string
 	placementPolicies, err := deployments.GetPoliciesForTypeAndNode(ctx, deploymentID, placementPolicy, target)
 	if err != nil {
 		return "", err
 	}
-	if len(placementPolicies) > 1 {
-		return "", errors.Errorf("Found more than one placement policy to apply to node name:%q.", target)
-	}
 
 	if len(placementPolicies) == 0 {
 		// Default placement policy
-		placement = binPackingPlacement
-	} else {
-		placement = placementPolicies[0]
+		return binPackingPlacement, nil
 	}
 
-	return placement, nil
+	if len(placementPolicies) > 1 {
+		return "", errors.Errorf("Found more than one placement policy to apply to node name:%q", target)
+	}
+
+	policyType, err := deployments.GetPolicyType(ctx, deploymentID, placementPolicies[0])
+	return policyType, nil
 }
 
 func (e *defaultExecutor) allocateHostsToInstances(
@@ -504,8 +503,10 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return op.hpManager.UpdateResourcesLabels(op.location, hostname.RawString(), allocatedResources, add, updateResourcesLabels)
-
+		err = op.hpManager.UpdateResourcesLabels(op.location, hostname.RawString(), allocatedResources, add, updateResourcesLabels)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
 }
