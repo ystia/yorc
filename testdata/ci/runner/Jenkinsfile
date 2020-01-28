@@ -75,7 +75,36 @@ spec:
                     tar czvf yorc.tgz yorc
                     """
                 )
-                googleStorageUpload bucket: "gs://${env.gsPath}", pattern: 'yorc.tgz', sharedPublicly: true, credentialsId: "${GCP_CREDS_ID}", showInline: true
+                stash includes: 'yorc.tgz', name: 'yorc-bin'
+            }
+        }
+        stage('Upload Yorc bin to GCP Storage') {
+            agent {
+                kubernetes {
+                    cloud "${K8S_CLOUD_NAME}"
+                    defaultContainer 'yorc-ci-builder'
+                    yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: yorc-ci-builder
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:alpine
+    command:
+    - cat
+    tty: true
+"""
+                }
+            }
+            steps {
+                unstash 'yorc-bin'
+                withCredentials([string(credentialsId: '51a9c309-d10d-48f9-8d4c-68fafef415d8', variable: 'GCP_CREDS')]) {
+                    sh """
+                        echo '${GCP_CREDS}' > /tmp/svc_account.json
+                        gcloud auth activate-service-account  --key-file=/tmp/svc_account.json
+                        gsutil cp yorc.tgz gs://${env.gsPath}yorc.tgz
+                    """
+                }
             }
         }
         stage('Compute Generic GoDog Tags & A4C Password') {
