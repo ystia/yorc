@@ -17,8 +17,8 @@ package tosca
 // A Workflow is the representation of a TOSCA Workflow
 //
 type Workflow struct {
-	Inputs map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
-	Steps  map[string]*Step               `yaml:"steps,omitempty" json:"steps,omitempty"`
+	Inputs map[string]PropertyDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Steps  map[string]*Step              `yaml:"steps,omitempty" json:"steps,omitempty"`
 }
 
 // A Step is the representation of a TOSCA Workflow Step
