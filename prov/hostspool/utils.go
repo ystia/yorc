@@ -149,28 +149,20 @@ func updateResourcesLabels(origin map[string]string, diff map[string]string, ope
 	labels := make(map[string]string)
 
 	// Host Resources Labels can only be updated when deployment resources requirement is described
-
-	intResourcesLabels := []struct{
-		name string
-	}{
-		{"host.num_cpus"},
-	}
-
-	for _, resource := range intResourcesLabels {
-		if resourceDiffStr, ok := diff[resource.name]; ok {
-			if resourceOriginStr, ok := origin[resource.name]; ok {
-				resourceOrigin, err := strconv.Atoi(resourceOriginStr)
-				if err != nil {
-					return nil, err
-				}
-				resourceDiff, err := strconv.Atoi(resourceDiffStr)
-				if err != nil {
-					return nil, err
-				}
-
-				res := operation(int64(resourceOrigin), int64(resourceDiff))
-				labels[resource.name] = strconv.Itoa(int(res))
+	cpuResourcesLabel := "host.num_cpus"
+	if resourceDiffStr, ok := diff[cpuResourcesLabel]; ok {
+		if resourceOriginStr, ok := origin[cpuResourcesLabel]; ok {
+			resourceOrigin, err := strconv.Atoi(resourceOriginStr)
+			if err != nil {
+				return nil, err
 			}
+			resourceDiff, err := strconv.Atoi(resourceDiffStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := operation(int64(resourceOrigin), int64(resourceDiff))
+			labels[cpuResourcesLabel] = strconv.Itoa(int(res))
 		}
 	}
 
