@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/DATA-DOG/godog"
 	"os"
 	"path/filepath"
 	"time"
@@ -219,3 +220,21 @@ func (c *suiteContext) theStatusOfTheInstanceOfTheNodeNamedIs(instanceName, node
 	}
 	return nil
 }
+
+
+func iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien(artifactName, templateName string) error {
+	return godog.ErrPending
+}
+
+func theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, nodeName1, instance1, attribute2, nodeName2, instance2 string) error {
+	return godog.ErrPending
+}
+
+func iHaveAddedAPolicyNamedOfTypeOnTargets(policyName, policyType, targets string) error {
+	return godog.ErrPending
+}
+
+func theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, nodeName1, instance1, attribute2, nodeName2, instance2 string) error {
+	return godog.ErrPending
+}
+

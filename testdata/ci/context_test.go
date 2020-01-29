@@ -69,6 +69,12 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I run the workflow named "([^"]*)"$`, c.iRunTheWorkflowNamed)
 	s.Step(`^The status of the instance "([^"]*)" of the node named "([^"]*)" is "([^"]*)"$`, c.theStatusOfTheInstanceOfTheNodeNamedIs)
 
+	s.Step(`^I have built the artifact named "([^"]*)" from templates named "([^"]*)" to Alien$`, iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien)
+	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is equal to the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed)
+	s.Step(`^I have added a policy named "([^"]*)" of type "([^"]*)" on targets "([^"]*)"$`, iHaveAddedAPolicyNamedOfTypeOnTargets)
+	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is different than the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed)
+
+
 	s.BeforeScenario(c.reset)
 
 	s.BeforeFeature(func(f *gherkin.Feature) {
