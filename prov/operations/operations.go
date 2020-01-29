@@ -24,10 +24,13 @@ import (
 	"github.com/ystia/yorc/v4/helper/stringutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it
-func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
+func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, requirementName, operationHost string,
+	inputs map[string]tosca.ParameterDefinition) (prov.Operation, error) {
+
 	var (
 		implementingType, implementingNode, requirementIndex, targetNodeName string
 		err                                                                  error
@@ -89,6 +92,7 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 			TargetRelationship:      requirementName,
 		},
 		OperationHost: operationHost,
+		Inputs:        inputs,
 	}
 	log.Debugf("operation:%+v", op)
 	return op, nil

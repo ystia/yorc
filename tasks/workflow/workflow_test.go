@@ -31,15 +31,21 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/prov/operations"
 	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 type mockExecutor struct {
-	delegateCalled bool
-	callOpsCalled  bool
-	errorsDelegate bool
-	errorsCallOps  bool
+	delegateCalled  bool
+	callOpsCalled   bool
+	errorsDelegate  bool
+	errorsCallOps   bool
+	envInputs       []*operations.EnvInput
+	varInputs       []string
+	executionInputs map[string]tosca.ParameterDefinition
 }
 
 func (m *mockExecutor) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -54,7 +60,13 @@ func (m *mockExecutor) ExecOperation(ctx context.Context, conf config.Configurat
 	if m.errorsCallOps {
 		return errors.New("Failed required for mock")
 	}
-	return nil
+
+	var err error
+	if nodeName == "GreetingsComponent" {
+		m.envInputs, m.varInputs, err = operations.ResolveInputs(ctx, deploymentID, nodeName, taskID, operation)
+		m.executionInputs = operation.Inputs
+	}
+	return err
 }
 func (m *mockExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
 	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
@@ -205,24 +217,84 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 	registry.GetRegistry().RegisterDelegates([]string{"org.ystia.yorc.samples.GreetingsComponentType"}, mockExecutor, "tests")
 	registry.GetRegistry().RegisterOperationExecutor([]string{"ystia.yorc.tests.artifacts.Implementation.Custom"}, mockExecutor, "tests")
 
-	workflowName := "greet"
-	stepName := "GreetingsComponent_say_hello"
-	wfSteps, err := builder.BuildWorkFlow(context.Background(), deploymentID, workflowName)
-	require.NoError(t, err, "Failed to build workflow %s", workflowName)
-	bs := wfSteps[stepName]
-	require.NotNil(t, bs, "Failed to find step %s in workflow %s", stepName, workflowName)
+	type args struct {
+		workflowName   string
+		workflowInputs map[string]string
+		stepName       string
+	}
+	tests := []struct {
+		name                        string
+		args                        args
+		wantRunError                bool
+		expectedOperationInputValue map[string]string
+	}{
+		{"TestMissingWorkflowInput",
+			args{"greet", nil, "GreetingsComponent_say_hello"},
+			true,
+			nil},
+		{"TestWorkflowInput",
+			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_hello"},
+			false,
+			map[string]string{"greetings_user": "YorcUser", "hello_msg": "Hello"}},
+	}
 
-	bs.Next = nil
-	te := &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
-	s := wrapBuilderStep(bs, cc, te)
-	srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "GreetingsComponent_say_hello"), []byte("initial"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	mockExecutor.callOpsCalled = false
-	mockExecutor.errorsCallOps = false
-	mockExecutor.delegateCalled = false
-	mockExecutor.errorsDelegate = false
-	err = s.run(context.Background(), config.Configuration{}, deploymentID, false, workflowName, &worker{})
-	require.NoError(t, err, "Failed running step %s in workflow %s", stepName, workflowName)
+			// Preparing test environment
+			mockExecutor.callOpsCalled = false
+			mockExecutor.errorsCallOps = false
+			mockExecutor.delegateCalled = false
+			mockExecutor.errorsDelegate = false
+			taskID := "task" + tt.name
 
-	assert.Equal(t, true, mockExecutor.callOpsCalled, "Expected an opreation to be called running step %s", stepName)
+			// Adding task inputs
+			for iName, iValue := range tt.args.workflowInputs {
+
+				dataInput := path.Join("inputs", iName)
+				// Add an input to the task
+				err = tasks.SetTaskData(taskID, dataInput, iValue)
+			}
+
+			wfSteps, err := builder.BuildWorkFlow(context.Background(), deploymentID, tt.args.workflowName)
+			require.NoError(t, err, "Failed to build workflow %s", tt.args.workflowName)
+			bs := wfSteps[tt.args.stepName]
+			require.NotNil(t, bs, "Failed to find step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
+
+			bs.Next = nil
+			te := &taskExecution{id: "taskExec" + tt.name, taskID: taskID, targetID: deploymentID}
+			s := wrapBuilderStep(bs, cc, te)
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, tt.args.stepName), []byte("initial"))
+
+			err = s.run(context.Background(), config.Configuration{}, deploymentID, false, tt.args.workflowName, &worker{})
+			if tt.wantRunError {
+				require.Error(t, err, "Expected an error running step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
+				return
+			}
+
+			require.NoError(t, err, "Failed running step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
+
+			require.Equal(t, true, mockExecutor.callOpsCalled, "Expected an operation to be called running step %s", tt.args.stepName)
+
+			for iName, iValue := range tt.args.workflowInputs {
+				inputParam, found := mockExecutor.executionInputs[iName]
+				require.Equal(t, true, found, "Missing input parameter %s in operation execution context", iName)
+				require.Equal(t, iValue, inputParam.Value.GetLiteral(), "Wrong value for input parameter %s in operation execution context", iName)
+			}
+
+			require.NotNil(t, mockExecutor.envInputs, "Expected to get operation environment inputs")
+			for iName, iValue := range tt.expectedOperationInputValue {
+				var expectedEnvInput *operations.EnvInput
+				for _, envInput := range mockExecutor.envInputs {
+					if envInput.Name == iName {
+						expectedEnvInput = envInput
+						break
+					}
+				}
+				require.NotNil(t, expectedEnvInput, "No env input in operation execution context for operation input %s: %+v", iName, mockExecutor.envInputs)
+				assert.Equal(t, iValue, expectedEnvInput.Value, "Wrong value in operation execution context for operation input %s", iName)
+
+			}
+		})
+	}
 }

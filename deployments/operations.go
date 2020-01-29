@@ -625,7 +625,8 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 		}
 
 		for _, ins := range instances {
-			res, err = resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(ctx, f)
+			res, err = resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(ins),
+				withInputParameters(operation.Inputs), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(ctx, f)
 			if err != nil {
 				return nil, err
 			}

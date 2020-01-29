@@ -151,7 +151,7 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 
 func testExecutionResolveInputsOnNode(t *testing.T, deploymentID, nodeName, nodeTypeName, operation string) {
 	ctx := context.Background()
-	op, err := operations.GetOperation(ctx, deploymentID, nodeName, operation, "", "")
+	op, err := operations.GetOperation(ctx, deploymentID, nodeName, operation, "", "", nil)
 	require.Nil(t, err)
 	execution := &executionCommon{
 		deploymentID:           deploymentID,
@@ -252,7 +252,7 @@ func getWrappedCommandFunc(path string) func() string {
 }
 
 func testExecutionGenerateOnNode(t *testing.T, deploymentID, nodeName, operation string) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, "", "")
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, "", "", nil)
 	require.Nil(t, err)
 	execution, err := newExecution(context.Background(), GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
@@ -336,7 +336,7 @@ func testExecutionGenerateOnNode(t *testing.T, deploymentID, nodeName, operation
 
 func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
 	ctx := context.Background()
-	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost, nil)
 	require.Nil(t, err)
 	execution := &executionCommon{
 		deploymentID:           deploymentID,
@@ -397,7 +397,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, 
 }
 
 func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeName, operation, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, requirementName, operationHost, nil)
 	require.Nil(t, err)
 	execution, err := newExecution(context.Background(), GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
@@ -481,7 +481,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeN
 
 func testExecutionResolveInputOnRelationshipTarget(t *testing.T, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
 	ctx := context.Background()
-	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(ctx, deploymentID, nodeAName, operation, requirementName, operationHost, nil)
 	require.Nil(t, err)
 	execution := &executionCommon{
 		deploymentID:             deploymentID,
@@ -540,7 +540,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, deploymentID, n
 }
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, deploymentID, nodeName, operation, requirementName, operationHost string) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, operation, requirementName, operationHost, nil)
 	require.Nil(t, err)
 	execution, err := newExecution(context.Background(), GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)

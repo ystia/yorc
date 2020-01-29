@@ -123,7 +123,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) getInputNameFromCustom(ctx context.Context, deploymentID, nodeName, interfaceName, customCName string) ([]string, error) {
-	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, interfaceName+"."+customCName, "", "")
+	op, err := operations.GetOperation(context.Background(), deploymentID, nodeName, interfaceName+"."+customCName, "", "", nil)
 	if err != nil {
 		return nil, err
 	}

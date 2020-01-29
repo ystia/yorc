@@ -16,10 +16,17 @@ node_types:
           greetings_user:
             type: string
         say_goodbye:
+          inputs:
+            goodbye_msg:
+             type: string
+             required: true
           implementation:
             type: ystia.yorc.tests.artifacts.Implementation.Custom
             file: say_goodbye
         say_hello:
+          inputs:
+            hello_msg:
+              type: string
           implementation:
             type: ystia.yorc.tests.artifacts.Implementation.Custom
             file: say_hello

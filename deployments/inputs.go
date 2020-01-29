@@ -16,18 +16,31 @@ package deployments
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // GetInputValue tries to retrieve the value of the given input name.
 //
 // GetInputValue first checks if a non-empty field value exists for this input, if it doesn't then it checks for a non-empty field default.
 // If none of them exists then it returns an empty string.
-func GetInputValue(ctx context.Context, deploymentID, inputName string, nestedKeys ...string) (string, error) {
-	exist, paramDef, err := getParameterDefinition(ctx, deploymentID, inputName, "inputs")
-	if err != nil || !exist {
-		return "", err
+func GetInputValue(ctx context.Context, inputs map[string]tosca.ParameterDefinition,
+	deploymentID, inputName string, nestedKeys ...string) (string, error) {
+
+	var err error
+	var paramDef *tosca.ParameterDefinition
+	paramDefVal, found := inputs[inputName]
+	if found {
+		paramDef = &paramDefVal
+	} else {
+		// No such input parameter in execution context, getting it in topology
+		found, paramDef, err = getParameterDefinition(ctx, deploymentID, inputName, "inputs")
+		if err != nil || !found {
+			return "", err
+		}
 	}
+
 	dataType := getTopologyInputOrOutputTypeFromParamDefinition(ctx, paramDef)
 	// Check first value
 	result, err := getValueAssignment(ctx, deploymentID, "", "", "", dataType, paramDef.Value, nestedKeys...)

@@ -14,6 +14,11 @@ imports:
   - test_input_types.yaml
 
 topology_template:
+  inputs:
+    hello_msg:
+      type: string
+      default: "Hello"
+      description: "Hello message"
   node_templates:
     VirtualMachine:
       type: yorc.nodes.openstack.Compute
@@ -49,10 +54,13 @@ topology_template:
           inputs:
             greetings_user: {get_input: user}
           say_goodbye:
+            goodbye_msg:  {get_input: goodbye_msg}
             implementation:
               type: ystia.yorc.tests.artifacts.Implementation.Custom
               file: say_goodbye
           say_hello:
+            inputs:
+              hello_msg:  {get_input: hello_msg}
             implementation:
               type: ystia.yorc.tests.artifacts.Implementation.Custom
               file: say_hello
@@ -67,6 +75,7 @@ topology_template:
       inputs:
         user:
           type: string
+          required: true
       steps:
         GreetingsComponent_say_goodbye:
           target: GreetingsComponent

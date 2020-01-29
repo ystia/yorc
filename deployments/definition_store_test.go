@@ -768,7 +768,7 @@ func testValueAssignmentsWithTopologyInputs(t *testing.T, ctx context.Context, d
 	}
 	for _, tt := range topoInputTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInputValue(ctx, deploymentID, tt.args.inputName, tt.args.nestedKeys...)
+			got, err := GetInputValue(ctx, nil, deploymentID, tt.args.inputName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInputValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
