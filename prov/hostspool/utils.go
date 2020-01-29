@@ -146,26 +146,42 @@ func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance
 }
 
 func updateResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error) {
+	// Host Resources Labels can only be updated when deployment resources requirement is described
 	labels := make(map[string]string)
 
-	// Host Resources Labels can only be updated when deployment resources requirement is described
+	err := updateNumberResourcesLabels(origin, diff, operation, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	err = updateSizeResourcesLabels(origin, diff, operation, labels)
+	if err != nil {
+		return nil, err
+	}
+	return labels, nil
+}
+
+func updateNumberResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error {
 	cpuResourcesLabel := "host.num_cpus"
 	if resourceDiffStr, ok := diff[cpuResourcesLabel]; ok {
 		if resourceOriginStr, ok := origin[cpuResourcesLabel]; ok {
 			resourceOrigin, err := strconv.Atoi(resourceOriginStr)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			resourceDiff, err := strconv.Atoi(resourceDiffStr)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			res := operation(int64(resourceOrigin), int64(resourceDiff))
 			labels[cpuResourcesLabel] = strconv.Itoa(int(res))
 		}
 	}
+	return nil
+}
 
+func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error  {
 	sizeResourcesLabels := []struct {
 		name string
 	}{
@@ -178,11 +194,11 @@ func updateResourcesLabels(origin map[string]string, diff map[string]string, ope
 			if resourceOriginStr, ok := origin[resource.name]; ok {
 				resourceOrigin, err := humanize.ParseBytes(resourceOriginStr)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				resourceDiff, err := humanize.ParseBytes(resourceDiffStr)
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				res := operation(int64(resourceOrigin), int64(resourceDiff))
@@ -190,7 +206,7 @@ func updateResourcesLabels(origin map[string]string, diff map[string]string, ope
 			}
 		}
 	}
-	return labels, nil
+	return nil
 }
 
 func add(valA int64, valB int64) int64 {
