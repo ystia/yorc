@@ -81,7 +81,10 @@ func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 	for sn, s := range wf.Steps {
 		var isCancellable bool
 		for _, a := range s.Activities {
-			switch strings.ToLower(a.CallOperation) {
+			if a.CallOperation == nil {
+				continue
+			}
+			switch strings.ToLower(a.CallOperation.Operation) {
 			case tosca.RunnableSubmitOperationName, tosca.RunnableRunOperationName:
 				isCancellable = true
 			}
@@ -100,7 +103,7 @@ func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 					OperationHost:      s.OperationHost,
 					Activities: []tosca.Activity{
 						tosca.Activity{
-							CallOperation: tosca.RunnableCancelOperationName,
+							CallOperation: &tosca.OperationActivity{Operation: tosca.RunnableCancelOperationName},
 						},
 					},
 				}

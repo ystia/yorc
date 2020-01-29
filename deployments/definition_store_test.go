@@ -1033,12 +1033,14 @@ func testInlineWorkflow(t *testing.T) {
 	step := wfInstall.Steps["Some_other_inline"]
 	require.Equal(t, step.Target, "")
 	require.Equal(t, len(step.Activities), 1)
-	require.Equal(t, step.Activities[0].Inline, "my_custom_wf")
+	require.NotNil(t, step.Activities[0].Inline)
+	require.Equal(t, step.Activities[0].Inline.Workflow, "my_custom_wf")
 
 	step = wfInstall.Steps["inception_inline"]
 	require.Equal(t, step.Target, "")
 	require.Equal(t, len(step.Activities), 1)
-	require.Equal(t, step.Activities[0].Inline, "inception")
+	require.NotNil(t, step.Activities[0].Inline)
+	require.Equal(t, step.Activities[0].Inline.Workflow, "inception")
 
 	wfInception, err := GetWorkflow(ctx, deploymentID, "inception")
 	require.Nil(t, err)

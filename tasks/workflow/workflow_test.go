@@ -17,6 +17,7 @@ package workflow
 import (
 	"context"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -169,7 +170,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 				if mah.target != s.Target {
 					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.Target)
 				}
-				if mah.activity != s.Activities[0] {
+				if !reflect.DeepEqual(mah.activity, s.Activities[0]) {
 					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
 				}
 			}
@@ -184,7 +185,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 				if mah.target != s.Target {
 					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.Target)
 				}
-				if mah.activity != s.Activities[0] {
+				if !reflect.DeepEqual(mah.activity, s.Activities[0]) {
 					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
 				}
 			}
@@ -233,8 +234,11 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 			true,
 			nil},
 		{"TestWorkflowInput",
+			// user in a workflow input whose value will be added in task inputs
 			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_hello"},
 			false,
+			// greetings_user is defined  as {get_input user}
+			// hello_msg is defined in the topology inputs
 			map[string]string{"greetings_user": "YorcUser", "hello_msg": "Hello"}},
 	}
 
