@@ -109,37 +109,27 @@ func appendCapabilityFilter(ctx context.Context, deploymentID, nodeName, capName
 func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nodeName string) ([]labelsutil.Filter, error) {
 	var err error
 	filters := make([]labelsutil.Filter, 0)
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "num_cpus", ">=", filters)
-	if err != nil {
-		return nil, err
+
+	filtersParams := []struct{
+		capabilityName string
+		propertyName string
+		operator string
+	}{
+		{"host", "num_cpus", ">="},
+		{"host", "cpu_frequency", ">="},
+		{"host", "disk_size", ">="},
+		{"host", "mem_size", ">="},
+		{"os", "architecture", "="},
+		{"os", "type", "="},
+		{"os", "distribution", "="},
+		{"os", "version", "="},
 	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "cpu_frequency", ">=", filters)
-	if err != nil {
-		return nil, err
-	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "disk_size", ">=", filters)
-	if err != nil {
-		return nil, err
-	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "host", "mem_size", ">=", filters)
-	if err != nil {
-		return nil, err
-	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "architecture", "=", filters)
-	if err != nil {
-		return nil, err
-	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "type", "=", filters)
-	if err != nil {
-		return nil, err
-	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "distribution", "=", filters)
-	if err != nil {
-		return nil, err
-	}
-	filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, "os", "version", "=", filters)
-	if err != nil {
-		return nil, err
+
+	for _, filterParam := range filtersParams {
+		filters, err = appendCapabilityFilter(ctx, deploymentID, nodeName, filterParam.capabilityName, filterParam.propertyName, filterParam.operator, filters)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return filters, nil
 }
@@ -159,54 +149,55 @@ func updateResourcesLabels(origin map[string]string, diff map[string]string, ope
 	labels := make(map[string]string)
 
 	// Host Resources Labels can only be updated when deployment resources requirement is described
-	if cpusDiffStr, ok := diff["host.num_cpus"]; ok {
-		if cpusOriginStr, ok := origin["host.num_cpus"]; ok {
-			cpusOrigin, err := strconv.Atoi(cpusOriginStr)
-			if err != nil {
-				return nil, err
-			}
-			cpusDiff, err := strconv.Atoi(cpusDiffStr)
-			if err != nil {
-				return nil, err
-			}
 
-			res := operation(int64(cpusOrigin), int64(cpusDiff))
-			labels["host.num_cpus"] = strconv.Itoa(int(res))
+	intResourcesLabels := []struct{
+		name string
+	}{
+		{"host.num_cpus"},
+	}
+
+	for _, resource := range intResourcesLabels {
+		if resourceDiffStr, ok := diff[resource.name]; ok {
+			if resourceOriginStr, ok := origin[resource.name]; ok {
+				resourceOrigin, err := strconv.Atoi(resourceOriginStr)
+				if err != nil {
+					return nil, err
+				}
+				resourceDiff, err := strconv.Atoi(resourceDiffStr)
+				if err != nil {
+					return nil, err
+				}
+
+				res := operation(int64(resourceOrigin), int64(resourceDiff))
+				labels[resource.name] = strconv.Itoa(int(res))
+			}
 		}
 	}
 
-	if memDiffStr, ok := diff["host.mem_size"]; ok {
-		if memOriginStr, ok := origin["host.mem_size"]; ok {
-			memOrigin, err := humanize.ParseBytes(memOriginStr)
-			if err != nil {
-				return nil, err
-			}
-			memDiff, err := humanize.ParseBytes(memDiffStr)
-			if err != nil {
-				return nil, err
-			}
-
-			res := operation(int64(memOrigin), int64(memDiff))
-			labels["host.mem_size"] = formatBytes(res, isIECformat(memOriginStr))
-		}
+	sizeResourcesLabels := []struct{
+		name string
+	}{
+		{"host.mem_size"},
+		{"host.disk_size"},
 	}
 
-	if diskDiffStr, ok := diff["host.disk_size"]; ok {
-		if diskOriginStr, ok := origin["host.disk_size"]; ok {
-			diskOrigin, err := humanize.ParseBytes(diskOriginStr)
-			if err != nil {
-				return nil, err
-			}
-			diskDiff, err := humanize.ParseBytes(diskDiffStr)
-			if err != nil {
-				return nil, err
-			}
+	for _, resource := range sizeResourcesLabels {
+		if resourceDiffStr, ok := diff[resource.name]; ok {
+			if resourceOriginStr, ok := origin[resource.name]; ok {
+				resourceOrigin, err := humanize.ParseBytes(resourceOriginStr)
+				if err != nil {
+					return nil, err
+				}
+				resourceDiff, err := humanize.ParseBytes(resourceDiffStr)
+				if err != nil {
+					return nil, err
+				}
 
-			res := operation(int64(diskOrigin), int64(diskDiff))
-			labels["host.disk_size"] = formatBytes(res, isIECformat(diskOriginStr))
+				res := operation(int64(resourceOrigin), int64(resourceDiff))
+				labels[resource.name] = formatBytes(res, isIECformat(resourceOriginStr))
+			}
 		}
 	}
-
 	return labels, nil
 }
 
