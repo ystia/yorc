@@ -110,10 +110,10 @@ func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nod
 	var err error
 	filters := make([]labelsutil.Filter, 0)
 
-	filtersParams := []struct{
+	filtersParams := []struct {
 		capabilityName string
-		propertyName string
-		operator string
+		propertyName   string
+		operator       string
 	}{
 		{"host", "num_cpus", ">="},
 		{"host", "cpu_frequency", ">="},
@@ -166,7 +166,7 @@ func updateResourcesLabels(origin map[string]string, diff map[string]string, ope
 		}
 	}
 
-	sizeResourcesLabels := []struct{
+	sizeResourcesLabels := []struct {
 		name string
 	}{
 		{"host.mem_size"},

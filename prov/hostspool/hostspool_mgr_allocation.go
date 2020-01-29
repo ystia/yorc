@@ -215,7 +215,7 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "node_name"), []byte(alloc.NodeName)),
 				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "instance"), []byte(alloc.Instance)),
 				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "deployment_id"), []byte(alloc.DeploymentID)),
-				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "shareable"),  []byte(strconv.FormatBool(alloc.Shareable))),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "shareable"), []byte(strconv.FormatBool(alloc.Shareable))),
 				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "placement_policy"), []byte(alloc.PlacementPolicy)),
 			}
 
@@ -293,8 +293,7 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 		alloc := Allocation{}
 		alloc.ID = id
 
-
-		stringFields := []struct{
+		stringFields := []struct {
 			name string
 			attr *string
 		}{
@@ -313,7 +312,6 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 				*field.attr = string(kvp.Value)
 			}
 		}
-
 
 		kvp, _, err := cm.cc.KV().Get(path.Join(key, "shareable"), nil)
 		if err != nil {
