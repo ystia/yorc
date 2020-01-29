@@ -122,25 +122,38 @@ func (cm *consulManager) allocateWait(locationName string, maxWaitTime time.Dura
 	return hostname, warnings, cm.setHostStatus(locationName, hostname, HostStatusAllocated)
 }
 func (cm *consulManager) electHostFromCandidates(locationName string, allocation *Allocation, candidates []hostCandidate) string {
-	hostname := candidates[0].name
 	switch allocation.PlacementPolicy {
 	case roundRobinPlacement:
 		log.Printf("Applying round-robin placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
-		minAllocations := candidates[0].allocations
-		for _, candidate := range candidates {
-			if candidate.allocations < minAllocations {
-				minAllocations = candidate.allocations
-				hostname = candidate.name
-			}
-		}
+		return roundRobin(candidates)
+	case binPackingPlacement:
+		log.Printf("Applying bin packing placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
+		return binPacking(candidates)
 	default: // default is bin packing placement
 		log.Printf("Applying default bin packing placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
-		maxAllocations := candidates[0].allocations
-		for _, candidate := range candidates {
-			if candidate.allocations > maxAllocations {
-				maxAllocations = candidate.allocations
-				hostname = candidate.name
-			}
+		return binPacking(candidates)
+	}
+}
+
+func roundRobin(candidates []hostCandidate) string {
+	hostname := candidates[0].name
+	minAllocations := candidates[0].allocations
+	for _, candidate := range candidates {
+		if candidate.allocations < minAllocations {
+			minAllocations = candidate.allocations
+			hostname = candidate.name
+		}
+	}
+	return hostname
+}
+
+func binPacking(candidates []hostCandidate) string {
+	hostname := candidates[0].name
+	maxAllocations := candidates[0].allocations
+	for _, candidate := range candidates {
+		if candidate.allocations > maxAllocations {
+			maxAllocations = candidate.allocations
+			hostname = candidate.name
 		}
 	}
 	return hostname
@@ -183,6 +196,14 @@ func (cm *consulManager) releaseWait(locationName, hostname string, allocation *
 	return nil
 }
 
+func getKVTxnOp(verb api.KVOp, key string, value []byte) *api.KVTxnOp {
+	return &api.KVTxnOp{
+		Verb:  verb,
+		Key:   key,
+		Value: value,
+	}
+}
+
 func getAddAllocationsOperation(locationName, hostname string, allocations []Allocation) (api.KVTxnOps, error) {
 	allocsOps := api.KVTxnOps{}
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, locationName, hostname)
@@ -190,36 +211,12 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 		for _, alloc := range allocations {
 			allocKVPrefix := path.Join(hostKVPrefix, "allocations", alloc.ID)
 			allocOps := api.KVTxnOps{
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix),
-					Value: []byte(alloc.ID),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "node_name"),
-					Value: []byte(alloc.NodeName),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "instance"),
-					Value: []byte(alloc.Instance),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "deployment_id"),
-					Value: []byte(alloc.DeploymentID),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "shareable"),
-					Value: []byte(strconv.FormatBool(alloc.Shareable)),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "placement_policy"),
-					Value: []byte((alloc.PlacementPolicy)),
-				},
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix), []byte(alloc.ID)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "node_name"), []byte(alloc.NodeName)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "instance"), []byte(alloc.Instance)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "deployment_id"), []byte(alloc.DeploymentID)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "shareable"),  []byte(strconv.FormatBool(alloc.Shareable))),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "placement_policy"), []byte(alloc.PlacementPolicy)),
 			}
 
 			for k, v := range alloc.Resources {
@@ -227,13 +224,8 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 				if k == "" {
 					return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
 				}
-				allocOps = append(allocOps, &api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "resources", k),
-					Value: []byte(v),
-				})
+				allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "resources", k), []byte(v)))
 			}
-
 			allocsOps = append(allocsOps, allocOps...)
 		}
 	}
@@ -300,31 +292,30 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 		}
 		alloc := Allocation{}
 		alloc.ID = id
-		kvp, _, err := cm.cc.KV().Get(path.Join(key, "node_name"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.NodeName = string(kvp.Value)
+
+
+		stringFields := []struct{
+			name string
+			attr *string
+		}{
+			{"node_name", &alloc.NodeName},
+			{"instance", &alloc.Instance},
+			{"deployment_id", &alloc.DeploymentID},
+			{"placement_policy", &alloc.PlacementPolicy},
 		}
 
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "instance"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.Instance = string(kvp.Value)
-		}
-
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "deployment_id"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.DeploymentID = string(kvp.Value)
+		for _, field := range stringFields {
+			kvp, _, err := cm.cc.KV().Get(path.Join(key, field.name), nil)
+			if err != nil {
+				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+			if kvp != nil && len(kvp.Value) > 0 {
+				*field.attr = string(kvp.Value)
+			}
 		}
 
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "shareable"), nil)
+
+		kvp, _, err := cm.cc.KV().Get(path.Join(key, "shareable"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -345,15 +336,21 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 		}
 		alloc.Resources = resources
 
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "placement_policy"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.PlacementPolicy = string(kvp.Value)
-		}
-
 		allocations = append(allocations, alloc)
 	}
 	return allocations, nil
+}
+
+// CheckPlacementPolicy check if placement policy is supported
+func (cm *consulManager) CheckPlacementPolicy(placementPolicy string) error {
+	if placementPolicy == "" {
+		return nil
+	}
+
+	switch placementPolicy {
+	case roundRobinPlacement, binPackingPlacement:
+		return nil
+	default:
+		return errors.Errorf("placement policy:%q is not actually supported", placementPolicy)
+	}
 }

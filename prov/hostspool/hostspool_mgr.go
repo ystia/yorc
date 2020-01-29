@@ -59,6 +59,7 @@ type Manager interface {
 	Release(locationName, hostname string, allocation *Allocation) error
 	ListLocations() ([]string, error)
 	RemoveLocation(locationName string) error
+	CheckPlacementPolicy(placementPolicy string) error
 }
 
 // SSHClientFactory is a that could be called to customize the client used to check the connection.
