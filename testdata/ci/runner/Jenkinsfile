@@ -17,6 +17,49 @@ pipeline {
     }
 
     stages {
+        stage('Compute Variables & secrets ') {
+            agent any
+            steps {
+
+                script {
+
+                    if (params.PREMIUM) {
+                        env.BUILD_TAGS="premium"
+                    } else {
+                        env.BUILD_TAGS=""
+                    }
+
+
+                    def randomPath = UUID.randomUUID().toString()
+                    env.gsPath = "${GCP_BUCKET_NAME}/${randomPath}/"
+                    env.yorcDownloadURL = "https://storage.googleapis.com/${env.gsPath}yorc.tgz"
+
+                    def sha1Str = sh(returnStdout: true, script: """#!/usr/bin/env bash
+                        sha=\$(echo "${randomPath}" | sha1sum)
+                        echo "\${sha:0:5}" """)
+                    env.yorcResourcesPrefix = "yorcci-" + sha1Str.trim() + "-"
+
+
+                    def godog_tags = "@CI"
+                    if (!params.PREMIUM) {
+                        godog_tags += " && ~@premium"
+                    }
+                    if (!params.NIGHTLY) {
+                        godog_tags += " && ~@slow"
+                    }
+                    env.godog_tags = godog_tags
+                    env.a4cPassword = UUID.randomUUID().toString()
+                }
+
+                echo "yorcResourcesPrefix: ${env.yorcResourcesPrefix}"
+                echo "build tags: ${env.BUILD_TAGS}"
+                echo "gs path: ${env.gsPath}"
+                echo "yorc DL URL: ${env.yorcDownloadURL}"
+                echo "godog_tags: ${env.godog_tags}"
+                echo "a4cPassword: ${env.a4cPassword}"
+            }
+        }
+
         stage('Build Yorc') {
             agent {
                 kubernetes {
@@ -41,29 +84,6 @@ spec:
                 }
             }
             steps {
-                script {
-                    if (params.PREMIUM) {
-                        env.BUILD_TAGS="premium"
-                    } else {
-                        env.BUILD_TAGS=""
-                    }
-
-                    def randomPath = UUID.randomUUID().toString()
-                    env.gsPath = "${GCP_BUCKET_NAME}/${randomPath}/"
-                    env.yorcDownloadURL = "https://storage.googleapis.com/${env.gsPath}yorc.tgz"
-
-                    def sha1Str = sh(returnStdout: true, script: """#!/usr/bin/env bash
-                        sha=\$(echo "${randomPath}" | sha1sum)
-                        echo "\${sha:0:5}" """)
-                    env.yorcResourcesPrefix = "yorcci-" + sha1Str.trim() + "-"
-
-
-                }
-
-                echo "yorcResourcesPrefix: ${env.yorcResourcesPrefix}"
-                echo "build tags: ${env.BUILD_TAGS}"
-                echo "gs path: ${env.gsPath}"
-                echo "yorc DL URL: ${env.yorcDownloadURL}"
 
                 checkout scm
 
@@ -107,25 +127,7 @@ spec:
                 }
             }
         }
-        stage('Compute Generic GoDog Tags & A4C Password') {
-            steps {
 
-                script {
-                    def godog_tags = "@CI"
-                    if (!params.PREMIUM) {
-                        godog_tags += " && ~@premium"
-                    }
-                    if (!params.NIGHTLY) {
-                        godog_tags += " && ~@slow"
-                    }
-                    env.godog_tags = godog_tags
-                    env.a4cPassword = UUID.randomUUID().toString()
-                }
-
-                echo "godog_tags: ${env.godog_tags}"
-                echo "a4cPassword: ${env.a4cPassword}"
-            }
-        }
         stage('Run on infra') {
             matrix {
                 agent {
@@ -172,19 +174,6 @@ spec:
                                     echo "Downloading Forge components from \${forgeCompsURL}"
                                     curl -L "\${forgeCompsURL}" -o all-types.zip
                                     unzip all-types.zip
-                                """
-                            }
-                        }
-                    }
-
-                    stage('Download yorc') {
-                        steps {
-                            dir('testdata/ci/runner') {
-                                // this could also be done using stash/unstash but this way we can test before bootstrap if it works
-                                echo "downloading Yorc from ${env.yorcDownloadURL}"
-                                sh """#!/usr/bin/env bash
-                                    curl -L "${env.yorcDownloadURL}" -o yorc.tgz
-                                    tar xzvf yorc.tgz
                                 """
                             }
                         }
@@ -261,9 +250,13 @@ spec:
                             stage('Bootstrap Yorc') {
                                 steps {
                                     dir('testdata/ci/runner') {
+                                        unstash 'yorc-bin'
                                         sh """#!/usr/bin/env bash
                                             set +x
                                             set -eo pipefail
+
+                                            tar xzvf yorc.tgz
+
                                             rm -fr yorcenv
                                             python3 -m venv yorcenv
                                             source yorcenv/bin/activate
