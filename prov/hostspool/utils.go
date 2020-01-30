@@ -181,7 +181,7 @@ func updateNumberResourcesLabels(origin map[string]string, diff map[string]strin
 	return nil
 }
 
-func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error  {
+func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error {
 	sizeResourcesLabels := []struct {
 		name string
 	}{
