@@ -69,10 +69,10 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I run the workflow named "([^"]*)"$`, c.iRunTheWorkflowNamed)
 	s.Step(`^The status of the instance "([^"]*)" of the node named "([^"]*)" is "([^"]*)"$`, c.theStatusOfTheInstanceOfTheNodeNamedIs)
 
-	s.Step(`^I have built the artifact named "([^"]*)" from templates named "([^"]*)" to Alien$`, iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien)
-	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is equal to the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed)
-	s.Step(`^I have added a policy named "([^"]*)" of type "([^"]*)" on targets "([^"]*)"$`, iHaveAddedAPolicyNamedOfTypeOnTargets)
-	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is different than the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed)
+	s.Step(`^I have built the artifact named "([^"]*)" from templates named "([^"]*)" to Alien$`, c.iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien)
+	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is equal to the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, c.theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed)
+	s.Step(`^I have added a policy named "([^"]*)" of type "([^"]*)" on targets "([^"]*)"$`, c.iHaveAddedAPolicyNamedOfTypeOnTargets)
+	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is different than the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, c.theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed)
 
 
 	s.BeforeScenario(c.reset)
@@ -99,6 +99,8 @@ func FeatureContext(s *godog.Suite) {
 			defer cancel()
 			c.a4cClient.DeploymentService().UndeployApplication(ctx, c.applicationID, c.environmentID)
 			c.a4cClient.DeploymentService().WaitUntilStateIs(ctx, c.applicationID, c.environmentID, alien4cloud.ApplicationUndeployed)
+			// Seems we need to wait a little time to avoid the terrible A4C delete deployed element error !!!
+			time.Sleep(2 * time.Second)
 			c.a4cClient.ApplicationService().DeleteApplication(ctx, c.applicationID)
 		}
 

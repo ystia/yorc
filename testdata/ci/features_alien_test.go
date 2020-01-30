@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/DATA-DOG/godog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/alien4cloud/alien4cloud-go-client/v2/alien4cloud"
 )
+
+
+const componentsDir = "components"
 
 func (c *suiteContext) iHaveUploadedTheArtifactNamedToAlien(csar string) error {
 	fp := filepath.Join("components", "*"+csar+"*.zip")
@@ -222,19 +225,100 @@ func (c *suiteContext) theStatusOfTheInstanceOfTheNodeNamedIs(instanceName, node
 }
 
 
-func iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien(artifactName, templateName string) error {
-	return godog.ErrPending
+func (c *suiteContext) iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien(artifactName, templateName string) error {
+	// Check the zip isn't already done
+	fInfo, err := os.Stat(componentsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = os.Mkdir(componentsDir, 0777)
+			if err != nil {
+				return fmt.Errorf("failed to create directory %q: %w", componentsDir, err)
+			}
+			fInfo, _ = os.Stat(componentsDir)
+		} else {
+			return fmt.Errorf("failed to stat directory components: %w", err)
+		}
+	}
+
+	if !fInfo.IsDir() {
+		return fmt.Errorf("%q must be a directory", componentsDir)
+	}
+	target := filepath.Join("components", artifactName+".zip")
+	matches, err := filepath.Glob(target)
+	if err != nil {
+		return fmt.Errorf("failed to find CSARs matching %q: %w", target, err)
+	}
+	if len(matches) != 0 {
+		// nothing to do
+		return nil
+	}
+
+	source := filepath.Join("templates", templateName)
+	err = zipDirectory(source, target)
+	if err != nil {
+		fmt.Errorf("failed to zip directory:%q due to error:%v", source, err)
+	}
+	return nil
 }
 
-func theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, nodeName1, instance1, attribute2, nodeName2, instance2 string) error {
-	return godog.ErrPending
+func (c *suiteContext) getInstanceAttributeValue(nodeName, instance, attribute string) (string, error) {
+	var value string
+	if c.applicationID == "" || c.environmentID == "" {
+		return value, fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+	attrs, err := c.a4cClient.DeploymentService().GetInstanceAttributesValue(c.ctx, c.applicationID, c.environmentID, nodeName, instance, []string{attribute})
+	if err != nil || attrs == nil {
+		return value, err
+	}
+	return attrs[attribute], nil
 }
 
-func iHaveAddedAPolicyNamedOfTypeOnTargets(policyName, policyType, targets string) error {
-	return godog.ErrPending
+func (c *suiteContext) theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2 string) error {
+	return c.compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2,true)
 }
 
-func theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, nodeName1, instance1, attribute2, nodeName2, instance2 string) error {
-	return godog.ErrPending
+func (c *suiteContext) compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2 string, wantEquals bool) error {
+	if c.applicationID == "" || c.environmentID == "" {
+		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+	val1, err := c.getInstanceAttributeValue(nodeName1, instance1, attribute1)
+	if err != nil {
+		return err
+	}
+	val2, err := c.getInstanceAttributeValue(nodeName2, instance2, attribute2)
+	if err != nil {
+		return err
+	}
+
+	if !wantEquals == (val1 == val2) {
+		return fmt.Errorf("value %q (attribute: %q, instance: %q, node: %q) and value %q (attribute: %q, instance: %q, node: %q) ewpected equals:%t is false", val1, attribute1, instance1, nodeName1, val2, attribute2, instance2, nodeName2, wantEquals)
+	}
+	return nil
+}
+
+func (c *suiteContext) iHaveAddedAPolicyNamedOfTypeOnTargets(policyName, policyType, targets string) error {
+	if c.applicationID == "" || c.environmentID == "" {
+		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+	a4cCtx := &alien4cloud.TopologyEditorContext{
+		AppID: c.applicationID,
+		EnvID: c.environmentID,
+	}
+
+	err := c.a4cClient.TopologyService().AddPolicy(c.ctx,a4cCtx, policyName, policyType)
+	if err != nil {
+		return fmt.Errorf("failed to add policy with name:%q due to error:%v", policyName, err)
+	}
+	targetsSlice := strings.Split(targets, ",")
+
+	err = c.a4cClient.TopologyService().AddTargetsToPolicy(c.ctx, a4cCtx, policyName, targetsSlice)
+	if err != nil {
+		return fmt.Errorf("failed to add targets:%q to policy with name:%q due to error:%v", targetsSlice, policyName, err)
+	}
+	return c.a4cClient.TopologyService().SaveA4CTopology(c.ctx, a4cCtx)
+}
+
+func (c *suiteContext) theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2 string) error {
+	return c.compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2, false)
 }
 
