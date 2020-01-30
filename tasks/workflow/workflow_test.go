@@ -240,6 +240,13 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 			// greetings_user is defined  as {get_input user}
 			// hello_msg is defined in the topology inputs
 			map[string]string{"greetings_user": "YorcUser", "hello_msg": "Hello"}},
+		{"TestActivityInput",
+			// user in a workflow input whose value will be added in task inputs
+			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_goodbye"},
+			false,
+			// greetings_user is assigned in activity inputs, its should take precedence over the task input
+			// goodbye_msg is defined in activity inputs
+			map[string]string{"greetings_user": "UserInActivity", "goodbye_msg": "Bye"}},
 	}
 
 	for _, tt := range tests {

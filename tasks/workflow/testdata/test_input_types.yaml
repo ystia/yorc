@@ -18,8 +18,8 @@ node_types:
         say_goodbye:
           inputs:
             goodbye_msg:
-             type: string
-             required: true
+              type: string
+              required: true
           implementation:
             type: ystia.yorc.tests.artifacts.Implementation.Custom
             file: say_goodbye

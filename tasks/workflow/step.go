@@ -383,15 +383,20 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 func (s *step) getActivityInputParameters(ctx context.Context, activity builder.Activity,
 	deploymentID, workflowName string) (map[string]tosca.ParameterDefinition, error) {
 
-	// TODO: get activity input parameters
+	// Getting activity input parameters first
+	result := make(map[string]tosca.ParameterDefinition)
+	for inputName, paramDef := range activity.Inputs() {
+
+		if paramDef.Value != nil || paramDef.Default != nil {
+			result[inputName] = paramDef
+		}
+	}
 
 	// Getting workflow inputs
 	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		return nil, err
 	}
-
-	result := make(map[string]tosca.ParameterDefinition)
 
 	for inputName, propDef := range wf.Inputs {
 

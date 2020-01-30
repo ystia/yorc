@@ -53,11 +53,11 @@ topology_template:
         custom:
           inputs:
             greetings_user: {get_input: user}
-          say_goodbye:
-            goodbye_msg:  {get_input: goodbye_msg}
-            implementation:
-              type: ystia.yorc.tests.artifacts.Implementation.Custom
-              file: say_goodbye
+#          say_goodbye:
+#            goodbye_msg:  toBeOverriden
+#            implementation:
+#              type: ystia.yorc.tests.artifacts.Implementation.Custom
+#              file: say_goodbye
           say_hello:
             inputs:
               hello_msg:  {get_input: hello_msg}
@@ -80,7 +80,11 @@ topology_template:
         GreetingsComponent_say_goodbye:
           target: GreetingsComponent
           activities:
-            - call_operation: custom.say_goodbye
+            - call_operation:
+                operation: custom.say_goodbye
+                inputs:
+                  greetings_user: UserInActivity
+                  goodbye_msg: Bye
         GreetingsComponent_say_hello:
           target: GreetingsComponent
           activities:

@@ -543,25 +543,22 @@ type OperationInputResult struct {
 
 // GetOperationInput retrieves the value of an input for a given operation
 func GetOperationInput(ctx context.Context, deploymentID, nodeName string, operation prov.Operation, inputName string) ([]OperationInputResult, error) {
-	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
-	if err != nil {
-		return nil, err
-	}
 
-	// Check operation input
 	var va *tosca.ValueAssignment
-	if operationDef != nil {
-		input, is := operationDef.Inputs[inputName]
-		if is && &input != nil {
-			va = input.ValueAssign
+	// Trying first to get the input from the operation execution context
+	execInput, found := operation.Inputs[inputName]
+	if found {
+		va = execInput.Value
+		if va == nil {
+			va = execInput.Default
 		}
 	}
 
-	// Check global interface input
-	if va == nil && interfaceDef != nil {
-		input, is := interfaceDef.Inputs[inputName]
-		if is && &input != nil {
-			va = input.ValueAssign
+	if va == nil {
+		var err error
+		va, err = getInputValueFromOperationAndInterfaceDefinitions(ctx, deploymentID, nodeName, operation, inputName)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -654,6 +651,34 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 		return nil, errors.Wrapf(err, "input not found in type %q", operation.ImplementedInType)
 	}
 	return results, err
+}
+
+func getInputValueFromOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, nodeName string,
+	operation prov.Operation, inputName string) (*tosca.ValueAssignment, error) {
+
+	var va *tosca.ValueAssignment
+	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
+	if err != nil {
+		return va, err
+	}
+
+	// Check operation input
+	if operationDef != nil {
+		input, is := operationDef.Inputs[inputName]
+		if is && &input != nil {
+			va = input.ValueAssign
+		}
+	}
+
+	// Check global interface input
+	if va == nil && interfaceDef != nil {
+		input, is := interfaceDef.Inputs[inputName]
+		if is && &input != nil {
+			va = input.ValueAssign
+		}
+	}
+
+	return va, err
 }
 
 // GetOperationInputPropertyDefinitionDefault retrieves the default value of an input of type property definition for a given operation
