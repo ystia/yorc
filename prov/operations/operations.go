@@ -54,17 +54,10 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 			return prov.Operation{}, err
 		}
 	} else {
-		isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
+		isNodeImplOpe, implementingNode, implementingType, err =
+			getNodeOperationInfo(ctx, deploymentID, nodeName, operationName)
 		if err != nil {
 			return prov.Operation{}, err
-		}
-		if isNodeImplOpe {
-			implementingNode = nodeName
-		} else {
-			implementingType, err = deployments.GetNodeTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName)
-			if err != nil {
-				return prov.Operation{}, err
-			}
 		}
 	}
 	implArt, err := deployments.GetImplementationArtifactForOperation(ctx, deploymentID, nodeName, operationName, isNodeImplOpe, isRelationshipOp, requirementIndex)
@@ -96,6 +89,24 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	}
 	log.Debugf("operation:%+v", op)
 	return op, nil
+}
+
+func getNodeOperationInfo(ctx context.Context, deploymentID, nodeName,
+	operationName string) (isNodeImplOpe bool, implementingNode string, implementingType string, err error) {
+
+	isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
+	if err != nil {
+		return
+	}
+	if isNodeImplOpe {
+		implementingNode = nodeName
+	} else {
+		implementingType, err = deployments.GetNodeTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 // IsRelationshipOperation checks if an operation is part of a relationship
