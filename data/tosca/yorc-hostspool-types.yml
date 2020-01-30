@@ -44,12 +44,12 @@ policy_types:
     derived_from: yorc.policies.hostspool.Placement
     description: >
       The yorc hostpool TOSCA Policy placement which allows to allocate a host with a round robin algorithm.
-      It means the host with the less related allocations will be elect preferentially.
+      It means the host with the least related allocations will be elect preferentially.
     targets: [ tosca.nodes.Compute ]
 
   yorc.policies.hostspool.BinPackingPlacement:
     derived_from: yorc.policies.hostspool.Placement
     description: >
       The yorc hostpool TOSCA Policy placement which allows to allocate a host with a bin packing algorithm.
-      It means the host with the more related allocations will be elect preferentially.
+      It means the host with the most related allocations will be elect preferentially.
     targets: [ tosca.nodes.Compute ]
