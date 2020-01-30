@@ -38,18 +38,9 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	)
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
-	if requirementName != "" {
-		requirementIndex, err = deployments.GetRequirementIndexByNameForNode(ctx, deploymentID, nodeName, requirementName)
-		if err != nil || requirementIndex == "" {
-			return prov.Operation{}, errors.Wrapf(err, "Unable to found requirement key for requirement name:%q", requirementName)
-		}
-	}
 	if isRelationshipOp {
-		implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName, requirementIndex)
-		if err != nil {
-			return prov.Operation{}, err
-		}
-		targetNodeName, err = deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+		requirementIndex, implementingType, targetNodeName, err =
+			getRelationshipOperationInfo(ctx, deploymentID, nodeName, operationName, requirementName)
 		if err != nil {
 			return prov.Operation{}, err
 		}
@@ -89,6 +80,22 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	}
 	log.Debugf("operation:%+v", op)
 	return op, nil
+}
+
+func getRelationshipOperationInfo(ctx context.Context, deploymentID, nodeName,
+	operationName, requirementName string) (requirementIndex, implementingType, targetNodeName string, err error) {
+
+	requirementIndex, err = deployments.GetRequirementIndexByNameForNode(ctx, deploymentID, nodeName, requirementName)
+	if err != nil || requirementIndex == "" {
+		err = errors.Wrapf(err, "Unable to find requirement key for requirement name:%q", requirementName)
+		return
+	}
+	implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName, requirementIndex)
+	if err != nil {
+		return
+	}
+	targetNodeName, err = deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+	return
 }
 
 func getNodeOperationInfo(ctx context.Context, deploymentID, nodeName,

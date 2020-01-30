@@ -423,27 +423,7 @@ func (s *step) getActivityInputParameters(ctx context.Context, activity builder.
 
 	// Getting inputs at the topology level that can be used
 	// if inputs aren't defined at lower levels (workflow or activity)
-	topologyInputNames, err := deployments.GetTopologyInputsNames(ctx, deploymentID)
-	if err != nil {
-		return result, err
-	}
-
-	for _, inputName := range topologyInputNames {
-		if _, ok := result[inputName]; ok {
-			// Already defined in lower levels
-			continue
-		}
-
-		found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
-		if err != nil {
-			return result, err
-		}
-
-		if found {
-			result[inputName] = *paramDef
-		}
-
-	}
+	err = addTopologyInputs(ctx, deploymentID, result)
 
 	return result, err
 }
@@ -464,16 +444,9 @@ func (s *step) getWorkflowInputValue(ctx context.Context, deploymentID, workflow
 			// No default value, and no input in this execution context
 			// => no parameter is defined in this execution context
 			// It can still be defined in the topology
-			found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+			valueAssign, err = getValueFromTopology(ctx, deploymentID, inputName)
 			if err != nil {
 				return valueAssign, err
-			}
-			if found {
-				valueAssign = paramDef.Value
-				if valueAssign == nil {
-					valueAssign = paramDef.Default
-				}
-
 			}
 			if propDef.Required != nil && *propDef.Required && valueAssign == nil {
 				return valueAssign, errors.Errorf("Missing required value for input %q in step:%q workflow:%q, deploymentID:%q, taskID:%q",
@@ -485,6 +458,48 @@ func (s *step) getWorkflowInputValue(ctx context.Context, deploymentID, workflow
 	}
 	return valueAssign, err
 
+}
+
+func getValueFromTopology(ctx context.Context, deploymentID, inputName string) (*tosca.ValueAssignment, error) {
+	var valueAssign *tosca.ValueAssignment
+
+	found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+	if err != nil {
+		return valueAssign, err
+	}
+	if found {
+		valueAssign = paramDef.Value
+		if valueAssign == nil {
+			valueAssign = paramDef.Default
+		}
+	}
+	return valueAssign, err
+}
+
+func addTopologyInputs(ctx context.Context, deploymentID string, result map[string]tosca.ParameterDefinition) error {
+
+	topologyInputNames, err := deployments.GetTopologyInputsNames(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+
+	for _, inputName := range topologyInputNames {
+		if _, ok := result[inputName]; ok {
+			// Already defined
+			continue
+		}
+
+		found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+		if err != nil {
+			return err
+		}
+
+		if found {
+			result[inputName] = *paramDef
+		}
+
+	}
+	return err
 }
 
 func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) error {
