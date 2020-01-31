@@ -257,8 +257,7 @@ spec:
                                             echo '- Read provided values_hp_template.yaml file and update them'
                                             withCredentials(
                                 				[file(credentialsId: 'yorc-ci-root-ca-key', variable: 'YORC_ROOT_CA_FILE'),
-                                                sshUserPrivateKey(credentialsId: 'centos-yorc', keyFileVariable: 'YORC_SSH_PRIVATE_KEY', passphraseVariable: '', usernameVariable: ''),
-                                                usernamePassword(credentialsId: '03d4bd89-bac0-4212-bb28-06a7391e1b71', passwordVariable: 'OS_PASSWORD', usernameVariable: 'OS_USER_NAME')]) {
+                                                sshUserPrivateKey(credentialsId: 'centos-yorc', keyFileVariable: 'YORC_SSH_PRIVATE_KEY', passphraseVariable: '', usernameVariable: '')]) {
                                                 sh ("""
                                                     cp "${YORC_ROOT_CA_FILE}" ./ssl/rootCA.key
                                                 """)
