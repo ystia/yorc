@@ -9,6 +9,7 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
     Given I have built the artifact named "testCompute" from templates named "testCompute" to Alien
     And I have uploaded the artifact named "testCompute" to Alien
 
+  @CI
   @hostspool
   @cleanupAlien
   Scenario: Deploy a TestComputeApp application and do not apply any placement policy
@@ -18,6 +19,7 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
 
     Then The attribute "hostname" of the instance "0" of the node named "Compute" is equal to the attribute "hostname" of the instance "1" of the node named "Compute"
 
+  @CI
   @hostspool
   @cleanupAlien
   Scenario: Deploy a TestComputeApp application and apply round-robin placement policy
@@ -28,6 +30,7 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
 
     Then The attribute "hostname" of the instance "0" of the node named "Compute" is different than the attribute "hostname" of the instance "1" of the node named "Compute"
 
+  @CI
   @hostspool
   @cleanupAlien
   Scenario: Deploy a TestComputeApp application and apply bin-packing placement policy

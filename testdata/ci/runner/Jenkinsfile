@@ -4,7 +4,7 @@ pipeline {
         skipDefaultCheckout true
     }
     parameters {
-        choice(name: 'INFRA_FILTER', choices: ['all', 'openstack', 'gcp'], description: 'Run on specific infrastructure (all by default)')
+        choice(name: 'INFRA_FILTER', choices: ['all', 'openstack', 'gcp', 'hp'], description: 'Run on specific infrastructure (all by default)')
         booleanParam defaultValue: false, description: 'Are we testing a premium version', name: 'PREMIUM'
         booleanParam defaultValue: false, description: 'Should we run slow tests? (run nightly)', name: 'NIGHTLY'
     }
@@ -154,7 +154,7 @@ spec:
                 axes {
                     axis {
                         name 'INFRASTRUCTURE'
-                        values 'openstack', 'gcp'
+                        values 'openstack', 'gcp', 'hp'
                     }
                 }
 
@@ -236,6 +236,37 @@ spec:
                                                     values.ca_key_file=
                                                     values.yorc.private_key_content = keyFile
                                                     values.locations[0].properties.credentials = GCP_CREDS
+                                                    values.yorc.download_url="${env.yorcDownloadURL}"
+                                                    values.alien4cloud.password="${env.a4cPassword}"
+                                                    values.yorc.resources_prefix="${env.yorcResourcesPrefix}"
+                                                    writeYaml file: 'values.yaml', data: values
+                                                }
+                                            }
+                                            echo '- Wrote updated values to values.yaml'
+                                        }
+                                    }
+                                }
+                            }
+                            stage('Prepare HostsPool values.yaml file for bootstrap') {
+                                when {
+                                    environment name: 'INFRASTRUCTURE', value: 'hp'
+                                }
+                                steps {
+                                    configFileProvider([configFile(fileId: 'yorc-ci-hp-bootstrap', targetLocation: 'testdata/ci/runner/values_hp_template.yaml')]) {
+                                        dir('testdata/ci/runner') {
+                                            echo '- Read provided values_hp_template.yaml file and update them'
+                                            withCredentials(
+                                                [file(credentialsId: 'yorc-ci-root-ca-key', variable: 'YORC_ROOT_CA_FILE'),
+                                                string(credentialsId: '51a9c309-d10d-48f9-8d4c-68fafef415d8', variable: 'GCP_CREDS'),
+                                                sshUserPrivateKey(credentialsId: '736c2593-609f-42b1-a9d7-d97763190459', keyFileVariable: 'YORC_SSH_PRIVATE_KEY', passphraseVariable: '', usernameVariable: '')]) {
+                                                sh ("""
+                                                    cp "${YORC_ROOT_CA_FILE}" ./ssl/rootCA.key
+                                                """)
+                                                script {
+                                                    def keyFile = readFile YORC_SSH_PRIVATE_KEY
+                                                    def values = readYaml file: 'values_gcp_template.yaml'
+                                                    values.ca_key_file=
+                                                    values.yorc.private_key_content = keyFile
                                                     values.yorc.download_url="${env.yorcDownloadURL}"
                                                     values.alien4cloud.password="${env.a4cPassword}"
                                                     values.yorc.resources_prefix="${env.yorcResourcesPrefix}"
