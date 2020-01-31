@@ -256,15 +256,13 @@ spec:
                                         dir('testdata/ci/runner') {
                                             echo '- Read provided values_hp_template.yaml file and update them'
                                             withCredentials(
-                                                [file(credentialsId: 'yorc-ci-root-ca-key', variable: 'YORC_ROOT_CA_FILE'),
-                                                string(credentialsId: '51a9c309-d10d-48f9-8d4c-68fafef415d8', variable: 'GCP_CREDS'),
-                                                sshUserPrivateKey(credentialsId: '736c2593-609f-42b1-a9d7-d97763190459', keyFileVariable: 'YORC_SSH_PRIVATE_KEY', passphraseVariable: '', usernameVariable: '')]) {
+                                                [file(credentialsId: 'yorc-ci-root-ca-key', variable: 'YORC_ROOT_CA_FILE')]) {
                                                 sh ("""
                                                     cp "${YORC_ROOT_CA_FILE}" ./ssl/rootCA.key
                                                 """)
                                                 script {
                                                     def keyFile = readFile YORC_SSH_PRIVATE_KEY
-                                                    def values = readYaml file: 'values_gcp_template.yaml'
+                                                    def values = readYaml file: 'values_hp_template.yaml'
                                                     values.ca_key_file=
                                                     values.yorc.private_key_content = keyFile
                                                     values.yorc.download_url="${env.yorcDownloadURL}"
