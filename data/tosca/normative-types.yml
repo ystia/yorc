@@ -183,10 +183,15 @@ capability_types:
     description: The Node capability indicates the base capabilities of a TOSCA Node Type.
 
   tosca.capabilities.Container:
-    derived_from: tosca.capabilities.Root
     description: >
-      The Container capability, when included on a Node Type or Template definition, indicates that the node can act as a container for
-      (or a host for) one or more other declared Node Types.
+      The Container capability, when included on a Node Type or Template definition, indicates that the node can act as a container for (or a host for)
+      one or more other declared Node Types.
+    derived_from: tosca.capabilities.Root
+
+  tosca.capabilities.Compute:
+    derived_from: tosca.capabilities.Container
+    description: >
+      The Compute capability, when included on a Node Type or Template definition, indicates that the node can provide hosting on a named compute resource.
     properties:
       num_cpus:
         type: integer
@@ -583,7 +588,7 @@ node_types:
           occurrences: [ 0, UNBOUNDED ]
     capabilities:
       host:
-        type: tosca.capabilities.Container
+        type: tosca.capabilities.Compute
         valid_source_types: [tosca.nodes.SoftwareComponent]
       endpoint:
         type: tosca.capabilities.Endpoint.Admin
@@ -610,7 +615,7 @@ node_types:
         required: false
     requirements:
       - host:
-          capability: tosca.capabilities.Container
+          capability: tosca.capabilities.Compute
           node: tosca.nodes.Compute
           relationship: tosca.relationships.HostedOn
 
@@ -624,7 +629,7 @@ node_types:
       data_endpoint: tosca.capabilities.Endpoint
       admin_endpoint: tosca.capabilities.Endpoint.Admin
       host:
-        type: tosca.capabilities.Container
+        type: tosca.capabilities.Compute
         valid_source_types: [ tosca.nodes.WebApplication ]
 
   tosca.nodes.WebApplication:
@@ -641,7 +646,7 @@ node_types:
         type: tosca.capabilities.Endpoint
     requirements:
       - host:
-          capability: tosca.capabilities.Container
+          capability: tosca.capabilities.Compute
           node: tosca.nodes.WebServer
           relationship: tosca.relationships.HostedOn
 
@@ -659,7 +664,7 @@ node_types:
         description: the port the DBMS service will listen to for data and requests
     capabilities:
       host:
-        type: tosca.capabilities.Container
+        type: tosca.capabilities.Compute
         valid_source_types: [ tosca.nodes.Database ]
 
   tosca.nodes.Database:
@@ -682,7 +687,7 @@ node_types:
         required: false
     requirements:
       - host:
-          capability: tosca.capabilities.Container
+          capability: tosca.capabilities.Compute
           node: tosca.nodes.DBMS
           relationship: tosca.relationships.HostedOn
     capabilities:
@@ -747,7 +752,7 @@ node_types:
       services on a single Compute host.
     capabilities:
       host:
-        type: tosca.capabilities.Container
+        type: tosca.capabilities.Compute
       scalable:
         type: tosca.capabilities.Scalable
 
@@ -756,7 +761,7 @@ node_types:
     description: The TOSCA Container Application node represents an application that requires Container-level virtualization technology.
     requirements:
       - host:
-          capability: tosca.capabilities.Container
+          capability: tosca.capabilities.Compute
           node: tosca.nodes.Container
           relationship: tosca.relationships.HostedOn
 
