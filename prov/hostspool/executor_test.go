@@ -198,9 +198,9 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 
 	// Check compute ip_address attributes
 	expected := map[string]string{
-		"public_address":          "1.2.3.4", // to cover some code using this resource
-		"public_ip_address":       "1.2.3.4",
-		"private_address":       "5.6.7.8",
+		"public_address":    "1.2.3.4", // to cover some code using this resource
+		"public_ip_address": "1.2.3.4",
+		"private_address":   "5.6.7.8",
 	}
 
 	for attribute, expectedValue := range expected {
@@ -211,8 +211,6 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 			assert.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
 		}
 	}
-
-
 
 }
 
@@ -286,7 +284,7 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 		"label1":                  "stringvalue1",
 		"public_address":          "1.2.3.4", // to cover some code using this resource
 		"public_ip_address":       "1.2.3.4",
-		"private_address":       "5.6.7.8",
+		"private_address":         "5.6.7.8",
 		"networks.0.network_name": "mynetwork",
 		"networks.0.network_id":   "123",
 		"networks.0.addresses":    "1.2.3.4,1.2.3.5",
