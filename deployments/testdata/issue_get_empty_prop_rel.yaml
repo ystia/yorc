@@ -80,7 +80,7 @@ node_types:
         type: yorc.tests.capabilities.ValueAssignmentEndpoint
     requirements:
       - host:
-          capability: tosca.capabilities.Container
+          capability: tosca.capabilities.Compute
           relationship: tosca.relationships.HostedOn
       - server:
           capability: yorc.tests.capabilities.ValueAssignmentEndpoint
@@ -319,7 +319,7 @@ topology_template:
       requirements:
         - host:
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     ValueAssignmentNode2:
           type: yorc.tests.nodes.ValueAssignmentNode
@@ -371,7 +371,7 @@ topology_template:
           requirements:
             - host:
                 node: Compute
-                capability: tosca.capabilities.Container
+                capability: tosca.capabilities.Compute
                 relationship: tosca.relationships.HostedOn
             - server:
                 capability: yorc.tests.capabilities.ValueAssignmentEndpoint

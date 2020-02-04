@@ -51,7 +51,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     Alien4Cloud:
       type: org.alien4cloud.alien4cloud.webapp.nodes.Alien4Cloud
@@ -142,7 +142,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     YorcServer:
       type: org.ystia.yorc.linux.ansible.nodes.YorcServer
@@ -160,7 +160,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
         - joinConsulAgentConsulServerConsul_agent:
             type_requirement: consul
@@ -214,7 +214,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
         consul_server:
@@ -251,7 +251,7 @@ topology_template:
             relationship: org.alien4cloud.vault.relationships.ConnectToConsulAgent
         - host:
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     {{end}}
     TerraformRuntime:
@@ -263,7 +263,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     Infrastructure: {{block "Infrastructure" .}} {{end}}
     YorcAnsibleConfig:

@@ -17,7 +17,7 @@ node_types:
       attachWebsite: {type: yorc.test.capabilities.TestModuleCapability}
     requirements:
     - host:
-        capability: tosca.capabilities.Container
+        capability: tosca.capabilities.Compute
         node: tosca.nodes.Compute
         relationship: tosca.relationships.HostedOn
         occurrences: [1, 1]

@@ -86,7 +86,7 @@ topology_template:
       requirements:
         - host:
             node: ComputeA
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
         - connect:
             node: NodeB
@@ -102,7 +102,7 @@ topology_template:
       requirements:
         - host:
             node: ComputeB
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     ComputeA:
       type: tosca.nodes.Compute

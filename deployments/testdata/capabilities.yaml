@@ -123,7 +123,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     EPCapNodePrivate:
       type: yorc.type.TypeWithEndpointCap
@@ -135,7 +135,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     EPCapNodeNamedNet:
       type: yorc.type.TypeWithEndpointCap
@@ -149,5 +149,5 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn

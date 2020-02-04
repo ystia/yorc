@@ -40,7 +40,7 @@ topology_template:
       type: yorc.test.nodes.TestContainer
       properties: {component_version: 1.0, port: 80, document_root: /var/www}
       requirements:
-      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+      - host: {node: TestCompute, capability: tosca.capabilities.Compute, relationship: tosca.relationships.HostedOn}
       capabilities:
         data_endpoint:
           properties: {protocol: tcp, secure: false, network_name: PRIVATE, initiator: source}
@@ -53,7 +53,7 @@ topology_template:
       type: yorc.test.nodes.TestModule
       properties: {component_version: 1.0}
       requirements:
-      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+      - host: {node: TestCompute, capability: tosca.capabilities.Compute, relationship: tosca.relationships.HostedOn}
   outputs:
     TestComponent_url:
       value:
