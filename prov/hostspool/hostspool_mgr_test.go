@@ -1166,7 +1166,7 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }
 
-func testConsulManagerAllocateWithRoundRobinPlacement(t *testing.T, cc *api.Client) {
+func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.Client) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
@@ -1189,7 +1189,7 @@ func testConsulManagerAllocateWithRoundRobinPlacement(t *testing.T, cc *api.Clie
 	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
 
 	// Allocate host1: first allocation
-	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources, PlacementPolicy: roundRobinPlacement}
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources, PlacementPolicy: weightBalancedPlacement}
 	require.NoError(t, err, "Unexpected error creating a filter")
 	allocatedName, warnings, err := cm.Allocate(location, alloc1, noFilters...)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
@@ -1205,7 +1205,7 @@ func testConsulManagerAllocateWithRoundRobinPlacement(t *testing.T, cc *api.Clie
 	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
 
 	// Allocate host1: 2nd allocation
-	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: resources, PlacementPolicy: roundRobinPlacement}
+	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: resources, PlacementPolicy: weightBalancedPlacement}
 	allocatedName, warnings, err = cm.Allocate(location, alloc2, noFilters...)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")

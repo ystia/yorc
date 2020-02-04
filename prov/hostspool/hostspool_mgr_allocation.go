@@ -30,9 +30,9 @@ import (
 )
 
 const (
-	binPackingPlacement = "yorc.policies.hostspool.BinPackingPlacement"
-	roundRobinPlacement = "yorc.policies.hostspool.RoundRobinPlacement"
-	placementPolicy     = "yorc.policies.hostspool.Placement"
+	binPackingPlacement     = "yorc.policies.hostspool.BinPackingPlacement"
+	weightBalancedPlacement = "yorc.policies.hostspool.WeightBalancedPlacement"
+	placementPolicy         = "yorc.policies.hostspool.Placement"
 )
 
 type hostCandidate struct {
@@ -123,9 +123,9 @@ func (cm *consulManager) allocateWait(locationName string, maxWaitTime time.Dura
 }
 func (cm *consulManager) electHostFromCandidates(locationName string, allocation *Allocation, candidates []hostCandidate) string {
 	switch allocation.PlacementPolicy {
-	case roundRobinPlacement:
-		log.Printf("Applying round-robin placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
-		return roundRobin(candidates)
+	case weightBalancedPlacement:
+		log.Printf("Applying weight-balanced placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
+		return weightBalanced(candidates)
 	case binPackingPlacement:
 		log.Printf("Applying bin packing placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
 		return binPacking(candidates)
@@ -135,7 +135,7 @@ func (cm *consulManager) electHostFromCandidates(locationName string, allocation
 	}
 }
 
-func roundRobin(candidates []hostCandidate) string {
+func weightBalanced(candidates []hostCandidate) string {
 	hostname := candidates[0].name
 	minAllocations := candidates[0].allocations
 	for _, candidate := range candidates {
@@ -346,7 +346,7 @@ func (cm *consulManager) CheckPlacementPolicy(placementPolicy string) error {
 	}
 
 	switch placementPolicy {
-	case roundRobinPlacement, binPackingPlacement:
+	case weightBalancedPlacement, binPackingPlacement:
 		return nil
 	default:
 		return errors.Errorf("placement policy:%q is not actually supported", placementPolicy)

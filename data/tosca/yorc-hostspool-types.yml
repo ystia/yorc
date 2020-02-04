@@ -40,16 +40,16 @@ policy_types:
     derived_from: tosca.policies.Placement
     description: The yorc hostpool TOSCA Policy Placement.
 
-  yorc.policies.hostspool.RoundRobinPlacement:
+  yorc.policies.hostspool.WeightBalancedPlacement:
     derived_from: yorc.policies.hostspool.Placement
     description: >
-      The yorc hostpool TOSCA Policy placement which allows to allocate a host with a round robin algorithm.
-      It means the host with the least related allocations will be elect preferentially.
+      The yorc hostpool TOSCA Policy placement which allows to allocate a host with a weight-balanced algorithm.
+      It means the host the less allocated will be elect preferentially.
     targets: [ tosca.nodes.Compute ]
 
   yorc.policies.hostspool.BinPackingPlacement:
     derived_from: yorc.policies.hostspool.Placement
     description: >
       The yorc hostpool TOSCA Policy placement which allows to allocate a host with a bin packing algorithm.
-      It means the host with the most related allocations will be elect preferentially.
+      It means the host the more allocated will be elect preferentially.
     targets: [ tosca.nodes.Compute ]
