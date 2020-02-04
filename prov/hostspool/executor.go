@@ -315,14 +315,8 @@ func (e *defaultExecutor) updateConnectionSettings(
 	if publicAddress, ok := host.Labels[tosca.ComputeNodePublicAddressAttributeName]; ok {
 		// For compatibility with components referencing a host public_ip_address,
 		// defining an attribute public_ip_address as well
-		err = setInstanceAttributesValue(ctx, op, instance, privateAddress,
+		err = setInstanceAttributesValue(ctx, op, instance, publicAddress,
 			[]string{tosca.ComputeNodePublicAddressAttributeName, "public_ip_address"})
-		if err != nil {
-			return err
-		}
-
-		err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName,
-			instance, tosca.ComputeNodePublicAddressAttributeName, publicAddress)
 		if err != nil {
 			return err
 		}
