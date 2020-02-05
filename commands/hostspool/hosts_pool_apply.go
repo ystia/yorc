@@ -323,7 +323,7 @@ func toPrintableLabels(labels map[string]string) string {
 	var labelsList string
 	for k, v := range labels {
 		if labelsList != "" {
-			labelsList += ","
+			labelsList += "|"
 		}
 		labelsList += fmt.Sprintf("%s: %s", k, v)
 	}

@@ -147,7 +147,7 @@ func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, 
 	connectionSubRows := strings.Split(host.Connection.String(), ",")
 	var labelSubRows []string
 	if host.Labels != nil {
-		labelSubRows = strings.Split(toPrintableLabels(host.Labels), ",")
+		labelSubRows = strings.Split(toPrintableLabels(host.Labels), "|")
 		sort.Strings(labelSubRows)
 	}
 
