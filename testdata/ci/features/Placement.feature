@@ -10,7 +10,7 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
     And I have uploaded the artifact named "testCompute" to Alien
 
   @CI
-  @hostspool
+  @hp
   @cleanupAlien
   Scenario: Deploy a TestComputeApp application and do not apply any placement policy
     Given I have created an application named "TestComputeApp" based on template named "org.ystia.ci.tests.test_compute"
@@ -20,7 +20,7 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
     Then The attribute "hostname" of the instance "0" of the node named "Compute" is equal to the attribute "hostname" of the instance "1" of the node named "Compute"
 
   @CI
-  @hostspool
+  @hp
   @cleanupAlien
   Scenario: Deploy a TestComputeApp application and apply round-robin placement policy
     Given I have created an application named "TestComputeApp" based on template named "org.ystia.ci.tests.test_compute"
@@ -31,7 +31,7 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
     Then The attribute "hostname" of the instance "0" of the node named "Compute" is different than the attribute "hostname" of the instance "1" of the node named "Compute"
 
   @CI
-  @hostspool
+  @hp
   @cleanupAlien
   Scenario: Deploy a TestComputeApp application and apply bin-packing placement policy
     Given I have created an application named "TestComputeApp" based on template named "org.ystia.ci.tests.test_compute"
