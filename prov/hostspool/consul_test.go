@@ -104,6 +104,9 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testConsulManagerAllocateShareableCompute", func(t *testing.T) {
 		testConsulManagerAllocateShareableCompute(t, client)
 	})
+	t.Run("testConsulManagerAllocateWithWeightBalancedPlacement", func(t *testing.T) {
+		testConsulManagerAllocateWithWeightBalancedPlacement(t, client)
+	})
 	t.Run("testConsulManagerAllocateShareableComputeWithSameAllocationPrefix", func(t *testing.T) {
 		testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t, client)
 	})

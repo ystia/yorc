@@ -19,12 +19,14 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
-	"fmt"
 	"github.com/pkg/errors"
-	"net/url"
+
+	"github.com/ystia/yorc/v4/helper/stringutil"
 )
 
 // HostStatus x ENUM(
@@ -113,16 +115,17 @@ type HostConfig struct {
 
 // An Allocation describes the related allocation associated to a host pool
 type Allocation struct {
-	ID           string            `json:"id"`
-	NodeName     string            `json:"node_name"`
-	Instance     string            `json:"instance"`
-	DeploymentID string            `json:"deployment_id"`
-	Shareable    bool              `json:"shareable"`
-	Resources    map[string]string `json:"resource_labels,omitempty"`
+	ID              string            `json:"id"`
+	NodeName        string            `json:"node_name"`
+	Instance        string            `json:"instance"`
+	DeploymentID    string            `json:"deployment_id"`
+	Shareable       bool              `json:"shareable"`
+	Resources       map[string]string `json:"resource_labels,omitempty"`
+	PlacementPolicy string            `json:"placement_policy"`
 }
 
 func (alloc *Allocation) String() string {
-	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable)
+	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t, placement:%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, stringutil.GetLastElement(alloc.PlacementPolicy, "."))
 	if alloc.Resources != nil && len(alloc.Resources) > 0 {
 		for k, v := range alloc.Resources {
 			allocStr += "," + k + ": " + v

@@ -15,6 +15,7 @@
 package hostspool
 
 import (
+	"github.com/ystia/yorc/v4/log"
 	"net/url"
 	"path"
 	"strconv"
@@ -27,6 +28,17 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/labelsutil"
 )
+
+const (
+	binPackingPlacement     = "yorc.policies.hostspool.BinPackingPlacement"
+	weightBalancedPlacement = "yorc.policies.hostspool.WeightBalancedPlacement"
+	placementPolicy         = "yorc.policies.hostspool.Placement"
+)
+
+type hostCandidate struct {
+	name        string
+	allocations int
+}
 
 func (cm *consulManager) Allocate(locationName string, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
 	return cm.allocateWait(locationName, maxWaitTimeSeconds*time.Second, allocation, filters...)
@@ -47,9 +59,9 @@ func (cm *consulManager) allocateWait(locationName string, maxWaitTime time.Dura
 	if err != nil {
 		return "", warnings, err
 	}
-	// Filters only free or allocated hosts in case of shareable allocation
+	// define host candidates in only free or allocated hosts in case of shareable allocation
+	candidates := make([]hostCandidate, 0)
 	var lastErr error
-	freeHosts := hosts[:0]
 	for _, h := range hosts {
 		select {
 		case <-lockCh:
@@ -66,30 +78,37 @@ func (cm *consulManager) allocateWait(locationName string, maxWaitTime time.Dura
 			lastErr = err
 		} else {
 			if hs == HostStatusFree {
-				freeHosts = append(freeHosts, h)
+				candidates = append(candidates, hostCandidate{
+					name:        h,
+					allocations: 0,
+				})
 			} else if hs == HostStatusAllocated && allocation.Shareable {
 				allocations, err := cm.GetAllocations(locationName, h)
 				if err != nil {
 					lastErr = err
 					continue
 				}
-				// Check the host allocation is not unshareable
+				// Check the host allocation is not shareable
 				if len(allocations) == 1 && !allocations[0].Shareable {
 					continue
 				}
-				freeHosts = append(freeHosts, h)
+				candidates = append(candidates, hostCandidate{
+					name:        h,
+					allocations: len(allocations),
+				})
 			}
 		}
 	}
 
-	if len(freeHosts) == 0 {
+	if len(candidates) == 0 {
 		if lastErr != nil {
 			return "", warnings, lastErr
 		}
 		return "", warnings, errors.WithStack(noMatchingHostFoundError{})
 	}
-	// Get the first host that match
-	hostname := freeHosts[0]
+
+	// Apply the policy placement
+	hostname := cm.electHostFromCandidates(locationName, allocation, candidates)
 	select {
 	case <-lockCh:
 		return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
@@ -102,6 +121,44 @@ func (cm *consulManager) allocateWait(locationName string, maxWaitTime time.Dura
 
 	return hostname, warnings, cm.setHostStatus(locationName, hostname, HostStatusAllocated)
 }
+func (cm *consulManager) electHostFromCandidates(locationName string, allocation *Allocation, candidates []hostCandidate) string {
+	switch allocation.PlacementPolicy {
+	case weightBalancedPlacement:
+		log.Printf("Applying weight-balanced placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
+		return weightBalanced(candidates)
+	case binPackingPlacement:
+		log.Printf("Applying bin packing placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
+		return binPacking(candidates)
+	default: // default is bin packing placement
+		log.Printf("Applying default bin packing placement policy for location:%s, deployment:%s, node name:%s, instance:%s", locationName, allocation.DeploymentID, allocation.NodeName, allocation.Instance)
+		return binPacking(candidates)
+	}
+}
+
+func weightBalanced(candidates []hostCandidate) string {
+	hostname := candidates[0].name
+	minAllocations := candidates[0].allocations
+	for _, candidate := range candidates {
+		if candidate.allocations < minAllocations {
+			minAllocations = candidate.allocations
+			hostname = candidate.name
+		}
+	}
+	return hostname
+}
+
+func binPacking(candidates []hostCandidate) string {
+	hostname := candidates[0].name
+	maxAllocations := candidates[0].allocations
+	for _, candidate := range candidates {
+		if candidate.allocations > maxAllocations {
+			maxAllocations = candidate.allocations
+			hostname = candidate.name
+		}
+	}
+	return hostname
+}
+
 func (cm *consulManager) Release(locationName, hostname string, allocation *Allocation) error {
 	return cm.releaseWait(locationName, hostname, allocation, maxWaitTimeSeconds*time.Second)
 }
@@ -139,6 +196,14 @@ func (cm *consulManager) releaseWait(locationName, hostname string, allocation *
 	return nil
 }
 
+func getKVTxnOp(verb api.KVOp, key string, value []byte) *api.KVTxnOp {
+	return &api.KVTxnOp{
+		Verb:  verb,
+		Key:   key,
+		Value: value,
+	}
+}
+
 func getAddAllocationsOperation(locationName, hostname string, allocations []Allocation) (api.KVTxnOps, error) {
 	allocsOps := api.KVTxnOps{}
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, locationName, hostname)
@@ -146,31 +211,12 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 		for _, alloc := range allocations {
 			allocKVPrefix := path.Join(hostKVPrefix, "allocations", alloc.ID)
 			allocOps := api.KVTxnOps{
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix),
-					Value: []byte(alloc.ID),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "node_name"),
-					Value: []byte(alloc.NodeName),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "instance"),
-					Value: []byte(alloc.Instance),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "deployment_id"),
-					Value: []byte(alloc.DeploymentID),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "shareable"),
-					Value: []byte(strconv.FormatBool(alloc.Shareable)),
-				},
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix), []byte(alloc.ID)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "node_name"), []byte(alloc.NodeName)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "instance"), []byte(alloc.Instance)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "deployment_id"), []byte(alloc.DeploymentID)),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "shareable"), []byte(strconv.FormatBool(alloc.Shareable))),
+				getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "placement_policy"), []byte(alloc.PlacementPolicy)),
 			}
 
 			for k, v := range alloc.Resources {
@@ -178,13 +224,8 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 				if k == "" {
 					return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
 				}
-				allocOps = append(allocOps, &api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(allocKVPrefix, "resources", k),
-					Value: []byte(v),
-				})
+				allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "resources", k), []byte(v)))
 			}
-
 			allocsOps = append(allocsOps, allocOps...)
 		}
 	}
@@ -251,31 +292,28 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 		}
 		alloc := Allocation{}
 		alloc.ID = id
-		kvp, _, err := cm.cc.KV().Get(path.Join(key, "node_name"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.NodeName = string(kvp.Value)
+
+		stringFields := []struct {
+			name string
+			attr *string
+		}{
+			{"node_name", &alloc.NodeName},
+			{"instance", &alloc.Instance},
+			{"deployment_id", &alloc.DeploymentID},
+			{"placement_policy", &alloc.PlacementPolicy},
 		}
 
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "instance"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.Instance = string(kvp.Value)
-		}
-
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "deployment_id"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			alloc.DeploymentID = string(kvp.Value)
+		for _, field := range stringFields {
+			kvp, _, err := cm.cc.KV().Get(path.Join(key, field.name), nil)
+			if err != nil {
+				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+			if kvp != nil && len(kvp.Value) > 0 {
+				*field.attr = string(kvp.Value)
+			}
 		}
 
-		kvp, _, err = cm.cc.KV().Get(path.Join(key, "shareable"), nil)
+		kvp, _, err := cm.cc.KV().Get(path.Join(key, "shareable"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
@@ -299,4 +337,18 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 		allocations = append(allocations, alloc)
 	}
 	return allocations, nil
+}
+
+// CheckPlacementPolicy check if placement policy is supported
+func (cm *consulManager) CheckPlacementPolicy(placementPolicy string) error {
+	if placementPolicy == "" {
+		return nil
+	}
+
+	switch placementPolicy {
+	case weightBalancedPlacement, binPackingPlacement:
+		return nil
+	default:
+		return errors.Errorf("placement policy:%q is not actually supported", placementPolicy)
+	}
 }
