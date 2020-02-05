@@ -397,7 +397,7 @@ func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflo
 
 	taskID, err := collector.NewCollector(s.cc).RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
 	if err != nil {
-		err = errors.Wrapf(err, "Failed to register inline workflow %s in parent workflow %s step %s, targetID %s, taskID:%q",
+		err = errors.Wrapf(err, "Failed to register inline workflow %s in parent workflow %s step %s, targetID %s, taskID %s",
 			workflowName, s.WorkflowName, s.Name, s.t.targetID, s.t.taskID)
 	} else {
 		log.Debugf("Registered task %s for inline workflow %s in parent workflow %s step %s",

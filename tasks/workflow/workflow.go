@@ -135,8 +135,7 @@ func getParentWorfklow(ctx context.Context, t *taskExecution, wfName string) (st
 
 // Update a parent workflow step for which an inline workflow just finished with
 // the status in argument.
-// Register next steps of a parent workflow for which an inline workflow step
-// just finished with the status in argument
+// Register next steps depending on the status of the workflow execution
 func updateParentWorkflowStepAndRegisterNextSteps(ctx context.Context, t *taskExecution, wfName string, taskStatus tasks.TaskStatus) error {
 
 	// Get the parent step to update
