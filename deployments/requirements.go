@@ -206,9 +206,11 @@ func GetTargetNodeForRequirementByName(ctx context.Context, deploymentID, nodeNa
 	}
 
 	for _, reqList := range reqMap {
-		req, exist := reqList[requirementName]
-		if exist {
-			return req.Node, nil
+		for name, reqAssignment := range reqList {
+			// Search matching with name or type_requirement
+			if name == requirementName || reqAssignment.TypeRequirement == requirementName {
+				return reqAssignment.Node, nil
+			}
 		}
 	}
 	return "", nil
