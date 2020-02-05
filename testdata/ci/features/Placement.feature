@@ -22,9 +22,9 @@ Feature: Deploy a TestComputeApp application using Alien4Cloud, apply hostspool 
   @CI
   @hp
   @cleanupAlien
-  Scenario: Deploy a TestComputeApp application and apply round-robin placement policy
+  Scenario: Deploy a TestComputeApp application and apply a weight-balanced placement policy
     Given I have created an application named "TestComputeApp" based on template named "org.ystia.ci.tests.test_compute"
-    And I have added a policy named "roundRobinPolicy" of type "yorc.policies.hostspool.RoundRobinPlacement:1.1.0" on targets "Compute"
+    And I have added a policy named "weightBalancedPolicy" of type "yorc.policies.hostspool.WeightBalanced:1.1.0" on targets "Compute"
 
     When I deploy the application named "TestComputeApp"
 
