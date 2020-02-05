@@ -36,6 +36,7 @@ func TestGetLastElement(t *testing.T) {
 	}{
 		{name: "TestWithSeparator", args: args{str: "tosca.interfaces.node.lifecycle.standard.create", separator: "."}, expected: "create"},
 		{name: "TestWithoutSeparator", args: args{str: "tosca.interfaces.node.lifecycle.standard.create", separator: "_"}, expected: ""},
+		{name: "TestEmptyString", args: args{str: "", separator: "_"}, expected: ""},
 	}
 
 	for _, tt := range tests {
