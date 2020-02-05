@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package store
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage/types"
+	"time"
 )
 
 // Store is an abstraction for different key-value store implementations.
@@ -34,7 +34,7 @@ type Store interface {
 	// The marshalling format depends on the implementation. It can be JSON, gob etc.
 	// It's the implementation concern to define storage mode (ie concurrently or serial)
 	// ctx is the context provided for eventually cancelling a storage action
-	SetCollection(ctx context.Context, keyValues []*types.KeyValue) error
+	SetCollection(ctx context.Context, keyValues []KeyValueIn) error
 	// Get retrieves the value for the given key.
 	// The implementation automatically unmarshalls the value.
 	// The unmarshalling source depends on the implementation. It can be JSON, gob etc.
@@ -50,12 +50,22 @@ type Store interface {
 	// Keys returns all the sub-keys of a specified one.
 	// The key must not be "".
 	// If no sub-key is found, it returns an empty slice.
+	// This is not recursive
 	Keys(k string) ([]string, error)
 	// Delete deletes the stored value for the given key.
 	// Deleting a non-existing key-value pair does NOT lead to an error.
 	// The key must not be "".
 	// If recursive is true, all sub-keys are deleted too.
 	Delete(ctx context.Context, k string, recursive bool) error
-	// Types defines all the Store types concerned by this store.
-	Types() []types.StoreType
+	// GetLastModifyIndex returns the last index that modified the key k
+	GetLastModifyIndex(k string) (uint64, error)
+	// List allows to lookup all sub-keys recursively under the defined key k and provided associated values.
+	// The key must not be "" and v must not be nil.
+	// waitIndex is used to enable a blocking query (waitIndex != 0) which wait until the timeout or a new index > waitIndex
+	// if waitIndex is > 0, default timeout is 5 minutes. Max timeout allowed is 10 minutes
+	// ctx can be useful to cancel a blocking query
+	// The values are retrieved in a KeyValueOut collection.
+	// It allows to return values in raw format without decode and in decoded generic format (map[string]interface{}
+	// The lastIndex is returned to perform new blocking query.
+	List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]KeyValueOut, uint64, error)
 }

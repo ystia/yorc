@@ -58,3 +58,6 @@ const SchedulingKVPrefix string = yorcPrefix + "/scheduling"
 
 // PurgedDeploymentKVPrefix is the prefix in Consul KV store for deployments
 const PurgedDeploymentKVPrefix string = yorcPrefix + "/purged"
+
+// StoresPrefix is the prefix in Consul KV store for stores
+const StoresPrefix string = yorcPrefix + "/stores"

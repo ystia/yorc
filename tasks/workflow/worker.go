@@ -52,20 +52,20 @@ import (
 // If an error occurred during the step execution, task status need to be updated
 // Each done step will register the next ones. In case of join, the last done of previous steps will register the next step
 type worker struct {
-	workerPool   chan chan *taskExecution
-	TaskChannel  chan *taskExecution
-	shutdownCh   chan struct{}
-	consulClient *api.Client
-	cfg          config.Configuration
+	workerPool           chan chan *taskExecution
+	TaskExecutionChannel chan *taskExecution
+	shutdownCh           chan struct{}
+	consulClient         *api.Client
+	cfg                  config.Configuration
 }
 
 func newWorker(workerPool chan chan *taskExecution, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) worker {
 	return worker{
-		workerPool:   workerPool,
-		TaskChannel:  make(chan *taskExecution),
-		shutdownCh:   shutdownCh,
-		consulClient: consulClient,
-		cfg:          cfg,
+		workerPool:           workerPool,
+		TaskExecutionChannel: make(chan *taskExecution),
+		shutdownCh:           shutdownCh,
+		consulClient:         consulClient,
+		cfg:                  cfg,
 	}
 }
 
@@ -75,12 +75,12 @@ func (w *worker) Start() {
 	go func() {
 		for {
 			// register the current worker into the worker queue.
-			w.workerPool <- w.TaskChannel
+			w.workerPool <- w.TaskExecutionChannel
 			select {
-			case task := <-w.TaskChannel:
+			case taskExecution := <-w.TaskExecutionChannel:
 				// we have received a work request.
-				log.Debugf("Worker got Task Execution with id %s", task.taskID)
-				w.handleExecution(task)
+				log.Debugf("Worker reveived a TaskExecution with task id %s", taskExecution.taskID)
+				w.handleExecution(taskExecution)
 
 			case <-w.shutdownCh:
 				// we have received a signal to stop
@@ -155,6 +155,7 @@ func (w *worker) cleanupScaledDownNodes(ctx context.Context, t *taskExecution) e
 	return nil
 }
 
+// worker handle a taskExecution
 func (w *worker) handleExecution(t *taskExecution) {
 	log.Debugf("Handle task execution:%+v", t)
 	err := t.notifyStart()
@@ -162,12 +163,25 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func() {
+	taskExecutionLabels := []metrics.Label{
+		metrics.Label{Name: "TaskID", Value: t.taskID},
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Type", Value: t.taskType.String()},
+	}
+	metrics.MeasureSinceWithLabels([]string{"taskExecution", "wait"}, t.creationDate, taskExecutionLabels)
+	defer func(t *taskExecution, start time.Time, taskExecutionLabels []metrics.Label) {
 		// Remove currently processing execution flag
 		err := t.notifyEnd()
 		if err != nil {
 			log.Printf("%+v", err)
 		}
+		// emit metrics on taskExecution duration and status on termination
+		if taskStatus, err := t.getTaskStatus(); err == nil && taskStatus != tasks.TaskStatusRUNNING {
+			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "duration"}), start, taskExecutionLabels)
+			taskExecutionLabels = append(taskExecutionLabels, metrics.Label{Name: "Status", Value: taskStatus.String()})
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "total"}), 1, taskExecutionLabels)
+		}
+		// clean-up
 		t.delete()
 		if err != nil {
 			log.Printf("%+v", err)
@@ -176,13 +190,8 @@ func (w *worker) handleExecution(t *taskExecution) {
 		if err != nil {
 			log.Printf("%+v", err)
 		}
-	}()
+	}(t, time.Now(), taskExecutionLabels)
 
-	if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus == tasks.TaskStatusINITIAL {
-		metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
-	}
-
-	metrics.MeasureSince([]string{"TaskExecution", "wait"}, t.creationDate)
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
@@ -195,12 +204,6 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func(t *taskExecution, start time.Time) {
-		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String(), taskStatus.String()}), 1)
-			metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String()}), start)
-		}
-	}(t, time.Now())
 
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
@@ -314,19 +317,25 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	ctx = operations.SetOperationLogFields(ctx, op)
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName, events.OperationName: op.Name})
 
+	executorOperationLabels := []metrics.Label{
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Name", Value: op.Name},
+		metrics.Label{Name: "Node", Value: nodeType},
+	}
+
 	err = func() error {
-		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name}), time.Now())
+		defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
 		return exec.ExecOperation(ctx, w.cfg, t.taskID, t.targetID, nodeName, op)
 	}()
 	if err != nil {
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "failures"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "failures"}), 1, executorOperationLabels)
 		err2 := setNodeStatus(ctx, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err2 != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("failed to update node %q state to error", nodeName)
 		}
 		return ctx, err
 	}
-	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
+	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "successes"}), 1, executorOperationLabels)
 	return ctx, err
 }
 
@@ -632,12 +641,12 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		}
 	}
 	// Delete events tree corresponding to the deployment TaskExecution
-	err = events.PurgeDeploymentEvents(t.targetID)
+	err = events.PurgeDeploymentEvents(ctx, t.targetID)
 	if err != nil {
 		return err
 	}
 	// Delete logs tree corresponding to the deployment
-	err = events.PurgeDeploymentLogs(t.targetID)
+	err = events.PurgeDeploymentLogs(ctx, t.targetID)
 	if err != nil {
 		return err
 	}

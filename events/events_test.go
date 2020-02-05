@@ -97,7 +97,7 @@ func testConsulPubSubNewEvents(t *testing.T) {
 		i, err := GetStatusEventsIndex(deploymentID)
 		require.Nil(t, err)
 		ready <- struct{}{}
-		events, _, err := StatusEvents(deploymentID, i, 5*time.Minute)
+		events, _, err := StatusEvents(ctx, deploymentID, i, 5*time.Minute)
 		assert.Nil(t, err)
 		require.Len(t, events, 1)
 
@@ -114,11 +114,12 @@ func testConsulPubSubNewEvents(t *testing.T) {
 func testConsulPubSubNewEventsTimeout(t *testing.T) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
+	ctx := context.Background()
 
 	timeout := 25 * time.Millisecond
 
 	t1 := time.Now()
-	events, _, err := StatusEvents(deploymentID, 1, timeout)
+	events, _, err := StatusEvents(ctx, deploymentID, 1, timeout)
 	t2 := time.Now()
 	assert.Nil(t, err)
 	require.Len(t, events, 0)
@@ -146,7 +147,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	rawEvents, lastIdx, err := StatusEvents(deploymentID, 1, 5*time.Minute)
+	rawEvents, lastIdx, err := StatusEvents(ctx, deploymentID, 1, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, rawEvents, 4)
 	for index, event := range rawEvents {
@@ -171,7 +172,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	rawEvents, lastIdx, err = StatusEvents(deploymentID, lastIdx, 5*time.Minute)
+	rawEvents, lastIdx, err = StatusEvents(ctx, deploymentID, lastIdx, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, rawEvents, 3)
 	require.NotZero(t, lastIdx)
@@ -565,7 +566,7 @@ func testconsulGetStatusEvents(t *testing.T) {
 	require.Nil(t, err)
 	ids[4] = id
 
-	rawEvents, _, err := StatusEvents(deploymentID, 0, 5*time.Minute)
+	rawEvents, _, err := StatusEvents(ctx, deploymentID, 0, 5*time.Minute)
 	require.Nil(t, err)
 	require.Len(t, rawEvents, 5)
 
@@ -612,32 +613,33 @@ func testconsulGetStatusEvents(t *testing.T) {
 }
 
 func testconsulGetLogs(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	myErr := errors.New("MyError")
 	deploymentID := testutil.BuildDeploymentID(t)
 	prevIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
-	SimpleLogEntry(LogLevelERROR, deploymentID).RegisterAsString(myErr.Error())
+	SimpleLogEntry(ctx, LogLevelERROR, deploymentID).RegisterAsString(myErr.Error())
 	newIndex, err := GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message1")
+	SimpleLogEntry(ctx, LogLevelINFO, deploymentID).RegisterAsString("message1")
 	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message2")
+	SimpleLogEntry(ctx, LogLevelINFO, deploymentID).RegisterAsString("message2")
 	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString("message3")
+	SimpleLogEntry(ctx, LogLevelINFO, deploymentID).RegisterAsString("message3")
 	newIndex, err = GetLogsEventsIndex(deploymentID)
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	logs, _, err := LogsEvents(deploymentID, 0, 5*time.Minute)
+	logs, _, err := LogsEvents(ctx, deploymentID, 0, 5*time.Minute)
 	require.Nil(t, err)
 	require.Len(t, logs, 4)
 
@@ -654,44 +656,45 @@ func testPurgeDeploymentEvents(t *testing.T) {
 	deployment2ID := "testPurgeDeploymentEventsAA"
 	PublishAndLogInstanceStatusChange(ctx, deployment1ID, "somenode", "someinstance", "somestatus")
 	PublishAndLogInstanceStatusChange(ctx, deployment2ID, "someothernode", "someotherinstance", "someotherstatus")
-	rawEvents, _, err := StatusEvents(deployment1ID, 0, 5*time.Minute)
+	rawEvents, _, err := StatusEvents(ctx, deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
-	rawEvents, _, err = StatusEvents(deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = StatusEvents(ctx, deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentEvents(deployment1ID)
+	err = PurgeDeploymentEvents(ctx, deployment1ID)
 	require.NoError(t, err)
 
-	rawEvents, _, err = StatusEvents(deployment1ID, 0, 5*time.Minute)
+	rawEvents, _, err = StatusEvents(ctx, deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 0)
-	rawEvents, _, err = StatusEvents(deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = StatusEvents(ctx, deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 }
 
 func testPurgeDeploymentLogs(t *testing.T) {
+	ctx := context.Background()
 	deployment1ID := "testPurgeDeploymentLogsA"
 	deployment2ID := "testPurgeDeploymentLogsAA"
 
-	SimpleLogEntry(LogLevelINFO, deployment1ID).RegisterAsString("SomeLog")
-	SimpleLogEntry(LogLevelINFO, deployment2ID).RegisterAsString("SomeOtherLog")
-	rawEvents, _, err := LogsEvents(deployment1ID, 0, 5*time.Minute)
+	SimpleLogEntry(ctx, LogLevelINFO, deployment1ID).RegisterAsString("SomeLog")
+	SimpleLogEntry(ctx, LogLevelINFO, deployment2ID).RegisterAsString("SomeOtherLog")
+	rawEvents, _, err := LogsEvents(ctx, deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
-	rawEvents, _, err = LogsEvents(deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = LogsEvents(ctx, deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 
-	err = PurgeDeploymentLogs(deployment1ID)
+	err = PurgeDeploymentLogs(ctx, deployment1ID)
 	require.NoError(t, err)
 
-	rawEvents, _, err = LogsEvents(deployment1ID, 0, 5*time.Minute)
+	rawEvents, _, err = LogsEvents(ctx, deployment1ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 0)
-	rawEvents, _, err = LogsEvents(deployment2ID, 0, 5*time.Minute)
+	rawEvents, _, err = LogsEvents(ctx, deployment2ID, 0, 5*time.Minute)
 	require.NoError(t, err)
 	require.Len(t, rawEvents, 1)
 }

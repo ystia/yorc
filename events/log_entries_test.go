@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"sort"
 	"testing"
@@ -60,12 +62,13 @@ func TestGenerateKey(t *testing.T) {
 
 func TestSimpleLogEntry(t *testing.T) {
 	t.Parallel()
-	logEntry := SimpleLogEntry(LogLevelINFO, "my_deploymentID")
-	require.Equal(t, &LogEntry{level: LogLevelINFO, deploymentID: "my_deploymentID"}, logEntry)
+	logEntry := SimpleLogEntry(context.Background(), LogLevelINFO, "my_deploymentID")
+	require.Equal(t, &LogEntry{ctx: context.Background(), level: LogLevelINFO, deploymentID: "my_deploymentID"}, logEntry)
 }
 
 func testRegisterLogsInConsul(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	deploymentID := testutil.BuildDeploymentID(t)
 	tests := []struct {
 		name      string
@@ -85,13 +88,14 @@ func testRegisterLogsInConsul(t *testing.T) {
 	}
 
 	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
-	kvps, _, err := consulutil.GetKV().List(logsPrefix, nil)
+	kvps, _, err := storage.GetStore(types.StoreTypeLog).List(ctx, logsPrefix, 0, 0)
+
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
 
 	for index, kvp := range kvps {
 		tc := tests[index]
-		assert.Equal(t, tc.wantValue, getLogEntryExceptTimestamp(t, string(kvp.Value)))
+		assert.Equal(t, tc.wantValue, getLogEntryExceptTimestamp(t, string(kvp.RawValue)))
 	}
 }
 
@@ -111,12 +115,12 @@ func getLogEntryExceptTimestamp(t *testing.T, log string) string {
 // Check sorting by timestamp preserves the order of log entries stored in Consul
 func testLogsSortedByTimestamp(t *testing.T) {
 	t.Parallel()
-
+	ctx := context.Background()
 	// Register log entries in Consul
 	const NumberOfLogs = 100
 	const ContentFormat = "Log id %d"
 	deploymentID := testutil.BuildDeploymentID(t)
-	logEntry := SimpleLogEntry(LogLevelINFO, deploymentID)
+	logEntry := SimpleLogEntry(context.Background(), LogLevelINFO, deploymentID)
 	for i := 0; i < NumberOfLogs; i++ {
 		logEntry.Registerf(ContentFormat, i)
 	}
@@ -124,11 +128,11 @@ func testLogsSortedByTimestamp(t *testing.T) {
 	// Retrieve key/value pairs stored in Consul
 	logEntries := make([]map[string]string, NumberOfLogs)
 	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
-	kvps, _, err := consulutil.GetKV().List(logsPrefix, nil)
+	kvps, _, err := storage.GetStore(types.StoreTypeLog).List(ctx, logsPrefix, 0, 0)
 	require.NoError(t, err, "Failure getting log entries from consul")
 	require.Len(t, kvps, NumberOfLogs, "Got unexpected number of log entries from Consul")
 	for i, kvp := range kvps {
-		err := json.Unmarshal(kvp.Value, &logEntries[i])
+		err := json.Unmarshal(kvp.RawValue, &logEntries[i])
 		require.NoError(t, err, "Failure unmarshalling value from consul")
 	}
 

@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"time"
 
@@ -29,6 +31,7 @@ import (
 
 // LogEntry is the log entry representation
 type LogEntry struct {
+	ctx            context.Context
 	level          LogLevel
 	deploymentID   string
 	additionalInfo LogOptionalFields
@@ -40,6 +43,7 @@ type LogEntry struct {
 // It has to be completed with level and deploymentID
 type LogEntryDraft struct {
 	additionalInfo LogOptionalFields
+	ctx            context.Context
 }
 
 // LogOptionalFields are log's additional info
@@ -110,10 +114,11 @@ const contentMaxAllowedValueSize int = 511 * 1000
 type LogLevel int
 
 // SimpleLogEntry allows to return a LogEntry instance with log level and deploymentID
-func SimpleLogEntry(level LogLevel, deploymentID string) *LogEntry {
+func SimpleLogEntry(ctx context.Context, level LogLevel, deploymentID string) *LogEntry {
 	return &LogEntry{
 		level:        level,
 		deploymentID: deploymentID,
+		ctx:          ctx,
 	}
 }
 
@@ -121,7 +126,7 @@ func SimpleLogEntry(level LogLevel, deploymentID string) *LogEntry {
 func WithContextOptionalFields(ctx context.Context) *LogEntryDraft {
 	lof, _ := FromContext(ctx)
 	info := make(LogOptionalFields, len(lof))
-	fle := &LogEntryDraft{additionalInfo: info}
+	fle := &LogEntryDraft{additionalInfo: info, ctx: ctx}
 	for k, v := range lof {
 		info[k] = v
 	}
@@ -135,6 +140,7 @@ func (e LogEntryDraft) NewLogEntry(level LogLevel, deploymentID string) *LogEntr
 		level:          level,
 		deploymentID:   deploymentID,
 		additionalInfo: e.additionalInfo,
+		ctx:            e.ctx,
 	}
 }
 
@@ -160,9 +166,10 @@ func (e LogEntry) Register(content []byte) {
 
 	// Get the value to store and the flat log entry representation to log entry
 	val, flat := e.generateValue()
-	err := consulutil.StoreConsulKey(e.generateKey(), val)
+	//err := consulutil.StoreConsulKey(e.generateKey(), val)
+	err := storage.GetStore(types.StoreTypeLog).Set(e.ctx, e.generateKey(), val)
 	if err != nil {
-		log.Printf("Failed to register log in consul for entry:%+v due to error:%+v", e, err)
+		log.Printf("Failed to register log for entry:%+v due to error:%+v", e, err)
 	}
 
 	// log the entry in stdout/stderr in DEBUG mode
@@ -197,7 +204,7 @@ func (e LogEntry) generateKey() string {
 	return path.Join(consulutil.LogsPrefix, e.deploymentID, e.timestamp.Format(time.RFC3339Nano))
 }
 
-func (e LogEntry) generateValue() ([]byte, map[string]interface{}) {
+func (e LogEntry) generateValue() (json.RawMessage, map[string]interface{}) {
 	// Check content max allowed size
 	if len(e.content) > contentMaxAllowedValueSize {
 		log.Printf("The max allowed size has been reached: truncation will be done on log content from %d to %d bytes", len(e.content), contentMaxAllowedValueSize)

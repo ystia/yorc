@@ -15,9 +15,9 @@
 package slurm
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/require"
+	"os"
+	"testing"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/locations"
@@ -28,17 +28,14 @@ var slumTestLocationProps config.DynamicMap
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulSlurmPackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	// Create a slurm location
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
-
 	locationMgr, err := locations.GetManager(cfg)
 	require.NoError(t, err, "Error initializing locations")
 

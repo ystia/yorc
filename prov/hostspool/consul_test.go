@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -29,8 +30,12 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulHostsPoolPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	log.SetDebug(true)
 
 	// Populate hosts for this test location
@@ -98,6 +103,9 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	})
 	t.Run("testConsulManagerAllocateShareableCompute", func(t *testing.T) {
 		testConsulManagerAllocateShareableCompute(t, client)
+	})
+	t.Run("testConsulManagerAllocateWithWeightBalancedPlacement", func(t *testing.T) {
+		testConsulManagerAllocateWithWeightBalancedPlacement(t, client)
 	})
 	t.Run("testConsulManagerAllocateShareableComputeWithSameAllocationPrefix", func(t *testing.T) {
 		testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t, client)

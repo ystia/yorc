@@ -195,6 +195,23 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 				label, delegateOperation, k)
 		}
 	}
+
+	// Check compute ip_address attributes
+	expected := map[string]string{
+		"public_address":    "1.2.3.4", // to cover some code using this resource
+		"public_ip_address": "1.2.3.4",
+		"private_address":   "5.6.7.8",
+	}
+
+	for attribute, expectedValue := range expected {
+		for _, nodeName := range nodeNames {
+			val, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, "0", attribute)
+			require.NoError(t, err, "Could not get instance attribute value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			assert.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			assert.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
+		}
+	}
+
 }
 
 func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client,
@@ -214,6 +231,7 @@ func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client
 		delegateOperation: delegateOperation,
 		hpManager:         hpManager,
 	}
+
 	err := e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
 	if err != nil {
 		fmt.Printf("Error executing operation %s on node %s: %s\n", delegateOperation, nodeName, err.Error())
@@ -266,6 +284,8 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 		"os.type":                 "linux",
 		"label1":                  "stringvalue1",
 		"public_address":          "1.2.3.4", // to cover some code using this resource
+		"public_ip_address":       "1.2.3.4",
+		"private_address":         "5.6.7.8",
 		"networks.0.network_name": "mynetwork",
 		"networks.0.network_id":   "123",
 		"networks.0.addresses":    "1.2.3.4,1.2.3.5",

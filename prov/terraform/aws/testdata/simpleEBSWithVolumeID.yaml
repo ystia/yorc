@@ -1,0 +1,19 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: EBSVolume
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-aws-types.yml>
+
+topology_template:
+  node_templates:
+    EBSVolume:
+      type: yorc.nodes.aws.EBSVolume
+      properties:
+        volume_id: "vol-04313e68765dd91fb"

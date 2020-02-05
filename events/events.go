@@ -22,11 +22,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/store"
+	"github.com/ystia/yorc/v4/storage/types"
 )
 
 // PublishAndLogAttributeValueChange publishes a value change for a given attribute instance of a given node and log this change into the log API
@@ -40,7 +42,7 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 	info[EInstanceID] = instanceName
 	info[EAttributeName] = attributeName
 	info[EAttributeValue] = value
-	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, status)
+	e, err := newStatusChange(ctx, StatusChangeTypeAttributeValue, info, deploymentID, status)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +74,7 @@ func PublishAndLogInstanceStatusChange(ctx context.Context, deploymentID, nodeNa
 	info := buildInfoFromContext(ctx)
 	info[ENodeID] = nodeName
 	info[EInstanceID] = instance
-	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeInstance, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -88,7 +90,7 @@ func PublishAndLogInstanceStatusChange(ctx context.Context, deploymentID, nodeNa
 //
 // PublishAndLogDeploymentStatusChange returns the published event id
 func PublishAndLogDeploymentStatusChange(ctx context.Context, deploymentID, status string) (string, error) {
-	e, err := newStatusChange(StatusChangeTypeDeployment, nil, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeDeployment, nil, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +111,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, deploymentID, t
 	}
 	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
-	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeCustomCommand, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +132,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, deploymentID, taskID,
 	}
 	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
-	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeScaling, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -161,7 +163,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, deploymentID, ta
 	info[EOperationName] = wfStepInfo.OperationName
 	info[ETargetNodeID] = wfStepInfo.TargetNodeID
 	info[ETargetInstanceID] = wfStepInfo.TargetInstanceID
-	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeWorkflowStep, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -191,7 +193,7 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, deploymentID, taskI
 	info[EOperationName] = wfStepInfo.OperationName
 	info[ETargetNodeID] = wfStepInfo.TargetNodeID
 	info[ETargetInstanceID] = wfStepInfo.TargetInstanceID
-	e, err := newStatusChange(StatusChangeTypeAlienTask, info, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeAlienTask, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -213,7 +215,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, deploymentID, taskID
 	info := buildInfoFromContext(ctx)
 	info[ETaskID] = taskID
 	info[EWorkflowID] = workflowID
-	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, strings.ToLower(status))
+	e, err := newStatusChange(ctx, StatusChangeTypeWorkflow, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -225,71 +227,71 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, deploymentID, taskID
 	return id, nil
 }
 
-func getEvents(deploymentID string, waitIndex uint64, timeout time.Duration, eventsPrefix string) ([]json.RawMessage, uint64, error) {
-	events := make([]json.RawMessage, 0)
-	eventsPrefix = path.Clean(eventsPrefix)
-	if deploymentID != "" {
-		// the returned list of events must correspond to the provided deploymentID
-		eventsPrefix = path.Join(eventsPrefix, deploymentID)
-	}
-	eventsPrefix = eventsPrefix + "/"
+func getLogsOrEvents(ctx context.Context, deploymentID string, waitIndex uint64, timeout time.Duration, isEvents bool) ([]json.RawMessage, uint64, error) {
+	logsOrEvents := make([]json.RawMessage, 0)
 
-	kvps, qm, err := consulutil.GetKV().List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	if err != nil || qm == nil {
-		return events, 0, err
+	var pathPrefix string
+	var usedStore store.Store
+	var data string
+	if isEvents {
+		pathPrefix = path.Clean(consulutil.EventsPrefix)
+		usedStore = storage.GetStore(types.StoreTypeEvent)
+		data = "events"
+	} else {
+		pathPrefix = path.Clean(consulutil.LogsPrefix)
+		usedStore = storage.GetStore(types.StoreTypeLog)
+		data = "logs"
 	}
-	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+
+	if deploymentID != "" {
+		// the returned list of logsOrEvents must correspond to the provided deploymentID
+		pathPrefix = path.Join(pathPrefix, deploymentID)
+	}
+	pathPrefix = pathPrefix + "/"
+	kvps, lastIndex, err := usedStore.List(ctx, pathPrefix, waitIndex, timeout)
+	if err != nil || lastIndex == 0 {
+		return logsOrEvents, 0, err
+	}
+
+	log.Debugf("Found %d %s before accessing index[%q]", len(kvps), data, strconv.FormatUint(lastIndex, 10))
 	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex {
+		if kvp.LastModifyIndex <= waitIndex {
 			continue
 		}
-		events = append(events, kvp.Value)
+		logsOrEvents = append(logsOrEvents, kvp.RawValue)
 	}
-	log.Debugf("Found %d events after index", len(events))
-	return events, qm.LastIndex, nil
+	log.Debugf("Found %d %s after index", len(logsOrEvents), data)
+	return logsOrEvents, lastIndex, nil
 }
 
 // StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
-func StatusEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	return getEvents(deploymentID, waitIndex, timeout, consulutil.EventsPrefix)
+func StatusEvents(ctx context.Context, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	return getLogsOrEvents(ctx, deploymentID, waitIndex, timeout, true)
 }
 
 // LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
-func LogsEvents(deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	return getEvents(deploymentID, waitIndex, timeout, consulutil.LogsPrefix)
-}
-
-func getEventsIndex(deploymentID string, eventsPrefix string) (uint64, error) {
-	_, qm, err := consulutil.GetKV().Get(path.Join(eventsPrefix, deploymentID), nil)
-	if err != nil {
-		return 0, err
-	}
-	if qm == nil {
-		return 0, errors.New("Failed to retrieve last index for events")
-	}
-	return qm.LastIndex, nil
+func LogsEvents(ctx context.Context, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	return getLogsOrEvents(ctx, deploymentID, waitIndex, timeout, false)
 }
 
 // GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment
 func GetStatusEventsIndex(deploymentID string) (uint64, error) {
-	return getEventsIndex(deploymentID, consulutil.EventsPrefix)
+	return storage.GetStore(types.StoreTypeEvent).GetLastModifyIndex(path.Join(consulutil.EventsPrefix, deploymentID))
 }
 
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
 func GetLogsEventsIndex(deploymentID string) (uint64, error) {
-	return getEventsIndex(deploymentID, consulutil.LogsPrefix)
+	return storage.GetStore(types.StoreTypeLog).GetLastModifyIndex(path.Join(consulutil.LogsPrefix, deploymentID))
 }
 
 // PurgeDeploymentEvents deletes all events for a given deployment
-func PurgeDeploymentEvents(deploymentID string) error {
-	err := consulutil.Delete(path.Join(consulutil.EventsPrefix, deploymentID)+"/", true)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+func PurgeDeploymentEvents(ctx context.Context, deploymentID string) error {
+	return storage.GetStore(types.StoreTypeEvent).Delete(ctx, path.Join(consulutil.EventsPrefix, deploymentID)+"/", true)
 }
 
 // PurgeDeploymentLogs deletes all logs for a given deployment
-func PurgeDeploymentLogs(deploymentID string) error {
-	err := consulutil.Delete(path.Join(consulutil.LogsPrefix, deploymentID)+"/", true)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+func PurgeDeploymentLogs(ctx context.Context, deploymentID string) error {
+	return storage.GetStore(types.StoreTypeLog).Delete(ctx, path.Join(consulutil.LogsPrefix, deploymentID)+"/", true)
 }
 
 func buildInfoFromContext(ctx context.Context) Info {

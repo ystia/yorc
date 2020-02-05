@@ -120,6 +120,10 @@ topology_template:
             min_instances: 1
             max_instances: 1
             default_instances: 1
+  policies:
+    - BinPackingPlacementPolicy:
+        type: yorc.policies.hostspool.BinPackingPlacement
+        targets: [ Compute,Compute2]
   workflows:
     install:
       steps:

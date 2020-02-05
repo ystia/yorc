@@ -22,9 +22,3 @@ package types
 // Event
 // )
 type StoreType int
-
-// KeyValue describes a Key-Value representation
-type KeyValue struct {
-	Key   string
-	Value interface{}
-}

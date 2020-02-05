@@ -41,6 +41,7 @@ func testRequirements(t *testing.T, srv1 *testutil.TestServer) {
 		{"network_2": tosca.RequirementAssignment{Node: "TNode3", TypeRequirement: "network"}},
 		{"storage": tosca.RequirementAssignment{Node: "TNode4"}},
 		{"storage_other": tosca.RequirementAssignment{Node: "TNode5", TypeRequirement: "storage", Relationship: "my_relationship", Capability: "yorc.capabilities.Assignable"}},
+		{"req_name": tosca.RequirementAssignment{Node: "myNode", TypeRequirement: "req_type"}},
 	}
 
 	err := storage.GetStore(types.StoreTypeDeployment).Set(ctx, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1", node)
@@ -89,7 +90,7 @@ func testGetNbRequirementsForNode(t *testing.T) {
 	t.Parallel()
 	reqNb, err := GetNbRequirementsForNode(ctx, "t1", "Compute1")
 	require.Nil(t, err)
-	require.Equal(t, 7, reqNb)
+	require.Equal(t, 8, reqNb)
 
 	reqNb, err = GetNbRequirementsForNode(ctx, "t1", "do_not_exits")
 	require.Nil(t, err)
@@ -216,9 +217,9 @@ func testGetRequirementsIndexes(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 	indexes, err := GetRequirementsIndexes(ctx, "t1", "Compute1")
-	expected := []string{"0", "1", "2", "3", "4", "5", "6"}
+	expected := []string{"0", "1", "2", "3", "4", "5", "6", "7"}
 	require.Nil(t, err)
-	require.Equal(t, 7, len(indexes))
+	require.Equal(t, 8, len(indexes))
 	if !reflect.DeepEqual(indexes, expected) {
 		t.Errorf("GetRequirementsIndexes = %v, want %v", indexes, expected)
 	}
@@ -247,6 +248,11 @@ func testGetTargetNodeForRequirementByName(t *testing.T) {
 	t.Parallel()
 	node, err := GetTargetNodeForRequirementByName(ctx, "t1", "Compute1", "storage_other")
 	expected := "TNode5"
+	require.Nil(t, err)
+	require.Equal(t, expected, node)
+
+	node, err = GetTargetNodeForRequirementByName(ctx, "t1", "Compute1", "req_type")
+	expected = "myNode"
 	require.Nil(t, err)
 	require.Equal(t, expected, node)
 }

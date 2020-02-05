@@ -100,6 +100,11 @@ func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, "t1", "status"), "0")
 	consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, "t1", "targetId"), "d1")
 	consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, "t1", "type"), "5")
+	creationDate, err := time.Now().MarshalBinary()
+	if err != nil {
+		t.Fatalf("failed to generate task creation date %v", err)
+	}
+	consulutil.StoreConsulKey(path.Join(consulutil.TasksPrefix, "t1", "creationDate"), creationDate)
 
 	createTaskExecutionKVWithKey(t, "testDispatcherExec", "taskID", "t1")
 

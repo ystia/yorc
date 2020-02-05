@@ -28,6 +28,9 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
+// DefaultInstanceName is the default instance name for non scalable or single instance nodes.
+const DefaultInstanceName = "0"
+
 // SetInstanceStateStringWithContextualLogs stores the state of a given node instance and publishes a status change event
 // context is used to carry contextual information for logging (see events package)
 func SetInstanceStateStringWithContextualLogs(ctx context.Context, deploymentID, nodeName, instanceName, state string) error {
