@@ -243,6 +243,10 @@ func TestFiltersRegexMatching(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
+		{"TestRegexpContainsOnCommaSeparatedListBegin", `lr1 ~= "^a,|,a,|,a$|^a$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
+		{"TestRegexpContainsOnCommaSeparatedListMiddle", `lr1 ~= "^b,|,b,|,b$|^b$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
+		{"TestRegexpNotContainsOnCommaSeparatedList", `lr1 ~= "^ab,|,ab,|,ab$|^ab$"`, args{map[string]string{"lr1": "a,b,c,d"}}, false, false},
+		{"TestRegexpContainsOnCommaSeparatedListEnd", `lr1 ~= "^d,|,d,|,d$|^d$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
 		{"TestRegexpContainsOnMatchingString", `lr1 ~= "vv"`, args{map[string]string{"lr1": "vv", "m2": "v2"}}, true, false},
 		{"TestRegexpContainsOnContainingString", `lr1 ~= "vv"`, args{map[string]string{"lr1": "vvvvv", "m2": "v2"}}, true, false},
 		{"TestRegexpExcludingOnContainingString", `lr1 !~ "vv"`, args{map[string]string{"lr1": "vvvvv", "m2": "v2"}}, false, false},

@@ -144,3 +144,11 @@ func (alloc *Allocation) buildID() error {
 	}
 	return nil
 }
+
+// GenericResource represents an hosts pool Generic resource
+type GenericResource struct {
+	Name         string `json:"name" mapstructure:"name"`
+	IDS          string `json:"ids,omitempty" mapstructure:"ids"`
+	Number       int    `json:"number,omitempty" mapstructure:"number"`
+	NoConsumable bool   `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
+}

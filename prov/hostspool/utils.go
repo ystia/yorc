@@ -16,14 +16,18 @@ package hostspool
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/dustin/go-humanize"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/labelsutil"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
@@ -131,7 +135,92 @@ func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nod
 			return nil, err
 		}
 	}
-	return filters, nil
+
+	genericResourcesFilters, err := createGenericResourcesFilters(ctx, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	return append(filters, genericResourcesFilters...), nil
+}
+
+func createGenericResourcesFilters(ctx context.Context, deploymentID, nodeName string) ([]labelsutil.Filter, error) {
+	genericResourcesValue, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "generic_resources")
+	if err != nil {
+		return nil, err
+	}
+
+	if genericResourcesValue == nil || genericResourcesValue.RawString() == "" {
+		return nil, err
+	}
+
+	list, ok := genericResourcesValue.Value.([]interface{})
+	if !ok {
+		return nil, errors.New("failed to retrieve generic resources: not expected type")
+	}
+
+	filters := make([]labelsutil.Filter, 0)
+	genericResources := make([]GenericResource, 0)
+	for _, item := range list {
+		genericResource := new(GenericResource)
+		err = mapstructure.Decode(item, genericResource)
+		if err != nil {
+			return filters, err
+		}
+		genericResources = append(genericResources, *genericResource)
+	}
+
+	for _, genericResource := range genericResources {
+		if genericResource.Name == "" {
+			return nil, errors.New("Missing generic resource mandatory name")
+		}
+
+		if genericResource.IDS == "" && genericResource.Number == 0 {
+			return nil, errors.Errorf("Either ids or number must be filled to define the resource need gor generic resource name:%q.", genericResource.Name)
+		}
+
+		if genericResource.IDS != "" {
+			idFilters, err := appendGenericResourceFiltersOnIDs(genericResource.Name, genericResource.IDS)
+			if err != nil {
+				return filters, err
+			}
+			filters = append(filters, idFilters...)
+		}
+
+		if genericResource.Number != 0 {
+			filter, err := appendGenericResourceFilterOnNumber(genericResource.Name, genericResource.Number)
+			if err != nil {
+				return filters, err
+			}
+			filters = append(filters, filter)
+		}
+	}
+
+	return filters, err
+}
+
+func appendGenericResourceFiltersOnIDs(resourceName, ids string) ([]labelsutil.Filter, error) {
+	var err error
+	filters := make([]labelsutil.Filter, 0)
+
+	idTab := strings.Split(ids, ",")
+	for _, id := range idTab {
+		id = strings.TrimSpace(id)
+		log.Debugf("Create filter for id:%q", id)
+		// regex expressing id is contained on the comma-separated list
+		f := fmt.Sprintf(`host.generic_resource.%s ~= ^%s,|,%s,|,%s$|^%s$"`, resourceName, id, id, id, id)
+		filter, err := labelsutil.CreateFilter(f)
+		if err != nil {
+			return filters, err
+		}
+		filters = append(filters, filter)
+	}
+	return filters, err
+}
+
+func appendGenericResourceFilterOnNumber(resourceName string, number int) (labelsutil.Filter, error) {
+	// host.generic.resource.<genericResource.Name>.nb >= genericResource.Number
+	f := fmt.Sprintf("host.generic_resource.%s.nb >= %d", resourceName, number)
+	return labelsutil.CreateFilter(f)
 }
 
 func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance, label string, value interface{}, prefix, suffix string) error {
