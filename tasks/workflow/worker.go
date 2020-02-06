@@ -769,7 +769,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	if err != nil {
 		return errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
-	if wfSteps == nil || len(wfSteps) == 0 {
+	if len(wfSteps) == 0 {
 		// Nothing to do
 		return nil
 	}
