@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
@@ -31,6 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/registry"
+	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 )
 
@@ -184,13 +186,84 @@ func clearActivityHooks() {
 	postActivityHooks = make([]ActivityHook, 0)
 }
 
-func testRegisterInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+func testInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	topologyPath := "../../deployments/testdata/inline_workflow.yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, topologyPath)
+	topologyPath := "testdata/workflow.yaml"
+	ctx := context.Background()
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, topologyPath)
 	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
 
-	_, err = builder.BuildWorkFlow(context.Background(), deploymentID, "install")
-	require.NoError(t, err, "Unexpected error building workflow for %s", topologyPath)
+	wfName := "custom_wf2"
+	inlineWfName := "custom_wf1"
+	stepName := "first_step_wf2"
+	taskID := "task" + "TestInline"
+	mockExecutor := &mockExecutor{}
+	registry.GetRegistry().RegisterDelegates([]string{"ystia.yorc.tests.nodes.WFCompute"}, mockExecutor, "tests")
+	registry.GetRegistry().RegisterOperationExecutor([]string{"ystia.yorc.tests.artifacts.Implementation.Custom"}, mockExecutor, "tests")
+
+	wfSteps, err := builder.BuildWorkFlow(ctx, deploymentID, wfName)
+	require.NoError(t, err, "Failed to build workflow %s", wfName)
+	bs := wfSteps[stepName]
+	require.NotNil(t, bs, "Failed to find step %s in workflow %s", stepName, wfName)
+
+	te := &taskExecution{id: "taskExec" + "TestInline", taskID: taskID, targetID: deploymentID, cc: cc}
+	s := wrapBuilderStep(bs, cc, te)
+	srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, stepName), []byte("initial"))
+
+	// Preparing task data
+	err = tasks.SetTaskData(taskID, taskDataWorkflowName, wfName)
+	require.NoError(t, err, "Failed to prepare workflow task data for workflow %s", wfName)
+	err = tasks.SetTaskData(taskID, "continueOnError", "false")
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", wfName)
+
+	err = s.run(ctx, config.Configuration{}, deploymentID, false, wfName, &worker{})
+	require.NoError(t, err, "Failed running step %s in workflow %s", stepName, wfName)
+	stepStatus, err := tasks.GetTaskStepStatus(taskID, s.Name)
+	require.NoError(t, err, "Failed to get task step %s status for workflow %s", s.Name, wfName)
+	require.Equal(t, tasks.TaskStepStatusRUNNING.String(), stepStatus.String(), "Expected step %s to be running for workflow %s", s.Name, wfName)
+
+	// Check a new task was created for the inline step
+	tasksIDs, err := tasks.GetQueryTaskIDs(tasks.TaskTypeCustomWorkflow, "", "")
+	require.NoError(t, err, "Failed to get tasks of type custom workflow")
+	var childTaskID string
+	for _, tid := range tasksIDs {
+		if tid != taskID {
+			childTaskID = tid
+			break
+		}
+	}
+	require.True(t, childTaskID != "", "Found no child task for inline workflow step")
+
+	// Checking this child task data
+	data, err := tasks.GetAllTaskData(childTaskID)
+	require.NoError(t, err, "Failed to get child task data")
+	assert.Equal(t, wfName, data[taskDataParentWorkflowName], "Bad value for parent workflow in child task data")
+	assert.Equal(t, stepName, data[taskDataParentStepName], "Bad value for parent step in child task data")
+	assert.Equal(t, taskID, data[taskDataParentTaskID], "Bad value for parent task ID in child task data")
+	assert.Equal(t, inlineWfName, data[taskDataWorkflowName], "Bad value for workflow name in child task data")
+
+	childTaskExec := &taskExecution{id: "taskExec" + "TestChild", taskID: childTaskID, targetID: deploymentID, cc: cc}
+	testWorker := &worker{
+		consulClient: cc,
+		cfg: config.Configuration{
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+
+	childTaskExec.step = "step_wf1"
+	srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, childTaskExec.taskID, childTaskExec.step), []byte("initial"))
+	err = testWorker.runCustomWorkflow(ctx, childTaskExec, inlineWfName)
+	require.NoError(t, err, "Failed to run inline workflow %s", s.Name, inlineWfName)
+	require.True(t, mockExecutor.callOpsCalled, "Expected an operation to be executed, when running workflow %s")
+	err = childTaskExec.finalFunction()
+	require.NoError(t, err, "Failed to execute final function of child task execution for workflow %s", inlineWfName)
+	childTaskStatus, err := tasks.GetTaskStatus(childTaskID)
+	require.NoError(t, err, "Failed to get child task status")
+	require.Equal(t, tasks.TaskStatusDONE.String(), childTaskStatus.String(), "Wrong status for child task")
+
+	// Check the parent workflow step
+	stepStatus, err = tasks.GetTaskStepStatus(taskID, stepName)
+	require.NoError(t, err, "Failed to get task step %s status for workflow %s", stepName, wfName)
+	require.Equal(t, tasks.TaskStepStatusDONE.String(), stepStatus.String(), "Expected step %s to be done for workflow %s", stepName, wfName)
 
 }
