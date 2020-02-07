@@ -145,7 +145,7 @@ func updateParentWorkflowStepAndRegisterNextSteps(ctx context.Context, t *taskEx
 	}
 
 	if parentStepName == "" {
-		return errors.Wrapf(err, "Found no inline step name in task %s data for parent workflow %s", t.taskID, wfName)
+		return errors.Errorf("Found no inline step name in task %s data for parent workflow %s", t.taskID, wfName)
 	}
 
 	// Get the parent task ID
@@ -155,7 +155,7 @@ func updateParentWorkflowStepAndRegisterNextSteps(ctx context.Context, t *taskEx
 	}
 
 	if parentTaskID == "" {
-		return errors.Wrapf(err, "Found no parent task ID in task %s data for parent workflow %s", t.taskID, wfName)
+		return errors.Errorf("Found no parent task ID in task %s data for parent workflow %s", t.taskID, wfName)
 	}
 
 	stepStatus := tasks.TaskStepStatusDONE

@@ -266,4 +266,52 @@ func testInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 	require.NoError(t, err, "Failed to get task step %s status for workflow %s", stepName, wfName)
 	require.Equal(t, tasks.TaskStepStatusDONE.String(), stepStatus.String(), "Expected step %s to be done for workflow %s", stepName, wfName)
 
+	// Error cases
+	// Using a task not related to a custon workflow
+	childTaskExec.taskID = "anotherTask"
+	parentWf, err := getParentWorfklow(ctx, childTaskExec, inlineWfName)
+	require.NoError(t, err, "Did not expect an error getting the name of a workflow with wrong task")
+	require.Equal(t, "", parentWf, "Unexpected parent workflow found")
+	err = updateParentWorkflowStepAndRegisterNextSteps(ctx, childTaskExec, inlineWfName, tasks.TaskStatusDONE)
+	require.Error(t, err, "Should have an error attempting to update parent workflow step with wrong task")
+	// Or using a task with no parent step
+	childTaskExec.taskID = taskID
+	err = updateParentWorkflowStepAndRegisterNextSteps(ctx, childTaskExec, inlineWfName, tasks.TaskStatusDONE)
+	require.Error(t, err, "Should have an error attempting to update parent workflow step with task having no parent step")
+	// Unexpected missing parent task
+	childTaskExec.taskID = childTaskID
+	_ = tasks.SetTaskData(childTaskID, taskDataParentTaskID, "")
+	err = updateParentWorkflowStepAndRegisterNextSteps(ctx, childTaskExec, inlineWfName, tasks.TaskStatusDONE)
+	require.Error(t, err, "Should have an error attempting to update parent workflow step with task having no parent task")
+	// Check status update when the child workflow failed
+	_ = tasks.SetTaskData(childTaskID, taskDataParentTaskID, taskID)
+	err = updateParentWorkflowStepAndRegisterNextSteps(ctx, childTaskExec, inlineWfName, tasks.TaskStatusFAILED)
+	require.NoError(t, err, "Unexpected failure updating parent step status when child workflow failed")
+	// Check the parent step status
+	stepStatus, err = tasks.GetTaskStepStatus(taskID, stepName)
+	require.NoError(t, err, "Failed to get task step %s status for workflow %s after failure", stepName, wfName)
+	require.Equal(t, tasks.TaskStepStatusERROR.String(), stepStatus.String(), "Expected step %s to be on error for workflow %s", stepName, wfName)
+	// Check status update when child workflow was canceled
+	err = updateParentWorkflowStepAndRegisterNextSteps(ctx, childTaskExec, inlineWfName, tasks.TaskStatusCANCELED)
+	require.NoError(t, err, "Unexpected failure updating parent step status when child workflow failed")
+	// Check the parent step status
+	stepStatus, err = tasks.GetTaskStepStatus(taskID, stepName)
+	require.NoError(t, err, "Failed to get task step %s status for workflow %s after failure", stepName, wfName)
+	require.Equal(t, tasks.TaskStepStatusCANCELED.String(), stepStatus.String(), "Expected step %s to be on canceled for workflow %s", stepName, wfName)
+	// Register steps with wrong task
+	childTaskExec.taskID = taskID
+	err = registerParentStepNextSteps(ctx, childTaskExec, taskID, wfName, stepName)
+	require.Error(t, err, "Expected an error registering next steps of wrong task")
+	// Wrong parent step name
+	err = registerParentStepNextSteps(ctx, childTaskExec, taskID, wfName, "testBadStep")
+	require.Error(t, err, "Expected an error registering next steps with wrong step name")
+	// Checking bypass error on wrong task
+	childTaskExec.taskID = "testBadTaskID"
+	_, err = checkByPassErrors(childTaskExec, wfName)
+	require.Error(t, err, "Expected an error checking bypass value on wrong task ID")
+	childTaskExec.taskID = childTaskID
+	_ = tasks.SetTaskData(childTaskExec.taskID, "continueOnError", "123")
+	_, err = checkByPassErrors(childTaskExec, wfName)
+	require.Error(t, err, "Expected an error checking non boolean bypass value")
+
 }
