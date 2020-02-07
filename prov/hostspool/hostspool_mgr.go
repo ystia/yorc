@@ -49,7 +49,7 @@ type Manager interface {
 	Add(locationName, hostname string, connection Connection, labels map[string]string) error
 	Apply(locationName string, pool []Host, checkpoint *uint64) error
 	Remove(locationName, hostname string) error
-	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
+	UpdateResourcesLabels(locationName, hostname string, gResourcesLabels map[string]string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
 	AddLabels(locationName, hostname string, labels map[string]string) error
 	RemoveLabels(locationName, hostname string, labels []string) error
 	UpdateConnection(locationName, hostname string, connection Connection) error

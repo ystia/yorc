@@ -82,19 +82,14 @@ data_types:
         required: false
         description: >
           Comma-separated list of required generic resource ID's. Either ids or number must be filled to define the resource need.
-          Both ids and number can be filled if you want to precise only a few ids of the total number of required resources.
-          It's bound to label host.generic_resource.<name>
       number:
         type: integer
         required: false
         description: >
           The number of generic resource required.  Either ids or number must be filled to define the resource need.
-          Both ids and number can be filled if you want to precise only a few ids of the total number of required resources.
-          It's bound to label host.generic_resource.<name>.nb
       no_consumable:
         type: boolean
         default: false
         description: >
           By default, the generic resource is consumable. It means a resource can be only used by a single compute.
           If you allow the resource to be shared by multiple computes, you have to set this property to true.
-          It's bound to label host.generic_resource.<name>.no_consumable

@@ -115,13 +115,15 @@ type HostConfig struct {
 
 // An Allocation describes the related allocation associated to a host pool
 type Allocation struct {
-	ID              string            `json:"id"`
-	NodeName        string            `json:"node_name"`
-	Instance        string            `json:"instance"`
-	DeploymentID    string            `json:"deployment_id"`
-	Shareable       bool              `json:"shareable"`
-	Resources       map[string]string `json:"resource_labels,omitempty"`
-	PlacementPolicy string            `json:"placement_policy"`
+	ID               string            `json:"id"`
+	NodeName         string            `json:"node_name"`
+	Instance         string            `json:"instance"`
+	DeploymentID     string            `json:"deployment_id"`
+	Shareable        bool              `json:"shareable"`
+	Resources        map[string]string `json:"resource_labels,omitempty"`
+	GenericResources map[string]string `json:"generic_resource_labels,omitempty"`
+	PlacementPolicy  string            `json:"placement_policy"`
+	gResources       *[]genResource
 }
 
 func (alloc *Allocation) String() string {
@@ -145,10 +147,12 @@ func (alloc *Allocation) buildID() error {
 	return nil
 }
 
-// GenericResource represents an hosts pool Generic resource
-type GenericResource struct {
-	Name         string `json:"name" mapstructure:"name"`
-	IDS          string `json:"ids,omitempty" mapstructure:"ids"`
-	Number       int    `json:"number,omitempty" mapstructure:"number"`
-	NoConsumable bool   `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
+type genResource struct {
+	name            string
+	labelKey        string
+	ids             []string
+	nb              int
+	allocationValue string
+	hostValue       string
+	noConsumable    bool
 }

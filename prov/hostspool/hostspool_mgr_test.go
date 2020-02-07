@@ -772,12 +772,13 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "40 GB",
 	}
 
-	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: true, Resources: AllocResources})
+	gResourcesLabels := map[string]string{}
+	allocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: true, Resources: allocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, gResourcesLabels, allocResources, subtract, updateResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
 	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -796,12 +797,12 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "30 GB",
 	}
 
-	AllocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: AllocResources})
+	allocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: allocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, gResourcesLabels, allocResources, subtract, updateResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1427,12 +1428,13 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 		"host.disk_size": "40 GB",
 	}
 
+	gResourcesLabels := map[string]string{}
 	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
 	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false, Resources: AllocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, gResourcesLabels, AllocResources, subtract, updateResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
 	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")

@@ -151,12 +151,12 @@ func (cm *consulManager) removeLabelsWait(locationName, hostname string, labels 
 	return nil
 }
 
-func (cm *consulManager) UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error {
-	return cm.updateResourcesLabelsWait(locationName, hostname, diff, operation, update, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) UpdateResourcesLabels(locationName, hostname string, gResourcesLabels, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error {
+	return cm.updateResourcesLabelsWait(locationName, hostname, gResourcesLabels, diff, operation, update, maxWaitTimeSeconds*time.Second)
 }
 
 // Labels must be read and write in the same transaction to avoid concurrency issues
-func (cm *consulManager) updateResourcesLabelsWait(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), maxWaitTime time.Duration) error {
+func (cm *consulManager) updateResourcesLabelsWait(locationName, hostname string, gResourcesLabels, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), maxWaitTime time.Duration) error {
 	if locationName == "" {
 		return errors.WithStack(badRequestError{`"locationName" missing`})
 	}
@@ -181,6 +181,11 @@ func (cm *consulManager) updateResourcesLabelsWait(locationName, hostname string
 	upLabels, err := update(labels, diff, operation)
 	if err != nil {
 		return err
+	}
+
+	// Add generic resources labels to update
+	for k, v := range gResourcesLabels {
+		upLabels[k] = v
 	}
 
 	if upLabels == nil || len(upLabels) == 0 {

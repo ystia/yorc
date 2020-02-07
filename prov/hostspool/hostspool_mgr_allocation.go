@@ -15,6 +15,7 @@
 package hostspool
 
 import (
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
 	"net/url"
 	"path"
@@ -174,6 +175,9 @@ func (cm *consulManager) releaseWait(locationName, hostname string, allocation *
 	}
 	defer cleanupFn()
 
+	if err := cm.releaseGenericResources(locationName, hostname, allocation); err != nil {
+		return errors.Wrapf(err, "failed to release generic resources for allocation with ID:%q, hostname:%q, location: %q", allocation.ID, hostname, locationName)
+	}
 	if err := cm.removeAllocation(locationName, hostname, allocation); err != nil {
 		return errors.Wrapf(err, "failed to remove allocation with ID:%q, hostname:%q, location: %q", allocation.ID, hostname, locationName)
 	}
@@ -227,6 +231,12 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 				allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "resources", k), []byte(v)))
 			}
 			allocsOps = append(allocsOps, allocOps...)
+
+			if alloc.gResources != nil {
+				for _, gResource := range *alloc.gResources {
+					allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "generic_resources", gResource.labelKey), []byte(gResource.allocationValue)))
+				}
+			}
 		}
 	}
 	return allocsOps, nil
@@ -235,6 +245,11 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 func (cm *consulManager) addAllocation(locationName, hostname string, allocation *Allocation) error {
 	var allocOps api.KVTxnOps
 	var err error
+
+	if err = cm.allocateGenericResources(locationName, hostname, allocation); err != nil {
+		return err
+	}
+
 	if allocOps, err = getAddAllocationsOperation(locationName, hostname, []Allocation{*allocation}); err != nil {
 		return errors.Wrapf(err, "failed to add allocation to host:%q, location: %q", hostname, locationName)
 	}
@@ -250,6 +265,90 @@ func (cm *consulManager) addAllocation(locationName, hostname string, allocation
 			errs = append(errs, e.What)
 		}
 		return errors.Errorf("Failed to add allocation on host %q, location %q: %s", hostname, locationName, strings.Join(errs, ", "))
+	}
+	return nil
+}
+
+func (cm *consulManager) allocateGenericResources(locationName, hostname string, allocation *Allocation) error {
+	if allocation.gResources == nil {
+		return nil
+	}
+
+	// Retrieve host generic resources labels
+	labels, err := cm.GetHostLabels(locationName, hostname)
+	if err != nil {
+		return err
+	}
+	for _, gResource := range *allocation.gResources {
+		hostGenResourceStr, ok := labels[gResource.labelKey]
+		if !ok {
+			return errors.Errorf("failed to retrieve generic resource:%q for location:%q, host:%s", gResource.name, locationName, hostname)
+		}
+		hostGenResource := strings.Split(hostGenResourceStr, ",")
+
+		allocValue := make([]string, 0)
+		hostValue := hostGenResource
+		if gResource.ids != nil {
+			// Check list contains ids
+			for _, id := range gResource.ids {
+				if !collections.ContainsString(hostGenResource, id) {
+					return errors.Errorf("missing expected id:%q for generic resource:%q, location:%q, host:%s", id, gResource.name, locationName, hostname)
+				}
+			}
+			allocValue = append(allocValue, gResource.ids...)
+			if !gResource.noConsumable {
+				hostValue = removeElements(hostGenResource, gResource.ids)
+			}
+		} else {
+			if len(hostGenResource) < gResource.nb {
+				return errors.Errorf("missing %d expected resources for generic resource:%q, location:%q, host:%s", gResource.nb-len(hostGenResource), gResource.name, locationName, hostname)
+			}
+
+			allocValue = append(allocValue, hostGenResource[:gResource.nb]...)
+			if !gResource.noConsumable {
+				hostValue = hostGenResource[gResource.nb+1:]
+			}
+		}
+		gResource.allocationValue = strings.Join(allocValue, ",")
+		gResource.hostValue = strings.Join(hostValue, ",")
+	}
+	return nil
+}
+
+func (cm *consulManager) releaseGenericResources(locationName, hostname string, allocation *Allocation) error {
+	if allocation.gResources == nil {
+		return nil
+	}
+
+	// Retrieve host generic resources labels
+	labels, err := cm.GetHostLabels(locationName, hostname)
+	if err != nil {
+		return err
+	}
+
+	for _, gResource := range *allocation.gResources {
+		if gResource.noConsumable {
+			continue
+		}
+		hostGenResourceStr, ok := labels[gResource.labelKey]
+		if !ok {
+			return errors.Errorf("failed to retrieve generic resource:%q for location:%q, host:%s", gResource.name, locationName, hostname)
+		}
+		hostGenResource := strings.Split(hostGenResourceStr, ",")
+
+		// Get related allocation label value
+		key := path.Join(consulutil.HostsPoolPrefix, locationName, hostname, "allocations", allocation.ID, "generic_resources", gResource.labelKey)
+		kvp, _, err := cm.cc.KV().Get(key, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return errors.Errorf("failed to retrieve allocation generic resource label key:%q for allocationID;%q, location:%q, host:%s", gResource.labelKey, allocation.ID, locationName, hostname)
+		}
+
+		allocIds := strings.Split(string(kvp.Value), ",")
+		hostValue := addElements(hostGenResource, allocIds)
+		gResource.hostValue = strings.Join(hostValue, ",")
 	}
 	return nil
 }
@@ -324,15 +423,25 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 			}
 		}
 		// Appending a final "/" here is not necessary as there is no other keys starting with "resources" prefix
-		kvps, _, err := cm.cc.KV().List(path.Join(key, "resources"), nil)
-		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		resourcesFields := []struct {
+			keyBase string
+			result  *map[string]string
+		}{
+			{path.Join(key, "resources"), &alloc.Resources},
+			{path.Join(key, "generic_resources"), &alloc.GenericResources},
 		}
-		resources := make(map[string]string, len(kvps))
-		for _, kvp := range kvps {
-			resources[path.Base(kvp.Key)] = string(kvp.Value)
+
+		for _, field := range resourcesFields {
+			kvps, _, err := cm.cc.KV().List(field.keyBase, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+			resources := make(map[string]string, len(kvps))
+			for _, kvp := range kvps {
+				resources[path.Base(kvp.Key)] = string(kvp.Value)
+			}
+			*field.result = resources
 		}
-		alloc.Resources = resources
 
 		allocations = append(allocations, alloc)
 	}

@@ -243,6 +243,7 @@ func TestFiltersRegexMatching(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
+		{"TestRegexpContainsOnCommaSeparatedListCount", `lr1 ~= "^([^,]*,){3}.*$"`, args{map[string]string{"lr1": "a1,bn,c2,d"}}, true, false},
 		{"TestRegexpContainsOnCommaSeparatedListBegin", `lr1 ~= "^a,|,a,|,a$|^a$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
 		{"TestRegexpContainsOnCommaSeparatedListMiddle", `lr1 ~= "^b,|,b,|,b$|^b$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
 		{"TestRegexpNotContainsOnCommaSeparatedList", `lr1 ~= "^ab,|,ab,|,ab$|^ab$"`, args{map[string]string{"lr1": "a,b,c,d"}}, false, false},
