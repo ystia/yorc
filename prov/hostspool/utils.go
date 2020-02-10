@@ -136,17 +136,17 @@ func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nod
 	return filters, nil
 }
 
-func createGenericResourcesFilters(ctx context.Context, genericResources []genResource) ([]labelsutil.Filter, error) {
+func createGenericResourcesFilters(ctx context.Context, genericResources []*GenericResource) ([]labelsutil.Filter, error) {
 	filters := make([]labelsutil.Filter, 0)
 	for _, genericResource := range genericResources {
-		idFilters, err := appendGenericResourceFiltersOnIDs(genericResource.name, genericResource.ids)
+		idFilters, err := appendGenericResourceFiltersOnIDs(genericResource.Name, genericResource.ids)
 		if err != nil {
 			return filters, err
 		}
 		filters = append(filters, idFilters...)
 
 		if genericResource.nb != 0 {
-			filter, err := appendGenericResourceFilterOnNumber(genericResource.name, genericResource.nb)
+			filter, err := appendGenericResourceFilterOnNumber(genericResource.Name, genericResource.nb)
 			if err != nil {
 				return filters, err
 			}
@@ -173,7 +173,7 @@ func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.
 }
 
 func appendGenericResourceFilterOnNumber(name string, nb int) (labelsutil.Filter, error) {
-	// host.generic.resource.<genResource.Name> contains at least <nb> elements
+	// host.generic.resource.<name> contains at least <nb> elements
 	f := fmt.Sprintf(`host.generic_resource.%s ~= "^([^,]*,){%d}.*$"`, name, nb-1)
 	return labelsutil.CreateFilter(f)
 }
@@ -187,6 +187,22 @@ func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance
 		}
 	}
 	return nil
+}
+
+func updateGenericResourcesLabels(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string {
+	labels := make(map[string]string)
+	for _, gResource := range genericResources {
+		if !gResource.NoConsumable {
+			if genResourceStr, ok := origin[gResource.Label]; ok {
+				genResource := strings.Split(genResourceStr, ",")
+				genResourceElements := strings.Split(gResource.Value, ",")
+				result := operation(genResource, genResourceElements)
+				resultStr := strings.Join(result, ",")
+				labels[gResource.Label] = resultStr
+			}
+		}
+	}
+	return labels
 }
 
 func updateResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error) {
@@ -275,20 +291,21 @@ func isIECformat(value string) bool {
 	return false
 }
 
-func removeElements(source []string, elements []string) []string {
-	result := make([]string, 0)
+func removeElements(source, elements []string) []string {
 	for _, element := range elements {
-		for _, value := range source {
-			if element != value {
-				result = append(result, value)
+		for i, v := range source {
+			if v == element {
+				source = append(source[:i], source[i+1:]...)
+				break
 			}
 		}
 	}
+
 	sort.Strings(source)
 	return source
 }
 
-func addElements(source []string, elements []string) []string {
+func addElements(source, elements []string) []string {
 	for _, element := range elements {
 		source = append(source, element)
 	}

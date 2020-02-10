@@ -15,6 +15,7 @@
 package hostspool
 
 import (
+	"encoding/json"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
 	"net/url"
@@ -160,36 +161,34 @@ func binPacking(candidates []hostCandidate) string {
 	return hostname
 }
 
-func (cm *consulManager) Release(locationName, hostname string, allocation *Allocation) error {
-	return cm.releaseWait(locationName, hostname, allocation, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) Release(locationName, hostname, deploymentID, nodeName, instance string) (*Allocation, error) {
+	return cm.releaseWait(locationName, hostname, deploymentID, nodeName, instance, maxWaitTimeSeconds*time.Second)
 }
 
-func (cm *consulManager) releaseWait(locationName, hostname string, allocation *Allocation, maxWaitTime time.Duration) error {
-	// Build allocationID
-	if err := allocation.buildID(); err != nil {
-		return err
-	}
+func (cm *consulManager) releaseWait(locationName, hostname, deploymentID, nodeName, instance string, maxWaitTime time.Duration) (*Allocation, error) {
 	_, cleanupFn, err := cm.lockKey(locationName, hostname, "release", maxWaitTime)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer cleanupFn()
 
-	if err := cm.releaseGenericResources(locationName, hostname, allocation); err != nil {
-		return errors.Wrapf(err, "failed to release generic resources for allocation with ID:%q, hostname:%q, location: %q", allocation.ID, hostname, locationName)
+	// Need to retrieve complete information about allocation for resources updates
+	allocation, err := cm.GetAllocation(locationName, hostname, buildAllocationID(deploymentID, nodeName, instance))
+	if err != nil {
+		return nil, err
 	}
 	if err := cm.removeAllocation(locationName, hostname, allocation); err != nil {
-		return errors.Wrapf(err, "failed to remove allocation with ID:%q, hostname:%q, location: %q", allocation.ID, hostname, locationName)
+		return nil, errors.Wrapf(err, "failed to remove allocation with ID:%q, hostname:%q, location: %q", allocation.ID, hostname, locationName)
 	}
 
 	host, err := cm.GetHost(locationName, hostname)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Set the host status to free only for host with no allocations
 	if len(host.Allocations) == 0 {
 		if err = cm.setHostStatus(locationName, hostname, HostStatusFree); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	err = cm.checkConnection(locationName, hostname)
@@ -197,7 +196,7 @@ func (cm *consulManager) releaseWait(locationName, hostname string, allocation *
 		cm.backupHostStatus(locationName, hostname)
 		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "failed to connect to host")
 	}
-	return nil
+	return allocation, nil
 }
 
 func getKVTxnOp(verb api.KVOp, key string, value []byte) *api.KVTxnOp {
@@ -230,13 +229,16 @@ func getAddAllocationsOperation(locationName, hostname string, allocations []All
 				}
 				allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "resources", k), []byte(v)))
 			}
-			allocsOps = append(allocsOps, allocOps...)
 
-			if alloc.gResources != nil {
-				for _, gResource := range *alloc.gResources {
-					allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "generic_resources", gResource.labelKey), []byte(gResource.allocationValue)))
+			for _, gResource := range alloc.GenericResources {
+				// save generic resource in JSON
+				data, err := json.Marshal(gResource)
+				if err != nil {
+					return nil, err
 				}
+				allocOps = append(allocOps, getKVTxnOp(api.KVSet, path.Join(allocKVPrefix, "generic_resources", gResource.Name), data))
 			}
+			allocsOps = append(allocsOps, allocOps...)
 		}
 	}
 	return allocsOps, nil
@@ -270,7 +272,7 @@ func (cm *consulManager) addAllocation(locationName, hostname string, allocation
 }
 
 func (cm *consulManager) allocateGenericResources(locationName, hostname string, allocation *Allocation) error {
-	if allocation.gResources == nil {
+	if allocation.GenericResources == nil {
 		return nil
 	}
 
@@ -279,76 +281,30 @@ func (cm *consulManager) allocateGenericResources(locationName, hostname string,
 	if err != nil {
 		return err
 	}
-	for _, gResource := range *allocation.gResources {
-		hostGenResourceStr, ok := labels[gResource.labelKey]
+	for i := range allocation.GenericResources {
+		gResource := allocation.GenericResources[i]
+		hostGenResourceStr, ok := labels[gResource.Label]
 		if !ok {
-			return errors.Errorf("failed to retrieve generic resource:%q for location:%q, host:%s", gResource.name, locationName, hostname)
+			return errors.Errorf("failed to retrieve generic resource:%q for location:%q, host:%s", gResource.Name, locationName, hostname)
 		}
 		hostGenResource := strings.Split(hostGenResourceStr, ",")
 
-		allocValue := make([]string, 0)
-		hostValue := hostGenResource
+		value := make([]string, 0)
 		if gResource.ids != nil {
 			// Check list contains ids
 			for _, id := range gResource.ids {
 				if !collections.ContainsString(hostGenResource, id) {
-					return errors.Errorf("missing expected id:%q for generic resource:%q, location:%q, host:%s", id, gResource.name, locationName, hostname)
+					return errors.Errorf("missing expected id:%q for generic resource:%q, location:%q, host:%s", id, gResource.Name, locationName, hostname)
 				}
 			}
-			allocValue = append(allocValue, gResource.ids...)
-			if !gResource.noConsumable {
-				hostValue = removeElements(hostGenResource, gResource.ids)
-			}
+			value = gResource.ids
 		} else {
 			if len(hostGenResource) < gResource.nb {
-				return errors.Errorf("missing %d expected resources for generic resource:%q, location:%q, host:%s", gResource.nb-len(hostGenResource), gResource.name, locationName, hostname)
+				return errors.Errorf("missing %d expected resources for generic resource:%q, location:%q, host:%s", gResource.nb-len(hostGenResource), gResource.Name, locationName, hostname)
 			}
-
-			allocValue = append(allocValue, hostGenResource[:gResource.nb]...)
-			if !gResource.noConsumable {
-				hostValue = hostGenResource[gResource.nb+1:]
-			}
+			value = hostGenResource[:gResource.nb]
 		}
-		gResource.allocationValue = strings.Join(allocValue, ",")
-		gResource.hostValue = strings.Join(hostValue, ",")
-	}
-	return nil
-}
-
-func (cm *consulManager) releaseGenericResources(locationName, hostname string, allocation *Allocation) error {
-	if allocation.gResources == nil {
-		return nil
-	}
-
-	// Retrieve host generic resources labels
-	labels, err := cm.GetHostLabels(locationName, hostname)
-	if err != nil {
-		return err
-	}
-
-	for _, gResource := range *allocation.gResources {
-		if gResource.noConsumable {
-			continue
-		}
-		hostGenResourceStr, ok := labels[gResource.labelKey]
-		if !ok {
-			return errors.Errorf("failed to retrieve generic resource:%q for location:%q, host:%s", gResource.name, locationName, hostname)
-		}
-		hostGenResource := strings.Split(hostGenResourceStr, ",")
-
-		// Get related allocation label value
-		key := path.Join(consulutil.HostsPoolPrefix, locationName, hostname, "allocations", allocation.ID, "generic_resources", gResource.labelKey)
-		kvp, _, err := cm.cc.KV().Get(key, nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			return errors.Errorf("failed to retrieve allocation generic resource label key:%q for allocationID;%q, location:%q, host:%s", gResource.labelKey, allocation.ID, locationName, hostname)
-		}
-
-		allocIds := strings.Split(string(kvp.Value), ",")
-		hostValue := addElements(hostGenResource, allocIds)
-		gResource.hostValue = strings.Join(hostValue, ",")
+		gResource.Value = strings.Join(value, ",")
 	}
 	return nil
 }
@@ -423,29 +379,59 @@ func (cm *consulManager) GetAllocations(locationName, hostname string) ([]Alloca
 			}
 		}
 		// Appending a final "/" here is not necessary as there is no other keys starting with "resources" prefix
-		resourcesFields := []struct {
-			keyBase string
-			result  *map[string]string
-		}{
-			{path.Join(key, "resources"), &alloc.Resources},
-			{path.Join(key, "generic_resources"), &alloc.GenericResources},
+		kvps, _, err := cm.cc.KV().List(path.Join(key, "resources"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
+		resources := make(map[string]string, len(kvps))
+		for _, kvp := range kvps {
+			resources[path.Base(kvp.Key)] = string(kvp.Value)
+		}
+		alloc.Resources = resources
 
-		for _, field := range resourcesFields {
-			kvps, _, err := cm.cc.KV().List(field.keyBase, nil)
+		// Retrieve generic resources
+		kvps, _, err = cm.cc.KV().List(path.Join(key, "generic_resources"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		gResources := make([]*GenericResource, 0)
+		for _, kvp := range kvps {
+			var gResource GenericResource
+			err = json.Unmarshal(kvp.Value, &gResource)
 			if err != nil {
-				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				return nil, errors.Wrapf(err, "failed to unmarshal generic resource for key:%q", kvp.Key)
 			}
-			resources := make(map[string]string, len(kvps))
-			for _, kvp := range kvps {
-				resources[path.Base(kvp.Key)] = string(kvp.Value)
-			}
-			*field.result = resources
+			gResources = append(gResources, &gResource)
 		}
-
+		alloc.GenericResources = gResources
 		allocations = append(allocations, alloc)
 	}
 	return allocations, nil
+}
+
+func (cm *consulManager) GetAllocation(locationName, hostname, allocationID string) (*Allocation, error) {
+	if locationName == "" {
+		return nil, errors.WithStack(badRequestError{`"locationName" missing`})
+	}
+	if hostname == "" {
+		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	if allocationID == "" {
+		return nil, errors.WithStack(badRequestError{`"allocationID" missing`})
+	}
+
+	allocs, err := cm.GetAllocations(locationName, hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range allocs {
+		if allocs[i].ID == allocationID {
+			return &allocs[i], nil
+		}
+	}
+
+	return nil, errors.Errorf("failed to retrieve allocation with ID:%q for location name:%q, hostname:%q", allocationID, locationName, hostname)
 }
 
 // CheckPlacementPolicy check if placement policy is supported

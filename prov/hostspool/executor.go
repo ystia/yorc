@@ -116,15 +116,16 @@ func (e *defaultExecutor) execDelegateHostsPool(
 		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q",
 			op.nodeName, op.deploymentID)
 	}
-	genericResources, err := e.getGenericResourcesFromHostCapabilities(ctx, op.deploymentID, op.nodeName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q",
-			op.nodeName, op.deploymentID)
-	}
 
 	switch strings.ToLower(op.delegateOperation) {
 	case "install":
 		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateCreating)
+
+		genericResources, err := e.getGenericResourcesFromHostCapabilities(ctx, op.deploymentID, op.nodeName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q",
+				op.nodeName, op.deploymentID)
+		}
 		err = e.hostsPoolCreate(ctx, cc, cfg, op, allocatedResources, genericResources)
 		if err != nil {
 			return err
@@ -132,7 +133,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateStarted)
 	case "uninstall":
 		setInstancesStateWithContextualLogs(ctx, op, instances, tosca.NodeStateDeleting)
-		err = e.hostsPoolDelete(ctx, cc, cfg, op, allocatedResources, genericResources)
+		err = e.hostsPoolDelete(ctx, cc, cfg, op, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -145,7 +146,7 @@ func (e *defaultExecutor) execDelegateHostsPool(
 
 func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 	cc *api.Client, cfg config.Configuration,
-	op operationParameters, allocatedResources map[string]string, genericResources []genResource) error {
+	op operationParameters, allocatedResources map[string]string, genericResources []*GenericResource) error {
 
 	jsonProp, err := deployments.GetNodePropertyValue(ctx, op.deploymentID, op.nodeName, "filters")
 	if err != nil {
@@ -231,19 +232,19 @@ func (e *defaultExecutor) allocateHostsToInstances(
 	op operationParameters,
 	allocatedResources map[string]string,
 	placement string,
-	genericResources []genResource) error {
+	genericResources []*GenericResource) error {
 
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
 		allocation := &Allocation{
-			NodeName:        op.nodeName,
-			Instance:        instance,
-			DeploymentID:    op.deploymentID,
-			Shareable:       shareable,
-			Resources:       allocatedResources,
-			PlacementPolicy: placement,
-			gResources:      &genericResources,
+			NodeName:         op.nodeName,
+			Instance:         instance,
+			DeploymentID:     op.deploymentID,
+			Shareable:        shareable,
+			Resources:        allocatedResources,
+			PlacementPolicy:  placement,
+			GenericResources: genericResources,
 		}
 
 		// Protecting the allocation and update of resources labels by a mutex, to
@@ -252,13 +253,10 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		hostsPoolAllocMutex.Lock()
 		hostname, warnings, err := op.hpManager.Allocate(op.location, allocation, filters...)
 		if err == nil {
-			// Add related generic resources labels
-			gResourcesLabels := make(map[string]string, 0)
-			for _, gResource := range *allocation.gResources {
-				gResourcesLabels[gResource.labelKey] = gResource.hostValue
+			err = op.hpManager.UpdateResourcesLabels(op.location, hostname, allocatedResources, subtract, updateResourcesLabels, genericResources, removeElements, updateGenericResourcesLabels)
+			if err != nil {
+				return err
 			}
-
-			err = op.hpManager.UpdateResourcesLabels(op.location, hostname, gResourcesLabels, allocatedResources, subtract, updateResourcesLabels)
 		}
 		hostsPoolAllocMutex.Unlock()
 
@@ -275,8 +273,8 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		}
 
 		// Create attributes for generic resources
-		for _, genResource := range *allocation.gResources {
-			err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, genResource.name, genResource.allocationValue)
+		for _, gResource := range allocation.GenericResources {
+			err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, gResource.Name, gResource.Value)
 			if err != nil {
 				return err
 			}
@@ -390,7 +388,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(ctx context.
 	return res, nil
 }
 
-func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Context, deploymentID, nodeName string) ([]genResource, error) {
+func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Context, deploymentID, nodeName string) ([]*GenericResource, error) {
 	genericResourcesValue, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "generic_resources")
 	if err != nil {
 		return nil, err
@@ -413,7 +411,7 @@ func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Co
 		NoConsumable string `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
 	}
 
-	gResources := make([]genResource, 0)
+	gResources := make([]*GenericResource, 0)
 	for _, item := range list {
 		g := new(res)
 		err = mapstructure.Decode(item, g)
@@ -442,24 +440,24 @@ func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Co
 			return nil, errors.Wrapf(err, "expected boolean value for no_consumable property of generic_resource with name:%q", g.Name)
 		}
 
-		gResource := genResource{
-			name:         g.Name,
-			labelKey:     fmt.Sprintf("host.generic_resource.%s", g.Name),
+		gResource := GenericResource{
+			Name:         g.Name,
+			Label:        fmt.Sprintf("host.generic_resource.%s", g.Name),
 			nb:           nb,
-			noConsumable: noConsume,
+			NoConsumable: noConsume,
 		}
 
 		if g.IDS != "" {
 			idsStr := strings.Join(strings.Fields(g.IDS), "")
 			gResource.ids = strings.Split(idsStr, ",")
 		}
-		gResources = append(gResources, gResource)
+		gResources = append(gResources, &gResource)
 	}
 	return gResources, err
 }
 
 func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client,
-	cfg config.Configuration, op operationParameters, allocatedResources map[string]string, genericResources []genResource) error {
+	cfg config.Configuration, op operationParameters, allocatedResources map[string]string) error {
 	instances, err := tasks.GetInstances(originalCtx, op.taskID, op.deploymentID, op.nodeName)
 	if err != nil {
 		return err
@@ -477,17 +475,11 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 				instance, op.nodeName)
 			continue
 		}
-		allocation := &Allocation{NodeName: op.nodeName, Instance: instance, DeploymentID: op.deploymentID, gResources: &genericResources}
-		err = op.hpManager.Release(op.location, hostname.RawString(), allocation)
+		allocation, err := op.hpManager.Release(op.location, hostname.RawString(), op.deploymentID, op.nodeName, instance)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		// Add related generic resources labels
-		gResourcesLabels := make(map[string]string, 0)
-		for _, gResource := range *allocation.gResources {
-			gResourcesLabels[gResource.labelKey] = gResource.hostValue
-		}
-		err = op.hpManager.UpdateResourcesLabels(op.location, hostname.RawString(), gResourcesLabels, allocatedResources, add, updateResourcesLabels)
+		err = op.hpManager.UpdateResourcesLabels(op.location, hostname.RawString(), allocatedResources, add, updateResourcesLabels, allocation.GenericResources, addElements, updateGenericResourcesLabels)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}

@@ -63,6 +63,11 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
+            generic_resources:
+              - name: gpu
+                number: 2
+              - name: cpu
+                ids: "cpu0"
         os:
           properties:
             type: linux

@@ -49,14 +49,14 @@ type Manager interface {
 	Add(locationName, hostname string, connection Connection, labels map[string]string) error
 	Apply(locationName string, pool []Host, checkpoint *uint64) error
 	Remove(locationName, hostname string) error
-	UpdateResourcesLabels(locationName, hostname string, gResourcesLabels map[string]string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
+	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), gResources []*GenericResource, gResourcesOperation func(source, elements []string) []string, updateGenericResources func(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string) error
 	AddLabels(locationName, hostname string, labels map[string]string) error
 	RemoveLabels(locationName, hostname string, labels []string) error
 	UpdateConnection(locationName, hostname string, connection Connection) error
 	List(locationName string, filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(locationName, hostname string) (Host, error)
 	Allocate(locationName string, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
-	Release(locationName, hostname string, allocation *Allocation) error
+	Release(locationName, hostname, deploymentID, nodeName, instance string) (*Allocation, error)
 	ListLocations() ([]string, error)
 	RemoveLocation(locationName string) error
 	CheckPlacementPolicy(placementPolicy string) error

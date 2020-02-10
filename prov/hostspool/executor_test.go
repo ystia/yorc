@@ -122,7 +122,7 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, deploymentID string)
 	assert.False(t, matches, "Filters wrongly matching as host has not linux as os type ")
 }
 
-// testConcurrentExecDelegateShareableHost tests concurent attempts to allocate
+// testConcurrentExecDelegateShareableHost tests concurrent attempts to allocate
 // shareable hosts in parallel, and verifies it won't lead to over-allocate a
 // shareable host
 func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer, cc *api.Client, deploymentID, location string) {
@@ -133,14 +133,18 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 	// Expected Hosts Pool allocations after this operation:
 	expectedResources := map[string]map[string]string{
 		"host0": map[string]string{
-			"host.num_cpus":  "0",
-			"host.mem_size":  "1 GB",
-			"host.disk_size": "10 GB",
+			"host.num_cpus":             "0",
+			"host.mem_size":             "1 GB",
+			"host.disk_size":            "10 GB",
+			"host.generic_resource.gpu": "gpu2",
+			"host.generic_resource.cpu": "cpu1,cpu2",
 		},
 		"host1": map[string]string{
-			"host.num_cpus":  "2",
-			"host.mem_size":  "3 GB",
-			"host.disk_size": "50 GB",
+			"host.num_cpus":             "2",
+			"host.mem_size":             "3 GB",
+			"host.disk_size":            "50 GB",
+			"host.generic_resource.gpu": "gpu2",
+			"host.generic_resource.cpu": "cpu1,cpu2",
 		},
 	}
 	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, location, "taskTest", deploymentID,
@@ -175,7 +179,7 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 	}
 	waitGroup.Wait()
 
-	// Check no error occured attempting to execute the delegate operation
+	// Check no error occurred attempting to execute the delegate operation
 	select {
 	case err := <-errors:
 		require.NoError(t, err, "Unexpected error executing operation %s in parallel", delegateOperation)
@@ -247,7 +251,7 @@ func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer
 
 	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, location, deploymentID, 1)
 
-	lastIndex := len(nodeNames) - 1
+	lastIndex := 1
 	operationParams := operationParameters{
 		location:          location,
 		taskID:            "taskTest",

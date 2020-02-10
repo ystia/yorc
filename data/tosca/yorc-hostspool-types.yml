@@ -76,7 +76,7 @@ data_types:
         type: string
         required: true
         description: >
-          The name of the generic resource. Can be "gpu" and must be bound to host labels as: host.generic_resource.
+          The name of the generic resource. Can be "gpu" and must be bound to host labels as: host.generic_resource.gpu by instance.
       ids:
         type: string
         required: false

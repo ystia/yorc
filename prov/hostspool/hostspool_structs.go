@@ -115,15 +115,14 @@ type HostConfig struct {
 
 // An Allocation describes the related allocation associated to a host pool
 type Allocation struct {
-	ID               string            `json:"id"`
-	NodeName         string            `json:"node_name"`
-	Instance         string            `json:"instance"`
-	DeploymentID     string            `json:"deployment_id"`
-	Shareable        bool              `json:"shareable"`
-	Resources        map[string]string `json:"resource_labels,omitempty"`
-	GenericResources map[string]string `json:"generic_resource_labels,omitempty"`
-	PlacementPolicy  string            `json:"placement_policy"`
-	gResources       *[]genResource
+	ID               string             `json:"id"`
+	NodeName         string             `json:"node_name"`
+	Instance         string             `json:"instance"`
+	DeploymentID     string             `json:"deployment_id"`
+	Shareable        bool               `json:"shareable"`
+	Resources        map[string]string  `json:"resource_labels,omitempty"`
+	GenericResources []*GenericResource `json:"generic_resource_labels,omitempty"`
+	PlacementPolicy  string             `json:"placement_policy"`
 }
 
 func (alloc *Allocation) String() string {
@@ -142,17 +141,27 @@ func (alloc *Allocation) buildID() error {
 		return errors.New("Node name, instance and deployment ID must be set")
 	}
 	if alloc.ID == "" {
-		alloc.ID = url.QueryEscape(strings.Join([]string{alloc.DeploymentID, alloc.NodeName, alloc.Instance}, "-"))
+		alloc.ID = buildAllocationID(alloc.DeploymentID, alloc.NodeName, alloc.Instance)
 	}
 	return nil
 }
 
-type genResource struct {
-	name            string
-	labelKey        string
-	ids             []string
-	nb              int
-	allocationValue string
-	hostValue       string
-	noConsumable    bool
+func buildAllocationID(deploymentID, nodeName, instance string) string {
+	return url.QueryEscape(strings.Join([]string{deploymentID, nodeName, instance}, "-"))
+}
+
+// GenericResource represents a generic resource requirement
+type GenericResource struct {
+	// name of the generic resource
+	Name string `json:"name"`
+	// label used in allocations and hosts pool as host.generic_resource.<name>
+	Label string `json:"label"`
+	// allocation label value set once the generic resource is allocated/released
+	Value string `json:"value"`
+	// define if the generic resource can be only used by a single compute (consumable) or not
+	NoConsumable bool `json:"no_consumable"`
+	// list of ids of generic resources required for the allocation need. Either ids or nb are used
+	ids []string
+	// nb of generic resources required for the allocation need. either ids or nb are used
+	nb int
 }
