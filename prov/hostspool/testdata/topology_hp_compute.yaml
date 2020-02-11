@@ -32,9 +32,10 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
-            generic_resources:
+            resources:
               - name: gpu
                 number: 2
+                no_consumable: false
               - name: cpu
                 ids: "cpu0"
         os:
@@ -63,7 +64,7 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
-            generic_resources:
+            resources:
               - name: gpu
                 number: 2
               - name: cpu

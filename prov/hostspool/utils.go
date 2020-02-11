@@ -167,7 +167,7 @@ func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.
 	for _, id := range ids {
 		log.Debugf("Create filter for id:%q", id)
 		// regex expressing id is contained on the comma-separated list
-		f := fmt.Sprintf(`host.generic_resource.%s ~= "^%s,|,%s,|,%s$|^%s$"`, name, id, id, id, id)
+		f := fmt.Sprintf(`%s.%s ~= "^%s,|,%s,|,%s$|^%s$"`, genericResourceLabelPrefix, name, id, id, id, id)
 		filter, err := labelsutil.CreateFilter(f)
 		if err != nil {
 			return filters, err
@@ -179,8 +179,8 @@ func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.
 
 // appendGenericResourceFilterOnNumber create a regex filter to determine if label contains the required number of elements
 func appendGenericResourceFilterOnNumber(name string, nb int) (labelsutil.Filter, error) {
-	// host.generic.resource.<name> contains at least <nb> elements
-	f := fmt.Sprintf(`host.generic_resource.%s ~= "^([^,]*,){%d}.*$"`, name, nb-1)
+	// host.resource.<name> contains at least <nb> elements
+	f := fmt.Sprintf(`%s.%s ~= "^([^,]*,){%d}.*$"`, genericResourceLabelPrefix, name, nb-1)
 	return labelsutil.CreateFilter(f)
 }
 
@@ -303,8 +303,8 @@ func isIECformat(value string) bool {
 
 func removeElements(source, elements []string) []string {
 	for _, element := range elements {
-		for i, v := range source {
-			if v == element {
+		for i := 0; i < len(source); i++ {
+			if strings.TrimSpace(source[i]) == strings.TrimSpace(element) {
 				source = append(source[:i], source[i+1:]...)
 				break
 			}
@@ -319,8 +319,10 @@ func addElements(source, elements []string) []string {
 	for _, element := range elements {
 		source = append(source, element)
 	}
+
+	source = collections.RemoveDuplicates(source)
 	sort.Strings(source)
-	return collections.RemoveDuplicates(source)
+	return source
 }
 
 func toGenericResource(item interface{}) (*GenericResource, error) {
@@ -349,18 +351,21 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 	if g.Number != "" {
 		nb, err = strconv.Atoi(g.Number)
 		if err != nil {
-			return nil, errors.Wrapf(err, "expected integer value for number property of generic_resource with name:%q", g.Name)
+			return nil, errors.Wrapf(err, "expected integer value for number property of generic resource with name:%q", g.Name)
 		}
 	}
 
-	noConsume, err := strconv.ParseBool(g.NoConsumable)
-	if err != nil {
-		return nil, errors.Wrapf(err, "expected boolean value for no_consumable property of generic_resource with name:%q", g.Name)
+	var noConsume bool
+	if g.NoConsumable != "" {
+		noConsume, err = strconv.ParseBool(g.NoConsumable)
+		if err != nil {
+			return nil, errors.Wrapf(err, "expected boolean value for no_consumable property of generic resource with name:%q", g.Name)
+		}
 	}
 
 	gResource := GenericResource{
 		Name:         g.Name,
-		Label:        fmt.Sprintf("host.generic_resource.%s", g.Name),
+		Label:        fmt.Sprintf("%s.%s", genericResourceLabelPrefix, g.Name),
 		nb:           nb,
 		NoConsumable: noConsume,
 	}

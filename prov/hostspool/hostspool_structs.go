@@ -29,6 +29,13 @@ import (
 	"github.com/ystia/yorc/v4/helper/stringutil"
 )
 
+const (
+	hostCapabilityName           = "host"
+	genericResourceName          = "resource"
+	genericResourceLabelPrefix   = hostCapabilityName + "." + genericResourceName
+	genericResourcesPropertyName = "resources"
+)
+
 // HostStatus x ENUM(
 // free,
 // allocated,
@@ -121,15 +128,15 @@ type Allocation struct {
 	DeploymentID     string             `json:"deployment_id"`
 	Shareable        bool               `json:"shareable"`
 	Resources        map[string]string  `json:"resource_labels,omitempty"`
-	GenericResources []*GenericResource `json:"generic_resource_labels,omitempty"`
+	GenericResources []*GenericResource `json:"gres_labels,omitempty"`
 	PlacementPolicy  string             `json:"placement_policy"`
 }
 
 func (alloc *Allocation) String() string {
-	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t, placement:%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, stringutil.GetLastElement(alloc.PlacementPolicy, "."))
+	allocStr := fmt.Sprintf("deployment: %s|node-instance: %s-%s|shareable: %t|placement:%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, stringutil.GetLastElement(alloc.PlacementPolicy, "."))
 	if alloc.Resources != nil && len(alloc.Resources) > 0 {
 		for k, v := range alloc.Resources {
-			allocStr += "," + k + ": " + v
+			allocStr += "|" + k + ": " + v
 		}
 	}
 
@@ -139,7 +146,7 @@ func (alloc *Allocation) String() string {
 			if gr.NoConsumable {
 				noConsume = "(no consumable)"
 			}
-			allocStr += "," + gr.Label + ": " + gr.Value + noConsume
+			allocStr += "|" + gr.Label + ": " + gr.Value + noConsume
 		}
 	}
 
@@ -164,7 +171,7 @@ func buildAllocationID(deploymentID, nodeName, instance string) string {
 type GenericResource struct {
 	// name of the generic resource
 	Name string `json:"name"`
-	// label used in allocations and hosts pool as host.generic_resource.<name>
+	// label used in allocations and hosts pool as host.resource.<name>
 	Label string `json:"label"`
 	// allocation label value set once the generic resource is allocated/released
 	Value string `json:"value"`

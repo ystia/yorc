@@ -133,18 +133,18 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 	// Expected Hosts Pool allocations after this operation:
 	expectedResources := map[string]map[string]string{
 		"host0": map[string]string{
-			"host.num_cpus":             "0",
-			"host.mem_size":             "1 GB",
-			"host.disk_size":            "10 GB",
-			"host.generic_resource.gpu": "gpu2",
-			"host.generic_resource.cpu": "cpu1,cpu2",
+			"host.num_cpus":     "0",
+			"host.mem_size":     "1 GB",
+			"host.disk_size":    "10 GB",
+			"host.resource.gpu": "gpu2",
+			"host.resource.cpu": "cpu1,cpu2",
 		},
 		"host1": map[string]string{
-			"host.num_cpus":             "2",
-			"host.mem_size":             "3 GB",
-			"host.disk_size":            "50 GB",
-			"host.generic_resource.gpu": "gpu2",
-			"host.generic_resource.cpu": "cpu1,cpu2",
+			"host.num_cpus":     "2",
+			"host.mem_size":     "3 GB",
+			"host.disk_size":    "50 GB",
+			"host.resource.gpu": "gpu2",
+			"host.resource.cpu": "cpu1,cpu2",
 		},
 	}
 	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, location, "taskTest", deploymentID,
@@ -296,19 +296,19 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 	ctx := context.Background()
 	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 	initialLabels := map[string]string{
-		"host.num_cpus":             "3",
-		"host.mem_size":             "4 GB",
-		"host.disk_size":            "70 GB",
-		"os.type":                   "linux",
-		"label1":                    "stringvalue1",
-		"public_address":            "1.2.3.4", // to cover some code using this resource
-		"public_ip_address":         "1.2.3.4",
-		"private_address":           "5.6.7.8",
-		"networks.0.network_name":   "mynetwork",
-		"networks.0.network_id":     "123",
-		"networks.0.addresses":      "1.2.3.4,1.2.3.5",
-		"host.generic_resource.gpu": "gpu0,gpu1,gpu2",
-		"host.generic_resource.cpu": "cpu0,cpu1,cpu2",
+		"host.num_cpus":           "3",
+		"host.mem_size":           "4 GB",
+		"host.disk_size":          "70 GB",
+		"os.type":                 "linux",
+		"label1":                  "stringvalue1",
+		"public_address":          "1.2.3.4", // to cover some code using this resource
+		"public_ip_address":       "1.2.3.4",
+		"private_address":         "5.6.7.8",
+		"networks.0.network_name": "mynetwork",
+		"networks.0.network_id":   "123",
+		"networks.0.addresses":    "1.2.3.4,1.2.3.5",
+		"host.resource.gpu":       "gpu0,gpu1,gpu2",
+		"host.resource.cpu":       "cpu0,cpu1,cpu2",
 	}
 
 	var hostpool = createHostsWithLabels(hostsNumber, initialLabels)

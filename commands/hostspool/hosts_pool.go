@@ -107,25 +107,6 @@ func getColoredHostStatus(colorize bool, status string) string {
 	}
 }
 
-// padSlices is padding as necessary slices in arguments so that both slices
-// have the same number of elements
-func padSlices(slice1 []string, slice2 []string) ([]string, []string) {
-	slice1Size := len(slice1)
-	slice2Size := len(slice2)
-
-	if slice1Size > slice2Size {
-		for i := 0; i < slice1Size-slice2Size; i++ {
-			slice2 = append(slice2, "")
-		}
-	} else {
-		for i := 0; i < slice2Size-slice1Size; i++ {
-			slice1 = append(slice1, "")
-		}
-	}
-
-	return slice1, slice2
-}
-
 // AddRow adds a row to a table, with text colored according to the operation
 // longTable specifies table with all headers
 func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, fullTable bool) {
@@ -141,7 +122,7 @@ func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, 
 
 	allocationsSubRows := make([]string, 0)
 	for _, alloc := range host.Allocations {
-		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), ",")...)
+		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), "|")...)
 	}
 
 	connectionSubRows := strings.Split(host.Connection.String(), ",")
@@ -204,7 +185,7 @@ func addHostInErrorRow(table tabutil.Table, colorize bool, operation int, host *
 	connectionSubRows := strings.Split(host.Connection.String(), ",")
 	var labelSubRows []string
 	if host.Labels != nil {
-		labelSubRows = strings.Split(toPrintableLabels(host.Labels), ",")
+		labelSubRows = strings.Split(toPrintableLabels(host.Labels), "|")
 		sort.Strings(labelSubRows)
 	}
 

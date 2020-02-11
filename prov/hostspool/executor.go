@@ -393,7 +393,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(ctx context.
 
 // this allows to retrieve generic resources from extended host capability
 func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Context, deploymentID, nodeName string) ([]*GenericResource, error) {
-	genericResourcesValue, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "generic_resources")
+	genericResourcesValue, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, hostCapabilityName, genericResourcesPropertyName)
 	if err != nil {
 		return nil, err
 	}

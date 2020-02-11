@@ -738,7 +738,7 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
-	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB", "host.generic_resource.gpu": "gpu0,gpu1,gpu2", "host.generic_resource.cpu": "cpu0,cpu1,cpu2", "myLabel": "myValue"}
+	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB", "host.resource.gpu": "gpu0,gpu1,gpu2", "host.resource.cpu": "cpu0,cpu1,cpu2", "myLabel": "myValue"}
 
 	var hostpool = createHostsWithLabels(1, resources)
 
@@ -767,24 +767,24 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	// First allocation on host1
 	// Check the resources labels have been updated
 	expectedLabels := map[string]string{
-		"myLabel":                   "myValue",
-		"host.num_cpus":             "6",
-		"host.mem_size":             "6.0 GB",
-		"host.disk_size":            "40 GB",
-		"host.generic_resource.gpu": "gpu0,gpu1",
-		"host.generic_resource.cpu": "",
+		"myLabel":           "myValue",
+		"host.num_cpus":     "6",
+		"host.mem_size":     "6.0 GB",
+		"host.disk_size":    "40 GB",
+		"host.resource.gpu": "gpu0,gpu1",
+		"host.resource.cpu": "",
 	}
 
 	allocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
 	gResources := []*GenericResource{
 		{
 			Name:  "gpu",
-			Label: "host.generic_resource.gpu",
+			Label: "host.resource.gpu",
 			ids:   []string{"gpu2"},
 		},
 		{
 			Name:  "cpu",
-			Label: "host.generic_resource.cpu",
+			Label: "host.resource.cpu",
 			nb:    3,
 		},
 	}
@@ -806,18 +806,18 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	// Second allocation on host1
 	// Check the resources labels have been updated
 	expectedLabels = map[string]string{
-		"myLabel":                   "myValue",
-		"host.num_cpus":             "4",
-		"host.mem_size":             "4.0 GB",
-		"host.disk_size":            "30 GB",
-		"host.generic_resource.gpu": "gpu0,gpu1",
-		"host.generic_resource.cpu": "",
+		"myLabel":           "myValue",
+		"host.num_cpus":     "4",
+		"host.mem_size":     "4.0 GB",
+		"host.disk_size":    "30 GB",
+		"host.resource.gpu": "gpu0,gpu1",
+		"host.resource.cpu": "",
 	}
 
 	gResources = []*GenericResource{
 		{
 			Name:         "gpu",
-			Label:        "host.generic_resource.gpu",
+			Label:        "host.resource.gpu",
 			ids:          []string{"gpu1"},
 			NoConsumable: true,
 		},
@@ -840,12 +840,12 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 
 	// Change the host with new resources labels
 	hostpool[0].Labels = map[string]string{
-		"myLabel":                   "myValueUp",
-		"host.num_cpus":             "20",
-		"host.mem_size":             "40 GB",
-		"host.disk_size":            "60 GB",
-		"host.generic_resource.gpu": "gpu0, gpu1, gpu2, gpu3",
-		"host.generic_resource.cpu": "cpu0, cpu1, cpu2, cpu3",
+		"myLabel":           "myValueUp",
+		"host.num_cpus":     "20",
+		"host.mem_size":     "40 GB",
+		"host.disk_size":    "60 GB",
+		"host.resource.gpu": "gpu0, gpu1, gpu2, gpu3",
+		"host.resource.cpu": "cpu0, cpu1, cpu2, cpu3",
 	}
 
 	_, _, checkpoint, err = cm.List(location)
@@ -861,12 +861,12 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 
 	// Check the resources labels have been updated
 	expectedLabels = map[string]string{
-		"myLabel":                   "myValueUp",
-		"host.num_cpus":             "16",
-		"host.mem_size":             "36 GB",
-		"host.disk_size":            "40 GB",
-		"host.generic_resource.gpu": "gpu0,gpu1,gpu3",
-		"host.generic_resource.cpu": "cpu3",
+		"myLabel":           "myValueUp",
+		"host.num_cpus":     "16",
+		"host.mem_size":     "36 GB",
+		"host.disk_size":    "40 GB",
+		"host.resource.gpu": "gpu0,gpu1,gpu3",
+		"host.resource.cpu": "cpu3",
 	}
 
 	allocatedHost, err = cm.GetHost(location, allocatedName)

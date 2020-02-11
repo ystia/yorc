@@ -357,13 +357,13 @@ func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHo
 		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), ",")...)
 	}
 	oldConnectionSubRows := strings.Split(toPrintableConnection(oldConnection), ",")
-	oldLabelSubRows := strings.Split(toPrintableLabels(oldLabels), ",")
+	oldLabelSubRows := strings.Split(toPrintableLabels(oldLabels), "|")
 	// Sorting labels for an easier comparison between old and new labels
 	sort.Strings(oldLabelSubRows)
 	sliceutil.PadSlices("", &allocationsSubRows, &oldConnectionSubRows, &oldLabelSubRows)
 
 	newConnectionSubRows := strings.Split(toPrintableConnection(newConnection), ",")
-	newLabelSubRows := strings.Split(toPrintableLabels(newLabels), ",")
+	newLabelSubRows := strings.Split(toPrintableLabels(newLabels), "|")
 	// Sorting labels for an easier comparison between old and new labels
 	sort.Strings(newLabelSubRows)
 	sliceutil.PadSlices("", &allocationsSubRows, &newConnectionSubRows, &newLabelSubRows)
