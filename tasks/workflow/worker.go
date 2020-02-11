@@ -747,7 +747,7 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 		}
 
 		// Check if this workflow was launched as an inline workflow by a parent workflow
-		parentWorkflow, err := getParentWorfklow(ctx, t, wfName)
+		parentWorkflow, err := getParentWorkflow(ctx, t, wfName)
 		if err != nil {
 			return err
 		}

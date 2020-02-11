@@ -399,16 +399,14 @@ func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflo
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register inline workflow %s in parent workflow %s step %s, targetID %s, taskID %s",
 			workflowName, s.WorkflowName, s.Name, s.t.targetID, s.t.taskID)
-	} else {
-		log.Debugf("Registered task %s for inline workflow %s in parent workflow %s step %s",
-			taskID, workflowName, s.WorkflowName, s.Name)
-		err = s.setStatus(tasks.TaskStepStatusRUNNING)
+		_ = s.setStatus(tasks.TaskStepStatusERROR)
+		return err
 	}
 
-	if err != nil {
-		err = s.setStatus(tasks.TaskStepStatusERROR)
+	log.Debugf("Registered task %s for inline workflow %s in parent workflow %s step %s",
+		taskID, workflowName, s.WorkflowName, s.Name)
+	_ = s.setStatus(tasks.TaskStepStatusRUNNING)
 
-	}
 	// Marking this step as asynchronous as it should not be considered as
 	// done by the caller
 	s.Async = true

@@ -269,7 +269,7 @@ func testInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 	// Error cases
 	// Using a task not related to a custon workflow
 	childTaskExec.taskID = "anotherTask"
-	parentWf, err := getParentWorfklow(ctx, childTaskExec, inlineWfName)
+	parentWf, err := getParentWorkflow(ctx, childTaskExec, inlineWfName)
 	require.NoError(t, err, "Did not expect an error getting the name of a workflow with wrong task")
 	require.Equal(t, "", parentWf, "Unexpected parent workflow found")
 	err = updateParentWorkflowStepAndRegisterNextSteps(ctx, childTaskExec, inlineWfName, tasks.TaskStatusDONE)

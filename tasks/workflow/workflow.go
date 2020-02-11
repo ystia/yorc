@@ -124,7 +124,7 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, deploymentID
 
 // Get the parent workflow of an inline workflow, returns an empty string if there
 // is no parent workflow
-func getParentWorfklow(ctx context.Context, t *taskExecution, wfName string) (string, error) {
+func getParentWorkflow(ctx context.Context, t *taskExecution, wfName string) (string, error) {
 	parentWorkflow, err := tasks.GetTaskData(t.taskID, taskDataParentWorkflowName)
 	if err != nil && !tasks.IsTaskDataNotFoundError(err) {
 		return parentWorkflow, err
