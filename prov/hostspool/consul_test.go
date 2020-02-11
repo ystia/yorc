@@ -111,7 +111,6 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t, client)
 	})
 	t.Run("testConsulManagerApplyWithAllocation", func(t *testing.T) {
-		t.Skip()
 		testConsulManagerApplyWithAllocation(t, client)
 	})
 	t.Run("testConsulManagerAddLabelsWithAllocation", func(t *testing.T) {

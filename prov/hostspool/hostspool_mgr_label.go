@@ -80,20 +80,21 @@ func (cm *consulManager) addLabels(locationName, hostname string, labels map[str
 }
 
 func (cm *consulManager) getAddUpdatedLabelsOperations(locationName, hostname string, labels map[string]string) (api.KVTxnOps, error) {
-	// Get labels operations
-	ops, err := cm.getAddLabelsOperations(locationName, hostname, labels)
+	allocs, err := cm.GetAllocations(locationName, hostname)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get updated labels operations
-	upLabelsOps, err := cm.getUpdateResourcesLabelsOperationsOnLabelsChange(locationName, hostname, labels)
-	if err != nil {
-		return nil, err
-	}
-	ops = append(ops, upLabelsOps...)
+	// Apply allocations resources on new labels
+	for _, alloc := range allocs {
+		if err = cm.recalculateResourcesLabels(labels, alloc.Resources, subtract, updateResourcesLabels); err != nil {
+			return nil, err
+		}
 
-	return ops, nil
+		// Apply allocation generic resources on new labels
+		cm.recalculateGenericResourcesLabels(labels, alloc.GenericResources, removeElements, updateGenericResourcesLabels)
+	}
+	return cm.getAddLabelsOperations(locationName, hostname, labels)
 }
 
 func (cm *consulManager) removeLabelsWait(locationName, hostname string, labels []string, maxWaitTime time.Duration) error {
@@ -155,11 +156,11 @@ func (cm *consulManager) UpdateResourcesLabels(
 	locationName,
 	hostname string,
 	diff map[string]string,
-	operation func(a int64, b int64) int64,
-	update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error),
+	operation resourceOperationFunc,
+	update resourceUpdateFunc,
 	gResources []*GenericResource,
-	gResourcesOperation func(source, elements []string) []string,
-	updateGenericResources func(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string) error {
+	gResourcesOperation genericResourceOperationFunc,
+	updateGenericResources genericResourceUpdateFunc) error {
 	return cm.updateResourcesLabelsWait(locationName, hostname, diff, operation, update, gResources, gResourcesOperation, updateGenericResources, maxWaitTimeSeconds*time.Second)
 }
 
@@ -168,11 +169,11 @@ func (cm *consulManager) updateResourcesLabelsWait(
 	locationName,
 	hostname string,
 	diff map[string]string,
-	operation func(a int64, b int64) int64,
-	update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error),
+	operation resourceOperationFunc,
+	update resourceUpdateFunc,
 	gResources []*GenericResource,
-	gResourcesOperation func(source, elements []string) []string,
-	updateGenericResources func(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string,
+	gResourcesOperation genericResourceOperationFunc,
+	updateGenericResources genericResourceUpdateFunc,
 	maxWaitTime time.Duration) error {
 	if locationName == "" {
 		return errors.WithStack(badRequestError{`"locationName" missing`})
@@ -255,56 +256,26 @@ func (cm *consulManager) GetHostLabels(locationName, hostname string) (map[strin
 	return labels, nil
 }
 
-func (cm *consulManager) getUpdateResourcesLabelsOperationsOnLabelsChange(locationName, hostname string, newLabels map[string]string) (api.KVTxnOps, error) {
-	allocs, err := cm.GetAllocations(locationName, hostname)
+func (cm *consulManager) recalculateResourcesLabels(labels map[string]string, diff map[string]string, operation resourceOperationFunc, update resourceUpdateFunc) error {
+	updatedLabels, err := update(labels, diff, operation)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Apply allocations resources on new labels
-	upLabels := newLabels
-	for _, alloc := range allocs {
-		upLabels, err = cm.calculateResourcesLabels(alloc.Resources, upLabels, subtract, updateResourcesLabels)
-		if err != nil {
-			return nil, err
-		}
-
-		// Apply allocation generic resources on new labels
-		gLabels := cm.calculateGenericResourcesLabels(alloc.GenericResources, newLabels, addElements, updateGenericResourcesLabels)
-		// Add generic resources labels to update
-		for k, v := range gLabels {
-			upLabels[k] = v
-		}
+	// update initial labels
+	for k, v := range updatedLabels {
+		labels[k] = v
 	}
-	return cm.getAddLabelsOperations(locationName, hostname, upLabels)
+
+	return nil
 }
 
-func (cm *consulManager) getUpdateResourcesLabelsOperations(locationName, hostname string, diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (api.KVTxnOps, error) {
-	upLabels, err := cm.calculateResourcesLabels(diff, new, operation, update)
-	if err != nil {
-		return nil, err
+func (cm *consulManager) recalculateGenericResourcesLabels(labels map[string]string, gResources []*GenericResource, operation genericResourceOperationFunc, update genericResourceUpdateFunc) {
+	updatedLabels := update(labels, gResources, operation)
+	// update initial labels
+	for k, v := range updatedLabels {
+		labels[k] = v
 	}
-	if upLabels == nil || len(upLabels) == 0 {
-		return nil, nil
-	}
-	return cm.getAddLabelsOperations(locationName, hostname, upLabels)
-}
-
-func (cm *consulManager) calculateResourcesLabels(diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (map[string]string, error) {
-	upLabels, err := update(new, diff, operation)
-	if err != nil {
-		return nil, err
-	}
-
-	if upLabels == nil || len(upLabels) == 0 {
-		return nil, nil
-	}
-
-	return upLabels, nil
-}
-
-func (cm *consulManager) calculateGenericResourcesLabels(gResources []*GenericResource, new map[string]string, operation func(source, elements []string) []string, update func(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string) map[string]string {
-	return update(new, gResources, operation)
 }
 
 func (cm *consulManager) getAddLabelsOperations(locationName, hostname string, labels map[string]string) (api.KVTxnOps, error) {

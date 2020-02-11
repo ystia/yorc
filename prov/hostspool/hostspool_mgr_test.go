@@ -775,7 +775,6 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.generic_resource.cpu": "",
 	}
 
-	//gResourcesLabels := map[string]string{"host.generic_resource.gpu": "gpu0,gpu1", "host.generic_resource.cpu": ""}
 	allocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
 	gResources := []*GenericResource{
 		{
@@ -811,12 +810,19 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.num_cpus":             "4",
 		"host.mem_size":             "4.0 GB",
 		"host.disk_size":            "30 GB",
-		"host.generic_resource.gpu": "gpu0,gpu1",
+		"host.generic_resource.gpu": "gpu0",
 		"host.generic_resource.cpu": "",
 	}
 
+	gResources = []*GenericResource{
+		{
+			Name:  "gpu",
+			Label: "host.generic_resource.gpu",
+			ids:   []string{"gpu1"},
+		},
+	}
 	allocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: allocResources})
+	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: allocResources, GenericResources: gResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
@@ -858,7 +864,7 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.num_cpus":             "16",
 		"host.mem_size":             "36 GB",
 		"host.disk_size":            "40 GB",
-		"host.generic_resource.gpu": "gpu0,gpu1,gpu3",
+		"host.generic_resource.gpu": "gpu0,gpu3",
 		"host.generic_resource.cpu": "cpu3",
 	}
 

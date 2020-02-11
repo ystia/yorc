@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"sort"
 	"strconv"
 	"strings"
@@ -189,39 +190,39 @@ func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance
 	return nil
 }
 
-func updateGenericResourcesLabels(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string {
-	labels := make(map[string]string)
-	for _, gResource := range genericResources {
-		if !gResource.NoConsumable {
-			if genResourceStr, ok := origin[gResource.Label]; ok {
+func updateGenericResourcesLabels(origin map[string]string, diffGenericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string {
+	updatedLabels := make(map[string]string)
+	for _, diffGenericResource := range diffGenericResources {
+		if !diffGenericResource.NoConsumable {
+			if genResourceStr, ok := origin[diffGenericResource.Label]; ok {
 				genResource := strings.Split(genResourceStr, ",")
-				genResourceElements := strings.Split(gResource.Value, ",")
+				genResourceElements := strings.Split(diffGenericResource.Value, ",")
 				result := operation(genResource, genResourceElements)
 				resultStr := strings.Join(result, ",")
-				labels[gResource.Label] = resultStr
+				updatedLabels[diffGenericResource.Label] = resultStr
 			}
 		}
 	}
-	return labels
+	return updatedLabels
 }
 
-func updateResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error) {
+func updateResourcesLabels(origin map[string]string, diff map[string]string, operation resourceOperationFunc) (map[string]string, error) {
 	// Host Resources Labels can only be updated when deployment resources requirement is described
-	labels := make(map[string]string)
+	updatedLabels := make(map[string]string)
 
-	err := updateNumberResourcesLabels(origin, diff, operation, labels)
+	err := updateNumberResourcesLabels(origin, diff, operation, updatedLabels)
 	if err != nil {
 		return nil, err
 	}
 
-	err = updateSizeResourcesLabels(origin, diff, operation, labels)
+	err = updateSizeResourcesLabels(origin, diff, operation, updatedLabels)
 	if err != nil {
 		return nil, err
 	}
-	return labels, nil
+	return updatedLabels, nil
 }
 
-func updateNumberResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error {
+func updateNumberResourcesLabels(origin map[string]string, diff map[string]string, operation resourceOperationFunc, updatedLabels map[string]string) error {
 	cpuResourcesLabel := "host.num_cpus"
 	if resourceDiffStr, ok := diff[cpuResourcesLabel]; ok {
 		if resourceOriginStr, ok := origin[cpuResourcesLabel]; ok {
@@ -235,13 +236,13 @@ func updateNumberResourcesLabels(origin map[string]string, diff map[string]strin
 			}
 
 			res := operation(int64(resourceOrigin), int64(resourceDiff))
-			labels[cpuResourcesLabel] = strconv.Itoa(int(res))
+			updatedLabels[cpuResourcesLabel] = strconv.Itoa(int(res))
 		}
 	}
 	return nil
 }
 
-func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error {
+func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation resourceOperationFunc, updatedLabels map[string]string) error {
 	sizeResourcesLabels := []struct {
 		name string
 	}{
@@ -262,7 +263,7 @@ func updateSizeResourcesLabels(origin map[string]string, diff map[string]string,
 				}
 
 				res := operation(int64(resourceOrigin), int64(resourceDiff))
-				labels[resource.name] = formatBytes(res, isIECformat(resourceOriginStr))
+				updatedLabels[resource.name] = formatBytes(res, isIECformat(resourceOriginStr))
 			}
 		}
 	}
@@ -310,5 +311,5 @@ func addElements(source, elements []string) []string {
 		source = append(source, element)
 	}
 	sort.Strings(source)
-	return source
+	return collections.RemoveDuplicates(source)
 }

@@ -44,12 +44,17 @@ const (
 	maxNbTransactionOps = 64
 )
 
+type resourceOperationFunc func(a int64, b int64) int64
+type resourceUpdateFunc func(origin map[string]string, diff map[string]string, operation resourceOperationFunc) (map[string]string, error)
+type genericResourceOperationFunc func(source, elements []string) []string
+type genericResourceUpdateFunc func(origin map[string]string, genericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string
+
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(locationName, hostname string, connection Connection, labels map[string]string) error
 	Apply(locationName string, pool []Host, checkpoint *uint64) error
 	Remove(locationName, hostname string) error
-	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), gResources []*GenericResource, gResourcesOperation func(source, elements []string) []string, updateGenericResources func(origin map[string]string, genericResources []*GenericResource, operation func(source, elements []string) []string) map[string]string) error
+	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation resourceOperationFunc, update resourceUpdateFunc, gResources []*GenericResource, gResourcesOperation genericResourceOperationFunc, updateGenericResources genericResourceUpdateFunc) error
 	AddLabels(locationName, hostname string, labels map[string]string) error
 	RemoveLabels(locationName, hostname string, labels []string) error
 	UpdateConnection(locationName, hostname string, connection Connection) error
