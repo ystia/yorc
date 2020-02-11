@@ -17,6 +17,8 @@ package hostspool
 import (
 	"context"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"sort"
 	"strconv"
@@ -319,4 +321,52 @@ func addElements(source, elements []string) []string {
 	}
 	sort.Strings(source)
 	return collections.RemoveDuplicates(source)
+}
+
+func toGenericResource(item interface{}) (*GenericResource, error) {
+	type gres struct {
+		Name         string `json:"name" mapstructure:"name"`
+		IDS          string `json:"ids,omitempty" mapstructure:"ids"`
+		Number       string `json:"number,omitempty" mapstructure:"number"`
+		NoConsumable string `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
+	}
+
+	g := new(gres)
+	err := mapstructure.Decode(item, g)
+	if err != nil {
+		return nil, err
+	}
+
+	if g.Name == "" {
+		return nil, errors.New("Missing generic resource mandatory name")
+	}
+
+	if g.IDS == "" && g.Number == "" || (g.IDS != "" && g.Number != "") {
+		return nil, errors.Errorf("Either ids or number must be filled to define the resource need gor generic resource name:%q.", g.Name)
+	}
+
+	var nb int
+	if g.Number != "" {
+		nb, err = strconv.Atoi(g.Number)
+		if err != nil {
+			return nil, errors.Wrapf(err, "expected integer value for number property of generic_resource with name:%q", g.Name)
+		}
+	}
+
+	noConsume, err := strconv.ParseBool(g.NoConsumable)
+	if err != nil {
+		return nil, errors.Wrapf(err, "expected boolean value for no_consumable property of generic_resource with name:%q", g.Name)
+	}
+
+	gResource := GenericResource{
+		Name:         g.Name,
+		Label:        fmt.Sprintf("host.generic_resource.%s", g.Name),
+		nb:           nb,
+		NoConsumable: noConsume,
+	}
+
+	if g.IDS != "" {
+		gResource.ids = strings.Split(removeWhitespaces(g.IDS), ",")
+	}
+	return &gResource, nil
 }

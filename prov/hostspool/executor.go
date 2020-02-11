@@ -17,7 +17,6 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"strconv"
 	"strings"
@@ -267,37 +266,41 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		if err != nil {
 			return err
 		}
-		err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, "hostname", hostname)
-		if err != nil {
+
+		if err = e.updateInstanceAttributes(ctx, op, hostname, instance, allocation.GenericResources); err != nil {
 			return err
 		}
 
-		// Create attributes for generic resources
-		for _, gResource := range allocation.GenericResources {
-			err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, gResource.Name, gResource.Value)
-			if err != nil {
-				return err
-			}
-		}
-
-		host, err := op.hpManager.GetHost(op.location, hostname)
-		if err != nil {
+		if err = e.updateConnectionSettings(ctx, op, hostname, instance); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		err = e.updateConnectionSettings(ctx, op, host, hostname, instance)
+func (e *defaultExecutor) updateInstanceAttributes(ctx context.Context, op operationParameters, hostname, instance string, gResources []*GenericResource) error {
+	err := deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, "hostname", hostname)
+	if err != nil {
+		return err
+	}
+
+	// Create attributes for generic resources
+	for _, gResource := range gResources {
+		err = deployments.SetInstanceAttribute(ctx, op.deploymentID, op.nodeName, instance, gResource.Name, gResource.Value)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-func (e *defaultExecutor) updateConnectionSettings(
-	ctx context.Context, op operationParameters, host Host, hostname, instance string) error {
+func (e *defaultExecutor) updateConnectionSettings(ctx context.Context, op operationParameters, hostname, instance string) error {
+	host, err := op.hpManager.GetHost(op.location, hostname)
+	if err != nil {
+		return err
+	}
 
-	err := deployments.SetInstanceCapabilityAttribute(ctx, op.deploymentID, op.nodeName,
+	err = deployments.SetInstanceCapabilityAttribute(ctx, op.deploymentID, op.nodeName,
 		instance, tosca.ComputeNodeEndpointCapabilityName, tosca.EndpointCapabilityIPAddressAttribute,
 		host.Connection.Host)
 	if err != nil {
@@ -401,53 +404,13 @@ func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Co
 	if !ok {
 		return nil, errors.New("failed to retrieve generic resources: not expected type")
 	}
-	type res struct {
-		Name         string `json:"name" mapstructure:"name"`
-		IDS          string `json:"ids,omitempty" mapstructure:"ids"`
-		Number       string `json:"number,omitempty" mapstructure:"number"`
-		NoConsumable string `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
-	}
-
 	gResources := make([]*GenericResource, 0)
 	for _, item := range list {
-		g := new(res)
-		err = mapstructure.Decode(item, g)
+		gResource, err := toGenericResource(item)
 		if err != nil {
 			return nil, err
 		}
-
-		if g.Name == "" {
-			return nil, errors.New("Missing generic resource mandatory name")
-		}
-
-		if g.IDS == "" && g.Number == "" || (g.IDS != "" && g.Number != "") {
-			return nil, errors.Errorf("Either ids or number must be filled to define the resource need gor generic resource name:%q.", g.Name)
-		}
-
-		var nb int
-		if g.Number != "" {
-			nb, err = strconv.Atoi(g.Number)
-			if err != nil {
-				return nil, errors.Wrapf(err, "expected integer value for number property of generic_resource with name:%q", g.Name)
-			}
-		}
-
-		noConsume, err := strconv.ParseBool(g.NoConsumable)
-		if err != nil {
-			return nil, errors.Wrapf(err, "expected boolean value for no_consumable property of generic_resource with name:%q", g.Name)
-		}
-
-		gResource := GenericResource{
-			Name:         g.Name,
-			Label:        fmt.Sprintf("host.generic_resource.%s", g.Name),
-			nb:           nb,
-			NoConsumable: noConsume,
-		}
-
-		if g.IDS != "" {
-			gResource.ids = strings.Split(removeWhitespaces(g.IDS), ",")
-		}
-		gResources = append(gResources, &gResource)
+		gResources = append(gResources, gResource)
 	}
 	return gResources, err
 }

@@ -80,7 +80,7 @@ func (cm *consulManager) addLabels(locationName, hostname string, labels map[str
 }
 
 func (cm *consulManager) getAddUpdatedLabelsOperations(locationName, hostname string, labels map[string]string) (api.KVTxnOps, error) {
-	allocs, err := cm.GetAllocations(locationName, hostname)
+	allocs, err := cm.getAllocations(locationName, hostname)
 	if err != nil {
 		return nil, err
 	}

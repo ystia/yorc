@@ -583,7 +583,7 @@ func (cm *consulManager) GetHost(locationName, hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
-	host.Allocations, err = cm.GetAllocations(locationName, hostname)
+	host.Allocations, err = cm.getAllocations(locationName, hostname)
 	if err != nil {
 		return host, err
 	}
@@ -719,7 +719,7 @@ func (cm *consulManager) applyWait(
 				return err
 			}
 
-			allocations, err := cm.GetAllocations(locationName, host.Name)
+			allocations, err := cm.getAllocations(locationName, host.Name)
 			if err != nil {
 				return err
 			}
