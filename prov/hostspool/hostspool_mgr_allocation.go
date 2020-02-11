@@ -383,7 +383,23 @@ func (cm *consulManager) getAllocation(locationName, hostname, allocationID stri
 			return nil, errors.Wrapf(err, "failed to parse boolean from value:%q", string(kvp.Value))
 		}
 	}
+	// Retrieve resources
+	alloc.Resources, err = cm.getResourcesForAllocation(locationName, hostname, allocationID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve generic resources
+	alloc.GenericResources, err = cm.getGenericResourcesForAllocation(locationName, hostname, allocationID)
+	if err != nil {
+		return nil, err
+	}
+	return alloc, nil
+}
+
+func (cm *consulManager) getResourcesForAllocation(locationName, hostname, allocationID string) (map[string]string, error) {
 	// Appending a final "/" here is not necessary as there is no other keys starting with "resources" prefix
+	key := path.Join(consulutil.HostsPoolPrefix, locationName, hostname, "allocations", allocationID)
 	kvps, _, err := cm.cc.KV().List(path.Join(key, "resources"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -392,10 +408,13 @@ func (cm *consulManager) getAllocation(locationName, hostname, allocationID stri
 	for _, kvp := range kvps {
 		resources[path.Base(kvp.Key)] = string(kvp.Value)
 	}
-	alloc.Resources = resources
+	return resources, nil
+}
 
-	// Retrieve generic resources
-	kvps, _, err = cm.cc.KV().List(path.Join(key, "generic_resources"), nil)
+func (cm *consulManager) getGenericResourcesForAllocation(locationName, hostname, allocationID string) ([]*GenericResource, error) {
+	// Appending a final "/" here is not necessary as there is no other keys starting with "resources" prefix
+	key := path.Join(consulutil.HostsPoolPrefix, locationName, hostname, "allocations", allocationID)
+	kvps, _, err := cm.cc.KV().List(path.Join(key, "generic_resources"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -408,8 +427,7 @@ func (cm *consulManager) getAllocation(locationName, hostname, allocationID stri
 		}
 		gResources = append(gResources, &gResource)
 	}
-	alloc.GenericResources = gResources
-	return alloc, nil
+	return gResources, nil
 }
 
 // CheckPlacementPolicy check if placement policy is supported
