@@ -137,6 +137,7 @@ func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nod
 	return filters, nil
 }
 
+// createGenericResourcesFilters create regex filters to determine if label contains the required ids or required number of elements
 func createGenericResourcesFilters(ctx context.Context, genericResources []*GenericResource) ([]labelsutil.Filter, error) {
 	filters := make([]labelsutil.Filter, 0)
 	for _, genericResource := range genericResources {
@@ -158,6 +159,7 @@ func createGenericResourcesFilters(ctx context.Context, genericResources []*Gene
 	return filters, nil
 }
 
+// appendGenericResourceFiltersOnIDs create regex filters to determine if label contains the required ids
 func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.Filter, error) {
 	filters := make([]labelsutil.Filter, 0)
 	for _, id := range ids {
@@ -173,6 +175,7 @@ func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.
 	return filters, nil
 }
 
+// appendGenericResourceFilterOnNumber create a regex filter to determine if label contains the required number of elements
 func appendGenericResourceFilterOnNumber(name string, nb int) (labelsutil.Filter, error) {
 	// host.generic.resource.<name> contains at least <nb> elements
 	f := fmt.Sprintf(`host.generic_resource.%s ~= "^([^,]*,){%d}.*$"`, name, nb-1)
@@ -190,12 +193,16 @@ func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance
 	return nil
 }
 
+func removeWhitespaces(str string) string {
+	return strings.Join(strings.Fields(str), "")
+}
+
 func updateGenericResourcesLabels(origin map[string]string, diffGenericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string {
 	updatedLabels := make(map[string]string)
 	for _, diffGenericResource := range diffGenericResources {
 		if !diffGenericResource.NoConsumable {
 			if genResourceStr, ok := origin[diffGenericResource.Label]; ok {
-				genResource := strings.Split(genResourceStr, ",")
+				genResource := strings.Split(removeWhitespaces(genResourceStr), ",")
 				genResourceElements := strings.Split(diffGenericResource.Value, ",")
 				result := operation(genResource, genResourceElements)
 				resultStr := strings.Join(result, ",")

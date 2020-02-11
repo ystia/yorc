@@ -388,22 +388,19 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(ctx context.
 	return res, nil
 }
 
+// this allows to retrieve generic resources from extended host capability
 func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Context, deploymentID, nodeName string) ([]*GenericResource, error) {
 	genericResourcesValue, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "generic_resources")
 	if err != nil {
 		return nil, err
 	}
-
 	if genericResourcesValue == nil || genericResourcesValue.RawString() == "" {
 		return nil, err
 	}
-
 	list, ok := genericResourcesValue.Value.([]interface{})
 	if !ok {
 		return nil, errors.New("failed to retrieve generic resources: not expected type")
 	}
-
-	// GRES is used here to decode data from Tosca Value map
 	type res struct {
 		Name         string `json:"name" mapstructure:"name"`
 		IDS          string `json:"ids,omitempty" mapstructure:"ids"`
@@ -448,8 +445,7 @@ func (e *defaultExecutor) getGenericResourcesFromHostCapabilities(ctx context.Co
 		}
 
 		if g.IDS != "" {
-			idsStr := strings.Join(strings.Fields(g.IDS), "")
-			gResource.ids = strings.Split(idsStr, ",")
+			gResource.ids = strings.Split(removeWhitespaces(g.IDS), ",")
 		}
 		gResources = append(gResources, &gResource)
 	}

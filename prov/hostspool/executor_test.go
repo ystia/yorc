@@ -211,11 +211,25 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 		for _, nodeName := range nodeNames {
 			val, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, "0", attribute)
 			require.NoError(t, err, "Could not get instance attribute value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
-			assert.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
-			assert.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
+			require.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			require.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
 		}
 	}
 
+	// Check compute cpu and gpu attributes for compute1 and compute2
+	expected = map[string]string{
+		"cpu": "cpu0",
+		"gpu": "gpu0,gpu1",
+	}
+
+	for attribute, expectedValue := range expected {
+		for _, nodeName := range []string{"Compute", "Compute2"} {
+			val, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, "0", attribute)
+			require.NoError(t, err, "Could not get instance attribute value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			require.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			require.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
+		}
+	}
 }
 
 func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client,

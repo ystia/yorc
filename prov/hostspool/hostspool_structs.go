@@ -133,6 +133,16 @@ func (alloc *Allocation) String() string {
 		}
 	}
 
+	if alloc.GenericResources != nil && len(alloc.GenericResources) > 0 {
+		for _, gr := range alloc.GenericResources {
+			var noConsume string
+			if gr.NoConsumable {
+				noConsume = "(no consumable)"
+			}
+			allocStr += "," + gr.Label + ": " + gr.Value + noConsume
+		}
+	}
+
 	return allocStr
 }
 

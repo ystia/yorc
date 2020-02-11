@@ -810,15 +810,16 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.num_cpus":             "4",
 		"host.mem_size":             "4.0 GB",
 		"host.disk_size":            "30 GB",
-		"host.generic_resource.gpu": "gpu0",
+		"host.generic_resource.gpu": "gpu0,gpu1",
 		"host.generic_resource.cpu": "",
 	}
 
 	gResources = []*GenericResource{
 		{
-			Name:  "gpu",
-			Label: "host.generic_resource.gpu",
-			ids:   []string{"gpu1"},
+			Name:         "gpu",
+			Label:        "host.generic_resource.gpu",
+			ids:          []string{"gpu1"},
+			NoConsumable: true,
 		},
 	}
 	allocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
@@ -843,8 +844,8 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.num_cpus":             "20",
 		"host.mem_size":             "40 GB",
 		"host.disk_size":            "60 GB",
-		"host.generic_resource.gpu": "gpu0,gpu1,gpu2,gpu3",
-		"host.generic_resource.cpu": "cpu0,cpu1,cpu2,cpu3",
+		"host.generic_resource.gpu": "gpu0, gpu1, gpu2, gpu3",
+		"host.generic_resource.cpu": "cpu0, cpu1, cpu2, cpu3",
 	}
 
 	_, _, checkpoint, err = cm.List(location)
@@ -864,7 +865,7 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 		"host.num_cpus":             "16",
 		"host.mem_size":             "36 GB",
 		"host.disk_size":            "40 GB",
-		"host.generic_resource.gpu": "gpu0,gpu3",
+		"host.generic_resource.gpu": "gpu0,gpu1,gpu3",
 		"host.generic_resource.cpu": "cpu3",
 	}
 
