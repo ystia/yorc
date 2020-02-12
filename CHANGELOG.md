@@ -10,6 +10,7 @@
 
 * Tosca public_ip_address attribute is wrongly set with private address for hosts pool computes ([GH-593](https://github.com/ystia/yorc/issues/593))
 * REQ_TARGET keyword on TOSCA doesn't work with requirement type ([GH-598](https://github.com/ystia/yorc/issues/598))
+* Failure running workflow with inline activity ([GH-592](https://github.com/ystia/yorc/issues/592))
 
 ## 4.0.0-M8 (January 24, 2020)
 

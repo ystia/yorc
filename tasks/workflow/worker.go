@@ -589,7 +589,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 			}
 			return nil
 		}
-		bypassErrors, err := w.checkByPassErrors(t, "uninstall")
+		bypassErrors, err := checkByPassErrors(t, "uninstall")
 		if err != nil {
 			return err
 		}
@@ -737,28 +737,30 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 	if wfName == "" {
 		return errors.New("workflow name missing")
 	}
-	bypassErrors, err := w.checkByPassErrors(t, wfName)
+	bypassErrors, err := checkByPassErrors(t, wfName)
 	if err != nil {
 		return err
 	}
 	t.finalFunction = func() error {
-		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.targetID, t.taskID, wfName)
+		taskStatus, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.targetID, t.taskID, wfName)
+		if err != nil {
+			return err
+		}
+
+		// Check if this workflow was launched as an inline workflow by a parent workflow
+		parentWorkflow, err := getParentWorkflow(ctx, t, wfName)
+		if err != nil {
+			return err
+		}
+
+		if parentWorkflow != "" {
+			err = updateParentWorkflowStepAndRegisterNextSteps(ctx, t, parentWorkflow, taskStatus)
+		}
+
 		return err
 	}
 
 	return w.runWorkflowStep(ctx, t, wfName, bypassErrors)
-}
-
-func (w *worker) checkByPassErrors(t *taskExecution, wfName string) (bool, error) {
-	continueOnError, err := tasks.GetTaskData(t.taskID, "continueOnError")
-	if err != nil {
-		return false, err
-	}
-	bypassErrors, err := strconv.ParseBool(continueOnError)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to parse \"continueOnError\" flag for workflow:%q", wfName)
-	}
-	return bypassErrors, nil
 }
 
 // bool return indicates if the workflow is done
@@ -768,7 +770,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	if err != nil {
 		return errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
-	if wfSteps == nil || len(wfSteps) == 0 {
+	if len(wfSteps) == 0 {
 		// Nothing to do
 		return nil
 	}
