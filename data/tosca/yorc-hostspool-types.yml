@@ -90,6 +90,7 @@ data_types:
       no_consumable:
         type: boolean
         default: false
+        required: false
         description: >
           By default, the generic resource is consumable. It means a resource can be only used by a single compute.
           If you allow the resource to be shared by multiple computes, you have to set this property to true.
