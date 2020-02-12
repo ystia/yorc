@@ -265,6 +265,8 @@ The ``ComputeB`` GPU requirement of ``2`` GPUs ID has been done by ``host2``.
 
 Both ``host1`` and ``host2`` are no longer providing GPUs resources as these resources are defined as ``consumable``.
 
+A Tosca instance attribute "gpu" will be exposed with the allocated resources for each node instance once the application is deployed.
+
 Note: If you apply a new configuration on allocated hosts with new host generic resources labels, they will be recalculated depending on existing allocations resources.
 
 .. _yorc_infras_slurm_section:
