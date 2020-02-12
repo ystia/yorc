@@ -32,7 +32,8 @@ topology_template:
           properties:
             resources:
               - name: gpu
-                ids: gpu2
+                ids:
+                  - "gpu2"
         scalable:
           properties:
             min_instances: 1
