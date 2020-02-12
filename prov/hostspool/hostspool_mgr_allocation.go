@@ -287,21 +287,29 @@ func (cm *consulManager) allocateGenericResources(locationName, hostname string,
 		}
 		hostGenResource := toSlice(hostGenResourceStr)
 
-		// check ids
-		if gResource.ids != nil {
+		// check ids for the related instance
+		instance, err := strconv.Atoi(allocation.Instance)
+		if err != nil {
+			return errors.Wrapf(err, "unexpected non integer value for node name:%q, instance:%q", allocation.NodeName, allocation.Instance)
+		}
+		if gResource.ids != nil && len(gResource.ids) > instance {
 			// Check list contains ids
-			for _, id := range gResource.ids {
+			for _, id := range gResource.ids[instance] {
 				if !collections.ContainsString(hostGenResource, id) {
-					return errors.Errorf("missing expected id:%q for generic resource:%q, location:%q, host:%s", id, gResource.Name, locationName, hostname)
+					return errors.Errorf("missing expected id:%q for generic resource:%q, location:%q, host:%s, node name:%q, instance:%q", id, gResource.Name, locationName, hostname, allocation.NodeName, allocation.Instance)
 				}
 			}
-			gResource.Value = strings.Join(gResource.ids, ",")
+			gResource.Value = strings.Join(gResource.ids[instance], ",")
 			continue
+		}
+
+		if gResource.nb == 0 {
+			return errors.Errorf("Neither ids nor number is provided for generic resource:%q, location:%q, host:%s, node name:%q, instance:%q", gResource.Name, locationName, hostname, allocation.NodeName, allocation.Instance)
 		}
 
 		// check nb
 		if len(hostGenResource) < gResource.nb {
-			return errors.Errorf("missing %d expected resources for generic resource:%q, location:%q, host:%s", gResource.nb-len(hostGenResource), gResource.Name, locationName, hostname)
+			return errors.Errorf("missing %d expected resources for generic resource:%q, location:%q, host:%s, node name:%q, instance:%q", gResource.nb-len(hostGenResource), gResource.Name, locationName, hostname, allocation.NodeName, allocation.Instance)
 		}
 		gResource.Value = strings.Join(hostGenResource[:gResource.nb], ",")
 	}

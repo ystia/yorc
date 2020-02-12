@@ -140,14 +140,20 @@ func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nod
 }
 
 // createGenericResourcesFilters create regex filters to determine if label contains the required ids or required number of elements
-func createGenericResourcesFilters(ctx context.Context, genericResources []*GenericResource) ([]labelsutil.Filter, error) {
+func createGenericResourcesFilters(ctx context.Context, instance string, genericResources []*GenericResource) ([]labelsutil.Filter, error) {
 	filters := make([]labelsutil.Filter, 0)
 	for _, genericResource := range genericResources {
-		idFilters, err := appendGenericResourceFiltersOnIDs(genericResource.Name, genericResource.ids)
+		instance, err := strconv.Atoi(instance)
 		if err != nil {
-			return filters, err
+			return nil, errors.Wrapf(err, "unexpected non integer value for instance:%q", instance)
 		}
-		filters = append(filters, idFilters...)
+		if genericResource.ids != nil && len(genericResource.ids) > instance {
+			idFilters, err := appendGenericResourceFiltersOnIDs(genericResource.Name, genericResource.ids[instance])
+			if err != nil {
+				return filters, err
+			}
+			filters = append(filters, idFilters...)
+		}
 
 		if genericResource.nb != 0 {
 			filter, err := appendGenericResourceFilterOnNumber(genericResource.Name, genericResource.nb)
@@ -334,10 +340,10 @@ func addElements(source, elements []string) []string {
 
 func toGenericResource(item interface{}) (*GenericResource, error) {
 	type gres struct {
-		Name         string `json:"name" mapstructure:"name"`
-		IDS          string `json:"ids,omitempty" mapstructure:"ids"`
-		Number       string `json:"number,omitempty" mapstructure:"number"`
-		NoConsumable string `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
+		Name         string   `json:"name" mapstructure:"name"`
+		IDS          []string `json:"ids,omitempty" mapstructure:"ids"`
+		Number       string   `json:"number,omitempty" mapstructure:"number"`
+		NoConsumable string   `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
 	}
 
 	g := new(gres)
@@ -350,7 +356,7 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 		return nil, errors.New("Missing generic resource mandatory name")
 	}
 
-	if g.IDS == "" && g.Number == "" || (g.IDS != "" && g.Number != "") {
+	if g.IDS == nil && g.Number == "" || (g.IDS != nil && g.Number != "") {
 		return nil, errors.Errorf("Either ids or number must be filled to define the resource need gor generic resource name:%q.", g.Name)
 	}
 
@@ -377,8 +383,12 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 		NoConsumable: noConsume,
 	}
 
-	if g.IDS != "" {
-		gResource.ids = toSlice(g.IDS)
+	if g.IDS != nil {
+		gResource.ids = make([][]string, 0)
+		for _, item := range g.IDS {
+			gResource.ids = append(gResource.ids, toSlice(item))
+		}
+
 	}
 	return &gResource, nil
 }

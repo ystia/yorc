@@ -198,7 +198,7 @@ The ``resource`` property is a list of ``yorc.datatypes.hostspool.GenericResourc
 A ``Generic Resource`` is defined with the following properties:
 
   * ``name``: The name of the generic resource. Can be "gpu" by instance and must be bound to host labels as: ``host.resource.<name>``.
-  * ``ids``: Comma-separated list of required generic resource ID's.
+  * ``ids``: List of required generic resource ID's by node instance. Each list entry corresponds to a comma-separated list of required generic resource ID's for each node instance.
   * ``number``: The number of generic resource required.  Either ``ids`` or ``number`` must be filled to define the resource need.
   * ``no_consumable``: By default, the generic resource is consumable. It means a resource can be only used by a single compute.
   If you allow the resource to be shared by multiple computes, you have to set this property to true.
@@ -218,7 +218,8 @@ Here is an example of an application which requires some GPUs:
             properties:
               resources:
               - name: gpu
-                ids: gpu2
+                ids:
+                  - gpu2
       ComputeB:
         type: yorc.nodes.hostspool.Compute
         properties:

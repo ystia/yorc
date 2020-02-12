@@ -37,7 +37,8 @@ topology_template:
                 number: 2
                 no_consumable: false
               - name: cpu
-                ids: "cpu0"
+                ids:
+                  - "cpu0"
         os:
           properties:
             type: linux
@@ -68,7 +69,8 @@ topology_template:
               - name: gpu
                 number: 2
               - name: cpu
-                ids: "cpu0"
+                ids:
+                  - "cpu0"
         os:
           properties:
             type: linux

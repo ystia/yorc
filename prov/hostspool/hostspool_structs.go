@@ -183,7 +183,7 @@ type GenericResource struct {
 	// define if the generic resource can be only used by a single compute (consumable) or not
 	NoConsumable bool `json:"no_consumable"`
 	// list of ids of generic resources required for the allocation need. Either ids or nb are used
-	ids []string
+	ids [][]string
 	// nb of generic resources required for the allocation need. either ids or nb are used
 	nb int
 }

@@ -169,11 +169,6 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context,
 		}
 		filters = append(filters, f)
 	}
-	genericResourcesFilters, err := createGenericResourcesFilters(ctx, genericResources)
-	if err != nil {
-		return err
-	}
-	filters = append(filters, genericResourcesFilters...)
 	shareable := false
 	if s, err := deployments.GetNodePropertyValue(ctx, op.deploymentID, op.nodeName, "shareable"); err != nil {
 		return err
@@ -235,6 +230,13 @@ func (e *defaultExecutor) allocateHostsToInstances(
 
 	for _, instance := range instances {
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
+
+		// Build generic resources filters by instance
+		genericResourcesFilters, err := createGenericResourcesFilters(ctx, instance, genericResources)
+		if err != nil {
+			return err
+		}
+		filters = append(filters, genericResourcesFilters...)
 
 		allocation := &Allocation{
 			NodeName:         op.nodeName,
