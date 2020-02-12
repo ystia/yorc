@@ -325,6 +325,11 @@ func toPrintableLabels(labels map[string]string) string {
 		if labelsList != "" {
 			labelsList += "|"
 		}
+
+		// Specific display for generic resources
+		if strings.HasPrefix(k, "host.resource.") {
+			v = fmt.Sprintf("\"%s\"", v)
+		}
 		labelsList += fmt.Sprintf("%s: %s", k, v)
 	}
 

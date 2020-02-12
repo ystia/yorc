@@ -151,7 +151,7 @@ func (alloc *Allocation) String() string {
 			if gr.NoConsumable {
 				noConsume = "(no consumable)"
 			}
-			allocStr += "|" + gr.Label + ": " + gr.Value + noConsume
+			allocStr += "|" + gr.Label + ": \"" + gr.Value + "\"" + noConsume
 		}
 	}
 
