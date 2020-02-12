@@ -73,7 +73,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is equal to the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, c.theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed)
 	s.Step(`^I have added a policy named "([^"]*)" of type "([^"]*)" on targets "([^"]*)"$`, c.iHaveAddedAPolicyNamedOfTypeOnTargets)
 	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is different than the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, c.theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanTheAttributeOfTheInstanceOfTheNodeNamed)
-
+	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is equal to "([^"]*)"$`, c.theAttributeOfTheInstanceOfTheNodeNamedIsEqualTo)
 
 	s.BeforeScenario(c.reset)
 

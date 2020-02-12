@@ -322,3 +322,18 @@ func (c *suiteContext) theAttributeOfTheInstanceOfTheNodeNamedIsDifferentThanThe
 	return c.compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2, false)
 }
 
+func (c *suiteContext) theAttributeOfTheInstanceOfTheNodeNamedIsEqualTo(attribute, instance, nodeName, expected string) error {
+	if c.applicationID == "" || c.environmentID == "" {
+		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+	val, err := c.getInstanceAttributeValue(nodeName, instance, attribute)
+	if err != nil {
+		return err
+	}
+
+	if val != expected {
+		return fmt.Errorf("value %q (attribute: %q, instance: %q, node: %q) is not equal to expected: %s", val, attribute, instance, nodeName, expected)
+	}
+	return nil
+}
+
