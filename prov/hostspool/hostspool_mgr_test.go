@@ -873,6 +873,9 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after apply")
+	for _, alloc := range allocatedHost.Allocations {
+		assert.NotNil(t, alloc.String(), "unexpected nil alloc")
+	}
 }
 
 func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
