@@ -35,6 +35,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/scheduling"
 	"github.com/ystia/yorc/v4/registry"
 	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/collector"
 	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 	"github.com/ystia/yorc/v4/tosca"
 )
@@ -371,22 +372,46 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 		}
 	case builder.ActivityTypeInline:
 		// Register inline workflow associated to the original task
-		return s.registerInlineWorkflow(wfCtx, activity.Value())
+		return s.registerInlineWorkflow(wfCtx, deploymentID, activity.Value())
 	}
 	return nil
 }
 
-func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) error {
+func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflowName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
-	wfOps, err := builder.BuildInitExecutionOperations(ctx, s.t.targetID, s.t.taskID, workflowName, true)
+
+	// Preparing a new task with its own data referencing the parent workflow step
+	parentData, err := tasks.GetAllTaskData(s.t.taskID)
 	if err != nil {
 		return err
 	}
-	err = tasks.StoreOperations(s.t.taskID, wfOps)
+	data := make(map[string]string)
+	for k, v := range parentData {
+		data[k] = v
+	}
+	data[taskDataParentWorkflowName] = s.WorkflowName
+	data[taskDataParentStepName] = s.Name
+	data[taskDataParentTaskID] = s.t.taskID
+	data[taskDataDeploymentID] = deploymentID
+	data[taskDataWorkflowName] = workflowName
+
+	taskID, err := collector.NewCollector(s.cc).RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
 	if err != nil {
-		err = errors.Wrapf(err, "Failed to register workflow init operations with workflow:%q, targetID:%q, taskID:%q", workflowName, s.t.targetID, s.t.taskID)
+		err = errors.Wrapf(err, "Failed to register inline workflow %s in parent workflow %s step %s, targetID %s, taskID %s",
+			workflowName, s.WorkflowName, s.Name, s.t.targetID, s.t.taskID)
+		_ = s.setStatus(tasks.TaskStepStatusERROR)
+		return err
 	}
 
+	log.Debugf("Registered task %s for inline workflow %s in parent workflow %s step %s",
+		taskID, workflowName, s.WorkflowName, s.Name)
+	_ = s.setStatus(tasks.TaskStepStatusRUNNING)
+
+	// Marking this step as asynchronous as it should not be considered as
+	// done by the caller
+	s.Async = true
+	// No final function as here the workflow is not done
+	s.t.finalFunction = nil
 	return err
 }
 

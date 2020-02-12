@@ -26,6 +26,15 @@ node_types:
           implementation:
             type: ystia.yorc.tests.artifacts.Implementation.Custom
             file: whatever
+      custom:
+        operation1:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: whatever
+        operation2:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: whatever
 
 topology_template:
   node_templates:
@@ -53,6 +62,24 @@ topology_template:
             network_name: PRIVATE
             initiator: source
   workflows:
+    custom_wf1:
+      steps:
+        step_wf1:
+          target: WFNode
+          activities:
+          - call_operation: custom.operation1
+    custom_wf2:
+      steps:
+        first_step_wf2:
+          target: WFNode
+          activities:
+          - inline: custom_wf1
+          on_success:
+          - second_step_wf2
+        second_step_wf2:
+          target: WFNode
+          activities:
+          - call_operation: custom.operation1
     install:
       steps:
         Compute_install:
