@@ -20,13 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/v4/helper/stringutil"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/v4/helper/stringutil"
 )
 
 const (
@@ -133,7 +132,13 @@ type Allocation struct {
 }
 
 func (alloc *Allocation) String() string {
-	allocStr := fmt.Sprintf("deployment: %s|node-instance: %s-%s|shareable: %t|placement:%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, stringutil.GetLastElement(alloc.PlacementPolicy, "."))
+	// Display placement only if filled
+	var placementStr string
+	if alloc.PlacementPolicy != "" {
+		placementStr = "|placement: " + stringutil.GetLastElement(alloc.PlacementPolicy, ".")
+	}
+
+	allocStr := fmt.Sprintf("deployment: %s|node-instance: %s-%s|shareable: %t%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, placementStr)
 	if alloc.Resources != nil && len(alloc.Resources) > 0 {
 		for k, v := range alloc.Resources {
 			allocStr += "|" + k + ": " + v

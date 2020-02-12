@@ -285,7 +285,7 @@ func (cm *consulManager) allocateGenericResources(locationName, hostname string,
 		if !ok {
 			return errors.Errorf("failed to retrieve generic resource:%q for location:%q, host:%s", gResource.Name, locationName, hostname)
 		}
-		hostGenResource := strings.Split(hostGenResourceStr, ",")
+		hostGenResource := toSlice(hostGenResourceStr)
 
 		// check ids
 		if gResource.ids != nil {

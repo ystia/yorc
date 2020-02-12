@@ -286,6 +286,11 @@ func (cm *consulManager) getAddLabelsOperations(locationName, hostname string, l
 		if k == "" {
 			return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
 		}
+
+		// clean generic resources labels
+		if strings.HasPrefix(k, genericResourceLabelPrefix) {
+			v = removeWhitespaces(v)
+		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "labels", k),

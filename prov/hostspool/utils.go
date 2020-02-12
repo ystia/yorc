@@ -199,16 +199,23 @@ func removeWhitespaces(str string) string {
 	return strings.Join(strings.Fields(str), "")
 }
 
+func toSlice(str string) []string {
+	str = removeWhitespaces(str)
+	if str == "" {
+		return make([]string, 0)
+	}
+	return strings.Split(str, ",")
+}
+
 func updateGenericResourcesLabels(origin map[string]string, diffGenericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string {
 	updatedLabels := make(map[string]string)
 	for _, diffGenericResource := range diffGenericResources {
 		if !diffGenericResource.NoConsumable {
 			if genResourceStr, ok := origin[diffGenericResource.Label]; ok {
-				genResource := strings.Split(removeWhitespaces(genResourceStr), ",")
-				genResourceElements := strings.Split(diffGenericResource.Value, ",")
+				genResource := toSlice(genResourceStr)
+				genResourceElements := toSlice(diffGenericResource.Value)
 				result := operation(genResource, genResourceElements)
-				resultStr := strings.Join(result, ",")
-				updatedLabels[diffGenericResource.Label] = resultStr
+				updatedLabels[diffGenericResource.Label] = strings.Join(result, ",")
 			}
 		}
 	}
@@ -371,7 +378,7 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 	}
 
 	if g.IDS != "" {
-		gResource.ids = strings.Split(removeWhitespaces(g.IDS), ",")
+		gResource.ids = toSlice(g.IDS)
 	}
 	return &gResource, nil
 }
