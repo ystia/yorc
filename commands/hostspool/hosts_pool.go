@@ -122,7 +122,7 @@ func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, 
 
 	allocationsSubRows := make([]string, 0)
 	for _, alloc := range host.Allocations {
-		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), "|")...)
+		allocationsSubRows = append(allocationsSubRows, strings.Split(" - "+alloc.String(), "|")...)
 	}
 
 	connectionSubRows := strings.Split(host.Connection.String(), ",")
