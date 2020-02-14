@@ -353,7 +353,7 @@ spec:
                                             }
                                         }
                                     }
-                                    stash includes: 'testdata/ci/reports/tests-godog.json', name: 'godog-json-report'
+                                    stash includes: 'testdata/ci/reports/tests-godog.json', name: "godog-json-report-${env.INFRASTRUCTURE}"
 
                                 }
                                 post {
@@ -402,7 +402,7 @@ spec:
                                 }
                                 steps {
                                     sh 'mkdir -p /use/src/app/in /use/src/app/out'
-                                    unstash name: 'godog-json-report'
+                                    unstash name: "godog-json-report-${env.INFRASTRUCTURE}"
                                     sh """
                                         cp ${env.WORKSPACE}/testdata/ci/reports/tests-godog.json /use/src/app/in/
                                         cd /use/src/app
