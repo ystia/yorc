@@ -198,7 +198,7 @@ The ``resource`` property is a list of ``yorc.datatypes.hostspool.GenericResourc
 A ``Generic Resource`` is defined with the following properties:
 
   * ``name``: The name of the generic resource. Can be "gpu" by instance and must be bound to host labels as: ``host.resource.<name>``.
-  * ``ids``: List of required generic resource ID's by node instance. Each list entry corresponds to a comma-separated list of required generic resource ID's for each node instance.
+  * ``ids``: List of required generic resource ID's by node instance. Each list entry corresponds to a comma-separated list of required generic resource ID's for each node instance. An ID must only contains the following characters:  ``-_0-9a-zA-Z_:./-``
   * ``number``: The number of generic resource required.  Either ``ids`` or ``number`` must be filled to define the resource need.
 
 Here is an example of an application which requires some GPUs:
