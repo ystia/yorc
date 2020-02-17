@@ -9,7 +9,6 @@ Feature: Deploy a TestResourceApp application using Alien4Cloud with host generi
     Given I have built the artifact named "testResource" from templates named "testResource" to Alien
     And I have uploaded the artifact named "testResource" to Alien
 
-  @CI
   @hp
   @cleanupAlien
   Scenario: Deploy a TestResourceApp application using Alien4Cloud with host generic resources requirements
