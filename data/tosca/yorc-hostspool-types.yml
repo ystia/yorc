@@ -84,7 +84,7 @@ data_types:
           Each list entry corresponds to the required generic resource ID's for each instance.
           Each list entry is a comma-separated list of ID's.
           Either ids or number must be filled to define the resource need.
-          An ID must only contains the following characters: a-zA-Z0-9_:/-
+          An ID must only contains the following characters: a-zA-Z0-9_:./-
         entry_schema:
           type: string
       number:

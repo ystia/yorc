@@ -385,7 +385,7 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 		for _, item := range g.IDS {
 			// check id
 			if !isAllowedID(item) {
-				return nil, errors.Errorf("generic resource ID:%q must only contains the following characters: a-zA-Z0-9_:/-", item)
+				return nil, errors.Errorf("generic resource ID:%q must only contains the following characters: a-zA-Z0-9_:./-", item)
 			}
 			gResource.ids = append(gResource.ids, toSlice(item))
 		}
@@ -395,6 +395,6 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 }
 
 func isAllowedID(str string) bool {
-	re := regexp.MustCompile("^[a-zA-Z0-9_:/-]*$")
+	re := regexp.MustCompile("^[a-zA-Z0-9_:./-]*$")
 	return re.MatchString(strings.TrimSpace(str))
 }

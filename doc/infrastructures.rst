@@ -200,8 +200,6 @@ A ``Generic Resource`` is defined with the following properties:
   * ``name``: The name of the generic resource. Can be "gpu" by instance and must be bound to host labels as: ``host.resource.<name>``.
   * ``ids``: List of required generic resource ID's by node instance. Each list entry corresponds to a comma-separated list of required generic resource ID's for each node instance.
   * ``number``: The number of generic resource required.  Either ``ids`` or ``number`` must be filled to define the resource need.
-  * ``no_consumable``: By default, the generic resource is consumable. It means a resource can be only used by a single compute.
-  If you allow the resource to be shared by multiple computes, you have to set this property to true.
 
 Here is an example of an application which requires some GPUs:
 
@@ -265,6 +263,19 @@ The ``ComputeA`` GPU requirement on a ``gpu2`` ID has been done by ``host1``.
 The ``ComputeB`` GPU requirement of ``2`` GPUs ID has been done by ``host2``.
 
 Both ``host1`` and ``host2`` are no longer providing GPUs resources as these resources are defined as ``consumable``.
+
+By default, a generic resource is consumable. It means a resource can be only used by a single compute. If you want to share a generic resource among many computes, you have to specify the following label
+``host.resource.gpu.no_consume: true`` as below in the host declaration:
+
+.. code-block:: YAML
+
+  hosts:
+  - name: hostspool-ci-1
+    labels:
+      host.resource.gpu: "gpu0,gpu1"
+      host.resource.gpu.no_consume: true
+
+
 
 A Tosca instance attribute "gpu" will be exposed with the allocated resources for each node instance once the application is deployed.
 
