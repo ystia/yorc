@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 4.0.0-M9 (February 14, 2020)
+
 ### FEATURES
 
 * Host pool election for compute allocation can be more relevant ([GH-83](https://github.com/ystia/yorc/issues/83))
