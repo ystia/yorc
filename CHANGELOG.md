@@ -2,12 +2,15 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Add a consumable resources concept to the Hosts Pool ([GH-205](https://github.com/ystia/yorc/issues/205))
+
 ## 4.0.0-M9 (February 14, 2020)
 
 ### FEATURES
 
 * Host pool election for compute allocation can be more relevant ([GH-83](https://github.com/ystia/yorc/issues/83))
-* Add a consumable resources concept to the Hosts Pool ([GH-205](https://github.com/ystia/yorc/issues/205))
 
 ### BUG FIXES
 
