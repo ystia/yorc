@@ -35,7 +35,6 @@ topology_template:
             resources:
               - name: gpu
                 number: 2
-                no_consumable: false
               - name: cpu
                 ids:
                   - "cpu0"

@@ -84,6 +84,7 @@ data_types:
           Each list entry corresponds to the required generic resource ID's for each instance.
           Each list entry is a comma-separated list of ID's.
           Either ids or number must be filled to define the resource need.
+          An ID must only contains the following characters: a-zA-Z0-9_:/-
         entry_schema:
           type: string
       number:
@@ -91,10 +92,3 @@ data_types:
         required: false
         description: >
           The number of generic resource required.  Either ids or number must be filled to define the resource need.
-      no_consumable:
-        type: boolean
-        default: false
-        required: false
-        description: >
-          By default, the generic resource is consumable. It means a resource can be only used by a single compute.
-          If you allow the resource to be shared by multiple computes, you have to set this property to true.

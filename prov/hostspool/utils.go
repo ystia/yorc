@@ -20,6 +20,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/collections"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -185,8 +186,14 @@ func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.
 
 // appendGenericResourceFilterOnNumber create a regex filter to determine if label contains the required number of elements
 func appendGenericResourceFilterOnNumber(name string, nb int) (labelsutil.Filter, error) {
-	// host.resource.<name> contains at least <nb> elements
-	f := fmt.Sprintf(`%s.%s ~= "^([^,]*,){%d}.*$"`, genericResourceLabelPrefix, name, nb-1)
+	var f string
+	// host.resource.<name> contains at least <nb> elements for nb > 1
+	if nb > 1 {
+		f = fmt.Sprintf(`%s.%s ~= "^([^,]*,){%d}.*$"`, genericResourceLabelPrefix, name, nb-1)
+	} else {
+		f = fmt.Sprintf(`%s.%s ~= "^(.+)$"`, genericResourceLabelPrefix, name)
+	}
+
 	return labelsutil.CreateFilter(f)
 }
 
@@ -340,10 +347,9 @@ func addElements(source, elements []string) []string {
 
 func toGenericResource(item interface{}) (*GenericResource, error) {
 	type gres struct {
-		Name         string   `json:"name" mapstructure:"name"`
-		IDS          []string `json:"ids,omitempty" mapstructure:"ids"`
-		Number       string   `json:"number,omitempty" mapstructure:"number"`
-		NoConsumable string   `json:"no_consumable,omitempty" mapstructure:"no_consumable"`
+		Name   string   `json:"name" mapstructure:"name"`
+		IDS    []string `json:"ids,omitempty" mapstructure:"ids"`
+		Number string   `json:"number,omitempty" mapstructure:"number"`
 	}
 
 	g := new(gres)
@@ -368,27 +374,27 @@ func toGenericResource(item interface{}) (*GenericResource, error) {
 		}
 	}
 
-	var noConsume bool
-	if g.NoConsumable != "" {
-		noConsume, err = strconv.ParseBool(g.NoConsumable)
-		if err != nil {
-			return nil, errors.Wrapf(err, "expected boolean value for no_consumable property of generic resource with name:%q", g.Name)
-		}
-	}
-
 	gResource := GenericResource{
-		Name:         g.Name,
-		Label:        fmt.Sprintf("%s.%s", genericResourceLabelPrefix, g.Name),
-		nb:           nb,
-		NoConsumable: noConsume,
+		Name:  g.Name,
+		Label: fmt.Sprintf("%s.%s", genericResourceLabelPrefix, g.Name),
+		nb:    nb,
 	}
 
 	if g.IDS != nil {
 		gResource.ids = make([][]string, 0)
 		for _, item := range g.IDS {
+			// check id
+			if !isAllowedID(item) {
+				return nil, errors.Errorf("generic resource ID:%q must only contains the following characters: a-zA-Z0-9_:/-", item)
+			}
 			gResource.ids = append(gResource.ids, toSlice(item))
 		}
 
 	}
 	return &gResource, nil
+}
+
+func isAllowedID(str string) bool {
+	re := regexp.MustCompile("^[a-zA-Z0-9_:/-]*$")
+	return re.MatchString(strings.TrimSpace(str))
 }

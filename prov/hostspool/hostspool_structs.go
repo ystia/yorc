@@ -29,10 +29,11 @@ import (
 )
 
 const (
-	hostCapabilityName           = "host"
-	genericResourceName          = "resource"
-	genericResourceLabelPrefix   = hostCapabilityName + "." + genericResourceName
-	genericResourcesPropertyName = "resources"
+	hostCapabilityName               = "host"
+	genericResourceName              = "resource"
+	genericResourceLabelPrefix       = hostCapabilityName + "." + genericResourceName
+	genericResourcesPropertyName     = "resources"
+	genericResourceNoConsumeProperty = "no_consume"
 )
 
 // HostStatus x ENUM(
@@ -147,11 +148,7 @@ func (alloc *Allocation) String() string {
 
 	if alloc.GenericResources != nil && len(alloc.GenericResources) > 0 {
 		for _, gr := range alloc.GenericResources {
-			var noConsume string
-			if gr.NoConsumable {
-				noConsume = "(no consumable)"
-			}
-			allocStr += "|" + gr.Label + ": \"" + gr.Value + "\"" + noConsume
+			allocStr += "|" + gr.Label + ": \"" + gr.Value + "\""
 		}
 	}
 

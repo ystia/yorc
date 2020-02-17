@@ -229,6 +229,7 @@ func (e *defaultExecutor) allocateHostsToInstances(
 	genericResources []*GenericResource) error {
 
 	for _, instance := range instances {
+		var instanceFilters []labelsutil.Filter
 		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
 		// Build generic resources filters by instance
@@ -236,7 +237,7 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		if err != nil {
 			return err
 		}
-		filters = append(filters, genericResourcesFilters...)
+		instanceFilters = append(filters, genericResourcesFilters...)
 
 		allocation := &Allocation{
 			NodeName:         op.nodeName,
@@ -252,7 +253,7 @@ func (e *defaultExecutor) allocateHostsToInstances(
 		// ensure no other worker will attempt to over-allocate resources of a
 		// host if another worker has allocated but not yet updated resources labels
 		hostsPoolAllocMutex.Lock()
-		hostname, warnings, err := op.hpManager.Allocate(op.location, allocation, filters...)
+		hostname, warnings, err := op.hpManager.Allocate(op.location, allocation, instanceFilters...)
 		if err == nil {
 			err = op.hpManager.UpdateResourcesLabels(op.location, hostname, allocatedResources, subtract, updateResourcesLabels, genericResources, removeElements, updateGenericResourcesLabels)
 			if err != nil {

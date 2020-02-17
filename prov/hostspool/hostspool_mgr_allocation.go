@@ -16,6 +16,7 @@ package hostspool
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/log"
 	"net/url"
@@ -287,6 +288,18 @@ func (cm *consulManager) allocateGenericResources(locationName, hostname string,
 		}
 		hostGenResource := toSlice(hostGenResourceStr)
 
+		// Retrieve no_consume generic resource label if existing
+		noConsumeLabel := fmt.Sprintf("%s.%s", gResource.Label, genericResourceNoConsumeProperty)
+		noConsumeStr, ok := labels[noConsumeLabel]
+		if ok {
+			if noConsumeStr != "" {
+				gResource.NoConsumable, err = strconv.ParseBool(noConsumeStr)
+				if err != nil {
+					return errors.Wrapf(err, "expected boolean value for no_consumable label of generic resource with name:%q", gResource.Name)
+				}
+			}
+		}
+
 		// check ids for the related instance
 		instance, err := strconv.Atoi(allocation.Instance)
 		if err != nil {
@@ -309,7 +322,7 @@ func (cm *consulManager) allocateGenericResources(locationName, hostname string,
 
 		// check nb
 		if len(hostGenResource) < gResource.nb {
-			return errors.Errorf("missing %d expected resources for generic resource:%q, location:%q, host:%s, node name:%q, instance:%q", gResource.nb-len(hostGenResource), gResource.Name, locationName, hostname, allocation.NodeName, allocation.Instance)
+			return errors.Errorf("missing %d expected resource(s) for generic resource:%q, location:%q, host:%s, node name:%q, instance:%q", gResource.nb-len(hostGenResource), gResource.Name, locationName, hostname, allocation.NodeName, allocation.Instance)
 		}
 		gResource.Value = strings.Join(hostGenResource[:gResource.nb], ",")
 	}

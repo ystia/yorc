@@ -243,6 +243,9 @@ func TestFiltersRegexMatching(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
+		{"TestRegexpContainsOnEmptyString", `lr1 ~= "^(.+)$"`, args{map[string]string{"lr1": ""}}, false, false},
+		{"TestRegexpContainsOnEmptyString", `lr1 ~= "^(.+)$"`, args{map[string]string{"lr1": "a"}}, true, false},
+		{"TestRegexpContainsOnCommaSeparatedListCountHere", `lr1 ~= "^/gpu:0,|,/gpu:0,|,/gpu:0$|^/gpu:0$"`, args{map[string]string{"lr1": "/gpu:0,/gpu:1"}}, true, false},
 		{"TestRegexpContainsOnCommaSeparatedListCount", `lr1 ~= "^([^,]*,){3}.*$"`, args{map[string]string{"lr1": "a1,bn,c2,d"}}, true, false},
 		{"TestRegexpContainsOnCommaSeparatedListBegin", `lr1 ~= "^a,|,a,|,a$|^a$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
 		{"TestRegexpContainsOnCommaSeparatedListMiddle", `lr1 ~= "^b,|,b,|,b$|^b$"`, args{map[string]string{"lr1": "a,b,c,d"}}, true, false},
