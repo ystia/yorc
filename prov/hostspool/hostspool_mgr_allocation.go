@@ -305,14 +305,20 @@ func (cm *consulManager) allocateGenericResources(locationName, hostname string,
 		if err != nil {
 			return errors.Wrapf(err, "unexpected non integer value for node name:%q, instance:%q", allocation.NodeName, allocation.Instance)
 		}
-		if gResource.ids != nil && len(gResource.ids) > instance {
+		if gResource.ids != nil && len(gResource.ids) > 0 {
+			// Get the ids relative to the instance if exists
+			// Otherwise, use the first occurrence
+			gResourceInstanceIds := gResource.ids[0]
+			if len(gResource.ids) > instance {
+				gResourceInstanceIds = gResource.ids[instance]
+			}
 			// Check list contains ids
-			for _, id := range gResource.ids[instance] {
+			for _, id := range gResourceInstanceIds {
 				if !collections.ContainsString(hostGenResource, id) {
 					return errors.Errorf("missing expected id:%q for generic resource:%q, location:%q, host:%s, node name:%q, instance:%q", id, gResource.Name, locationName, hostname, allocation.NodeName, allocation.Instance)
 				}
 			}
-			gResource.Value = strings.Join(gResource.ids[instance], ",")
+			gResource.Value = strings.Join(gResourceInstanceIds, ",")
 			continue
 		}
 
