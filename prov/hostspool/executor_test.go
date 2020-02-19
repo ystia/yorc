@@ -122,7 +122,7 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, deploymentID string)
 	assert.False(t, matches, "Filters wrongly matching as host has not linux as os type ")
 }
 
-// testConcurrentExecDelegateShareableHost tests concurent attempts to allocate
+// testConcurrentExecDelegateShareableHost tests concurrent attempts to allocate
 // shareable hosts in parallel, and verifies it won't lead to over-allocate a
 // shareable host
 func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer, cc *api.Client, deploymentID, location string) {
@@ -133,14 +133,18 @@ func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestSer
 	// Expected Hosts Pool allocations after this operation:
 	expectedResources := map[string]map[string]string{
 		"host0": map[string]string{
-			"host.num_cpus":  "0",
-			"host.mem_size":  "1 GB",
-			"host.disk_size": "10 GB",
+			"host.num_cpus":     "0",
+			"host.mem_size":     "1 GB",
+			"host.disk_size":    "10 GB",
+			"host.resource.gpu": "gpu2",
+			"host.resource.cpu": "cpu1,cpu2",
 		},
 		"host1": map[string]string{
-			"host.num_cpus":  "2",
-			"host.mem_size":  "3 GB",
-			"host.disk_size": "50 GB",
+			"host.num_cpus":     "2",
+			"host.mem_size":     "3 GB",
+			"host.disk_size":    "50 GB",
+			"host.resource.gpu": "gpu2",
+			"host.resource.cpu": "cpu1,cpu2",
 		},
 	}
 	testExecDelegateForNodes(ctx, t, testExecutor, cc, hpManager, cfg, location, "taskTest", deploymentID,
@@ -175,7 +179,7 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 	}
 	waitGroup.Wait()
 
-	// Check no error occured attempting to execute the delegate operation
+	// Check no error occurred attempting to execute the delegate operation
 	select {
 	case err := <-errors:
 		require.NoError(t, err, "Unexpected error executing operation %s in parallel", delegateOperation)
@@ -207,11 +211,25 @@ func testExecDelegateForNodes(ctx context.Context, t *testing.T, testExecutor *d
 		for _, nodeName := range nodeNames {
 			val, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, "0", attribute)
 			require.NoError(t, err, "Could not get instance attribute value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
-			assert.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
-			assert.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
+			require.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			require.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
 		}
 	}
 
+	// Check compute cpu and gpu attributes for compute1 and compute2
+	expected = map[string]string{
+		"cpu": "cpu0",
+		"gpu": "gpu0,gpu1",
+	}
+
+	for attribute, expectedValue := range expected {
+		for _, nodeName := range []string{"Compute", "Compute2"} {
+			val, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, "0", attribute)
+			require.NoError(t, err, "Could not get instance attribute value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			require.NotNil(t, val, "Unexpected nil value for deploymentID:%s, node name:%s, attribute:%s", deploymentID, nodeName, attribute)
+			require.Equal(t, expectedValue, val.RawString(), "unexpected value %s for attribute %q instead of %s", val, expectedValue)
+		}
+	}
 }
 
 func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client,
@@ -247,7 +265,7 @@ func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer
 
 	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, location, deploymentID, 1)
 
-	lastIndex := len(nodeNames) - 1
+	lastIndex := 1
 	operationParams := operationParameters{
 		location:          location,
 		taskID:            "taskTest",
@@ -289,6 +307,8 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 		"networks.0.network_name": "mynetwork",
 		"networks.0.network_id":   "123",
 		"networks.0.addresses":    "1.2.3.4,1.2.3.5",
+		"host.resource.gpu":       "gpu0,gpu1,gpu2",
+		"host.resource.cpu":       "cpu0,cpu1,cpu2",
 	}
 
 	var hostpool = createHostsWithLabels(hostsNumber, initialLabels)

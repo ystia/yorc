@@ -151,7 +151,135 @@ The resources host pool labels (``host.num_cpus``, ``host.disk_size``, ``host.me
 only if you specify any of these Tosca ``host`` resources capabilities Compute in its Alien4Cloud applications.
 If you apply a new configuration on allocated hosts with new host resources labels, they will be recalculated depending on existing allocations resources.
 
-    
+
+Hosts Pool Generic Resources
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you want to require specific resources as GPU by instance for your application's computes, you can declare in the hosts pool configuration the available list of GPUs for each host.
+To do that, you will use a ``host.resource.gpu`` label, a ``comma-separated list`` of GPU resources as in the example below:
+
+.. code-block:: YAML
+
+  hosts:
+  - name: host1
+    connection:
+      user: centos
+      host: 1.2.3.4
+      private_key: /home/user/.ssh/yorc.pem
+      port: 22
+    labels:
+      os.architecture: x86_64
+      os.distribution: centos
+      os.type: linux
+      host.resource.gpu: "gpu2"
+  - name: hostspool-ci-1
+    connection:
+      user: centos
+      host: 6.7.8.9
+      private_key: /home/user/.ssh/yorc.pem
+      port: 22
+    labels:
+      os.architecture: x86_64
+      os.distribution: centos
+      os.type: linux
+      host.resource.gpu: "gpu0,gpu1"
+
+
+In this example:
+  * ``host1`` provides a list of GPUs with a single GPU ID: ``gpu2``.
+  * ``host2`` provides a list of GPUs with 2 ids: ``gpu0`` and ``gpu1``.
+
+To require these specific resources in your application, an implicit matching will be done between the ``host.resource.<name>`` labels and the Tosca ``host`` capability.
+
+The ``host`` capability has been extended with ``yorc.capabilities.hostspool.Container`` to provide a ``resources`` property.
+
+The ``resource`` property is a list of ``yorc.datatypes.hostspool.GenericResource``
+
+A ``Generic Resource`` is defined with the following properties:
+
+  * ``name``: The name of the generic resource. Can be "gpu" by instance and must be bound to host labels as: ``host.resource.<name>``.
+  * ``ids``: List of required generic resource ID's by node instance. Each list entry corresponds to a comma-separated list of required generic resource ID's for each node instance. An ID must only contains the following characters:  ``-_0-9a-zA-Z_:./-``
+  * ``number``: The number of generic resource required.  Either ``ids`` or ``number`` must be filled to define the resource need.
+
+Here is an example of an application which requires some GPUs:
+
+.. code-block:: YAML
+
+  topology_template:
+    node_templates:
+      ComputeA:
+        type: yorc.nodes.hostspool.Compute
+        properties:
+          shareable: true
+        capabilities:
+          host:
+            properties:
+              resources:
+              - name: gpu
+                ids:
+                  - gpu2
+      ComputeB:
+        type: yorc.nodes.hostspool.Compute
+        properties:
+          shareable: true
+        capabilities:
+          host:
+            properties:
+              resources:
+              - name: gpu
+                number: 2
+
+
+The ``ComputeA`` node requires a specific GPU's ID: ``gpu2``.
+
+The ``ComputeB`` node requires 2 GPUs without specifying any ID's requirement.
+
+
+If you deploy the application on the hosts pool location previously defined, you will get the following allocations:
+
+.. code-block:: bash
+
+  $ yorc hp list -l hp
+  +----------------+--------------------------------------------+-----------+--------------------------------+---------+-----------------------------------+
+  | Name           | Connection                                 | Status    | Allocations                    | Message | Labels                            |
+  +----------------+--------------------------------------------+-----------+--------------------------------+---------+-----------------------------------+
+  | host1          | user: centos                               | allocated | deployment: testApp            |         | host.resource.gpu: ""             |
+  |                | private key: /home/user/.ssh/yorc.pem      |           | node-instance: ComputeA        |         | os.architecture: x86_64           |
+  |                | host: 1.2.3.4                              |           | shareable: true                |         | os.distribution: centos           |
+  |                | port: 22                                   |           | host.resource.gpu: "gpu2"      |         | os.type: linux                    |
+  |                |                                            |           |                                |         |                                   |
+  |                |                                            |           |                                |         |                                   |
+  |                |                                            |           |                                |         |                                   |
+  |                |                                            |           |                                |         |                                   |
+  | host2          | user: centos                               | allocated | deployment: testApp            |         | host.resource.gpu: ""             |
+  |                | private key: /home/user/.ssh/yorc.pem      |           | node-instance: ComputeB        |         | os.architecture: x86_64           |
+  |                | host: 6.7.8.9                              |           | shareable: true                |         | os.distribution: centos           |
+  |                | port: 22                                   |           | host.resource.gpu: "gpu0,gpu1" |         | os.type: linux                    |
+  +----------------+--------------------------------------------+-----------+--------------------------------+---------+-----------------------------------+
+
+
+The ``ComputeA`` GPU requirement on a ``gpu2`` ID has been done by ``host1``.
+
+The ``ComputeB`` GPU requirement of ``2`` GPUs ID has been done by ``host2``.
+
+Both ``host1`` and ``host2`` are no longer providing GPUs resources as these resources are defined as ``consumable``.
+
+By default, a generic resource is consumable. It means a resource can be only used by a single compute. If you want to share a generic resource among many computes, you have to specify the following label
+``host.resource.gpu.no_consume: true`` as below in the host declaration:
+
+.. code-block:: YAML
+
+  hosts:
+  - name: hostspool-ci-1
+    labels:
+      host.resource.gpu: "gpu0,gpu1"
+      host.resource.gpu.no_consume: true
+
+
+
+A Tosca instance attribute "gpu" will be exposed with the allocated resources for each node instance once the application is deployed.
+
+Note: If you apply a new configuration on allocated hosts with new host generic resources labels, they will be recalculated depending on existing allocations resources.
 
 .. _yorc_infras_slurm_section:
 

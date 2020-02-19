@@ -551,9 +551,9 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	err = cm.updateConnectionWait(location, "concurrent_host1", Connection{}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	_, _, err = cm.allocateWait(location, 500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false})
+	_, _, err = cm.allocateWait(location, 500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "0", DeploymentID: "test", Shareable: false})
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
-	err = cm.releaseWait(location, "concurrent_host1", &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, 500*time.Millisecond)
+	_, err = cm.releaseWait(location, "concurrent_host1", "test", "node_test", "0", 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
 
@@ -638,14 +638,14 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[1].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "0", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
 	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 
@@ -738,7 +738,7 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
-	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB"}
+	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB", "host.resource.gpu": "gpu0,gpu1,gpu2", "host.resource.cpu": "cpu0,cpu1,cpu2", "myLabel": "myValue"}
 
 	var hostpool = createHostsWithLabels(1, resources)
 
@@ -767,23 +767,39 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	// First allocation on host1
 	// Check the resources labels have been updated
 	expectedLabels := map[string]string{
-		"host.num_cpus":  "6",
-		"host.mem_size":  "6.0 GB",
-		"host.disk_size": "40 GB",
+		"myLabel":           "myValue",
+		"host.num_cpus":     "6",
+		"host.mem_size":     "6.0 GB",
+		"host.disk_size":    "40 GB",
+		"host.resource.gpu": "gpu0,gpu1",
+		"host.resource.cpu": "",
 	}
 
-	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: true, Resources: AllocResources})
+	allocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+	gResources := []*GenericResource{
+		{
+			Name:  "gpu",
+			Label: "host.resource.gpu",
+			ids:   [][]string{{"gpu2"}},
+		},
+		{
+			Name:  "cpu",
+			Label: "host.resource.cpu",
+			nb:    3,
+		},
+	}
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "0", DeploymentID: "test", Shareable: true, Resources: allocResources, GenericResources: gResources})
+	assert.NoError(t, err, "unexpected error during allocation:%v", err)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, allocResources, subtract, updateResourcesLabels, gResources, removeElements, updateGenericResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
 	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after allocate")
@@ -791,32 +807,46 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	// Second allocation on host1
 	// Check the resources labels have been updated
 	expectedLabels = map[string]string{
-		"host.num_cpus":  "4",
-		"host.mem_size":  "4.0 GB",
-		"host.disk_size": "30 GB",
+		"myLabel":           "myValue",
+		"host.num_cpus":     "4",
+		"host.mem_size":     "4.0 GB",
+		"host.disk_size":    "30 GB",
+		"host.resource.gpu": "gpu0,gpu1",
+		"host.resource.cpu": "",
 	}
 
-	AllocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: AllocResources})
+	gResources = []*GenericResource{
+		{
+			Name:         "gpu",
+			Label:        "host.resource.gpu",
+			ids:          [][]string{{"gpu1"}},
+			NoConsumable: true,
+		},
+	}
+	allocResources = map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+	allocatedName, warnings, err = cm.Allocate(location, &Allocation{NodeName: "node_test2", Instance: "0", DeploymentID: "test2", Shareable: true, Resources: allocResources, GenericResources: gResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, allocResources, subtract, updateResourcesLabels, gResources, removeElements, updateGenericResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 2, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test2", allocatedHost.Allocations[1].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[1].Instance)
 	require.Equal(t, "test2", allocatedHost.Allocations[1].DeploymentID)
 	require.Equal(t, "node_test2", allocatedHost.Allocations[1].NodeName)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after 2nd allocate")
 
 	// Change the host with new resources labels
 	hostpool[0].Labels = map[string]string{
-		"host.num_cpus":  "20",
-		"host.mem_size":  "40 GB",
-		"host.disk_size": "60 GB",
+		"myLabel":           "myValueUp",
+		"host.num_cpus":     "20",
+		"host.mem_size":     "40 GB",
+		"host.disk_size":    "60 GB",
+		"host.resource.gpu": "gpu0, gpu1, gpu2, gpu3",
+		"host.resource.cpu": "cpu0, cpu1, cpu2, cpu3",
 	}
 
 	_, _, checkpoint, err = cm.List(location)
@@ -832,15 +862,21 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 
 	// Check the resources labels have been updated
 	expectedLabels = map[string]string{
-		"host.num_cpus":  "16",
-		"host.mem_size":  "36 GB",
-		"host.disk_size": "40 GB",
+		"myLabel":           "myValueUp",
+		"host.num_cpus":     "16",
+		"host.mem_size":     "36 GB",
+		"host.disk_size":    "40 GB",
+		"host.resource.gpu": "gpu0,gpu1,gpu3",
+		"host.resource.cpu": "cpu3",
 	}
 
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after apply")
+	for _, alloc := range allocatedHost.Allocations {
+		assert.NotNil(t, alloc.String(), "unexpected nil alloc")
+	}
 }
 
 func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
@@ -930,14 +966,14 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[1].Labels[filterLabel]+"'"))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "0", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
 	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 
@@ -1110,7 +1146,7 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
 
 	// Allocate host1: first allocation
-	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources}
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "0", DeploymentID: "test1", Shareable: true, Resources: resources}
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
@@ -1122,14 +1158,14 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test1", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test1", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test1", allocatedHost.Allocations[0].NodeName)
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
 
 	// Allocate host1: 2nd allocation
-	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: resources}
+	alloc2 := &Allocation{NodeName: "node_test2", Instance: "0", DeploymentID: "test2", Shareable: true, Resources: resources}
 	filterLabel = "label2"
 	filter, err = labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
@@ -1141,14 +1177,14 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 2, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test2", allocatedHost.Allocations[1].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[1].Instance)
 	require.Equal(t, "test2", allocatedHost.Allocations[1].DeploymentID)
 	require.Equal(t, "node_test2", allocatedHost.Allocations[1].NodeName)
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 	require.Equal(t, resources, allocatedHost.Allocations[1].Resources)
 
 	// Release 2nd allocation
-	err = cm.Release(location, hostpool[0].Name, alloc2)
+	_, err = cm.Release(location, hostpool[0].Name, "test2", "node_test2", "0")
 	require.NoError(t, err, "Unexpected error releasing host allocation1")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1157,7 +1193,7 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 
 	// Release 1st allocation
-	err = cm.Release(location, hostpool[0].Name, alloc1)
+	_, err = cm.Release(location, hostpool[0].Name, "test1", "node_test1", "0")
 	require.NoError(t, err, "Unexpected error releasing host allocation2")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1189,7 +1225,7 @@ func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.
 	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
 
 	// Allocate host1: first allocation
-	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources, PlacementPolicy: weightBalancedPlacement}
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "0", DeploymentID: "test1", Shareable: true, Resources: resources, PlacementPolicy: weightBalancedPlacement}
 	require.NoError(t, err, "Unexpected error creating a filter")
 	allocatedName, warnings, err := cm.Allocate(location, alloc1, noFilters...)
 	assert.Equal(t, hostpool[0].Name, allocatedName,
@@ -1198,14 +1234,14 @@ func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test1", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test1", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test1", allocatedHost.Allocations[0].NodeName)
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
 
 	// Allocate host1: 2nd allocation
-	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true, Resources: resources, PlacementPolicy: weightBalancedPlacement}
+	alloc2 := &Allocation{NodeName: "node_test2", Instance: "0", DeploymentID: "test2", Shareable: true, Resources: resources, PlacementPolicy: weightBalancedPlacement}
 	allocatedName, warnings, err = cm.Allocate(location, alloc2, noFilters...)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
@@ -1213,14 +1249,14 @@ func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test2", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test2", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test2", allocatedHost.Allocations[0].NodeName)
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
 
 	// Release 2nd allocation
-	err = cm.Release(location, hostpool[1].Name, alloc2)
+	_, err = cm.Release(location, hostpool[1].Name, "test2", "node_test2", "0")
 	require.NoError(t, err, "Unexpected error releasing host allocation1")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1229,7 +1265,7 @@ func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 
 	// Release 1st allocation
-	err = cm.Release(location, hostpool[0].Name, alloc1)
+	_, err = cm.Release(location, hostpool[0].Name, "test1", "node_test1", "0")
 	require.NoError(t, err, "Unexpected error releasing host allocation2")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1261,7 +1297,7 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
 
 	// Allocate host1: first allocation
-	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true, Resources: resources}
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "0", DeploymentID: "test1", Shareable: true, Resources: resources}
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
@@ -1273,14 +1309,14 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test1", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test1", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test1", allocatedHost.Allocations[0].NodeName)
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 	require.Equal(t, resources, allocatedHost.Allocations[0].Resources)
 
 	// Allocate host1: 2nd allocation
-	alloc2 := &Allocation{NodeName: "node_test1", Instance: "instance_test11", DeploymentID: "test1", Shareable: true, Resources: resources}
+	alloc2 := &Allocation{NodeName: "node_test1", Instance: "1", DeploymentID: "test1", Shareable: true, Resources: resources}
 	filterLabel = "label2"
 	filter, err = labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, "'"+hostpool[0].Labels[filterLabel]+"'"))
@@ -1292,14 +1328,14 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 2, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test11", allocatedHost.Allocations[1].Instance)
+	require.Equal(t, "1", allocatedHost.Allocations[1].Instance)
 	require.Equal(t, "test1", allocatedHost.Allocations[1].DeploymentID)
 	require.Equal(t, "node_test1", allocatedHost.Allocations[1].NodeName)
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 	require.Equal(t, resources, allocatedHost.Allocations[1].Resources)
 
 	// Release 1st allocation
-	err = cm.Release(location, hostpool[0].Name, alloc1)
+	_, err = cm.Release(location, hostpool[0].Name, "test1", "node_test1", "0")
 	require.NoError(t, err, "Unexpected error releasing host allocation1")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1308,7 +1344,7 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 
 	// Release 2nd allocation
-	err = cm.Release(location, hostpool[0].Name, alloc2)
+	_, err = cm.Release(location, hostpool[0].Name, "test1", "node_test1", "1")
 	require.NoError(t, err, "Unexpected error releasing host allocation2")
 	allocatedHost, err = cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
@@ -1378,7 +1414,7 @@ func routineAllocate(
 
 	defer waitGroup.Done()
 	fmt.Println("Attempting to allocate a host in routine", id)
-	hostname, _, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "dep_test", Shareable: false})
+	hostname, _, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "0", DeploymentID: "dep_test", Shareable: false})
 	if err != nil {
 		fmt.Println("Failed to allocate a host in routine", id)
 		errors <- err
@@ -1428,17 +1464,17 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 	}
 
 	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
-	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false, Resources: AllocResources})
+	allocatedName, warnings, err := cm.Allocate(location, &Allocation{NodeName: "node_test", Instance: "0", DeploymentID: "test", Shareable: false, Resources: AllocResources})
 	assert.Equal(t, hostpool[0].Name, allocatedName,
 		"Unexpected host allocated")
 
-	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels)
+	err = cm.UpdateResourcesLabels(location, hostname, AllocResources, subtract, updateResourcesLabels, nil, removeElements, updateGenericResourcesLabels)
 	require.NoError(t, err, "Unexpected error updating labels")
 	allocatedHost, err := cm.GetHost(location, allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after allocate")
@@ -1469,7 +1505,7 @@ func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
 	require.NoError(t, err, "Unexpected error getting allocated host")
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 1, len(allocatedHost.Allocations))
-	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "0", allocatedHost.Allocations[0].Instance)
 	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
 	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after apply")
