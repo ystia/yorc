@@ -13,6 +13,8 @@ node_types:
     derived_from: tosca.nodes.Root
     attributes:
       partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] } # this is a hack to specifies that the attribute is filled from a relationship.
+      my_output:
+        type: string
     requirements:
       - partition: 
           capability: tosca.capabilities.Node
@@ -25,6 +27,8 @@ node_types:
           inputs:
             FROM_OUTPUT: { get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }
           implementation: scripts/start.sh
+          outputs:
+            ANOTHER_OUTPUT: [ SELF, my_output ]
 
 relationship_types:
   yorc.tests.relationships.GetOPOutputsRel:
