@@ -6,6 +6,10 @@
 
 * Add a consumable resources concept to the Hosts Pool ([GH-205](https://github.com/ystia/yorc/issues/205))
 
+### BUG FIXES
+
+* Yorc Bootstrap doesn't uninstall yorc binary ([GH-605](https://github.com/ystia/yorc/issues/605))
+
 ## 4.0.0-M9 (February 14, 2020)
 
 ### FEATURES
