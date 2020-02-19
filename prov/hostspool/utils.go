@@ -16,14 +16,20 @@ package hostspool
 
 import (
 	"context"
+	"fmt"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/v4/helper/collections"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/dustin/go-humanize"
-
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/labelsutil"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
 )
 
@@ -134,6 +140,63 @@ func createFiltersFromComputeCapabilities(ctx context.Context, deploymentID, nod
 	return filters, nil
 }
 
+// createGenericResourcesFilters create regex filters to determine if label contains the required ids or required number of elements
+func createGenericResourcesFilters(ctx context.Context, instance string, genericResources []*GenericResource) ([]labelsutil.Filter, error) {
+	filters := make([]labelsutil.Filter, 0)
+	for _, genericResource := range genericResources {
+		instance, err := strconv.Atoi(instance)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unexpected non integer value for instance:%q", instance)
+		}
+		if genericResource.ids != nil && len(genericResource.ids) > instance {
+			idFilters, err := appendGenericResourceFiltersOnIDs(genericResource.Name, genericResource.ids[instance])
+			if err != nil {
+				return filters, err
+			}
+			filters = append(filters, idFilters...)
+		}
+
+		if genericResource.nb != 0 {
+			filter, err := appendGenericResourceFilterOnNumber(genericResource.Name, genericResource.nb)
+			if err != nil {
+				return filters, err
+			}
+			filters = append(filters, filter)
+		}
+	}
+
+	return filters, nil
+}
+
+// appendGenericResourceFiltersOnIDs create regex filters to determine if label contains the required ids
+func appendGenericResourceFiltersOnIDs(name string, ids []string) ([]labelsutil.Filter, error) {
+	filters := make([]labelsutil.Filter, 0)
+	for _, id := range ids {
+		log.Debugf("Create filter for id:%q", id)
+		// regex expressing id is contained on the comma-separated list
+		f := fmt.Sprintf(`%s.%s ~= "^%s,|,%s,|,%s$|^%s$"`, genericResourceLabelPrefix, name, id, id, id, id)
+		filter, err := labelsutil.CreateFilter(f)
+		if err != nil {
+			return filters, err
+		}
+		filters = append(filters, filter)
+	}
+	return filters, nil
+}
+
+// appendGenericResourceFilterOnNumber create a regex filter to determine if label contains the required number of elements
+func appendGenericResourceFilterOnNumber(name string, nb int) (labelsutil.Filter, error) {
+	var f string
+	// host.resource.<name> contains at least <nb> elements for nb > 1
+	if nb > 1 {
+		f = fmt.Sprintf(`%s.%s ~= "^([^,]*,){%d}.*$"`, genericResourceLabelPrefix, name, nb-1)
+	} else {
+		f = fmt.Sprintf(`%s.%s ~= "^(.+)$"`, genericResourceLabelPrefix, name)
+	}
+
+	return labelsutil.CreateFilter(f)
+}
+
 func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance, label string, value interface{}, prefix, suffix string) error {
 	if strings.HasPrefix(label, prefix+".") && strings.HasSuffix(label, "."+suffix) {
 		attrName := strings.Replace(strings.Replace(label, prefix+".", prefix+"/", -1), "."+suffix, "/"+suffix, -1)
@@ -145,23 +208,50 @@ func setAttributeFromLabel(ctx context.Context, deploymentID, nodeName, instance
 	return nil
 }
 
-func updateResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error) {
-	// Host Resources Labels can only be updated when deployment resources requirement is described
-	labels := make(map[string]string)
-
-	err := updateNumberResourcesLabels(origin, diff, operation, labels)
-	if err != nil {
-		return nil, err
-	}
-
-	err = updateSizeResourcesLabels(origin, diff, operation, labels)
-	if err != nil {
-		return nil, err
-	}
-	return labels, nil
+func removeWhitespaces(str string) string {
+	return strings.Join(strings.Fields(str), "")
 }
 
-func updateNumberResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error {
+func toSlice(str string) []string {
+	str = removeWhitespaces(str)
+	if str == "" {
+		return make([]string, 0)
+	}
+	return strings.Split(str, ",")
+}
+
+func updateGenericResourcesLabels(origin map[string]string, diffGenericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string {
+	updatedLabels := make(map[string]string)
+	for _, diffGenericResource := range diffGenericResources {
+		if !diffGenericResource.NoConsumable {
+			if genResourceStr, ok := origin[diffGenericResource.Label]; ok {
+				genResource := toSlice(genResourceStr)
+				genResourceElements := toSlice(diffGenericResource.Value)
+				result := operation(genResource, genResourceElements)
+				updatedLabels[diffGenericResource.Label] = strings.Join(result, ",")
+			}
+		}
+	}
+	return updatedLabels
+}
+
+func updateResourcesLabels(origin map[string]string, diff map[string]string, operation resourceOperationFunc) (map[string]string, error) {
+	// Host Resources Labels can only be updated when deployment resources requirement is described
+	updatedLabels := make(map[string]string)
+
+	err := updateNumberResourcesLabels(origin, diff, operation, updatedLabels)
+	if err != nil {
+		return nil, err
+	}
+
+	err = updateSizeResourcesLabels(origin, diff, operation, updatedLabels)
+	if err != nil {
+		return nil, err
+	}
+	return updatedLabels, nil
+}
+
+func updateNumberResourcesLabels(origin map[string]string, diff map[string]string, operation resourceOperationFunc, updatedLabels map[string]string) error {
 	cpuResourcesLabel := "host.num_cpus"
 	if resourceDiffStr, ok := diff[cpuResourcesLabel]; ok {
 		if resourceOriginStr, ok := origin[cpuResourcesLabel]; ok {
@@ -175,13 +265,13 @@ func updateNumberResourcesLabels(origin map[string]string, diff map[string]strin
 			}
 
 			res := operation(int64(resourceOrigin), int64(resourceDiff))
-			labels[cpuResourcesLabel] = strconv.Itoa(int(res))
+			updatedLabels[cpuResourcesLabel] = strconv.Itoa(int(res))
 		}
 	}
 	return nil
 }
 
-func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64, labels map[string]string) error {
+func updateSizeResourcesLabels(origin map[string]string, diff map[string]string, operation resourceOperationFunc, updatedLabels map[string]string) error {
 	sizeResourcesLabels := []struct {
 		name string
 	}{
@@ -202,7 +292,7 @@ func updateSizeResourcesLabels(origin map[string]string, diff map[string]string,
 				}
 
 				res := operation(int64(resourceOrigin), int64(resourceDiff))
-				labels[resource.name] = formatBytes(res, isIECformat(resourceOriginStr))
+				updatedLabels[resource.name] = formatBytes(res, isIECformat(resourceOriginStr))
 			}
 		}
 	}
@@ -229,4 +319,82 @@ func isIECformat(value string) bool {
 		return true
 	}
 	return false
+}
+
+func removeElements(source, elements []string) []string {
+	for _, element := range elements {
+		for i := 0; i < len(source); i++ {
+			if strings.TrimSpace(source[i]) == strings.TrimSpace(element) {
+				source = append(source[:i], source[i+1:]...)
+				break
+			}
+		}
+	}
+
+	sort.Strings(source)
+	return source
+}
+
+func addElements(source, elements []string) []string {
+	for _, element := range elements {
+		source = append(source, element)
+	}
+
+	source = collections.RemoveDuplicates(source)
+	sort.Strings(source)
+	return source
+}
+
+func toGenericResource(item interface{}) (*GenericResource, error) {
+	type gres struct {
+		Name   string   `json:"name" mapstructure:"name"`
+		IDS    []string `json:"ids,omitempty" mapstructure:"ids"`
+		Number string   `json:"number,omitempty" mapstructure:"number"`
+	}
+
+	g := new(gres)
+	err := mapstructure.Decode(item, g)
+	if err != nil {
+		return nil, err
+	}
+
+	if g.Name == "" {
+		return nil, errors.New("Missing generic resource mandatory name")
+	}
+
+	if g.IDS == nil && g.Number == "" || (g.IDS != nil && g.Number != "") {
+		return nil, errors.Errorf("Either ids or number must be filled to define the resource need gor generic resource name:%q.", g.Name)
+	}
+
+	var nb int
+	if g.Number != "" {
+		nb, err = strconv.Atoi(g.Number)
+		if err != nil {
+			return nil, errors.Wrapf(err, "expected integer value for number property of generic resource with name:%q", g.Name)
+		}
+	}
+
+	gResource := GenericResource{
+		Name:  g.Name,
+		Label: fmt.Sprintf("%s.%s", genericResourceLabelPrefix, g.Name),
+		nb:    nb,
+	}
+
+	if g.IDS != nil {
+		gResource.ids = make([][]string, 0)
+		for _, item := range g.IDS {
+			// check id
+			if !isAllowedID(item) {
+				return nil, errors.Errorf("generic resource ID:%q must only contains the following characters: a-zA-Z0-9_:./-", item)
+			}
+			gResource.ids = append(gResource.ids, toSlice(item))
+		}
+
+	}
+	return &gResource, nil
+}
+
+func isAllowedID(str string) bool {
+	re := regexp.MustCompile("^[a-zA-Z0-9_:./-]*$")
+	return re.MatchString(strings.TrimSpace(str))
 }

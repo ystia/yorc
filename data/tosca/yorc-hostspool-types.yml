@@ -33,6 +33,8 @@ node_types:
         properties:
           credentials:
             user: "not significant, will be set by yorc itself"
+      host:
+        type: yorc.capabilities.hostspool.Container
 
 policy_types:
   yorc.policies.hostspool.Placement:
@@ -53,3 +55,40 @@ policy_types:
       The yorc hostpool TOSCA Policy placement which allows to allocate a host with a bin packing algorithm.
       It means the host the more allocated will be elect preferentially.
     targets: [ tosca.nodes.Compute ]
+
+capability_types:
+  yorc.capabilities.hostspool.Container:
+    derived_from: tosca.capabilities.Container
+    properties:
+      resources:
+        type: list
+        description: >
+          A list of generic resources that the container must provide.
+        entry_schema:
+          type: yorc.datatypes.hostspool.GenericResource
+        required: false
+
+data_types:
+  yorc.datatypes.hostspool.GenericResource:
+    derived_from: tosca.datatypes.Root
+    properties:
+      name:
+        type: string
+        required: true
+        description: >
+          The name of the generic resource. Can be "gpu" and must be bound to host labels as: host.resource.gpu by instance.
+      ids:
+        type: list
+        required: false
+        description: >
+          Each list entry corresponds to the required generic resource ID's for each instance.
+          Each list entry is a comma-separated list of ID's.
+          Either ids or number must be filled to define the resource need.
+          An ID must only contains the following characters: a-zA-Z0-9_:./-
+        entry_schema:
+          type: string
+      number:
+        type: integer
+        required: false
+        description: >
+          The number of generic resource required.  Either ids or number must be filled to define the resource need.
