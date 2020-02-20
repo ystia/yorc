@@ -44,19 +44,24 @@ const (
 	maxNbTransactionOps = 64
 )
 
+type resourceOperationFunc func(a int64, b int64) int64
+type resourceUpdateFunc func(origin map[string]string, diff map[string]string, operation resourceOperationFunc) (map[string]string, error)
+type genericResourceOperationFunc func(source, elements []string) []string
+type genericResourceUpdateFunc func(origin map[string]string, genericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string
+
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(locationName, hostname string, connection Connection, labels map[string]string) error
 	Apply(locationName string, pool []Host, checkpoint *uint64) error
 	Remove(locationName, hostname string) error
-	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
+	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation resourceOperationFunc, update resourceUpdateFunc, gResources []*GenericResource, gResourcesOperation genericResourceOperationFunc, updateGenericResources genericResourceUpdateFunc) error
 	AddLabels(locationName, hostname string, labels map[string]string) error
 	RemoveLabels(locationName, hostname string, labels []string) error
 	UpdateConnection(locationName, hostname string, connection Connection) error
 	List(locationName string, filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(locationName, hostname string) (Host, error)
 	Allocate(locationName string, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
-	Release(locationName, hostname string, allocation *Allocation) error
+	Release(locationName, hostname, deploymentID, nodeName, instance string) (*Allocation, error)
 	ListLocations() ([]string, error)
 	RemoveLocation(locationName string) error
 	CheckPlacementPolicy(placementPolicy string) error
@@ -578,7 +583,7 @@ func (cm *consulManager) GetHost(locationName, hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
-	host.Allocations, err = cm.GetAllocations(locationName, hostname)
+	host.Allocations, err = cm.getAllocations(locationName, hostname)
 	if err != nil {
 		return host, err
 	}
@@ -714,7 +719,7 @@ func (cm *consulManager) applyWait(
 				return err
 			}
 
-			allocations, err := cm.GetAllocations(locationName, host.Name)
+			allocations, err := cm.getAllocations(locationName, host.Name)
 			if err != nil {
 				return err
 			}
