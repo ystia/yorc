@@ -16,6 +16,7 @@ package deployments
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -59,4 +60,17 @@ func testReadComplexVA(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateNestedValue(t *testing.T) {
+	val := []interface{}{map[string]interface{}{"literal": 2, "mymap": map[string]interface{}{"VANode2": 1}}, map[string]interface{}{"literal": 3, "mymap": map[string]interface{}{"VANode2": 2}}}
+	res, err := updateNestedValue(val, 5, "0", "literal")
+	require.NoError(t, err)
+	fmt.Printf("***res = %+v", res)
+
+	val2 := "myvalue"
+	res, err = updateNestedValue(val2, "myvalueUp")
+	require.NoError(t, err)
+	fmt.Printf("***res = %+v", res)
+
 }

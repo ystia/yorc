@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca"
@@ -332,4 +333,48 @@ func notifyAndPublishAttributeValueChange(ctx context.Context, deploymentID, nod
 		AttributeName: attributeName,
 	}
 	return an.NotifyValueChange(ctx, deploymentID)
+}
+
+// SetInstanceAttributeOrCapabilityAttribute allows to set instance attribute or capability attribute
+func SetInstanceAttributeOrCapabilityAttribute(ctx context.Context, deploymentID, nodeName, instanceName, capabilityOrAttributeName, attributeValue string, nestedKeys ...string) error {
+	// Check if node has an attribute with name
+	attrs, err := GetNodeAttributesNames(ctx, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
+	if collections.ContainsString(attrs, capabilityOrAttributeName) {
+		// It's an attribute: get the value and update it
+		val, err := GetInstanceAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName)
+		if err != nil {
+			return err
+		}
+		if val.Value != nil {
+			updated, err := updateNestedValue(val.Value, attributeValue, nestedKeys...)
+			if err != nil {
+				return err
+			}
+			return SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, updated)
+		}
+
+	}
+
+	// At this point, it's a capability name, so we ensure we have the attribute name in the nested keys
+	if len(nestedKeys) < 1 {
+		return errors.Errorf("an attribute name is missing in corresponding nested keys:%v", nestedKeys)
+	}
+
+	val, err := GetInstanceCapabilityAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, nestedKeys[0])
+	if err != nil {
+		return err
+	}
+	if val.Value != nil {
+		updated, err := updateNestedValue(val.Value, attributeValue, nestedKeys[1:]...)
+		if err != nil {
+			return err
+		}
+		return SetInstanceCapabilityAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, nestedKeys[0], updated)
+	}
+
+		return nil
 }

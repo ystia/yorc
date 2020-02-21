@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -38,7 +39,6 @@ import (
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/executil"
 	"github.com/ystia/yorc/v4/helper/provutil"
 	"github.com/ystia/yorc/v4/helper/sshutil"
@@ -573,52 +573,95 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 	e.HaveOutput = true
 	//We iterate over all entity of the output in this operation
 	for outputName, outputValue := range mapOutputs {
-		va := outputValue.ValueAssign
-		if va.Type != tosca.ValueAssignmentFunction {
-			return errors.Errorf("Output %q for operation %v is not a valid get_operation_output TOSCA function", outputName, e.operation)
-		}
-		oof := va.GetFunction()
-		if oof.Operator != tosca.GetOperationOutputOperator {
-			return errors.Errorf("Output %q for operation %v (%v) is not a valid get_operation_output TOSCA function", outputName, e.operation, oof)
-		}
-		targetContext := oof.Operands[0].String() == "TARGET"
-		sourceContext := oof.Operands[0].String() == "SOURCE"
-		if (targetContext || sourceContext) && !e.operation.RelOp.IsRelationshipOperation {
-			return errors.Errorf("Can't resolve an operation output in SOURCE or TARGET context without a relationship operation: %q", va.String())
-		}
-
-		var instancesIds []string
-		if targetContext {
-			instancesIds = e.targetNodeInstances
-		} else {
-			instancesIds = e.sourceNodeInstances
-		}
-
-		//For each instance of the node we create a new entry in the output map
-		for _, instanceID := range instancesIds {
-			// TODO(loicalbertin) This part should be refactored to store properly the instance ID
-			// don't to it for now as it is for a quickfix
-			b := instanceID
+		// either output can be associated to a get_operation_output value assignment or to an attribute mapping
+		if outputValue.ValueAssign != nil {
+			va := outputValue.ValueAssign
+			if va.Type != tosca.ValueAssignmentFunction {
+				return errors.Errorf("Output %q for operation %v is not a valid get_operation_output TOSCA function", outputName, e.operation)
+			}
+			oof := va.GetFunction()
+			if oof.Operator != tosca.GetOperationOutputOperator {
+				return errors.Errorf("Output %q for operation %v (%v) is not a valid get_operation_output TOSCA function", outputName, e.operation, oof)
+			}
+			targetContext := oof.Operands[0].String() == tosca.Target
+			sourceContext := oof.Operands[0].String() == tosca.Source
 			interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
 			operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
 			outputVariableName := url.QueryEscape(oof.Operands[3].String())
-			if targetContext {
-				e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
-			} else {
-				//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
-				if oof.Operands[0].String() == "SELF" && e.operation.RelOp.IsRelationshipOperation {
-					relationShipPrefix := path.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
-					e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", interfaceName, operationName, outputVariableName)
-				} else if oof.Operands[0].String() == "HOST" {
-					// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
-					continue
-
-				} else {
-					//In all others case we simply save the result of the output on the instance directory of the node
-					e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
-				}
+			nodeKeyword := oof.Operands[0].String()
+			err = e.addOutputs(targetContext, sourceContext, nodeKeyword, interfaceName, operationName, outputVariableName)
+			if err != nil {
+				return err
 			}
+		} else if outputValue.AttributeMapping != nil && outputValue.AttributeMapping.Parameters != nil {
+			parameters := outputValue.AttributeMapping.Parameters
+			targetContext := strings.ToUpper(parameters[0]) == tosca.Target
+			sourceContext := strings.ToUpper(parameters[0]) == tosca.Source
+			err = e.addAttributeMappingOutputs(targetContext, sourceContext, outputName, parameters[1:])
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
+func (e *executionCommon) addOutputs(isTargetContext, isSourceContext bool, nodeKeyword, interfaceName, operationName, outputVariableName string) error {
+	var instancesIds []string
+	if isTargetContext {
+		instancesIds = e.targetNodeInstances
+	} else {
+		instancesIds = e.sourceNodeInstances
+	}
+	if (isTargetContext || isSourceContext) && !e.operation.RelOp.IsRelationshipOperation {
+		return errors.Errorf("Can't resolve an output in SOURCE or TARGET context without a relationship operation for output:%q", outputVariableName)
+	}
+
+	//For each instance of the node we create a new entry in the output map
+	for _, instanceID := range instancesIds {
+		// TODO(loicalbertin) This part should be refactored to store properly the instance ID
+		// don't to it for now as it is for a quickfix
+		b := instanceID
+		if isTargetContext {
+			e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
+		} else {
+			//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
+			if nodeKeyword == tosca.Self && e.operation.RelOp.IsRelationshipOperation {
+				relationShipPrefix := path.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
+				e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", interfaceName, operationName, outputVariableName)
+			} else if nodeKeyword == tosca.Host {
+				// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
+				continue
+
+			} else {
+				//In all others case we simply save the result of the output on the instance directory of the node
+				e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
+			}
+		}
+	}
+	return nil
+}
+
+// attribute_mapping/<node_name>/<instance_name>/<attribute_name_or_capability_name>/<nested_attribute_name><nested_attribute_name><nested_attribute_name>...
+func (e *executionCommon) addAttributeMappingOutputs(isTargetContext, isSourceContext bool, outputVariableName string, parameters []string) error {
+	var instancesIds []string
+	if isTargetContext {
+		instancesIds = e.targetNodeInstances
+	} else {
+		instancesIds = e.sourceNodeInstances
+	}
+	if (isTargetContext || isSourceContext) && !e.operation.RelOp.IsRelationshipOperation {
+		return errors.Errorf("Can't resolve an output in SOURCE or TARGET context without a relationship operation for output:%q", outputVariableName)
+	}
+
+	path.Join(parameters...)
+	//For each instance of the node we create a new entry in the output map
+	for _, instanceID := range instancesIds {
+		b := instanceID
+		if isTargetContext {
+			e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("attribute_mapping", e.operation.RelOp.TargetNodeName, instanceID, path.Join(parameters...))
+		} else {
+			e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("attribute_mapping", e.NodeName, instanceID, path.Join(parameters...))
 		}
 	}
 	return nil
@@ -1084,31 +1127,40 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 					continue
 				}
 				if e.Outputs[line[0]] != taskContextOutput {
-					// TODO this should be part of the deployments package
-					if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
-						return err
-					}
-
-					// Notify attributes on value change
-					ind := strings.LastIndex(e.Outputs[line[0]], "/outputs/")
-					if ind != -1 {
-						outputPath := e.Outputs[line[0]][ind+len("/outputs/"):]
-						data := strings.Split(outputPath, "/")
-						if len(data) > 2 {
-							notifier := &deployments.OperationOutputNotifier{
-								InstanceName:  instanceID,
-								NodeName:      e.NodeName,
-								InterfaceName: data[0],
-								OperationName: data[1],
-								OutputName:    data[2],
-							}
-							err = notifier.NotifyValueChange(ctx, e.deploymentID)
-							if err != nil {
-								return err
+					if strings.HasPrefix(e.Outputs[line[0]], "attribute_mapping") {
+						// attribute_mapping/<node_name>/<instance_name>/<attribute_name_or_capability_name>/<nested_attribute_name><nested_attribute_name><nested_attribute_name>...
+						data := strings.Split(e.Outputs[line[0]], "/")
+						nodeName := data[1]
+						instanceName := data[2]
+						attributeOrCapabilityName := data[3]
+						if err = deployments.SetInstanceAttributeOrCapabilityAttribute(ctx, e.deploymentID, nodeName, instanceName, attributeOrCapabilityName, line[1], data[3:]...); err != nil {
+							return err
+						}
+					} else {
+						// TODO this should be part of the deployments package
+						if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
+							return err
+						}
+						// Notify attributes on value change
+						ind := strings.LastIndex(e.Outputs[line[0]], "/outputs/")
+						if ind != -1 {
+							outputPath := e.Outputs[line[0]][ind+len("/outputs/"):]
+							data := strings.Split(outputPath, "/")
+							if len(data) > 2 {
+								notifier := &deployments.OperationOutputNotifier{
+									InstanceName:  instanceID,
+									NodeName:      e.NodeName,
+									InterfaceName: data[0],
+									OperationName: data[1],
+									OutputName:    data[2],
+								}
+								err = notifier.NotifyValueChange(ctx, e.deploymentID)
+								if err != nil {
+									return err
+								}
 							}
 						}
 					}
-
 				} else {
 					tasks.SetTaskData(e.taskID, e.NodeName+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
 				}
