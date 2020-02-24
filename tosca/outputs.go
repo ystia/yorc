@@ -20,13 +20,6 @@ import (
 	"strings"
 )
 
-const (
-	Self   = "SELF"
-	Source = "SOURCE"
-	Target = "TARGET"
-	Host   = "HOST"
-)
-
 // An Output is the representation of the output part of a TOSCA Operation Definition
 //
 //
