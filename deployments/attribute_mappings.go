@@ -18,13 +18,14 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/collections"
+	"strconv"
 )
 
 // ResolveAttributeMapping allows to resolve an attribute mapping
 // i.e update the corresponding attribute with the defined value
 // parameters can be nested keys and/or attribute name in case of capability
 func ResolveAttributeMapping(ctx context.Context, deploymentID, nodeName, instanceName, capabilityOrAttributeName string, attributeValue interface{}, parameters ...string) error {
-	// Check if node has an attribute with name
+	// Check if node has an attribute with corresponding name
 	attrs, err := GetNodeAttributesNames(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -32,46 +33,161 @@ func ResolveAttributeMapping(ctx context.Context, deploymentID, nodeName, instan
 
 	if collections.ContainsString(attrs, capabilityOrAttributeName) {
 		// It's an attribute: get the complex value and update it
-		res, err := GetInstanceAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, parameters...)
-		if err != nil {
-			return err
-		}
-		if res != nil && res.Value != nil {
-			updated, err := updateNestedValue(res.Value, attributeValue, parameters...)
-			if err != nil {
-				return err
-			}
-			return SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, updated)
-		}
-
-		// If it's a literal, just set the instance attribute
-		if len(parameters) == 0 {
-			return SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, attributeValue)
-		}
-		return errors.Errorf("failed to set instance attribute %q with deploymentID:%q, nodeName:%q, instance:%q, nested keys:%v", capabilityOrAttributeName, deploymentID, nodeName, instanceName, parameters)
+		return resolveInstanceAttributeMapping(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, attributeValue, parameters...)
 	}
 
 	// At this point, it's a capability name, so we ensure we have the attribute name in parameters
 	if len(parameters) < 1 {
-		return errors.Errorf("an attribute name is missing in corresponding nested keys:%v", parameters)
+		return errors.Errorf("attribute name is missing in parameters for resolving attribute mapping for deploymentId:%q, node name:%q, instance name:%q, capability name:%q", deploymentID, nodeName, instanceName, capabilityOrAttributeName)
 	}
 
 	// It's a capability attribute: get the complex value and update it
-	res, err := GetInstanceCapabilityAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, parameters[0], parameters[1:]...)
+	return resolveCapabilityAttributeMapping(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, parameters[0], attributeValue, parameters[1:]...)
+}
+
+func resolveInstanceAttributeMapping(ctx context.Context, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}, nestedKeys ...string) error {
+	// The simplest case
+	if len(nestedKeys) == 0 {
+		return SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	}
+
+	var value interface{}
+	// Get existing or default value
+	res, err := GetInstanceAttributeValue(ctx, deploymentID, nodeName, instanceName, attributeName)
 	if err != nil {
 		return err
 	}
-	if res != nil && res.Value != nil {
-		updated, err := updateNestedValue(res.Value, attributeValue, parameters[1:]...)
+
+	if res != nil && res.Value == nil {
+		value = res.Value
+	} else {
+		nodeType, err := GetNodeType(ctx, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
-		return SetInstanceCapabilityAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, parameters[0], updated)
+
+		attrDataType, err := GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
+		if err != nil {
+			return err
+		}
+
+		// Build value from scratch
+		value, err = buildValue(ctx, deploymentID, attrDataType, nestedKeys...)
+		if err != nil {
+			return err
+		}
 	}
 
-	// If it's a literal, just set the instance attribute
-	if len(parameters) == 1 {
-		return SetInstanceCapabilityAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityOrAttributeName, parameters[0], attributeValue)
+	updated, err := updateValue(value, attributeValue, nestedKeys...)
+	if err != nil {
+		return err
 	}
-	return errors.Errorf("failed to set instance capability %q attribute %q with deploymentID:%q, nodeName:%q, instance:%q, nested keys:%v", capabilityOrAttributeName, parameters[0], deploymentID, nodeName, instanceName, parameters)
+	return SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, attributeName, updated)
+}
+
+func resolveCapabilityAttributeMapping(ctx context.Context, deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}, nestedKeys ...string) error {
+	// The simplest case
+	if len(nestedKeys) == 0 {
+		return SetInstanceCapabilityAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
+	}
+
+	var value interface{}
+	// Get existing or default value
+	res, err := GetInstanceCapabilityAttributeValue(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName)
+	if err != nil {
+		return err
+	}
+
+	if res != nil && res.Value != nil {
+		value = res.Value
+	} else {
+		// Build value from scratch
+		nodeType, err := GetNodeCapabilityType(ctx, deploymentID, nodeName, capabilityName)
+		if err != nil {
+			return err
+		}
+
+		attrDataType, err := GetTypeAttributeDataType(ctx, deploymentID, nodeType, attributeName)
+		if err != nil {
+			return err
+		}
+
+		value, err = buildValue(ctx, deploymentID, attrDataType, nestedKeys...)
+		if err != nil {
+			return err
+		}
+	}
+
+	updated, err := updateValue(value, attributeValue, nestedKeys...)
+	if err != nil {
+		return err
+	}
+	return SetInstanceCapabilityAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, updated)
+}
+
+func buildValue(ctx context.Context, deploymentID, baseDataType string, nestedKeys ...string) (interface{}, error) {
+	var parent interface{}
+	dType := getDataTypeComplexType(baseDataType)
+	switch dType {
+	case "list":
+		parent = make([]interface{}, 0)
+	default:
+		parent = make(map[string]interface{}, 0)
+	}
+
+	tmp := parent
+	for i := 0; i < len(nestedKeys); i++ {
+		dataType, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys[:i]...)
+		if err != nil {
+			return nil, err
+		}
+		var nestedValue interface{}
+		dType := getDataTypeComplexType(dataType)
+		switch dType {
+		case "list":
+			nestedValue = make([]interface{}, 0)
+		default:
+			nestedValue = make(map[string]interface{}, 0)
+		}
+
+		switch v := tmp.(type) {
+		case []interface{}:
+			tmp = append(v, nestedValue)
+		case map[string]interface{}:
+			v[nestedKeys[i]] = nestedValue
+			tmp = v[nestedKeys[i]]
+		}
+	}
+	return parent, nil
+}
+
+func updateValue(originalValue, nestedValueToUpdate interface{}, nestedKeys ...string) (interface{}, error) {
+	if len(nestedKeys) > 0 {
+		value := originalValue
+		for i := 0; i < len(nestedKeys); i++ {
+			nk := nestedKeys[i]
+			switch v := value.(type) {
+			case []interface{}:
+				ind, err := strconv.Atoi(nk)
+				// Check the slice index is valid
+				if err != nil {
+					return nil, errors.Errorf("%q is not a valid array index", nk)
+				}
+				if ind+1 > len(v) {
+					return nil, errors.Errorf("%q: index not found", ind)
+				}
+				if i == len(nestedKeys)-1 {
+					v[ind] = nestedValueToUpdate
+				}
+				value = v[ind]
+			case map[string]interface{}:
+				if i == len(nestedKeys)-1 {
+					v[nk] = nestedValueToUpdate
+				}
+				value = v[nk]
+			}
+		}
+		return originalValue, nil
+	}
+	return nestedValueToUpdate, nil
 }

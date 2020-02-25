@@ -60,37 +60,6 @@ func getNestedValue(value interface{}, nestedKeys ...string) interface{} {
 	return value
 }
 
-func updateNestedValue(complexValue, nestedValue interface{}, nestedKeys ...string) (interface{}, error) {
-	if len(nestedKeys) > 0 {
-		value := complexValue
-		for i := 0; i < len(nestedKeys); i++ {
-			nk := nestedKeys[i]
-			switch v := value.(type) {
-			case []interface{}:
-				ind, err := strconv.Atoi(nk)
-				// Check the slice index is valid
-				if err != nil {
-					return nil, errors.Errorf("%q is not a valid array index", nk)
-				}
-				if ind+1 > len(v) {
-					return nil, errors.Errorf("%q: index not found", ind)
-				}
-				if i == len(nestedKeys)-1 {
-					v[ind] = nestedValue
-				}
-				value = v[ind]
-			case map[string]interface{}:
-				if i == len(nestedKeys)-1 {
-					v[nk] = nestedValue
-				}
-				value = v[nk]
-			}
-		}
-		return complexValue, nil
-	}
-	return nestedValue, nil
-}
-
 func readComplexVA(ctx context.Context, deploymentID string, value interface{}, baseDataType string, nestedKeys ...string) (interface{}, error) {
 	result := getNestedValue(value, nestedKeys...)
 	err := checkForDefaultValuesInComplexTypes(ctx, deploymentID, baseDataType, "", result, nestedKeys...)

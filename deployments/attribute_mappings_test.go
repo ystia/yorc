@@ -17,6 +17,7 @@ package deployments
 import (
 	"context"
 	"github.com/stretchr/testify/require"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -29,6 +30,10 @@ func testResolveAttributeMapping(t *testing.T) {
 	require.Nil(t, err)
 
 	t.Run("groupResolveAttributeMapping", func(t *testing.T) {
+		t.Run("testBuildNestedValue", func(t *testing.T) {
+			testBuildNestedValue(t, ctx, deploymentID)
+		})
+		t.Skip()
 		t.Run("testResolveAttributeMappingWithInstanceAttribute", func(t *testing.T) {
 			testResolveAttributeMappingWithInstanceAttribute(t, ctx, deploymentID)
 		})
@@ -42,9 +47,9 @@ func testResolveAttributeMappingWithInstanceAttribute(t *testing.T, ctx context.
 	// Then test node attributes
 	err := ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "lit", "myLiteral")
 	require.NoError(t, err)
-	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "listAttr", []int{42, 43, 44})
+	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "listAttr", 42, "0")
 	require.NoError(t, err)
-	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "mapAttr", map[string]interface{}{"map1": "v1", "map2": "v2", "map3": "v3"})
+	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "mapAttr", "v2", "map2")
 	require.NoError(t, err)
 	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "complexAttr", map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"})
 	require.NoError(t, err)
@@ -81,10 +86,8 @@ func testResolveAttributeMappingWithInstanceAttribute(t *testing.T, ctx context.
 		{"TestNodeAttrListIndex0", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"0"}}, false, true, `42`},
 		{"TestNodeAttrListIndex1", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"1"}}, false, true, `43`},
 		{"TestNodeAttrListIndex2", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"2"}}, false, true, `44`},
-		{"TestNodeAttrMapAll", nodeAttrArgs{"VANode1", "0", "mapAttr", nil}, false, true, `{"map1":"v1","map2":"v2","map3":"v3"}`},
-		{"TestNodeAttrMapKey1", nodeAttrArgs{"VANode1", "0", "mapAttr", []string{"map1"}}, false, true, `v1`},
+		{"TestNodeAttrMapAll", nodeAttrArgs{"VANode1", "0", "mapAttr", nil}, false, true, `{"map2":"v2"}`},
 		{"TestNodeAttrMapKey2", nodeAttrArgs{"VANode1", "0", "mapAttr", []string{"map2"}}, false, true, `v2`},
-		{"TestNodeAttrMapKey3", nodeAttrArgs{"VANode1", "0", "mapAttr", []string{"map3"}}, false, true, `v3`},
 		{"TestAttrComplexTypeLit", nodeAttrArgs{"VANode1", "0", "complexAttr", []string{"literal"}}, false, true, `11`},
 		{"TestAttrComplexTypeLitDef", nodeAttrArgs{"VANode1", "0", "complexAttr", []string{"literalDefault"}}, false, true, `VANode1LitDef`},
 		{"TestAttrComplexTypeAll", nodeAttrArgs{"VANode1", "0", "complexAttr", nil}, false, true, `{"literal":"11","literalDefault":"VANode1LitDef"}`},
@@ -244,6 +247,41 @@ func testResolveAttributeMappingWithCapabilityAttribute(t *testing.T, ctx contex
 				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) = %q, want %q",
 					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
 					got.RawString(), tt.want)
+			}
+		})
+	}
+}
+
+func testBuildNestedValue(t *testing.T, ctx context.Context, deploymentID string) {
+	type args struct {
+		baseType   string
+		nestedKeys []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    interface{}
+		wantErr bool
+	}{
+		{"NestedTypeSubComplexMapOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something", "literal"}}, map[string]interface{}{
+			"nestedType": map[string]interface{}{
+				"mapofcomplex": map[string]interface{}{
+					"something": map[string]interface{}{
+						"literal": map[string]interface{}{},
+					},
+				},
+			},
+		}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildValue(ctx, deploymentID, tt.args.baseType, tt.args.nestedKeys...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("buildValue() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}

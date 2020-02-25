@@ -82,13 +82,13 @@ func TestUpdateNestedValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := updateNestedValue(tt.args.value, tt.args.nestedValue, tt.args.nestedKeys...)
+			got, err := updateValue(tt.args.value, tt.args.nestedValue, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("updateNestedValue() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("updateValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateNestedValue() = %v, want %v", got, tt.want)
+				t.Errorf("updateValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}
