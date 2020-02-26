@@ -136,23 +136,31 @@ func buildValue(ctx context.Context, deploymentID, baseDataType string, nestedKe
 	}
 
 	tmp := parent
+	var ind int
+	var nestedValue interface{}
 	for i := 0; i < len(nestedKeys); i++ {
-		dataType, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys[:i]...)
-		if err != nil {
-			return nil, err
+
+		dataType, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys[:i+1]...)
+		if err != nil || dataType == "" {
+			return parent, err
 		}
-		var nestedValue interface{}
+
 		dType := getDataTypeComplexType(dataType)
 		switch dType {
 		case "list":
-			nestedValue = make([]interface{}, 0)
+			ind, err = strconv.Atoi(nestedKeys[i+1])
+			if err != nil {
+				return nil, errors.Errorf("%q is not a valid array index", nestedKeys[i])
+			}
+			nestedValue = make([]interface{}, ind+1)
 		default:
 			nestedValue = make(map[string]interface{}, 0)
 		}
 
 		switch v := tmp.(type) {
 		case []interface{}:
-			tmp = append(v, nestedValue)
+			v[ind] = nestedValue
+			tmp = nestedValue
 		case map[string]interface{}:
 			v[nestedKeys[i]] = nestedValue
 			tmp = v[nestedKeys[i]]
@@ -162,32 +170,40 @@ func buildValue(ctx context.Context, deploymentID, baseDataType string, nestedKe
 }
 
 func updateValue(originalValue, nestedValueToUpdate interface{}, nestedKeys ...string) (interface{}, error) {
-	if len(nestedKeys) > 0 {
-		value := originalValue
-		for i := 0; i < len(nestedKeys); i++ {
-			nk := nestedKeys[i]
-			switch v := value.(type) {
-			case []interface{}:
-				ind, err := strconv.Atoi(nk)
-				// Check the slice index is valid
-				if err != nil {
-					return nil, errors.Errorf("%q is not a valid array index", nk)
-				}
+	if len(nestedKeys) == 0 {
+		return nestedValueToUpdate, nil
+	}
+
+	value := originalValue
+	for i := 0; i < len(nestedKeys); i++ {
+		nk := nestedKeys[i]
+		switch v := value.(type) {
+		case []interface{}:
+			ind, err := strconv.Atoi(nk)
+			// Check the slice index is valid
+			if err != nil {
+				return nil, errors.Errorf("%q is not a valid array index", nk)
+			}
+			if i == len(nestedKeys)-1 {
 				if ind+1 > len(v) {
-					return nil, errors.Errorf("%q: index not found", ind)
-				}
-				if i == len(nestedKeys)-1 {
+					v = append(v, nestedValueToUpdate)
+				} else {
 					v[ind] = nestedValueToUpdate
 				}
-				value = v[ind]
-			case map[string]interface{}:
-				if i == len(nestedKeys)-1 {
-					v[nk] = nestedValueToUpdate
-				}
-				value = v[nk]
+				return v, nil
 			}
+
+			if ind+1 > len(v) {
+				return nil, errors.Errorf("%q: index not found", ind)
+			}
+			value = v[ind]
+		case map[string]interface{}:
+			if i == len(nestedKeys)-1 {
+				v[nk] = nestedValueToUpdate
+				return v, nil
+			}
+			value = v[nk]
 		}
-		return originalValue, nil
 	}
-	return nestedValueToUpdate, nil
+	return originalValue, nil
 }

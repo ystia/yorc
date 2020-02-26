@@ -51,16 +51,9 @@ func testResolveAttributeMappingWithInstanceAttribute(t *testing.T, ctx context.
 	require.NoError(t, err)
 	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "mapAttr", "v2", "map2")
 	require.NoError(t, err)
-	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "complexAttr", map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"})
+	err = ResolveAttributeMapping(ctx, deploymentID, "VANode1", "0", "complexAttr", "11", "literal")
 	require.NoError(t, err)
-	err = ResolveAttributeMapping(ctx, deploymentID, "VANode2", "0", "baseComplexAttr", map[string]interface{}{
-		"nestedType": map[string]interface{}{
-			"listofstring":  []string{"VANode2L1", "VANode2L2"},
-			"subcomplex":    map[string]interface{}{"literal": 2},
-			"listofcomplex": []interface{}{map[string]interface{}{"literal": 2, "mymap": map[string]interface{}{"VANode2": 1}}, map[string]interface{}{"literal": 3, "mymap": map[string]interface{}{"VANode2": 2}}},
-			"mapofcomplex":  map[string]interface{}{"m1": map[string]interface{}{"literal": 4, "mymap": map[string]interface{}{"VANode2": 3}}},
-		},
-	})
+	err = ResolveAttributeMapping(ctx, deploymentID, "VANode2", "0", "baseComplexAttr", 3, "nestedType", "listofcomplex", "0", "mymap")
 	require.NoError(t, err)
 	type nodeAttrArgs struct {
 		nodeName      string
@@ -82,15 +75,13 @@ func testResolveAttributeMappingWithInstanceAttribute(t *testing.T, ctx context.
 		{"TestNodeAttrMapDefT3", nodeAttrArgs{"VANode1", "0", "mapDef", []string{"T3"}}, false, true, `3 GB`},
 		{"TestNodeAttrMapDefAll", nodeAttrArgs{"VANode1", "0", "mapDef", nil}, false, true, `{"T1":"4 GiB","T2":"1 TiB","T3":"3 GB"}`},
 		{"TestNodeAttrLiteral", nodeAttrArgs{"VANode1", "0", "lit", nil}, false, true, `myLiteral`},
-		{"TestNodeAttrListAll", nodeAttrArgs{"VANode1", "0", "listAttr", nil}, false, true, `["42","43","44"]`},
+		{"TestNodeAttrListAll", nodeAttrArgs{"VANode1", "0", "listAttr", nil}, false, true, `["42"]`},
 		{"TestNodeAttrListIndex0", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"0"}}, false, true, `42`},
-		{"TestNodeAttrListIndex1", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"1"}}, false, true, `43`},
-		{"TestNodeAttrListIndex2", nodeAttrArgs{"VANode1", "0", "listAttr", []string{"2"}}, false, true, `44`},
 		{"TestNodeAttrMapAll", nodeAttrArgs{"VANode1", "0", "mapAttr", nil}, false, true, `{"map2":"v2"}`},
 		{"TestNodeAttrMapKey2", nodeAttrArgs{"VANode1", "0", "mapAttr", []string{"map2"}}, false, true, `v2`},
 		{"TestAttrComplexTypeLit", nodeAttrArgs{"VANode1", "0", "complexAttr", []string{"literal"}}, false, true, `11`},
-		{"TestAttrComplexTypeLitDef", nodeAttrArgs{"VANode1", "0", "complexAttr", []string{"literalDefault"}}, false, true, `VANode1LitDef`},
-		{"TestAttrComplexTypeAll", nodeAttrArgs{"VANode1", "0", "complexAttr", nil}, false, true, `{"literal":"11","literalDefault":"VANode1LitDef"}`},
+		{"TestAttrComplexTypeLitDef", nodeAttrArgs{"VANode1", "0", "complexAttr", []string{"literalDefault"}}, false, true, `ComplexDataTypeDefault`},
+		{"TestAttrComplexTypeAll", nodeAttrArgs{"VANode1", "0", "complexAttr", nil}, false, true, `{"literal":"11","literalDefault":"ComplexDataTypeDefault"}`},
 		{"TestAttrComplexDefaultAll", nodeAttrArgs{"VANode2", "0", "complexDefAttr", nil}, false, true, `{"literal":"1","literalDefault":"ComplexDataTypeDefault"}`},
 		{"TestAttrComplexDefaultFromDT", nodeAttrArgs{"VANode2", "0", "complexDefAttr", []string{"literalDefault"}}, false, true, `ComplexDataTypeDefault`},
 		{"TestAttrComplexDTNestedListOfString", nodeAttrArgs{"VANode2", "0", "baseComplexAttr", []string{"nestedType", "listofstring"}}, false, true, `["VANode2L1","VANode2L2"]`},
@@ -270,6 +261,11 @@ func testBuildNestedValue(t *testing.T, ctx context.Context, deploymentID string
 						"literal": map[string]interface{}{},
 					},
 				},
+			},
+		}, false},
+		{"NestedTypeSubComplexMapOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "listofcomplex", "5", "mymap"}}, map[string]interface{}{
+			"nestedType": map[string]interface{}{
+				"listofcomplex": []interface{}{nil, nil, nil, nil, nil, map[string]interface{}{"mymap": map[string]interface{}{}}},
 			},
 		}, false},
 	}
