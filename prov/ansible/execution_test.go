@@ -315,6 +315,8 @@ func testExecutionGenerateOnNode(t *testing.T, deploymentID, nodeName, operation
         G4: " {{G4}}"
         INSTANCE: " {{INSTANCE}}"
 
+     - fetch: src={{ ansible_env.HOME}}/tmp/.yorc/out.csv dest=/{{ansible_host}}-out.csv flat=yes
+
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
@@ -600,6 +602,10 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, deploymentID, nodeN
         G3: " {{G3}}"
         SOURCE_INSTANCE: " {{SOURCE_INSTANCE}}"
         TARGET_INSTANCE: " {{TARGET_INSTANCE}}"
+                
+            
+     - fetch: src={{ ansible_env.HOME}}/tmp/.yorc/out.csv dest=/{{ansible_host}}-out.csv flat=yes
+
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 

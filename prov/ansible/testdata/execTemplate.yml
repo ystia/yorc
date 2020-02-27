@@ -34,6 +34,8 @@ node_types:
             A3: {get_property: [SELF, empty]}
             A4: {get_property: [SELF, optionalEmpty]}
           implementation: /tmp/create.sh
+          outputs:
+            OUTPUT1: [ SELF, my_attribute1 ]
   yorc.types.B:
     derived_from: tosca.nodes.SoftwareComponent
     capabilities:
@@ -58,6 +60,8 @@ relationship_types:
             A1: {get_property: [SOURCE, document_root]}
             A2: {get_attribute: [TARGET, ip_address]}
           implementation: /tmp/add_source.sh
+          outputs:
+            OUTPUT2: [ SOURCE, my_attribute2 ]
 
 capability_types:
   yorc.types.Cap:
