@@ -7,6 +7,7 @@ metadata:
 
 imports:
   - tosca-normative-types: <normative-types.yml>
+  - yorc-types: <yorc-types.yml>
 
 node_types:
   yorc.types.A:
@@ -105,6 +106,27 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     ComputeA:
-      type: tosca.nodes.Compute
+      type: yorc.nodes.Compute
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: "testdata/mykey.pem"
+              user: myuser
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
     ComputeB:
-      type: tosca.nodes.Compute
+      type: yorc.nodes.Compute
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: myuser
+              token: mytoken
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
