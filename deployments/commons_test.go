@@ -60,36 +60,3 @@ func testReadComplexVA(t *testing.T) {
 		})
 	}
 }
-
-func TestUpdateNestedValue(t *testing.T) {
-
-	type args struct {
-		value       interface{}
-		nestedValue interface{}
-		nestedKeys  []string
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    interface{}
-		wantErr bool
-	}{
-		{"ComplexSlice", args{[]interface{}{map[string]interface{}{"literal": 2, "mymap": map[string]interface{}{"VANode2": 1}}, map[string]interface{}{"literal": 3, "mymap": map[string]interface{}{"VANode2": 2}}}, 5, []string{"0", "literal"}}, []interface{}{map[string]interface{}{"literal": 5, "mymap": map[string]interface{}{"VANode2": 1}}, map[string]interface{}{"literal": 3, "mymap": map[string]interface{}{"VANode2": 2}}}, false},
-		{"SimpleValue", args{"myvalue", "myvalueUp", nil}, "myvalueUp", false},
-		{"SimpleMap", args{map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"}, "VANode1LitDefUp", []string{"literalDefault"}}, map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDefUp"}, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := updateValue(tt.args.value, tt.args.nestedValue, tt.args.nestedKeys...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("updateValue() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateValue() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}

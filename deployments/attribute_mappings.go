@@ -71,14 +71,14 @@ func resolveInstanceAttributeMapping(ctx context.Context, deploymentID, nodeName
 			return err
 		}
 
-		// Build value from scratch
-		value, err = buildValue(ctx, deploymentID, attrDataType, nestedKeys...)
+		// Build complex value from scratch
+		value, err = buildComplexValue(ctx, deploymentID, attrDataType, nestedKeys...)
 		if err != nil {
 			return err
 		}
 	}
 
-	updated, err := updateValue(value, attributeValue, nestedKeys...)
+	updated, err := updateComplexValue(value, attributeValue, nestedKeys...)
 	if err != nil {
 		return err
 	}
@@ -112,47 +112,57 @@ func resolveCapabilityAttributeMapping(ctx context.Context, deploymentID, nodeNa
 			return err
 		}
 
-		value, err = buildValue(ctx, deploymentID, attrDataType, nestedKeys...)
+		value, err = buildComplexValue(ctx, deploymentID, attrDataType, nestedKeys...)
 		if err != nil {
 			return err
 		}
 	}
 
-	updated, err := updateValue(value, attributeValue, nestedKeys...)
+	updated, err := updateComplexValue(value, attributeValue, nestedKeys...)
 	if err != nil {
 		return err
 	}
 	return SetInstanceCapabilityAttributeComplex(ctx, deploymentID, nodeName, instanceName, capabilityName, attributeName, updated)
 }
 
-func buildValue(ctx context.Context, deploymentID, baseDataType string, nestedKeys ...string) (interface{}, error) {
-	var parent interface{}
+func buildComplexValue(ctx context.Context, deploymentID, baseDataType string, nestedKeys ...string) (interface{}, error) {
+	if len(nestedKeys) == 0 {
+		return nil, errors.Errorf("missing nested keys for building complex value for deploymentID:%q, base data type:%q", deploymentID, baseDataType)
+	}
+	var complexVal interface{}
 	dType := getDataTypeComplexType(baseDataType)
 	switch dType {
 	case "list":
-		parent = make([]interface{}, 0)
+		ind, err := strconv.Atoi(nestedKeys[0])
+		if err != nil {
+			return nil, errors.Errorf("%q is not a valid array index", nestedKeys[0])
+		}
+		complexVal = makeSlice("", ind+1)
 	default:
-		parent = make(map[string]interface{}, 0)
+		complexVal = make(map[string]interface{}, 0)
 	}
 
-	tmp := parent
+	tmp := complexVal
 	var ind int
 	var nestedValue interface{}
 	for i := 0; i < len(nestedKeys); i++ {
 
 		dataType, err := GetNestedDataType(ctx, deploymentID, baseDataType, nestedKeys[:i+1]...)
 		if err != nil || dataType == "" {
-			return parent, err
+			return complexVal, err
+		}
+		if dataType == "string" || dataType == "integer" {
+			continue
 		}
 
-		dType := getDataTypeComplexType(dataType)
+		dType = getDataTypeComplexType(dataType)
 		switch dType {
 		case "list":
 			ind, err = strconv.Atoi(nestedKeys[i+1])
 			if err != nil {
 				return nil, errors.Errorf("%q is not a valid array index", nestedKeys[i])
 			}
-			nestedValue = make([]interface{}, ind+1)
+			nestedValue = makeSlice("", ind+1)
 		default:
 			nestedValue = make(map[string]interface{}, 0)
 		}
@@ -166,44 +176,52 @@ func buildValue(ctx context.Context, deploymentID, baseDataType string, nestedKe
 			tmp = v[nestedKeys[i]]
 		}
 	}
-	return parent, nil
+	return complexVal, nil
 }
 
-func updateValue(originalValue, nestedValueToUpdate interface{}, nestedKeys ...string) (interface{}, error) {
+func makeSlice(def interface{}, size int) []interface{} {
+	s := make([]interface{}, size)
+	for i := 0; i < len(s); i++ {
+		s[i] = def
+	}
+	return s
+}
+
+func updateComplexValue(complexValue, nestedValueToUpdate interface{}, nestedKeys ...string) (interface{}, error) {
 	if len(nestedKeys) == 0 {
 		return nestedValueToUpdate, nil
 	}
 
-	value := originalValue
+	tmp := complexValue
 	for i := 0; i < len(nestedKeys); i++ {
 		nk := nestedKeys[i]
-		switch v := value.(type) {
+		switch v := tmp.(type) {
 		case []interface{}:
 			ind, err := strconv.Atoi(nk)
 			// Check the slice index is valid
 			if err != nil {
 				return nil, errors.Errorf("%q is not a valid array index", nk)
 			}
-			if i == len(nestedKeys)-1 {
-				if ind+1 > len(v) {
-					v = append(v, nestedValueToUpdate)
-				} else {
-					v[ind] = nestedValueToUpdate
-				}
-				return v, nil
-			}
-
 			if ind+1 > len(v) {
 				return nil, errors.Errorf("%q: index not found", ind)
 			}
-			value = v[ind]
-		case map[string]interface{}:
-			if i == len(nestedKeys)-1 {
-				v[nk] = nestedValueToUpdate
-				return v, nil
+
+			if i != len(nestedKeys)-1 {
+				tmp = v[ind]
+				continue
 			}
-			value = v[nk]
+
+			// set the value
+			v[ind] = nestedValueToUpdate
+		case map[string]interface{}:
+			if i != len(nestedKeys)-1 {
+				tmp = v[nk]
+				continue
+			}
+
+			// set the value
+			v[nk] = nestedValueToUpdate
 		}
 	}
-	return originalValue, nil
+	return complexValue, nil
 }
