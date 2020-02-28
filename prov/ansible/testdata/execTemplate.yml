@@ -54,6 +54,7 @@ relationship_types:
           inputs:
             A1: {get_property: [SOURCE, document_root]}
             A2: {get_attribute: [TARGET, ip_address]}
+            OO: {get_operation_output: [SELF, Configure, add_source, my_output]}
           implementation: /tmp/pre_configure_source.sh
         add_source:
           inputs:

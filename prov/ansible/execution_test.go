@@ -354,7 +354,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, 
 
 	err = execution.resolveInputs(ctx)
 	require.Nil(t, err, "%+v", err)
-	require.Len(t, execution.EnvInputs, 13)
+	require.Len(t, execution.EnvInputs, 16)
 	instanceNames := make(map[string]struct{})
 	for _, envInput := range execution.EnvInputs {
 		instanceNames[envInput.InstanceName+"_"+envInput.Name] = struct{}{}
@@ -391,11 +391,13 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, deploymentID, 
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
+		case "OO":
+			require.Equal(t, "", envInput.Value)
 		default:
 			require.Fail(t, "Unexpected input name: ", envInput.Name)
 		}
 	}
-	require.Len(t, instanceNames, 13)
+	require.Len(t, instanceNames, 16)
 }
 
 func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeName, operation, requirementName, operationHost string) {
@@ -436,6 +438,12 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeN
         NodeA_2_G2: "/var/www"
         NodeB_0_G3: "10.10.10.10"
         NodeB_1_G3: "10.10.10.11"
+		NodeA_0_OO: ""
+
+		NodeA_1_OO: ""
+
+		NodeA_2_OO: ""
+
         DEPLOYMENT_ID: "` + deploymentID + `"
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
@@ -460,6 +468,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, deploymentID, nodeN
         G1: " {{G1}}"
         G2: " {{G2}}"
         G3: " {{G3}}"
+    	OO: " {{OO}}"
         SOURCE_INSTANCE: " {{SOURCE_INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
