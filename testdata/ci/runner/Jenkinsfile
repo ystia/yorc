@@ -377,13 +377,6 @@ spec:
                                         cucumber 'testdata/ci/reports/tests-godog.json'
 
                                     }
-                                    success {
-                                        echo 'Test successful'
-                                    }
-                                    failure {
-                                        echo 'Test failures'
-                                        emailext body: '${DEFAULT_CONTENT}', mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: '${DEFAULT_SUBJECT}', to: '$DEFAULT_RECIPIENTS'
-                                    }
                                 }
                             }
                             stage('Generate HTML reports') {
@@ -447,6 +440,13 @@ spec:
                                         ./yorc bootstrap cleanup
                                     """
                                 }
+                            }
+
+                            unsuccessful {
+                                emailext attachLog: true, compressLog: true, body: '${DEFAULT_CONTENT}', mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: '${DEFAULT_SUBJECT}', recipientProviders: [culprits(), developers(), requestor(), brokenBuildSuspects(), brokenTestsSuspects(), upstreamDevelopers()], to: '$DEFAULT_RECIPIENTS'
+                            }
+                            fixed {
+                                emailext attachLog: true, compressLog: true, body: '${DEFAULT_CONTENT}', mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: '${DEFAULT_SUBJECT}', recipientProviders: [culprits(), developers(), requestor(), brokenBuildSuspects(), brokenTestsSuspects(), upstreamDevelopers()], to: '$DEFAULT_RECIPIENTS'
                             }
                         }
                     }
