@@ -2,6 +2,7 @@ pipeline {
     agent none
     options {
         skipDefaultCheckout true
+        lock('yorc-ci-hostspool')
     }
     parameters {
         choice(name: 'INFRA_FILTER', choices: ['all', 'openstack', 'gcp', 'hp'], description: 'Run on specific infrastructure (all by default)')
@@ -87,6 +88,8 @@ spec:
       value: "/tmp/buildhome"
     - name: "XDG_CACHE_HOME"
       value: "/tmp/.cache"
+    - name: "GOPROXY"
+      value: ""
 """
                 }
             }
@@ -151,6 +154,9 @@ spec:
     command:
     - cat
     tty: true
+    env:
+    - name: "GOPROXY"
+      value: ""
 """
                     }
                 }
@@ -345,6 +351,7 @@ spec:
                                             sh("""#!/usr/bin/env bash
                                                 set -x
                                                 set -eo pipefail
+                                                unset GOPROXY
                                                 mkdir -p reports
                                                 alien_url=\$(cat ./runner/bootstrap-alienurl.txt)
                                                 export ALIEN4CLOUD_URL="\${alien_url}"
