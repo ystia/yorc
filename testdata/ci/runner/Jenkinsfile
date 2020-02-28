@@ -22,14 +22,15 @@ pipeline {
             steps {
 
                 script {
-                    env.PREMIUM=false
+                    env.PREMIUM="false"
                     def scmUrl = scm.getUserRemoteConfigs()[0].getUrl()
+                    println("scmUrl: " + scmUrl)
                     if (!scmUrl.startsWith("https://github.com/") || params.PREMIUM) {
                         println("Building a premium version")
-                        env.PREMIUM=true
+                        env.PREMIUM="true"
                     }
 
-                    if (env.PREMIUM) {
+                    if (env.PREMIUM == "true") {
                         env.BUILD_TAGS="premium"
                     } else {
                         env.BUILD_TAGS=""
@@ -47,7 +48,7 @@ pipeline {
 
 
                     def godog_tags = "@CI"
-                    if (!env.PREMIUM) {
+                    if (env.PREMIUM != "true") {
                         godog_tags += " && ~@premium"
                     }
                     if (!params.NIGHTLY) {
