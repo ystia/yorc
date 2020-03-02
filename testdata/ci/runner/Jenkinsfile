@@ -103,9 +103,12 @@ spec:
                     make tools
                     SKIP_TESTS=1 BUILD_TAGS="${env.BUILD_TAGS}" make
                     tar czvf yorc.tgz yorc
+                    echo "Yorc version:"
+                    ./yorc version | tee yorc_version.txt
                     """
                 )
                 stash includes: 'yorc.tgz', name: 'yorc-bin'
+                archiveArtifacts artifacts: 'yorc_version.txt', fingerprint: true
             }
         }
         stage('Upload Yorc bin to GCP Storage') {
@@ -455,4 +458,3 @@ spec:
         }
     }
 }
-
