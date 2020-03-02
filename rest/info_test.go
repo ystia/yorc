@@ -34,7 +34,7 @@ func TestGetInfoHandler(t *testing.T) {
 			status, http.StatusOK)
 	}
 
-	expected := "{\"YorcVersion\":\"Must Be defined by MakeFile\",\"GitCommit\":\"Must Be defined by MakeFile\"}\n"
+	expected := "{\"yorc_version\":\"Must Be defined by MakeFile\",\"git_commit\":\"Must Be defined by MakeFile\"}\n"
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned unexpected body: got %q want %q",
 			rr.Body.String(), expected)
