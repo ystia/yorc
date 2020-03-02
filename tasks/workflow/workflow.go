@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -224,4 +225,20 @@ func checkByPassErrors(t *taskExecution, wfName string) (bool, error) {
 		return false, errors.Wrapf(err, "failed to parse \"continueOnError\" flag for workflow:%q", wfName)
 	}
 	return bypassErrors, nil
+}
+
+func storeWorkflowOutputs(ctx context.Context, deploymentID, taskID, workflowName string) error {
+	outputs, err := deployments.ResolveWorkflowOutputs(ctx, deploymentID, workflowName)
+	if err != nil {
+		return err
+	}
+
+	for outputName, outputValue := range outputs {
+		err = tasks.SetTaskData(taskID, path.Join("outputs", outputName), outputValue.RawString())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -1,0 +1,174 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: Test
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+  - test_output_types.yaml
+
+topology_template:
+  inputs:
+    pi_decimal:
+      type: integer
+      default: 6
+      description: "nb of decimal digit required for PI"
+  node_templates:
+    VirtualMachine:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      capabilities:
+        endpoint:
+          properties:
+            credentials: 
+              keys: 
+                0: "/var/yorc/.ssh/yorc.pem"
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            num_cpus: 2
+            disk_size: "40 GB"
+            mem_size: "4 GB"
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    ComputePIComponent:
+      type: org.ystia.yorc.samples.ComputePIComponentType
+      interfaces:
+        custom:
+          inputs:
+            decimal: {get_input: pi_decimal}
+          compute_pi:
+            implementation:
+              type: ystia.yorc.tests.artifacts.Implementation.Custom
+              file: compute_pi
+      requirements:
+        - hostedOnVirtualMachineHost:
+            type_requirement: host
+            node: VirtualMachine
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+  workflows:
+    compute_pi:
+      outputs:
+        pi:
+          description: The PI number calculation result
+          value: { get_attribute: [ ComputePIComponent, result ] }
+      steps:
+        ComputePIComponent_compute_pi:
+          target: ComputePIComponent
+          activities:
+            - call_operation: custom.compute_pi
+    install:
+      steps:
+        VirtualMachine_install:
+          target: VirtualMachine
+          activities:
+            - delegate: install
+          on_success:
+            - ComputePIComponent_initial
+        ComputePIComponent_creating:
+          target: ComputePIComponent
+          activities:
+            - set_state: creating
+          on_success:
+            - ComputePIComponent_create
+        ComputePIComponent_started:
+          target: ComputePIComponent
+          activities:
+            - set_state: started
+        ComputePIComponent_created:
+          target: ComputePIComponent
+          activities:
+            - set_state: created
+          on_success:
+            - ComputePIComponent_starting
+        ComputePIComponent_starting:
+          target: ComputePIComponent
+          activities:
+            - set_state: starting
+          on_success:
+            - ComputePIComponent_start
+        ComputePIComponent_start:
+          target: ComputePIComponent
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - ComputePIComponent_started
+        ComputePIComponent_create:
+          target: ComputePIComponent
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - ComputePIComponent_created
+        ComputePIComponent_initial:
+          target: ComputePIComponent
+          activities:
+            - set_state: initial
+          on_success:
+            - ComputePIComponent_creating
+    uninstall:
+      steps:
+        ComputePIComponent_deleted:
+          target: ComputePIComponent
+          activities:
+            - set_state: deleted
+          on_success:
+            - VirtualMachine_uninstall
+        ComputePIComponent_deleting:
+          target: ComputePIComponent
+          activities:
+            - set_state: deleting
+          on_success:
+            - ComputePIComponent_deleted
+        VirtualMachine_uninstall:
+          target: VirtualMachine
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        ComputePIComponent_starting:
+          target: ComputePIComponent
+          activities:
+            - set_state: starting
+          on_success:
+            - ComputePIComponent_start
+        VirtualMachine_start:
+          target: VirtualMachine
+          activities:
+            - delegate: start
+          on_success:
+            - ComputePIComponent_starting
+        ComputePIComponent_start:
+          target: ComputePIComponent
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - ComputePIComponent_started
+        ComputePIComponent_started:
+          target: ComputePIComponent
+          activities:
+            - set_state: started
+    stop:
+      steps:
+        VirtualMachine_stop:
+          target: VirtualMachine
+          activities:
+            - delegate: stop
+    run:
+    cancel:

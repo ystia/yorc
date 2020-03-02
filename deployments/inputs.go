@@ -41,7 +41,7 @@ func GetInputValue(ctx context.Context, inputs map[string]tosca.ParameterDefinit
 		}
 	}
 
-	dataType := getTopologyInputOrOutputTypeFromParamDefinition(ctx, paramDef)
+	dataType := getTypeFromParamDefinition(ctx, paramDef)
 	// Check first value
 	result, err := getValueAssignment(ctx, deploymentID, "", "", "", dataType, paramDef.Value, nestedKeys...)
 	if err != nil {

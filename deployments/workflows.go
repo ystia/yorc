@@ -119,3 +119,32 @@ func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 	}
 	return nil
 }
+
+// ResolveWorkflowOutputs allows to resolve workflow outputs
+func ResolveWorkflowOutputs(ctx context.Context, deploymentID, workflowName string) (map[string]*TOSCAValue, error) {
+	wf, err := GetWorkflow(ctx, deploymentID, workflowName)
+	if err != nil {
+		return nil, err
+	}
+
+	outputs := make(map[string]*TOSCAValue)
+	for outputName, outputDef := range wf.Outputs {
+		dataType := getTypeFromParamDefinition(ctx, &outputDef)
+
+		res, err := getValueAssignment(ctx, deploymentID, "", "0", "", dataType, outputDef.Value)
+		if err != nil {
+			return nil, err
+		}
+		// otherwise check the default
+		if res == nil {
+			res, err = getValueAssignment(ctx, deploymentID, "", "0", "", dataType, outputDef.Default)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		outputs[outputName] = res
+	}
+
+	return outputs, nil
+}

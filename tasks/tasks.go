@@ -302,6 +302,24 @@ func GetTaskInput(taskID, inputName string) (string, error) {
 	return GetTaskData(taskID, path.Join("inputs", inputName))
 }
 
+// GetTaskInput retrieves a specified output with name outputName for tasks
+func GetTaskOutput(taskID, outputName string) (string, error) {
+	return GetTaskData(taskID, path.Join("outputs", outputName))
+}
+
+// GetTaskInput retrieves all outputs for tasks
+func GetTaskOutputs(taskID string) (map[string]string, error) {
+	outputs := make(map[string]string)
+	kvs, err := consulutil.List(path.Join(consulutil.TasksPrefix, taskID, "data", "outputs") + "/")
+	if err != nil {
+		return nil, err
+	}
+	for outputName, outputValue := range kvs {
+		outputs[path.Base(outputName)] = string(outputValue)
+	}
+	return outputs, nil
+}
+
 // GetTaskData retrieves data for tasks
 func GetTaskData(taskID, dataName string) (string, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "data", dataName))

@@ -552,6 +552,12 @@ func (w *worker) makeWorkflowFinalFunction(ctx context.Context, deploymentID, ta
 		if taskStatus != tasks.TaskStatusDONE {
 			wfStatus = failureWfStatus
 		}
+
+		err = storeWorkflowOutputs(ctx, deploymentID, taskID, wfName)
+		if err != nil {
+			return err
+		}
+
 		return deployments.SetDeploymentStatus(ctx, deploymentID, wfStatus)
 	}
 }
@@ -755,6 +761,11 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 
 		if parentWorkflow != "" {
 			err = updateParentWorkflowStepAndRegisterNextSteps(ctx, t, parentWorkflow, taskStatus)
+		}
+
+		err = storeWorkflowOutputs(ctx, t.targetID, t.taskID, wfName)
+		if err != nil {
+			return err
 		}
 
 		return err

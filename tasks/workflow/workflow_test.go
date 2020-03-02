@@ -66,7 +66,10 @@ func (m *mockExecutor) ExecOperation(ctx context.Context, conf config.Configurat
 	if nodeName == "GreetingsComponent" {
 		m.envInputs, m.varInputs, err = operations.ResolveInputs(ctx, deploymentID, nodeName, taskID, operation)
 		m.executionInputs = operation.Inputs
+	} else if nodeName == "ComputePIComponent" {
+		deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, "0", "result", "3.141592")
 	}
+
 	return err
 }
 func (m *mockExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
@@ -427,4 +430,66 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 			}
 		})
 	}
+}
+
+func testWorkflowOutputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+	ctx := context.Background()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, "testdata/test_topo_workflow_outputs.yaml")
+	require.NoError(t, err, "Failed to store deployment definition")
+
+	mockExecutor := &mockExecutor{}
+	registry.GetRegistry().RegisterDelegates([]string{"org.ystia.yorc.samples.ComputePIComponentType"}, mockExecutor, "tests")
+	registry.GetRegistry().RegisterOperationExecutor([]string{"ystia.yorc.tests.artifacts.Implementation.Custom"}, mockExecutor, "tests")
+
+	taskID := "task_test_outputs"
+	workflowName := "compute_pi"
+	stepName := "ComputePIComponent_compute_pi"
+
+	outputName := "pi"
+	// Preparing test environment
+	mockExecutor.callOpsCalled = false
+	mockExecutor.errorsCallOps = false
+	mockExecutor.delegateCalled = false
+	mockExecutor.errorsDelegate = false
+
+	// Adding task inputs
+	inputName := "decimal"
+	inputValue := "6"
+	dataInput := path.Join("inputs", inputName)
+	// Add an input to the task
+	err = tasks.SetTaskData(taskID, dataInput, inputValue)
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", workflowName)
+	err = tasks.SetTaskData(taskID, taskDataWorkflowName, workflowName)
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", workflowName)
+	err = tasks.SetTaskData(taskID, "continueOnError", "false")
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", workflowName)
+
+	taskExec := &taskExecution{id: "taskExec", taskID: taskID, targetID: deploymentID, cc: cc}
+	testWorker := &worker{
+		consulClient: cc,
+		cfg: config.Configuration{
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+	taskExec.step = stepName
+	srv1.SetKV(t, path.Join(consulutil.TasksPrefix, taskID, "status"), []byte("0"))
+	err = testWorker.runCustomWorkflow(ctx, taskExec, workflowName)
+	require.NoError(t, err, "Failed to run workflow %s", workflowName)
+	require.True(t, mockExecutor.callOpsCalled, "Expected an operation to be executed, when running workflow %s")
+	err = taskExec.finalFunction()
+	require.NoError(t, err, "Failed to execute final function of task execution for workflow %s", workflowName)
+	taskStatus, err := tasks.GetTaskStatus(taskID)
+	require.NoError(t, err, "Failed to get task status")
+	require.Equal(t, tasks.TaskStatusDONE.String(), taskStatus.String(), "Wrong status for task")
+
+	res, err := tasks.GetTaskOutput(taskID, outputName)
+	require.NoError(t, err, "Failed to get task output:%q", outputName)
+	require.Equal(t, "3.141592", res, "Wrong output for %q", outputName)
+
+	outputs, err := tasks.GetTaskOutputs(taskID)
+	require.NoError(t, err, "Failed to get task outputs")
+	require.Len(t, outputs, 1, "expected one output")
+	require.Equal(t, outputs[outputName], "3.141592")
+
 }
