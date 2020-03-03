@@ -81,7 +81,7 @@ for n in names:
 		environ[n]=val
 	gVar[n]=val
 
-names=[ [[[range $eidx, $ei := .EnvInputs]]][[[if ($eidx) gt 0]]], [[[end]]]"[[[if gt (len $ei.InstanceName) 0]]][[[printf "%s_" $ei.InstanceName]]][[[end]]][[[$ei.Name]]]"[[[end]]] ]
+names=[ [[[range $eidx, $ei := .EnvInputs]]][[[if gt ($eidx) 0]]], [[[end]]]"[[[if gt (len $ei.InstanceName) 0]]][[[printf "%s_" $ei.InstanceName]]][[[end]]][[[$ei.Name]]]"[[[end]]] ]
 names.extend([ [[[qJoinKeys .Artifacts]]] ])
 names.extend([ [[[qJoinKeys .Context]]] ])
 for n in names:
