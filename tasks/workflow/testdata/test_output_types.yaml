@@ -9,6 +9,8 @@ metadata:
 node_types:
   org.ystia.yorc.samples.ComputePIComponentType:
     description: "Sample component to compute PI"
+    tags:
+      icon: /images/python.png
     derived_from: tosca.nodes.SoftwareComponent
     attributes:
       result:
@@ -17,11 +19,10 @@ node_types:
     interfaces:
       custom:
         inputs:
-          decimal:
-            type: integer
-        outputs:
-          result: [SELF, result]
+          decimal: {get_input: pi_decimal}
         compute_pi:
+          outputs:
+            result: [SELF, result]
           implementation:
             type: ystia.yorc.tests.artifacts.Implementation.Custom
             file: compute_pi

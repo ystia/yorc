@@ -162,3 +162,12 @@ func getDataTypeComplexType(dataType string) string {
 	}
 	return tType
 }
+
+func isPrimitiveDataType(dataType string) bool {
+	switch dataType {
+	case "string", "integer", "float", "boolean", "timestamp":
+		return true
+	default:
+		return false
+	}
+}

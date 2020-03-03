@@ -151,7 +151,7 @@ func buildComplexValue(ctx context.Context, deploymentID, baseDataType string, n
 		if err != nil || dataType == "" {
 			return complexVal, err
 		}
-		if dataType == "string" || dataType == "integer" {
+		if isPrimitiveDataType(dataType) {
 			continue
 		}
 

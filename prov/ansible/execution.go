@@ -1133,7 +1133,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 						nodeName := data[1]
 						instanceName := data[2]
 						attributeOrCapabilityName := data[3]
-						if err = deployments.ResolveAttributeMapping(ctx, e.deploymentID, nodeName, instanceName, attributeOrCapabilityName, line[1], data[3:]...); err != nil {
+						var parameters []string
+						if len(data) > 3 {
+							parameters = data[4:]
+						}
+						if err = deployments.ResolveAttributeMapping(ctx, e.deploymentID, nodeName, instanceName, attributeOrCapabilityName, line[1], parameters...); err != nil {
 							return err
 						}
 					} else {
