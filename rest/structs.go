@@ -331,6 +331,6 @@ type RegistryInfraUsageCollectorsCollection struct {
 
 // Info are the infos about the current YORC server
 type Info struct {
-	YorcVersion string
-	GitCommit   string
+	YorcVersion string `json:"yorc_version"`
+	GitCommit   string `json:"git_commit"`
 }

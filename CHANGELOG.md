@@ -9,6 +9,7 @@
 ### BUG FIXES
 
 * Yorc Bootstrap doesn't uninstall yorc binary ([GH-605](https://github.com/ystia/yorc/issues/605))
+* Document server info REST API endpoint and change returned JSON to comply to our standards ([GH-609](https://github.com/ystia/yorc/issues/609))
 
 ## 4.0.0-M9 (February 14, 2020)
 

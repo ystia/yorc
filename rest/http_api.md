@@ -764,11 +764,39 @@ Content-Type: application/json
   }
 }
 ```
-## Health
 
-### Get the Yorc service health
+## Server related endpoints
 
-This request si made by Consul to check the Yorc service is alive
+These endpoints are related to the queried Yorc server instance.
+
+### Get the Yorc server info
+
+This request return static information about the server. For now it only contains versions information.
+`yorc_version` field contains a [semantic versioning](https://semver.org/spec/v2.0.0.html) version number,
+while `git_commit` contains the git `sha1` of the server version.
+`yorc_version` may contain an option `build identifier` for specific builds like Yorc premium (see below for a sample).
+
+'Accept' header should be set to 'application/json'.
+
+`GET /server/info`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+
+```json
+{
+  "yorc_version": "4.0.0-M10+premium",
+  "git_commit": "4572679f61f102088a8fe431fa88fd7f75dd9c1a"
+}
+```
+
+### Get the Yorc server health
+
+This endpoint is typically used by Consul to check the Yorc service is alive.
 
 'Accept' header should be set to 'application/json'.
 
@@ -1296,7 +1324,7 @@ Content-Type: application/json
 
 ### List locations
 
-List all the existent location definitions. 
+List all the existent location definitions.
 
 'Content-Type' header should be set to 'application/json'.
 
@@ -1323,7 +1351,7 @@ Content-Type: application/json
 
 ### Get location
 
-Get an existent location's definitions. 
+Get an existent location's definitions.
 
 'Content-Type' header should be set to 'application/json'.
 
