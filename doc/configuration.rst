@@ -1133,7 +1133,7 @@ Different artifacts (topologies, logs, events, tasks...) are stored by Yorc duri
 
 Previously, everything was stored in Consul KV. 
 Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
-Yorc can now stores the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
+Yorc can now store the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
 
 If defined, the ``storage`` entry may specify the following properties:
  * the ``stores`` property allows to customize storage in a different way than the default one.
@@ -1166,10 +1166,12 @@ Yorc supports 3 store ``implementations``:
 
 By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
 
-If you want to change properties for the default ``fileCache`` store for ``Deployment``, you have to set the new properties in the ``default_properties`` map.
-The properties ``cache_num_counters``  and  ``cache_max_cost`` can be used to determine the cache size in function of the expected number of items.
+If these default settings correspond to your needs, the Yorc configuration file does not need to have a ``storage`` entry.
+
+If you want to change properties for the default ``fileCache`` store for ``Deployment``, you have to set the new values in the ``default_properties`` map.
+The ``cache_num_counters`` and ``cache_max_cost`` properties can be used to determine the cache size in function of the expected number of items.
 The default values are defined for about 100 deployments if we approximate a cache size of 100 K and 100 items for one single deployment.
-See `Default cache size for file storage is too large  <https://github.com/ystia/yorc/issues/612>`_
+See `Default cache size for file storage is too large  <https://github.com/ystia/yorc/issues/612>`_.
 
 Pay attention that the cache size must be defined in function of the Yorc host memory resources and a too large cache size can affect performances.
 
@@ -1210,9 +1212,9 @@ A store configuration is defined with:
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``migrate_data_from_consul``     | Log and Event data migration from consul. See note below.        | bool      | no               | false           |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
-| ``implementation``               | Store implementation. See the list below.                        | string    | yes              |                 |
+| ``implementation``               | Store implementation. See Store implementations below.           | string    | yes              |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
-| ``types``                        | Store types handled by this instance. See the list below.        | array     | yes              |                 |
+| ``types``                        | Store types handled by this instance. See Store types below.     | array     | yes              |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
