@@ -1135,8 +1135,10 @@ Previously, everything was stored in Consul KV.
 Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
 Yorc can now stores the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
 
-If defined, the ``storage`` entry may specify a ``reset`` property and a ``stores`` property that contains the different store definitions.
-The ``reset`` property allows to redefine the stores when Yorc re-starts with a modified storage configuration.
+If defined, the ``storage`` entry may specify the following properties:
+ * the ``stores`` property allows to customize storage in a different way than the default one.
+ * the ``default_properties`` allows to change properties settings for the default fileCache store.
+ * The ``reset`` property allows to redefine the stores or to change properties for default stores when Yorc re-starts. If no set to true, the existing storage is used.
 
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                |                          Description                             | Data Type |   Required       | Default         |
@@ -1144,7 +1146,7 @@ The ``reset`` property allows to redefine the stores when Yorc re-starts with a 
 +==================================+==================================================================+===========+==================+=================+
 | ``reset``                        | See :ref:`Storage reset note <storage_reset_note>`               | boolean   | no               |   False         |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
-| ``default_properties``           | Default properties for default fileCache store.                  |           |                  |                 |
+| ``default_properties``           | Properties for default fileCache store.                          |           |                  |                 |
 |                                  | See :ref:`File cache properties <storage_file_cache_props>`      | map       | no               |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``stores``                       | Stores configuration                                             | array     | no               | See Store types |
@@ -1152,13 +1154,21 @@ The ``reset`` property allows to redefine the stores when Yorc re-starts with a 
 
 So now, users can configure different store types for storing the different kind of artifacts, and using different stores implementations.
 
-Currently Yorc supports 3 store types: ``Deployment``, ``Log`` and ``Event``. 
-Yorc also supports 3 store implementations: ``consul``, ``fileCache`` and ``cipherFileCache``.
+Currently Yorc supports 3 store ``types``:
+  * ``Deployment``
+  * ``Log``
+  * ``Event``
+
+Yorc supports 3 store ``implementations``:
+  * ``consul``
+  * ``fileCache``
+  * ``cipherFileCache``
+
 By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
 
-If you want to change default properties for the default ``fileCache`` store for ``Deployment``, you have to set the new properties in the ``default_properties`` map.
+If you want to change properties for the default ``fileCache`` store for ``Deployment``, you have to set the new properties in the ``default_properties`` map.
 The properties ``cache_num_counters``  and  ``cache_max_cost`` can be used to determine the cache size in function of the expected number of items.
-The default values are defined for about 100 deployments.
+The default values are defined for about 100 deployments if we approximate a cache size of 100 K and 100 items for one single deployment.
 See `Default cache size for file storage is too large  <https://github.com/ystia/yorc/issues/612>`_
 
 Pay attention that the cache size must be defined in function of the Yorc host memory resources and a too large cache size can affect performances.
