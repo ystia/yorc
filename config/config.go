@@ -197,8 +197,9 @@ type Dispatcher struct {
 
 // Storage configuration
 type Storage struct {
-	Reset  bool    `yaml:"reset,omitempty" json:"reset,omitempty" mapstructure:"reset"`
-	Stores []Store `yaml:"stores,omitempty" json:"stores,omitempty" mapstructure:"stores"`
+	Reset             bool       `yaml:"reset,omitempty" json:"reset,omitempty" mapstructure:"reset"`
+	Stores            []Store    `yaml:"stores,omitempty" json:"stores,omitempty" mapstructure:"stores"`
+	DefaultProperties DynamicMap `yaml:"default_properties,omitempty" json:"default_properties,omitempty" mapstructure:"default_properties"`
 }
 
 // Store configuration

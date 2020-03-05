@@ -100,20 +100,23 @@ func (s *fileStore) initCache() error {
 	// Set Cache config
 	numCounters := s.properties.GetInt64("cache_num_counters")
 	if numCounters == 0 {
-		numCounters = 1e7
+		// 100 000
+		numCounters = 1e5
 	}
 	maxCost := s.properties.GetInt64("cache_max_cost")
 	if maxCost == 0 {
-		maxCost = 1 << 30
+		// 10 MB
+		maxCost = 1e7
 	}
 	bufferItems := s.properties.GetInt64("cache_buffer_items")
 	if bufferItems == 0 {
 		bufferItems = 64
 	}
 
+	log.Printf("Instantiate new cache with numCounters:%d, maxCost:%d, bufferItems: %d", numCounters, maxCost, bufferItems)
 	s.cache, err = ristretto.NewCache(&ristretto.Config{
-		NumCounters: numCounters, // number of keys to track frequency of (10M).
-		MaxCost:     maxCost,     // maximum cost of cache (1GB).
+		NumCounters: numCounters, // number of keys to track frequency
+		MaxCost:     maxCost,     // maximum cost of cache
 		BufferItems: bufferItems, // number of keys per Get buffer.
 	})
 	return err
