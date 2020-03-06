@@ -50,7 +50,7 @@ func getLocationInfo(client httputil.HTTPClient, args []string) error {
 
 	locationTable := tabutil.NewTable()
 	locationTable.AddHeaders("Name", "Type", "Properties")
-	addRow(locationTable, false, locationShow, locConfig)
+	displayLocationInfo(locationTable, locConfig.Name, locConfig.Type, locConfig.Properties)
 	fmt.Println(locationTable.Render())
 	return nil
 }
