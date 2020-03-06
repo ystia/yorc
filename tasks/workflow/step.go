@@ -376,7 +376,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 		}
 	case builder.ActivityTypeInline:
 		// Register inline workflow associated to the original task
-		return s.registerInlineWorkflow(wfCtx, deploymentID, activity.Value())
+		return s.registerInlineWorkflow(wfCtx, deploymentID, activity)
 	}
 	return nil
 }
@@ -503,8 +503,10 @@ func addTopologyInputs(ctx context.Context, deploymentID string, result map[stri
 	return err
 }
 
-func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflowName string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
+func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID string, activity builder.Activity) error {
+	workflowName := activity.Value()
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(
+		fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
 
 	// Preparing a new task with its own data referencing the parent workflow step
 	parentData, err := tasks.GetAllTaskData(s.t.taskID)
@@ -520,6 +522,22 @@ func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflo
 	data[taskDataParentTaskID] = s.t.taskID
 	data[taskDataDeploymentID] = deploymentID
 	data[taskDataWorkflowName] = workflowName
+
+	// Add workflow input parameters if any
+	inputParameters, err := s.getActivityInputParameters(ctx, activity, deploymentID, workflowName)
+	if err != nil {
+		return err
+	}
+	for inputName, param := range inputParameters {
+		inputValue := param.Value
+		if inputValue == nil {
+			inputValue = param.Default
+		}
+		if inputValue != nil {
+			log.Debugf("Adding to inline workflow %s input %s value %s", workflowName, inputName, inputValue.String())
+			data[path.Join("inputs", inputName)] = fmt.Sprintf("%v", inputValue)
+		}
+	}
 
 	taskID, err := collector.NewCollector(s.cc).RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
 	if err != nil {

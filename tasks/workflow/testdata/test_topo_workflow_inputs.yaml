@@ -91,6 +91,15 @@ topology_template:
             - call_operation: custom.say_hello
           on_success:
             - GreetingsComponent_say_goodbye
+    inline_wf:
+      steps:
+        inline_step:
+          target: GreetingsComponent
+          activities:
+            - inline:
+                workflow: greet
+                inputs:
+                  user: inlineUser
     install:
       steps:
         VirtualMachine_install:

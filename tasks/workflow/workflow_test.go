@@ -67,7 +67,7 @@ func (m *mockExecutor) ExecOperation(ctx context.Context, conf config.Configurat
 		m.envInputs, m.varInputs, err = operations.ResolveInputs(ctx, deploymentID, nodeName, taskID, operation)
 		m.executionInputs = operation.Inputs
 	} else if nodeName == "ComputePIComponent" {
-		deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, "0", "result", "3.141592")
+		err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, "0", "result", "3.141592")
 	}
 
 	return err
@@ -344,6 +344,7 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 		workflowName   string
 		workflowInputs map[string]string
 		stepName       string
+		isInline       bool
 	}
 	tests := []struct {
 		name                        string
@@ -352,19 +353,26 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 		expectedOperationInputValue map[string]string
 	}{
 		{"TestMissingWorkflowInput",
-			args{"greet", nil, "GreetingsComponent_say_hello"},
+			args{"greet", nil, "GreetingsComponent_say_hello", false},
 			true,
 			nil},
 		{"TestWorkflowInput",
 			// user in a workflow input whose value will be added in task inputs
-			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_hello"},
+			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_hello", false},
 			false,
 			// greetings_user is defined  as {get_input user}
 			// hello_msg is defined in the topology inputs
 			map[string]string{"greetings_user": "YorcUser", "hello_msg": "Hello"}},
+		{"TestInlineWorkflowInput",
+			// No worfklow input here, inputs are provided in the workflow activity
+			args{"inline_wf", map[string]string{}, "inline_step", true},
+			false,
+			// greetings_user is defined in activity inputs
+			// hello_msg is defined in the topology inputs
+			map[string]string{"user": "inlineUser", "hello_msg": "Hello"}},
 		{"TestActivityInput",
 			// user in a workflow input whose value will be added in task inputs
-			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_goodbye"},
+			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_goodbye", false},
 			false,
 			// greetings_user is assigned in activity inputs, its should take precedence over the task input
 			// goodbye_msg is defined in activity inputs
@@ -407,26 +415,51 @@ func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 
 			require.NoError(t, err, "Failed running step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
 
-			require.Equal(t, true, mockExecutor.callOpsCalled, "Expected an operation to be called running step %s", tt.args.stepName)
+			if tt.args.isInline {
+				// Check a new task was created for the inline step
+				tasksIDs, err := tasks.GetQueryTaskIDs(tasks.TaskTypeCustomWorkflow, "", "")
+				require.NoError(t, err, "Failed to get tasks of type custom workflow")
+				taskIDFound := false
+				var taskData map[string]string
+				for _, tid := range tasksIDs {
 
-			for iName, iValue := range tt.args.workflowInputs {
-				inputParam, found := mockExecutor.executionInputs[iName]
-				require.Equal(t, true, found, "Missing input parameter %s in operation execution context", iName)
-				require.Equal(t, iValue, inputParam.Value.GetLiteral(), "Wrong value for input parameter %s in operation execution context", iName)
-			}
-
-			require.NotNil(t, mockExecutor.envInputs, "Expected to get operation environment inputs")
-			for iName, iValue := range tt.expectedOperationInputValue {
-				var expectedEnvInput *operations.EnvInput
-				for _, envInput := range mockExecutor.envInputs {
-					if envInput.Name == iName {
-						expectedEnvInput = envInput
+					taskData, err = tasks.GetAllTaskData(tid)
+					require.NoError(t, err, "Failed to get task data")
+					if taskData[taskDataParentWorkflowName] == tt.args.workflowName {
+						taskIDFound = true
 						break
 					}
 				}
-				require.NotNil(t, expectedEnvInput, "No env input in operation execution context for operation input %s: %+v", iName, mockExecutor.envInputs)
-				assert.Equal(t, iValue, expectedEnvInput.Value, "Wrong value in operation execution context for operation input %s", iName)
+				require.True(t, taskIDFound, "No child task found for workflow %s", tt.args.workflowName)
 
+				// Check expected inputs in task data
+				for iName, iValue := range tt.expectedOperationInputValue {
+					expectedInputName := path.Join("inputs", iName)
+					assert.Equal(t, iValue, taskData[expectedInputName],
+						"Expected value %s for input %s not found in child task for inline workflow : %+v",
+						iValue, iName, taskData)
+				}
+
+			} else {
+				require.Equal(t, true, mockExecutor.callOpsCalled, "Expected an operation to be called running step %s", tt.args.stepName)
+
+				for iName, iValue := range tt.args.workflowInputs {
+					inputParam, found := mockExecutor.executionInputs[iName]
+					require.Equal(t, true, found, "Missing input parameter %s in operation execution context", iName)
+					require.Equal(t, iValue, inputParam.Value.GetLiteral(), "Wrong value for input parameter %s in operation execution context", iName)
+				}
+				for iName, iValue := range tt.expectedOperationInputValue {
+					var expectedEnvInput *operations.EnvInput
+					for _, envInput := range mockExecutor.envInputs {
+						if envInput.Name == iName {
+							expectedEnvInput = envInput
+							break
+						}
+					}
+					require.NotNil(t, expectedEnvInput, "No env input in operation execution context for operation input %s: %+v", iName, mockExecutor.envInputs)
+					assert.Equal(t, iValue, expectedEnvInput.Value, "Wrong value in operation execution context for operation input %s", iName)
+
+				}
 			}
 		})
 	}
