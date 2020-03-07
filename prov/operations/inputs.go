@@ -76,7 +76,7 @@ func ResolveInputsWithInstances(ctx context.Context, deploymentID, nodeName, tas
 	}
 
 	for _, input := range inputKeys {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name, input)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, nodeName, operation.ImplementedInType, operation.Name, input)
 		if err != nil {
 			return nil, nil, err
 		}

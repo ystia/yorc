@@ -134,7 +134,7 @@ func (s *Server) getInputNameFromCustom(ctx context.Context, deploymentID, nodeN
 
 	result := inputs[:0]
 	for _, inputName := range inputs {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name, inputName)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, nodeName, op.ImplementedInType, op.Name, inputName)
 		if err != nil {
 			return nil, err
 		}
