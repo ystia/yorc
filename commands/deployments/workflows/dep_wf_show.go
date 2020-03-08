@@ -19,9 +19,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v4/commands/deployments"
 	"github.com/ystia/yorc/v4/commands/httputil"
@@ -68,6 +70,12 @@ func init() {
 				httputil.ErrExit(err)
 			}
 			fmt.Printf("Workflow %s:\n", workflowName)
+			if len(wf.Inputs) > 0 {
+				fmt.Println("  Inputs:")
+				val, _ := yaml.Marshal(wf.Inputs)
+				indentedVal := strings.Replace(string(val), "\n", "\n    ", -1)
+				fmt.Printf("    %s\n", strings.TrimRight(indentedVal, " \n"))
+			}
 			for stepName, step := range wf.Steps {
 				fmt.Printf("  Step %s:\n", stepName)
 				if step.Target != "" {
@@ -93,6 +101,18 @@ func init() {
 					for _, next := range step.OnSuccess {
 						fmt.Println("      -", next)
 					}
+				}
+			}
+			if len(wf.Outputs) > 0 {
+				fmt.Println("  Outputs:")
+			}
+			for outputName, outputVal := range wf.Outputs {
+				fmt.Printf("    %s:\n", outputName)
+				if outputVal.Description != "" {
+					fmt.Printf("      description: %s\n", outputVal.Description)
+				}
+				if outputVal.Type != "" {
+					fmt.Printf("      type: %s\n", outputVal.Type)
 				}
 			}
 			return nil

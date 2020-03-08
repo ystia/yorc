@@ -297,7 +297,6 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	if err != nil {
 		return ctx, err
 	}
-	// TODO define custom command input parameters
 	op, err := operations.GetOperation(ctx, t.targetID, nodeName, interfaceName+"."+commandName, "", "", nil)
 	if err != nil {
 		err = setNodeStatus(ctx, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())

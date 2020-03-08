@@ -554,8 +554,6 @@ func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID string, 
 	// Marking this step as asynchronous as it should not be considered as
 	// done by the caller
 	s.Async = true
-	// No final function as here the workflow is not done
-	s.t.finalFunction = nil
 	return err
 }
 

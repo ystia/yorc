@@ -53,11 +53,6 @@ topology_template:
         custom:
           inputs:
             greetings_user: {get_input: user}
-#          say_goodbye:
-#            goodbye_msg:  toBeOverriden
-#            implementation:
-#              type: ystia.yorc.tests.artifacts.Implementation.Custom
-#              file: say_goodbye
           say_hello:
             inputs:
               hello_msg:  {get_input: hello_msg}
