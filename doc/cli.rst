@@ -254,10 +254,11 @@ Show a human readable textual representation of a given TOSCA workflow defined i
 Flags:
   * ``-w``, ``--workflow-name``: The workflow name (**mandatory**)
 
+
 When used with flag ``-w`` or ``--workflow-name``, the command will show:
   * the worflow input parameters, if any
   * the workflow steps
-  * the workflow output parameters, if any
+  * the workflow output values, if any
 
 Generate a graphical representation of a workflow on a given deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -300,7 +301,7 @@ no instances selected for the other nodes, and workflow input parameters key1 an
 
 This command returns the ID of a task created by Yorc to execute this workflow.
 You can then use the following command to get the status of this task,
-and workflow output parameters if any:
+and workflow output values if any:
 
 .. code-block:: bash
 
