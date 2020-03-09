@@ -242,6 +242,37 @@ Lists workflows defined in a deployment <DeploymentId>.
 
      yorc deployments workflows list <DeploymentId> [flags]
 
+Show a workflow on a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Show a human readable textual representation of a given TOSCA workflow defined in deployment <DeploymentId>.
+
+.. code-block:: bash
+
+     yorc deployments workflows show <DeploymentId> [flags]
+
+Flags:
+  * ``-w``, ``--workflow-name``: The workflow name (**mandatory**)
+
+When used with flag ``-w`` or ``--workflow-name``, the command will show:
+  * the worflow input parameters, if any
+  * the workflow steps
+  * the workflow output parameters, if any
+
+Generate a graphical representation of a workflow on a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot 
+command provided by GraphViz:
+
+.. code-block:: bash
+
+     yorc deployments workflows graph <DeploymentId> [flags]| dot -Tpng > graph.png 
+
+Flags:
+  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+  * ``--horizontal``: Draw graph with an horizontal layout. (layout is vertical by default)
+
 Execute a workflow on a given deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -258,41 +289,22 @@ Flags:
   * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
   * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
 
-Example using ``--data`` flag with instances selection:
+Example using ``--data`` flag with instances selection and workflow input parameters:
 
-Trigger execution of workflow <workflowName> with instance "1" selected for node "node1", and no instances selected for the other nodes.
+Trigger the execution of workflow <workflowName> with instance "1" selected for node "node1",
+no instances selected for the other nodes, and workflow input parameters key1 and key2.
 
 .. code-block:: bash
 
      yorc deployments workflows execute deployID -w workflowName --data '{ "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }],"inputs":{"key1":["value1","value2"],"key2":"value3"}}'
 
-Show a workflow on a given deployment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Show a human readable textual representation of a given TOSCA workflow defined in deployment <DeploymentId>.
-
-.. code-block:: bash
-
-     yorc deployments workflows show <DeploymentId> [flags]
-
-Flags:
-  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
-
-Generate a graphical representation of a workflow on a given deployment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot 
-command provided by GraphViz:
-
-
+This command returns the ID of a task created by Yorc to execute this workflow.
+You can then use the following command to get the status of this task,
+and workflow output parameters if any:
 
 .. code-block:: bash
 
-     yorc deployments workflows graph <DeploymentId> [flags]| dot -Tpng > graph.png 
-
-Flags:
-  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
-  * ``--horizontal``: Draw graph with an horizontal layout. (layout is vertical by default)
+     yorc deployments task info deployID taskId
 
 .. _yorc_cli_locations_section:
 
