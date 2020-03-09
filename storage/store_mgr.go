@@ -42,6 +42,20 @@ const fileStoreWithCacheImpl = "fileCache"
 
 const fileStoreWithCacheAndEncryptionImpl = "cipherFileCache"
 
+const defaultRelativeRootDir = "store"
+
+const defaultBlockingQueryTimeout = "5m0s"
+
+// Default num counters for file cache (100 000)
+// NumCounters is the number of 4-bit access counters to keep for admission and eviction
+// We've seen good performance in setting this to 10x the number of items you expect to keep in the cache when full.
+const defaultCacheNumCounters = "1e5"
+
+// MaxCost can be used to denote the max size in bytes
+const defaultCacheMaxCost = "1e7"
+
+const defaultCacheBufferItems = "64"
+
 var once resync.Once
 
 // stores implementations provided with GetStore(types.StoreType)
@@ -50,14 +64,40 @@ var stores map[types.StoreType]store.Store
 // default config stores loaded at init
 var defaultConfigStores map[string]config.Store
 
-func init() {
-	defaultConfigStores = make(map[string]config.Store, 0)
+func completePropertiesWithDefault(cfg config.Configuration, props config.DynamicMap) config.DynamicMap {
+	complete := config.DynamicMap{}
 
+	for k, v := range props {
+		complete[k] = v
+	}
+	// Complete properties with string values as it's stored in Consul KV
+	if !complete.IsSet("root_dir") {
+		complete["root_dir"] = path.Join(cfg.WorkingDirectory, defaultRelativeRootDir)
+	}
+	if !complete.IsSet("blocking_query_default_timeout") {
+		complete["blocking_query_default_timeout"] = defaultBlockingQueryTimeout
+	}
+	if !complete.IsSet("cache_num_counters") {
+		complete["cache_num_counters"] = defaultCacheNumCounters
+	}
+	if !complete.IsSet("cache_max_cost") {
+		complete["cache_max_cost"] = defaultCacheMaxCost
+	}
+	if !complete.IsSet("cache_buffer_items") {
+		complete["cache_buffer_items"] = defaultCacheBufferItems
+	}
+	return complete
+}
+
+func initDefaultConfigStores(cfg config.Configuration) {
+	defaultConfigStores = make(map[string]config.Store, 0)
+	props := completePropertiesWithDefault(cfg, cfg.Storage.DefaultProperties)
 	// File with cache store for deployments
 	fileStoreWithCache := config.Store{
 		Name:           "defaultFileStoreWithCache",
 		Implementation: fileStoreWithCacheImpl,
 		Types:          []string{types.StoreTypeDeployment.String()},
+		Properties:     props,
 	}
 	defaultConfigStores[fileStoreWithCache.Name] = fileStoreWithCache
 
@@ -193,8 +233,11 @@ func clearConfigStore() error {
 	return consulutil.Delete(consulutil.StoresPrefix, true)
 }
 
-// Build default config stores if no custom config provided
-func buildDefaultConfigStores() []config.Store {
+func getDefaultConfigStores(cfg config.Configuration) []config.Store {
+	if defaultConfigStores == nil {
+		initDefaultConfigStores(cfg)
+	}
+
 	return []config.Store{
 		defaultConfigStores["defaultFileStoreWithCache"],
 		defaultConfigStores["defaultConsulStore"],
@@ -202,7 +245,11 @@ func buildDefaultConfigStores() []config.Store {
 }
 
 // Build default config stores for missing one of specified type
-func buildDefaultConfigStore(storeTypeName string) config.Store {
+func getDefaultConfigStore(cfg config.Configuration, storeTypeName string) config.Store {
+	if defaultConfigStores == nil {
+		initDefaultConfigStores(cfg)
+	}
+
 	var defaultStore config.Store
 	switch storeTypeName {
 	case types.StoreTypeDeployment.String():
@@ -229,7 +276,7 @@ func storeExists(stores []config.Store, name string) bool {
 // If any store type is missing, a related default config store is added
 func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error) {
 	if cfg.Storage.Stores == nil {
-		return buildDefaultConfigStores(), nil
+		return getDefaultConfigStores(cfg), nil
 	}
 
 	cfgStores := make([]config.Store, 0)
@@ -253,6 +300,13 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 		if collections.ContainsString(checkStoreNames, cfgStore.Name) {
 			return nil, errors.Errorf("At least, 2 different stores have the same name:%q", cfgStore.Name)
 		}
+
+		// Complete store properties with default for fileCache implementation
+		if cfgStore.Implementation == fileStoreWithCacheAndEncryptionImpl || cfgStore.Implementation == fileStoreWithCacheImpl {
+			props := completePropertiesWithDefault(cfg, cfgStore.Properties)
+			cfgStore.Properties = props
+		}
+
 		checkStoreNames = append(checkStoreNames, cfgStore.Name)
 
 		// Prepare store types check
@@ -277,7 +331,7 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 		name := strings.ToLower(storeTypeName)
 		if !collections.ContainsString(checkStoreTypes, name) {
 			log.Printf("Default config store will be used for store type:%q.", storeTypeName)
-			cfgStores = append(cfgStores, buildDefaultConfigStore(storeTypeName))
+			cfgStores = append(cfgStores, getDefaultConfigStore(cfg, storeTypeName))
 		}
 	}
 	return cfgStores, nil
@@ -316,7 +370,7 @@ func migrateData(storeName string, storeType types.StoreType, storeImpl store.St
 	}
 	kvps, _, err := consulutil.GetKV().List(rootPath, nil)
 	if err != nil {
-		errors.Wrapf(err, "failed to migrate data from Consul for root path:%q in store with name:%q", rootPath, storeName)
+		return errors.Wrapf(err, "failed to migrate data from Consul for root path:%q in store with name:%q", rootPath, storeName)
 	}
 	if kvps == nil || len(kvps) == 0 {
 		return nil
@@ -333,7 +387,7 @@ func migrateData(storeName string, storeType types.StoreType, storeImpl store.St
 	}
 	err = storeImpl.SetCollection(context.Background(), keyValues)
 	if err != nil {
-		errors.Wrapf(err, "failed to migrate data from Consul for root path:%q in store with name:%q", rootPath, storeName)
+		return errors.Wrapf(err, "failed to migrate data from Consul for root path:%q in store with name:%q", rootPath, storeName)
 	}
 
 	return consulutil.Delete(rootPath, true)
