@@ -4,6 +4,7 @@
 
 ### FEATURES
 
+* Support TOSCA 1.3 inputs/outputs for workflows ([GH-556](https://github.com/ystia/yorc/issues/556))
 * Add a consumable resources concept to the Hosts Pool ([GH-205](https://github.com/ystia/yorc/issues/205))
 
 ### BUG FIXES
