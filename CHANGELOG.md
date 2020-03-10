@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 4.0.0-M10 (March 10, 2020)
 
 ### FEATURES
 
