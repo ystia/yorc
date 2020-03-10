@@ -69,7 +69,7 @@ func testLoadStoresWithNoStorageConfig(t *testing.T, srv1 *testutil.TestServer, 
 	require.NotNil(t, MapStores)
 	require.Len(t, MapStores, 2)
 
-	defaultStores := buildDefaultConfigStores()
+	defaultStores := getDefaultConfigStores(cfg)
 	require.NotNil(t, defaultStores)
 	require.Len(t, defaultStores, 2)
 
@@ -77,11 +77,15 @@ func testLoadStoresWithNoStorageConfig(t *testing.T, srv1 *testutil.TestServer, 
 		key := path.Base(k)
 		switch key {
 		case "defaultConsulStore":
-			if reflect.DeepEqual(v, defaultStores[1]) {
+			s := new(config.Store)
+			err = json.Unmarshal(v, s)
+			if !reflect.DeepEqual(*s, defaultStores[1]) {
 				t.Errorf("LoadStores() = %v, want %v", v, defaultStores[1])
 			}
 		case "defaultFileStoreWithCache":
-			if reflect.DeepEqual(v, defaultStores[0]) {
+			s := new(config.Store)
+			err = json.Unmarshal(v, s)
+			if !reflect.DeepEqual(*s, defaultStores[0]) {
 				t.Errorf("LoadStores() = %v, want %v", v, defaultStores[0])
 			}
 		default:
@@ -151,7 +155,7 @@ func testLoadStoresWithPartialStorageConfig(t *testing.T, srv1 *testutil.TestSer
 	require.NotNil(t, MapStores)
 	require.Len(t, MapStores, 2)
 
-	defaultStores := buildDefaultConfigStores()
+	defaultStores := getDefaultConfigStores(cfg)
 	require.NotNil(t, defaultStores)
 	require.Len(t, defaultStores, 2)
 
@@ -159,12 +163,24 @@ func testLoadStoresWithPartialStorageConfig(t *testing.T, srv1 *testutil.TestSer
 		key := path.Base(k)
 		switch key {
 		case "myPersonalStore":
-			if reflect.DeepEqual(v, myStore) {
-				t.Errorf("LoadStores() = %v, want %v", v, myStore)
-			}
+			s := new(config.Store)
+			err = json.Unmarshal(v, s)
+			require.NoError(t, err)
+
+			require.Equal(t, myStore.Implementation, s.Implementation)
+			require.Equal(t, myStore.Name, s.Name)
+			require.Equal(t, myStore.MigrateDataFromConsul, s.MigrateDataFromConsul)
+			require.Equal(t, myStore.Types, s.Types)
+			require.Equal(t, myStore.Properties["passphrase"], s.Properties["passphrase"])
+			require.Equal(t, path.Join(cfg.WorkingDirectory, defaultRelativeRootDir), s.Properties["root_dir"])
+			require.Equal(t, defaultCacheNumCounters, s.Properties["cache_num_counters"])
+			require.Equal(t, defaultCacheMaxCost, s.Properties["cache_max_cost"])
+			require.Equal(t, defaultCacheBufferItems, s.Properties["cache_buffer_items"])
 		case "defaultFileStoreWithCache":
-			if reflect.DeepEqual(v, defaultStores[0]) {
-				t.Errorf("LoadStores() = %v, want %v", v, defaultStores[0])
+			s := new(config.Store)
+			err = json.Unmarshal(v, s)
+			if !reflect.DeepEqual(*s, defaultStores[0]) {
+				t.Errorf("LoadStores() = %v, want %v", *s, defaultStores[0])
 			}
 		default:
 			t.Errorf("unexpected key:%q", key)

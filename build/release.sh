@@ -1,19 +1,19 @@
-#!/usr/bin/env bash 
+#!/usr/bin/env bash
 # Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #      http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -x
+#set -x
 set -e
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -72,7 +72,7 @@ fi
 branch=$(echo ${branch} | sed -e "s@^.*/\(release/.*\)@\1@")
 echo "Switching to branch ${branch}..."
 releaseBranch=${branch}
-git checkout ${branch} 
+git checkout ${branch}
 
 if [[ -e versions.yaml ]]; then
     # Check that current version is lower than the release version
@@ -80,8 +80,11 @@ if [[ -e versions.yaml ]]; then
     # Change -SNAPSHOT into -0 for comparaison as a snapshot is never revelant
     checkVers=$(echo ${currentVersion} | sed -e "s/-SNAPSHOT/-0/")
     if [[ "True" != "$(python -c "import semantic_version; print  semantic_version.Version('${version}') >= semantic_version.Version('${checkVers}')" )" ]]; then
-        echo "Can't release version ${version} on top of branch ${branch} as its current version is ${currentVersion}" >&2
-        exit 1
+        echo "Warning: releasing version ${version} on top of branch ${branch} while its current version is ${currentVersion}" >&2
+        read -p "Are you sure? [y/N]" CONFIRM
+        if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]] ; then
+            exit 1
+        fi
     fi
 fi
 
@@ -92,8 +95,11 @@ branchTag=$(git describe --abbrev=0 --tags ${branch}) || {
 branchTag=$(echo $branchTag | sed -e 's/^v\(.*\)$/\1/')
 
 if [[ "True" != "$(python -c "import semantic_version; print  semantic_version.Version('${version}') > semantic_version.Version('${branchTag}')" )" ]]; then
-    echo "Can't release version ${version} on top of branch ${branch} as it contains a newer tag: ${branchTag}" >&2
-    exit 1
+    echo "Warning: releasing version ${version} on top of branch ${branch} while it contains a newer tag: ${branchTag}" >&2
+    read -p "Are you sure? [y/N]" CONFIRM
+    if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]] ; then
+        exit 1
+    fi
 fi
 
 if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
@@ -129,7 +135,7 @@ cherries+=("$(git log -1 --pretty=format:"%h")")
 if [[ -e versions.yaml ]]; then
     # Update version
     nextDevelopmentVersion=""
-    if [[ -z "${prerelease}" ]]; then 
+    if [[ -z "${prerelease}" ]]; then
         # We are releasing a final version
         nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print v.next_patch()" )
         nextDevelopmentVersion="${nextDevelopmentVersion}-SNAPSHOT"
@@ -150,7 +156,7 @@ if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
     if [[ ${#cherries[@]} -gt 0 ]] ; then
         git cherry-pick ${cherries[@]}
     fi
-    
+
     if [[ -e versions.yaml ]]; then
         # Update version
         nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print v.next_minor()" )

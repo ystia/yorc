@@ -1133,10 +1133,12 @@ Different artifacts (topologies, logs, events, tasks...) are stored by Yorc duri
 
 Previously, everything was stored in Consul KV. 
 Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
-Yorc can now stores the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
+Yorc can now store the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
 
-If defined, the ``storage`` entry may specify a ``reset`` property and a ``stores`` property that contains the different store definitions.
-The ``reset`` property allows to redefine the stores when Yorc re-starts with a modified storage configuration.
+If defined, the ``storage`` entry may specify the following properties:
+ * the ``stores`` property allows to customize storage in a different way than the default one.
+ * the ``default_properties`` allows to change properties settings for the default fileCache store.
+ * The ``reset`` property allows to redefine the stores or to change properties for default stores when Yorc re-starts. If no set to true, the existing storage is used.
 
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                |                          Description                             | Data Type |   Required       | Default         |
@@ -1144,14 +1146,61 @@ The ``reset`` property allows to redefine the stores when Yorc re-starts with a 
 +==================================+==================================================================+===========+==================+=================+
 | ``reset``                        | See :ref:`Storage reset note <storage_reset_note>`               | boolean   | no               |   False         |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
+| ``default_properties``           | Properties for default fileCache store.                          |           |                  |                 |
+|                                  | See :ref:`File cache properties <storage_file_cache_props>`      | map       | no               |                 |
++----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``stores``                       | Stores configuration                                             | array     | no               | See Store types |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
 So now, users can configure different store types for storing the different kind of artifacts, and using different stores implementations.
 
-Currently Yorc supports 3 store types: ``Deployment``, ``Log`` and ``Event``. 
-Yorc also supports 3 store implementations: ``consul``, ``fileCache`` and ``cipherFileCache``.
+Currently Yorc supports 3 store ``types``:
+  * ``Deployment``
+  * ``Log``
+  * ``Event``
+
+Yorc supports 3 store ``implementations``:
+  * ``consul``
+  * ``fileCache``
+  * ``cipherFileCache``
+
 By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
+
+If these default settings correspond to your needs, the Yorc configuration file does not need to have a ``storage`` entry.
+
+If you want to change properties for the default ``fileCache`` store for ``Deployment``, you have to set the new values in the ``default_properties`` map.
+The ``cache_num_counters`` and ``cache_max_cost`` properties can be used to determine the cache size in function of the expected number of items.
+The default values are defined for about 100 deployments if we approximate a cache size of 100 K and 100 items for one single deployment.
+See `Default cache size for file storage is too large  <https://github.com/ystia/yorc/issues/612>`_.
+
+Pay attention that the cache size must be defined in function of the Yorc host memory resources and a too large cache size can affect performances.
+
+
+Here is a JSON example of updating default properties for cache used in ``fileCache`` store for ``Deployment``:
+
+.. code-block:: JSON
+
+  {
+  "storage": {
+    "reset": true,
+    "default_properties":
+    {
+      "cache_num_counters": 1e7,
+      "cache_max_cost": 1e9
+    }
+   }
+  }
+
+The same sample in YAML
+
+.. code-block:: YAML
+
+    storage:
+      reset: true
+      default_properties:
+        cache_num_counters: 1e7
+        cache_max_cost: 1e9
+
 
 A store configuration is defined with:
 
@@ -1163,15 +1212,15 @@ A store configuration is defined with:
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``migrate_data_from_consul``     | Log and Event data migration from consul. See note below.        | bool      | no               | false           |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
-| ``implementation``               | Store implementation. See the list below.                        | string    | yes              |                 |
+| ``implementation``               | Store implementation. See Store implementations below.           | string    | yes              |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
-| ``types``                        | Store types handled by this instance. See the list below.        | array     | yes              |                 |
+| ``types``                        | Store types handled by this instance. See Store types below.     | array     | yes              |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 | ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
 ``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation. 
-This is usefull when a new store is configured (different from consul...) for logs or events.
+This is useful when a new store is configured (different from consul...) for logs or events.
 
 
 Store types
@@ -1216,14 +1265,16 @@ This is a file store with a cache system.
 
 Here are specific properties for this implementation:
 
+.. _storage_file_cache_props:
+
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                   |           Description                              | Data Type |   Required       | Default         |
 +=====================================+====================================================+===========+==================+=================+
 | ``root_dir``                        | Root directory used for file storage               | string    | no               |   work/store    |
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e7 (10 M)    |
+| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e5 (100 000) |
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |  1 << 30 (1 GB) |
+| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |   1e7 (10 M)    |
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
