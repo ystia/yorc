@@ -53,22 +53,22 @@ func listLocations(client httputil.HTTPClient) error {
 	locationsTable := tabutil.NewTable()
 	locationsTable.AddHeaders("Name", "Type", "Properties")
 	for _, locConfig := range locsConfig.Locations {
-		displayLocationInfo(locationsTable, locConfig.Name, locConfig.Type, locConfig.Properties)
+		displayLocationInfo(locationsTable, locConfig.Name, locConfig.Type, locConfig.Properties, false, 0)
 	}
 	fmt.Println("Locations:")
 	fmt.Println(locationsTable.Render())
 	return nil
 }
 
-func displayLocationInfo(table tabutil.Table, locationName, locationType string, properties config.DynamicMap) {
+func displayLocationInfo(table tabutil.Table, locationName, locationType string, properties config.DynamicMap, colorize bool, operation int) {
 	propKeys := properties.Keys()
 	for i := 0; i < len(propKeys); i++ {
 		propValue := properties.Get(propKeys[i])
-		displayProperties(table, locationName, locationType, i, propKeys[i], propValue, 0)
+		displayProperties(table, locationName, locationType, i, propKeys[i], propValue, 0, colorize, operation)
 	}
 }
 
-func displayRow(table tabutil.Table, locationName, locationType string, index int, propKey string, propValue interface{}, nbTabs int) {
+func displayRow(table tabutil.Table, locationName, locationType string, index int, propKey string, propValue interface{}, nbTabs int, colorize bool, operation int) {
 	value := fmt.Sprintf("%v", propValue)
 	var str string
 
@@ -84,33 +84,33 @@ func displayRow(table tabutil.Table, locationName, locationType string, index in
 	}
 
 	if index == 0 {
-		table.AddRow(locationName, locationType, str)
+		table.AddRow(getColoredText(colorize, locationName, operation), getColoredText(colorize, locationType, operation), getColoredText(colorize, str, operation))
 	} else {
-		table.AddRow("", "", str)
+		table.AddRow("", "", getColoredText(colorize, str, operation))
 	}
 }
 
-func displayProperties(table tabutil.Table, locationName, locationType string, index int, propKey string, propValue interface{}, nbTabs int) {
+func displayProperties(table tabutil.Table, locationName, locationType string, index int, propKey string, propValue interface{}, nbTabs int, colorize bool, operation int) {
 	switch v := propValue.(type) {
 	case []interface{}:
-		displayRow(table, locationName, locationType, index, propKey, "", nbTabs)
+		displayRow(table, locationName, locationType, index, propKey, "", nbTabs, colorize, operation)
 		index++
 		nbTabs++
 		for i := 0; i < len(v); i++ {
-			displayProperties(table, locationName, locationType, index, "", v[i], nbTabs)
+			displayProperties(table, locationName, locationType, index, "", v[i], nbTabs, colorize, operation)
 		}
 	case map[string]interface{}:
 		if propKey != "" {
-			displayRow(table, locationName, locationType, index, propKey, "", nbTabs)
+			displayRow(table, locationName, locationType, index, propKey, "", nbTabs, colorize, operation)
 			nbTabs++
 		}
 		index++
 
 		for k, val := range v {
-			displayProperties(table, locationName, locationType, index, k, val, nbTabs)
+			displayProperties(table, locationName, locationType, index, k, val, nbTabs, colorize, operation)
 		}
 	default:
-		displayRow(table, locationName, locationType, index, propKey, propValue, nbTabs)
+		displayRow(table, locationName, locationType, index, propKey, propValue, nbTabs, colorize, operation)
 	}
 }
 

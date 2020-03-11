@@ -223,10 +223,10 @@ func amendLocationsMap(newLocationsMap, updateLocationsMap, deleteLocationsMap m
 func presentLocationsMap(locationsMap map[string]rest.LocationConfiguration, colorize bool, op int) {
 	if len(locationsMap) > 0 {
 		locationsTable := tabutil.NewTable()
-		locationsTable.AddHeaders("Name", "Type", "Properties")
 		for _, locConfig := range locationsMap {
-			addRow(locationsTable, colorize, op, locConfig)
+			displayLocationInfo(locationsTable, locConfig.Name, locConfig.Type, locConfig.Properties, colorize, op)
 		}
+
 		fmt.Printf("\n- Locations to %s:", opNames[op])
 		fmt.Println("")
 		fmt.Println(locationsTable.Render())
