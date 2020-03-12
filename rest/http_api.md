@@ -715,6 +715,12 @@ Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
 
+This endpoint will fail with an error "400 Bad Request" if:
+
+* a node specified in request body does not exist
+* an instance specified in request body does not exist
+* no value is provided in request body for a required workflow input parameter.
+
 ### List workflows <a name="list-workflows></a>
 
 Retrieves the list of workflows for a given deployment. 'Accept' header should be set to 'application/json'.

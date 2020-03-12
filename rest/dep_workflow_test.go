@@ -38,15 +38,28 @@ func testExecuteWorkflow(t *testing.T, client *api.Client, srv *testutil.TestSer
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		request WorkflowRequest
-		wantErr bool
+		name                 string
+		request              WorkflowRequest
+		wantErr              bool
+		wantStatus           int
+		wantLocationLength   int
+		expectedErrorMessage string
 	}{
 		{"execWithInput",
 			WorkflowRequest{
 				Inputs: map[string]interface{}{
 					"param1": "value1"}},
-			false},
+			false,
+			http.StatusCreated,
+			1,
+			""},
+		{"execWithoutInput",
+			WorkflowRequest{
+				Inputs: map[string]interface{}{}},
+			false,
+			http.StatusBadRequest,
+			0,
+			"Missing value for required workflow input"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,16 +73,23 @@ func testExecuteWorkflow(t *testing.T, client *api.Client, srv *testutil.TestSer
 			req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 			resp := newTestHTTPRouter(client, req)
 			require.NotNil(t, resp, "unexpected nil response")
-			_, err = ioutil.ReadAll(resp.Body)
+			body, err = ioutil.ReadAll(resp.Body)
 			if (err != nil) != tt.wantErr {
 				// t.Errorf("%s error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				t.Errorf("%s error = %v, wantErr %s", tt.name, err, string(body))
 				return
 			}
-			require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+			require.Equal(t, tt.wantStatus, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
 
-			require.Equal(t, 1, len(resp.Header["Location"]), "unexpected len(resp.Header[\"Location\"] equal to 1")
+			require.Equal(t, tt.wantLocationLength, len(resp.Header["Location"]), "unexpected len(resp.Header[\"Location\"] equal to 1")
 
+			if tt.expectedErrorMessage != "" {
+				var errorsFound Errors
+				err = json.Unmarshal(body, &errorsFound)
+				require.NoError(t, err, "unexpected error unmarshalling json body")
+				require.Equal(t, 1, len(errorsFound.Errors), "Unexpected number of errors found")
+				require.Contains(t, errorsFound.Errors[0].Error(), tt.expectedErrorMessage, "Unexpected error message")
+			}
 		})
 	}
 }
