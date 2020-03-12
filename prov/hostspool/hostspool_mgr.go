@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"reflect"
 	"strconv"
@@ -73,8 +74,8 @@ type Manager interface {
 type SSHClientFactory func(config *ssh.ClientConfig, conn Connection) sshutil.Client
 
 // NewManager creates a Manager backed to Consul
-func NewManager(cc *api.Client) Manager {
-	return NewManagerWithSSHFactory(cc, func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
+func NewManager(cc *api.Client, cfg config.Configuration) Manager {
+	return NewManagerWithSSHFactory(cc, cfg, func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
 		return &sshutil.SSHClient{
 			Config: config,
 			Host:   conn.Host,
@@ -86,8 +87,8 @@ func NewManager(cc *api.Client) Manager {
 // NewManagerWithSSHFactory creates a Manager with a given ssh factory
 //
 // Currently this is used for testing purpose to mock the ssh connection.
-func NewManagerWithSSHFactory(cc *api.Client, sshClientFactory SSHClientFactory) Manager {
-	return &consulManager{cc: cc, getSSHClient: sshClientFactory}
+func NewManagerWithSSHFactory(cc *api.Client, cfg config.Configuration, sshClientFactory SSHClientFactory) Manager {
+	return &consulManager{cc: cc, cfg: cfg, getSSHClient: sshClientFactory}
 }
 
 // Lock key is not under HostsPoolPrefix so that taking the lock and releasing
@@ -97,6 +98,7 @@ const kvLockKey = consulutil.YorcManagementPrefix + "/hosts_pool/lock"
 
 type consulManager struct {
 	cc           *api.Client
+	cfg          config.Configuration
 	getSSHClient SSHClientFactory
 }
 
@@ -592,10 +594,11 @@ func (cm *consulManager) GetHost(locationName, hostname string) (Host, error) {
 	return host, err
 }
 
-func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
+func getSSHConfig(cfg config.Configuration, conn Connection) (*ssh.ClientConfig, error) {
 	conf := &ssh.ClientConfig{
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		User:            conn.User,
+		Timeout:         cfg.SSHConnectionTimeout,
 	}
 
 	if conn.PrivateKey != "" {

@@ -59,7 +59,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	locationName, err := e.getLocationForNode(ctx, cc, deploymentID, nodeName)
+	locationName, err := e.getLocationForNode(ctx, cfg, cc, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -70,15 +70,15 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		deploymentID:      deploymentID,
 		nodeName:          nodeName,
 		delegateOperation: delegateOperation,
-		hpManager:         NewManager(cc),
+		hpManager:         NewManager(cc, cfg),
 	}
 	return e.execDelegateHostsPool(ctx, cc, cfg, operationParams)
 }
 
-func (e *defaultExecutor) getLocationForNode(ctx context.Context, cc *api.Client, deploymentID, nodeName string) (string, error) {
+func (e *defaultExecutor) getLocationForNode(ctx context.Context, cfg config.Configuration, cc *api.Client, deploymentID, nodeName string) (string, error) {
 
 	// Get current locations
-	hpManager := NewManager(cc)
+	hpManager := NewManager(cc, cfg)
 	locations, err := hpManager.ListLocations()
 	if err != nil {
 		return "", err

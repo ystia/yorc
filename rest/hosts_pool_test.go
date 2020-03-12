@@ -17,6 +17,7 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ystia/yorc/v4/config"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -31,43 +32,43 @@ import (
 	"github.com/ystia/yorc/v4/prov/hostspool"
 )
 
-func testHostsPoolHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testHostsPoolHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Run("testListHostsInPool", func(t *testing.T) {
-		testListHostsInPool(t, client, srv)
+		testListHostsInPool(t, client, cfg, srv)
 	})
 	t.Run("testListNoHostsInPool", func(t *testing.T) {
-		testListNoHostsInPool(t, client, srv)
+		testListNoHostsInPool(t, client, cfg, srv)
 	})
 	t.Run("testListHostsInPoolWithBadFilter", func(t *testing.T) {
-		testListHostsInPoolWithBadFilter(t, client, srv)
+		testListHostsInPoolWithBadFilter(t, client, cfg, srv)
 	})
 	t.Run("testDeleteHostInPool", func(t *testing.T) {
-		testDeleteHostInPool(t, client, srv)
+		testDeleteHostInPool(t, client, cfg, srv)
 	})
 	t.Run("testDeleteHostInPoolNotFound", func(t *testing.T) {
-		testDeleteHostInPoolNotFound(t, client, srv)
+		testDeleteHostInPoolNotFound(t, client, cfg, srv)
 	})
 	t.Run("testNewHostInPool", func(t *testing.T) {
-		testNewHostInPool(t, client, srv)
+		testNewHostInPool(t, client, cfg, srv)
 	})
 	t.Run("testNewHostInPoolWithoutConnectionInfo", func(t *testing.T) {
-		testNewHostInPoolWithoutConnectionInfo(t, client, srv)
+		testNewHostInPoolWithoutConnectionInfo(t, client, cfg, srv)
 	})
 	t.Run("testNewHostInPoolWithoutPrivateKeyOrPassword", func(t *testing.T) {
-		testNewHostInPoolWithoutPrivateKeyOrPassword(t, client, srv)
+		testNewHostInPoolWithoutPrivateKeyOrPassword(t, client, cfg, srv)
 	})
 	t.Run("testGetHostInPool", func(t *testing.T) {
-		testGetHostInPool(t, client, srv)
+		testGetHostInPool(t, client, cfg, srv)
 	})
 	t.Run("testListHostsPoolLocations", func(t *testing.T) {
-		testListHostsPoolLocations(t, client, srv)
+		testListHostsPoolLocations(t, client, cfg, srv)
 	})
 	t.Run("testApplyHostsPoolConfiguration", func(t *testing.T) {
-		testApplyHostsPoolConfiguration(t, client, srv)
+		testApplyHostsPoolConfiguration(t, client, cfg, srv)
 	})
 }
 
-func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListHostsInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	log.SetDebug(true)
 
 	srv.PopulateKV(t, map[string][]byte{
@@ -78,7 +79,7 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 
 	req := httptest.NewRequest("GET", "/hosts_pool/myHostsPoolLocationTest", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -103,12 +104,12 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host23", nil)
 }
 
-func testListNoHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListNoHostsInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	req := httptest.NewRequest("GET", "/hosts_pool/myHostsPoolLocationTest", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -116,7 +117,7 @@ func testListNoHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestS
 	require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNoContent)
 }
 
-func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 	log.SetDebug(true)
 
@@ -128,7 +129,7 @@ func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, srv *tes
 	}
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -136,7 +137,7 @@ func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, srv *tes
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
 
-func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteHostInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.HostsPoolPrefix + "/myHostsPoolLocationTest/host13/status":                 []byte("free"),
@@ -147,7 +148,7 @@ func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestSe
 	})
 
 	req := httptest.NewRequest("DELETE", "/hosts_pool/myHostsPoolLocationTest/host13", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -155,11 +156,11 @@ func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestSe
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
 }
 
-func testDeleteHostInPoolNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteHostInPoolNotFound(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	req := httptest.NewRequest("DELETE", "/hosts_pool/myHostsPoolLocationTest/hostNOTFOUND", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -167,7 +168,7 @@ func testDeleteHostInPoolNotFound(t *testing.T, client *api.Client, srv *testuti
 	require.Equal(t, http.StatusNotFound, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNotFound)
 }
 
-func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testNewHostInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	var hostRequest HostRequest
@@ -183,7 +184,7 @@ func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host11", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
@@ -192,7 +193,7 @@ func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host11", nil)
 }
 
-func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	var hostRequest HostRequest
@@ -202,13 +203,13 @@ func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, sr
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host12", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
 
-func testNewHostInPoolWithoutPrivateKeyOrPassword(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testNewHostInPoolWithoutPrivateKeyOrPassword(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	var hostRequest HostRequest
@@ -223,13 +224,13 @@ func testNewHostInPoolWithoutPrivateKeyOrPassword(t *testing.T, client *api.Clie
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host11", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
 
-func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetHostInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	srv.PopulateKV(t, map[string][]byte{
@@ -242,7 +243,7 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 
 	req := httptest.NewRequest("GET", "/hosts_pool/myHostsPoolLocationTest/host17", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -269,7 +270,7 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host17", nil)
 }
 
-func testListHostsPoolLocations(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListHostsPoolLocations(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	log.SetDebug(true)
 
 	srv.PopulateKV(t, map[string][]byte{
@@ -280,7 +281,7 @@ func testListHostsPoolLocations(t *testing.T, client *api.Client, srv *testutil.
 
 	req := httptest.NewRequest("GET", "/hosts_pool", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -300,14 +301,14 @@ func testListHostsPoolLocations(t *testing.T, client *api.Client, srv *testutil.
 	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host23", nil)
 }
 
-func testApplyHostsPoolConfiguration(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testApplyHostsPoolConfiguration(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	poolRequest := &HostsPoolRequest{Hosts: []HostConfig{{Name: "host1", Connection: hostspool.Connection{User: "user1", Password: "password", Host: "1.2.3.4"}}}}
 	tmp, err := json.Marshal(poolRequest)
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
 
 	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)

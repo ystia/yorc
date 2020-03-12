@@ -211,28 +211,18 @@ func (cm *consulManager) GetHostConnection(locationName, hostname string) (Conne
 
 // Check if we can log into an host given a connection
 func (cm *consulManager) checkConnection(locationName, hostname string) error {
-
 	conn, err := cm.GetHostConnection(locationName, hostname)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
-	conf, err := getSSHConfig(conn)
+	conf, err := getSSHConfig(cm.cfg, conn)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
 
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		client := cm.getSSHClient(conf, conn)
-		_, err = client.RunCommand(`echo "Connected!"`)
-	}()
-	select {
-	case <-c:
-		return errors.Wrapf(err, "failed to connect to host %q", hostname)
-	case <-time.After(10 * time.Second):
-		return errors.Errorf("timeout exceeded to connect to host %q", hostname)
-	}
+	client := cm.getSSHClient(conf, conn)
+	_, err = client.RunCommand(`echo "Connected!"`)
+	return errors.Wrapf(err, "failed to connect to host %q", hostname)
 }
 
 // Go routine checking a Host connection and updating the Host status
