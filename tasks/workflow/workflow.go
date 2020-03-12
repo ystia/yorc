@@ -117,9 +117,10 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, deploymentID
 		status = tasks.TaskStatusFAILED
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended in error", workflowName)
 	} else {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended successfully", workflowName)
 	}
-	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, deploymentID, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
+	// Assume that step in error has stored the error reason on task
+	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, deploymentID, taskID, status, nil), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }
 
 // Get the parent workflow of an inline workflow, returns an empty string if there

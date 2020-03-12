@@ -216,6 +216,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
 					tasks.NotifyErrorOnTask(s.t.taskID)
+					// TODO(loicalbertin) set task error message if not a context cancel error
 					err2 := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
 					if err2 != nil {
 						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to register on failure steps: %v", err2)
@@ -231,7 +232,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 		}
 	}
 	if !s.Async {
-		log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.id, s.Name, s.WorkflowName, s.t.taskID)
+		log.Debugf("Task execution: %q for step: %q, workflow: %q, taskID: %q done successfully.", s.t.id, s.Name, s.WorkflowName, s.t.taskID)
 		s.setStatus(tasks.TaskStepStatusDONE)
 	}
 	return nil

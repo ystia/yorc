@@ -75,6 +75,9 @@ func init() {
 			fmt.Println("Task: ", task.ID)
 			fmt.Println("Task status:", task.Status)
 			fmt.Println("Task type:", task.Type)
+			if task.ErrorMessage != "" {
+				fmt.Println("Task Error Message:", task.ErrorMessage)
+			}
 
 			if withSteps {
 				displayStepTables(client, args)
