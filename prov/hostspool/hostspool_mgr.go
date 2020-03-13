@@ -135,8 +135,9 @@ func (cm *consulManager) addWait(locationName, hostname string, conn Connection,
 	err = cm.checkConnection(locationName, hostname)
 	if err != nil {
 		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
+		return errors.WithStack(hostConnectionError{message: err.Error()})
 	}
-	return err
+	return nil
 }
 
 func (cm *consulManager) getAddOperations(

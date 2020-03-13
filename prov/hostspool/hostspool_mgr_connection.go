@@ -130,7 +130,7 @@ func (cm *consulManager) updateConnectionWait(locationName, hostname string, con
 			cm.backupHostStatus(locationName, hostname)
 			cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
 		}
-		return err
+		return errors.WithStack(hostConnectionError{message: err.Error()})
 	}
 	if status == HostStatusError {
 		cm.restoreHostStatus(locationName, hostname)
