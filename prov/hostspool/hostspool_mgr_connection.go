@@ -28,6 +28,8 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
+const hostConnectionErrorMessage = "failed to connect to host"
+
 func (cm *consulManager) UpdateConnection(locationName, hostname string, conn Connection) error {
 	return cm.updateConnectionWait(locationName, hostname, conn, maxWaitTimeSeconds*time.Second)
 }
@@ -126,7 +128,7 @@ func (cm *consulManager) updateConnectionWait(locationName, hostname string, con
 	if err != nil {
 		if status != HostStatusError {
 			cm.backupHostStatus(locationName, hostname)
-			cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "failed to connect to host")
+			cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
 		}
 		return err
 	}
@@ -238,7 +240,7 @@ func (cm *consulManager) updateConnectionStatus(locationName, name string, waitG
 	if err != nil {
 		if status != HostStatusError {
 			cm.backupHostStatus(locationName, name)
-			cm.setHostStatusWithMessage(locationName, name, HostStatusError, "failed to connect to host")
+			cm.setHostStatusWithMessage(locationName, name, HostStatusError, hostConnectionErrorMessage)
 		}
 		return
 	}

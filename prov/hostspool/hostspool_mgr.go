@@ -134,7 +134,7 @@ func (cm *consulManager) addWait(locationName, hostname string, conn Connection,
 
 	err = cm.checkConnection(locationName, hostname)
 	if err != nil {
-		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "can't connect to host")
+		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
 	}
 	return err
 }
