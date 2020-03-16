@@ -84,7 +84,7 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 		}
 	}
 
-	// Set task status to initial
+	// Set task status to initial and blank error message
 	taskPath := path.Join(consulutil.TasksPrefix, taskID)
 	taskOps := api.KVTxnOps{
 		&api.KVTxnOp{
@@ -92,6 +92,12 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 			Key:   path.Join(taskPath, "status"),
 			Value: []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
 		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(taskPath, "error_message"),
+			Value: []byte(""),
+		},
+
 	}
 	// Set deployment status to initial for some task types
 	switch taskType {

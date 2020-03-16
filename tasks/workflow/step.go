@@ -216,8 +216,13 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
 					tasks.NotifyErrorOnTask(s.t.taskID)
-					// TODO(loicalbertin) set task error message if not a context cancel error
-					err2 := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
+					// set task status and error message
+					err2 := checkAndSetTaskStatus(ctx, s.t.targetID, s.t.taskID, tasks.TaskStatusFAILED, err)
+					if err2 != nil {
+						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to set task status to error for step:%q: %v", s.Name, err2)
+					}
+
+					err2 = s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
 					if err2 != nil {
 						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to register on failure steps: %v", err2)
 					}
