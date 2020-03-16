@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 4.0.0-M10 (March 10, 2020)
+
 ### FEATURES
 
 * Add a consumable resources concept to the Hosts Pool ([GH-205](https://github.com/ystia/yorc/issues/205))
