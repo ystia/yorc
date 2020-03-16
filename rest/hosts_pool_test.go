@@ -17,15 +17,14 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -59,6 +58,12 @@ func testHostsPoolHandlers(t *testing.T, client *api.Client, cfg config.Configur
 	})
 	t.Run("testNewHostInPoolWithoutPrivateKeyOrPassword", func(t *testing.T) {
 		testNewHostInPoolWithoutPrivateKeyOrPassword(t, client, cfg, srv)
+	})
+	t.Run("testUpdateHostInPool", func(t *testing.T) {
+		testUpdateHostInPool(t, client, cfg, srv)
+	})
+	t.Run("testUpdateHostInPoolWithConnectionError", func(t *testing.T) {
+		testUpdateHostInPoolWithConnectionError(t, client, cfg, srv)
 	})
 	t.Run("testGetHostInPool", func(t *testing.T) {
 		testGetHostInPool(t, client, cfg, srv)
@@ -185,15 +190,15 @@ func testNewHostInPool(t *testing.T, client *api.Client, cfg config.Configuratio
 
 	tmp, err := json.Marshal(hostRequest)
 	require.Nil(t, err, "unexpected error marshalling data to provide body request")
-	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host11", bytes.NewBuffer([]byte(string(tmp))))
+	req := httptest.NewRequest("PUT", "/hosts_pool/myHostsPoolLocationTest/host01", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
 	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
-	require.Equal(t, []string{"/hosts_pool/myHostsPoolLocationTest/host11"}, resp.Header["Location"])
+	require.Equal(t, []string{"/hosts_pool/myHostsPoolLocationTest/host01"}, resp.Header["Location"])
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host11", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host01", nil)
 }
 
 func testNewHostInPoolWithConnectionError(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
@@ -257,6 +262,62 @@ func testNewHostInPoolWithoutPrivateKeyOrPassword(t *testing.T, client *api.Clie
 	_, err = ioutil.ReadAll(resp.Body)
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+}
+
+func testUpdateHostInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
+	t.Parallel()
+
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.HostsPoolPrefix + "/myHostsPoolLocationTest/host112/status": []byte("free"),
+	})
+
+	var hostRequest HostRequest
+	hostRequest.Connection = &hostspool.Connection{
+		User:       "user1",
+		Host:       "1.2.3.4",
+		Port:       22,
+		PrivateKey: "../prov/hostspool/testdata/new_key.pem",
+	}
+	hostRequest.Labels = append(hostRequest.Labels, MapEntry{MapEntryOperationAdd, "key1", "val1"})
+
+	tmp, err := json.Marshal(hostRequest)
+	require.Nil(t, err, "unexpected error marshalling data to provide body request")
+	req := httptest.NewRequest("PATCH", "/hosts_pool/myHostsPoolLocationTest/host112", bytes.NewBuffer([]byte(string(tmp))))
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
+	resp := newTestHTTPRouter(client, cfg, req)
+	_, err = ioutil.ReadAll(resp.Body)
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host112", nil)
+}
+
+func testUpdateHostInPoolWithConnectionError(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
+	t.Parallel()
+
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.HostsPoolPrefix + "/myHostsPoolLocationTest/host113/status": []byte("free"),
+	})
+	var hostRequest HostRequest
+	hostRequest.Connection = &hostspool.Connection{
+		User:       "fail",
+		Host:       "1.2.3.4",
+		Port:       22,
+		PrivateKey: "../prov/hostspool/testdata/new_key.pem",
+	}
+	hostRequest.Labels = append(hostRequest.Labels, MapEntry{MapEntryOperationAdd, "key1", "val1"})
+
+	tmp, err := json.Marshal(hostRequest)
+	require.Nil(t, err, "unexpected error marshalling data to provide body request")
+	req := httptest.NewRequest("PATCH", "/hosts_pool/myHostsPoolLocationTest/host113", bytes.NewBuffer([]byte(string(tmp))))
+	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
+	resp := newTestHTTPRouter(client, cfg, req)
+	_, err = ioutil.ReadAll(resp.Body)
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+	require.Equal(t, []string{"failed to connect to host \"host113\": Failed to connect"}, resp.Header["Warning"])
+
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/myHostsPoolLocationTest/host113", nil)
 }
 
 func testGetHostInPool(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
