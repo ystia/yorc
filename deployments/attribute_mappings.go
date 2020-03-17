@@ -18,12 +18,16 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/helper/collections"
+	"github.com/ystia/yorc/v4/tosca"
 	"strconv"
 )
 
 // ResolveAttributeMapping allows to resolve an attribute mapping
 // i.e update the corresponding attribute with the defined value
 // parameters can be nested keys and/or attribute name in case of capability
+// 2 cases:
+// - capabilityOrAttributeName is an attribute name : parameters are nested keys
+// - capabilityOrAttributeName is a capability name: the first parameter is the attribute name
 func ResolveAttributeMapping(ctx context.Context, deploymentID, nodeName, instanceName, capabilityOrAttributeName string, attributeValue interface{}, parameters ...string) error {
 	// Check if node has an attribute with corresponding name
 	attrs, err := GetNodeAttributesNames(ctx, deploymentID, nodeName)
@@ -151,7 +155,7 @@ func buildComplexValue(ctx context.Context, deploymentID, baseDataType string, n
 		if err != nil || dataType == "" {
 			return complexVal, err
 		}
-		if isPrimitiveDataType(dataType) {
+		if tosca.IsPrimitiveType(dataType) {
 			continue
 		}
 
