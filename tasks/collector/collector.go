@@ -97,7 +97,6 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 			Key:   path.Join(taskPath, "error_message"),
 			Value: []byte(""),
 		},
-
 	}
 	// Set deployment status to initial for some task types
 	switch taskType {
