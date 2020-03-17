@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-aws-types
   template_author: yorc
-  template_version: 1.1.0
+  template_version: 1.2.0
 
 imports:
   - yorc: <yorc-types.yml>
@@ -101,4 +101,46 @@ node_types:
         required: false
         default: false
 
+  yorc.nodes.aws.VPC:
+    derived_from: tosca.nodes.Network
+    # See https://www.terraform.io/docs/providers/aws/r/vpc.html
+    properties:
+      instance_tenancy:
+        type: string
+        description: >
+          You can run instances in your VPC on single-tenant, dedicated hardware. 
+          Select Dedicated to ensure that instances launched in this VPC are dedicated tenancy instances, regardless of the tenancy attribute specified at launch. 
+          Select Default to ensure that instances launched in this VPC use the tenancy attribute specified at launch
+        default: default
+        constraints : 
+          - valid_values: [default, dedicated]
+      enable_dns_support:
+        type: boolean
+        description: A boolean flag to enable/disable DNS support in the VPC. Defaults true.
+        default: true
+        required: false
+      enable_dns_hostnames:
+        type: boolean
+        default: false
+        description : A boolean flag to enable/disable DNS hostnames in the VPC. Defaults false.
+        required: false
+      enable_classiclink:
+        type: boolean
+        default: false
+        description: A boolean flag to enable/disable ClassicLink for the VPC. Only valid in regions and accounts that support EC2 Classic. 
+        required: false
+      enable_classiclink_dns_support:
+        type: boolean
+        required: false
+        description: A boolean flag to enable/disable ClassicLink DNS Support for the VPC. Only valid in regions and accounts that support EC2 Classic
+      assign_generated_ipv6_cidr_block:
+        type: boolean 
+        required: false
+        description: Requests an Amazon-provided IPv6 CIDR block with a /56 prefix length for the VPC. You cannot specify the range of IP addresses, or the size of the CIDR block.
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
 
