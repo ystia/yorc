@@ -105,6 +105,9 @@ node_types:
     derived_from: tosca.nodes.Network
     # See https://www.terraform.io/docs/providers/aws/r/vpc.html
     properties:
+      cidr_block:
+        type: string
+        required: true
       instance_tenancy:
         type: string
         description: >
@@ -137,6 +140,43 @@ node_types:
         type: boolean 
         required: false
         description: Requests an Amazon-provided IPv6 CIDR block with a /56 prefix length for the VPC. You cannot specify the range of IP addresses, or the size of the CIDR block.
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+
+  yorc.nodes.aws.Subnet:
+    derived_from: tosca.nodes.Network
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      availability_zone:
+        type: string
+        required: false
+        description: The AZ for the subnet
+      availability_zone_id:
+        type: string
+        required: false
+        description: The AZ for the subnet
+      cidr_block:
+        type: string
+        required: true
+      ipv6_cidr_block :
+        type: string
+        required: false
+      map_public_ip_on_launch:
+        type: boolean
+        required: false
+        description: The AZ for the subnet
+      assign_ipv6_address_on_creation:
+        type: boolean
+        required: false
+        description: >
+          Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
+      vpc_id:
+        type: string
+        required: true
       tags:
         type: map
         description: A mapping of tags to assign to the resource.
