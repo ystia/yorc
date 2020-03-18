@@ -89,7 +89,7 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 			testTaskQueryHandlers(t, client, cfg, srv)
 		})
 		t.Run("testTaskHandlers", func(t *testing.T) {
-			testTaskHandlers(t, client, srv)
+			testTaskHandlers(t, client, cfg, srv)
 		})
 	})
 }

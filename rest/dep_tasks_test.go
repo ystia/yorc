@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"io/ioutil"
 	"net/http"
@@ -26,16 +27,16 @@ import (
 	"testing"
 )
 
-func testTaskHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testTaskHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Run("testGetTaskHandler", func(t *testing.T) {
-		testGetTaskHandler(t, client, srv)
+		testGetTaskHandler(t, client, cfg, srv)
 	})
 	t.Run("testGetTaskHandlerWithTaskNotFound", func(t *testing.T) {
-		testGetTaskHandlerWithTaskNotFound(t, client, srv)
+		testGetTaskHandlerWithTaskNotFound(t, client, cfg, srv)
 	})
 }
 
-func testGetTaskHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetTaskHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":         []byte("0"),
 		consulutil.TasksPrefix + "/task123/targetId":     []byte("myDepID"),
@@ -45,7 +46,7 @@ func testGetTaskHandler(t *testing.T, client *api.Client, srv *testutil.TestServ
 
 	req := httptest.NewRequest("GET", "/deployments/myDepID/tasks/task123", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
@@ -65,10 +66,10 @@ func testGetTaskHandler(t *testing.T, client *api.Client, srv *testutil.TestServ
 	client.KV().DeleteTree(consulutil.TasksPrefix, nil)
 }
 
-func testGetTaskHandlerWithTaskNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetTaskHandlerWithTaskNotFound(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("GET", "/deployments/myDepID/tasks/taskNotFound", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusNotFound, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNotFound)
