@@ -136,7 +136,7 @@ type vaultClient struct {
 }
 
 func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, error) {
-	// log.Debugf("Getting secret: %q", id)
+	log.Debugf("Getting secret: %q", id)
 	opts := make(map[string]string)
 	for _, o := range options {
 		optsList := strings.SplitN(o, "=", 2)
