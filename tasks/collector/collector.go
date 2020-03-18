@@ -94,7 +94,7 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
-			Key:   path.Join(taskPath, "error_message"),
+			Key:   path.Join(taskPath, "errorMessage"),
 			Value: []byte(""),
 		},
 	}
