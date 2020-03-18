@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/rest"
+	"github.com/ystia/yorc/v4/tasks"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,6 +37,24 @@ func (c *httpClientMockInfo) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	w := httptest.NewRecorder()
+	if strings.HasSuffix(req.URL.String(), "steps") {
+		steps := []tasks.TaskStep{
+			{
+				Name:   "stepOne",
+				Status: "Done",
+			},
+			{
+				Name:   "stepTwo",
+				Status: "Done",
+			},
+		}
+		b, err := json.Marshal(steps)
+		if err != nil {
+			return nil, errors.New("failed to build http client mock response")
+		}
+		w.Write(b)
+		return w.Result(), nil
+	}
 
 	task := rest.Task{
 		ID:           "taskID",
@@ -58,6 +77,9 @@ func (c *httpClientMockInfo) Do(req *http.Request) (*http.Response, error) {
 }
 
 func (c *httpClientMockInfo) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
+	if strings.Contains(path, "bad_request") {
+		return nil, errors.New("a failure occurs")
+	}
 	return http.NewRequest(method, path, body)
 }
 
@@ -82,9 +104,19 @@ func TestTaskInfo(t *testing.T) {
 	require.NoError(t, err, "Failed to get task info")
 }
 
+func TestTaskInfoWithSteps(t *testing.T) {
+	err := taskInfo(&httpClientMockInfo{}, []string{"deploymentID", "taskID"}, true)
+	require.NoError(t, err, "Failed to get task info")
+}
+
 func TestTaskInfoWithoutTaskID(t *testing.T) {
 	err := taskInfo(&httpClientMockInfo{}, []string{"deploymentID"}, false)
 	require.Error(t, err, "Expected error due to missing argument")
+}
+
+func TestHostInfoWithRequestError(t *testing.T) {
+	err := taskInfo(&httpClientMockInfo{}, []string{"bad_request", "taskID"}, false)
+	require.Error(t, err, "Expected error due to request error")
 }
 
 func TestHostInfoWithHTTPFailure(t *testing.T) {
