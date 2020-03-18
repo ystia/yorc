@@ -17,6 +17,7 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -112,5 +113,8 @@ func updateHost(client httputil.HTTPClient, args []string, location, jsonParam, 
 	defer response.Body.Close()
 
 	httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+	if response.Header.Get("Warning") != "" {
+		fmt.Println("Warning :", response.Header.Get("Warning"))
+	}
 	return nil
 }

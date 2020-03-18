@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
@@ -118,6 +119,23 @@ func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 
 // RunCommand allows to run a specified command
 func (client *SSHClient) RunCommand(cmd string) (string, error) {
+	var res string
+	var err error
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+
+		res, err = client.runCommand(cmd)
+	}()
+	select {
+	case <-c:
+		return res, err
+	case <-time.After(client.Config.Timeout):
+		return "", errors.Errorf("timeout exceeded to connect to host: %q, port: %d", client.Host, client.Port)
+	}
+}
+
+func (client *SSHClient) runCommand(cmd string) (string, error) {
 	session, err := client.newSession()
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to create new session")

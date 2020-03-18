@@ -134,8 +134,8 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		consulClient:   client,
 		tasksCollector: collector.NewCollector(client),
 		config:         configuration,
-		hostsPoolMgr:   hostspool.NewManager(client),
-		locationMgr:    locations.NewManager(client),
+		hostsPoolMgr:   hostspool.NewManager(client, configuration),
+		locationMgr:    locations.NewManager(client, configuration),
 	}
 
 	httpServer.registerHandlers()

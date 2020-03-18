@@ -41,7 +41,7 @@ const invalidJob = "Invalid job id specified"
 
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
-func getSSHClient(credentials *types.Credential, locationProps config.DynamicMap) (*sshutil.SSHClient, error) {
+func getSSHClient(cfg config.Configuration, credentials *types.Credential, locationProps config.DynamicMap) (*sshutil.SSHClient, error) {
 	// Check manadatory slurm configuration
 	if err := checkLocationConfig(locationProps); err != nil {
 		log.Printf("Unable to provide SSH client due to:%+v", err)
@@ -59,6 +59,7 @@ func getSSHClient(credentials *types.Credential, locationProps config.DynamicMap
 	SSHConfig := &ssh.ClientConfig{
 		User:            credentials.User,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         cfg.SSHConnectionTimeout,
 	}
 
 	// Set an authentication method. At least one authentication method

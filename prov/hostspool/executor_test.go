@@ -125,9 +125,9 @@ func testCreateFiltersFromComputeCapabilities(t *testing.T, deploymentID string)
 // testConcurrentExecDelegateShareableHost tests concurrent attempts to allocate
 // shareable hosts in parallel, and verifies it won't lead to over-allocate a
 // shareable host
-func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer, cc *api.Client, deploymentID, location string) {
+func testConcurrentExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer, cc *api.Client, cfg config.Configuration, deploymentID, location string) {
 
-	ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor := prepareTestEnv(t, srv, cc, location, deploymentID, 2)
+	ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor := prepareTestEnv(t, srv, cc, cfg, location, deploymentID, 2)
 
 	// Testing the delegate operation install which will allocate resources
 	// Expected Hosts Pool allocations after this operation:
@@ -261,9 +261,9 @@ func routineExecDelegate(ctx context.Context, e *defaultExecutor, cc *api.Client
 
 // testFailureExecDelegateShareableHost tests the failure to allocate a host
 // due to missing resources
-func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer, cc *api.Client, deploymentID, location string) {
+func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer, cc *api.Client, cfg config.Configuration, deploymentID, location string) {
 
-	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, location, deploymentID, 1)
+	ctx, cfg, hpManager, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, cfg, location, deploymentID, 1)
 
 	lastIndex := 1
 	operationParams := operationParameters{
@@ -286,7 +286,7 @@ func testFailureExecDelegateShareableHost(t *testing.T, srv *testutil.TestServer
 
 }
 
-func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, location, deploymentID string, hostsNumber int) (context.Context, config.Configuration, Manager, []string, map[string]string, *defaultExecutor) {
+func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, cfg config.Configuration, location, deploymentID string, hostsNumber int) (context.Context, config.Configuration, Manager, []string, map[string]string, *defaultExecutor) {
 
 	// The topology in testdata/topology_hp_compute.yaml defines 4 compute node
 	// instances, each asking for 1CPU, 1GB of RAM, and 20GB of disk on a
@@ -294,7 +294,7 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 	// Building a Hosts Pool without enough resources for the last compute node
 	cleanupHostsPool(t, cc)
 	ctx := context.Background()
-	hpManager := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	hpManager := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 	initialLabels := map[string]string{
 		"host.num_cpus":           "3",
 		"host.mem_size":           "4 GB",
@@ -336,21 +336,17 @@ func prepareTestEnv(t *testing.T, srv *testutil.TestServer, cc *api.Client, loca
 	}
 
 	testExecutor := &defaultExecutor{}
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			Address:        srv.HTTPAddr,
-			PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
-		},
-	}
+	cfg.Consul.Address = srv.HTTPAddr
+	cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
 
 	return ctx, cfg, hpManager, nodeNames, initialLabels, testExecutor
 }
 
 // testExecFDelegateFailure tests a failure to execute an install operation
 // due to a host connection issue (as not using the mockSSHClientFactory)
-func testExecDelegateFailure(t *testing.T, srv *testutil.TestServer, cc *api.Client, deploymentID, location string) {
+func testExecDelegateFailure(t *testing.T, srv *testutil.TestServer, cc *api.Client, cfg config.Configuration, deploymentID, location string) {
 
-	ctx, cfg, _, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, location, deploymentID, 1)
+	ctx, cfg, _, nodeNames, _, testExecutor := prepareTestEnv(t, srv, cc, cfg, location, deploymentID, 1)
 
 	err := testExecutor.ExecDelegate(ctx, cfg, "taskTest", deploymentID, nodeNames[0], "install")
 	require.Error(t, err, "Should have failed to allocate a host, on connection error")

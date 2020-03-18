@@ -13,6 +13,7 @@
 * Yorc Bootstrap doesn't uninstall yorc binary ([GH-605](https://github.com/ystia/yorc/issues/605))
 * Document server info REST API endpoint and change returned JSON to comply to our standards ([GH-609](https://github.com/ystia/yorc/issues/609))
 * Default cache size for file storage is too large ([GH-612](https://github.com/ystia/yorc/issues/612))
+* CLI yorc locations list doesn't return HostsPool information ([GH-615](https://github.com/ystia/yorc/issues/615))
 
 ## 4.0.0-M9 (February 14, 2020)
 

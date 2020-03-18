@@ -44,14 +44,14 @@ var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connect
 	}
 }
 
-func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
+func newTestHTTPRouter(client *api.Client, cfg config.Configuration, req *http.Request) *http.Response {
 	router := newRouter()
 
 	httpSrv := &Server{
 		router:         router,
 		consulClient:   client,
-		hostsPoolMgr:   hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
-		locationMgr:    locations.NewManager(client),
+		hostsPoolMgr:   hostspool.NewManagerWithSSHFactory(client, cfg, mockSSHClientFactory),
+		locationMgr:    locations.NewManager(client, cfg),
 		tasksCollector: collector.NewCollector(client),
 		config:         config.Configuration{WorkingDirectory: "../work"},
 	}
@@ -71,22 +71,22 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 
 	t.Run("groupRest", func(t *testing.T) {
 		t.Run("testHostsPoolHandlers", func(t *testing.T) {
-			testHostsPoolHandlers(t, client, srv)
+			testHostsPoolHandlers(t, client, cfg, srv)
 		})
 		t.Run("testLocationsHandlers", func(t *testing.T) {
-			testLocationsHandlers(t, client, srv)
+			testLocationsHandlers(t, client, cfg, srv)
 		})
 		t.Run("testSSLRest", func(t *testing.T) {
 			testSSLREST(t, client, srv)
 		})
 		t.Run("testDeploymentHandlers", func(t *testing.T) {
-			testDeploymentHandlers(t, client, srv)
+			testDeploymentHandlers(t, client, cfg, srv)
 		})
 		t.Run("testPostInfraUsageHandler", func(t *testing.T) {
-			testPostInfraUsageHandler(t, client, srv)
+			testPostInfraUsageHandler(t, client, cfg, srv)
 		})
 		t.Run("testTaskQueryHandlers", func(t *testing.T) {
-			testTaskQueryHandlers(t, client, srv)
+			testTaskQueryHandlers(t, client, cfg, srv)
 		})
 	})
 }

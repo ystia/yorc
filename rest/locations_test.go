@@ -30,34 +30,34 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func testLocationsHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testLocationsHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	populateKV(t, srv)
 	t.Run("testListLocations", func(t *testing.T) {
-		testListLocations(t, client, srv)
+		testListLocations(t, client, cfg, srv)
 	})
 	t.Run("testDeleteLocation", func(t *testing.T) {
-		testDeleteLocation(t, client, srv)
+		testDeleteLocation(t, client, cfg, srv)
 	})
 	t.Run("testDeleteLocation", func(t *testing.T) {
-		testDeleteInexistentLocation(t, client, srv)
+		testDeleteInexistentLocation(t, client, cfg, srv)
 	})
 	t.Run("testGetLocation", func(t *testing.T) {
-		testGetLocationInfo(t, client, srv)
+		testGetLocationInfo(t, client, cfg, srv)
 	})
 	t.Run("testCreateNoDataLocation", func(t *testing.T) {
-		testCreateNoDataLocation(t, client, srv)
+		testCreateNoDataLocation(t, client, cfg, srv)
 	})
 	t.Run("testCreateLocation", func(t *testing.T) {
-		testCreateLocation(t, client, srv)
+		testCreateLocation(t, client, cfg, srv)
 	})
 	t.Run("testCreateAlreadyExistentLocation", func(t *testing.T) {
-		testCreateAlreadyExistentLocation(t, client, srv)
+		testCreateAlreadyExistentLocation(t, client, cfg, srv)
 	})
 	t.Run("testUpdateLocation", func(t *testing.T) {
-		testUpdateLocation(t, client, srv)
+		testUpdateLocation(t, client, cfg, srv)
 	})
 	t.Run("testUpdateNoDataLocation", func(t *testing.T) {
-		testUpdateNoDataLocation(t, client, srv)
+		testUpdateNoDataLocation(t, client, cfg, srv)
 	})
 	cleanUpKV(client)
 }
@@ -78,13 +78,13 @@ func cleanUpKV(client *api.Client) {
 	client.KV().DeleteTree(consulutil.LocationsPrefix+"/loc3", nil)
 }
 
-func testListLocations(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListLocations(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	log.SetDebug(true)
 
 	// Make a request
 	req := httptest.NewRequest("GET", "/locations", nil)
 	req.Header.Add("Accept", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -106,9 +106,9 @@ func testListLocations(t *testing.T, client *api.Client, srv *testutil.TestServe
 
 }
 
-func testDeleteLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("DELETE", "/locations/loc1", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -116,9 +116,9 @@ func testDeleteLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
 }
 
-func testDeleteInexistentLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteInexistentLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("DELETE", "/locations/loc1", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -127,10 +127,10 @@ func testDeleteInexistentLocation(t *testing.T, client *api.Client, srv *testuti
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
 
-func testGetLocationInfo(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetLocationInfo(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("GET", "/locations/loc2", nil)
 	req.Header.Add("Accept", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -139,11 +139,11 @@ func testGetLocationInfo(t *testing.T, client *api.Client, srv *testutil.TestSer
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
 }
 
-func testCreateNoDataLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testCreateNoDataLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("PUT", "/locations/loc1", nil)
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -151,7 +151,7 @@ func testCreateNoDataLocation(t *testing.T, client *api.Client, srv *testutil.Te
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
 
-func testCreateLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testCreateLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	locationProps := config.DynamicMap{
 		"p11": "v11",
 		"p12": "v12",
@@ -165,7 +165,7 @@ func testCreateLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	req := httptest.NewRequest("PUT", "/locations/loc1", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -173,7 +173,7 @@ func testCreateLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
 }
 
-func testCreateAlreadyExistentLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testCreateAlreadyExistentLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	locationProps := config.DynamicMap{
 		"p11": "v11",
 		"p12": "v12",
@@ -187,7 +187,7 @@ func testCreateAlreadyExistentLocation(t *testing.T, client *api.Client, srv *te
 	req := httptest.NewRequest("PUT", "/locations/loc1", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -195,7 +195,7 @@ func testCreateAlreadyExistentLocation(t *testing.T, client *api.Client, srv *te
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 }
 
-func testUpdateLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testUpdateLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	locationProps := config.DynamicMap{
 		"p11": "v11",
 		"p12": "v15",
@@ -209,7 +209,7 @@ func testUpdateLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	req := httptest.NewRequest("PATCH", "/locations/loc1", bytes.NewBuffer([]byte(string(tmp))))
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err = ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
@@ -217,11 +217,11 @@ func testUpdateLocation(t *testing.T, client *api.Client, srv *testutil.TestServ
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
 }
 
-func testUpdateNoDataLocation(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testUpdateNoDataLocation(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("PATCH", "/locations/loc1", nil)
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
