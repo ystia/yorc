@@ -310,7 +310,7 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	}
 	fmt.Println("New hosts pool configuration applied successfully.")
 	if connectionFailure {
-		fmt.Println("Connection failures occured for the following hosts:")
+		fmt.Println("Connection failures occurred for the following hosts:")
 		fmt.Println("")
 		fmt.Println(hostsTable.Render())
 	}

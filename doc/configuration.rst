@@ -210,6 +210,11 @@ Globals Command-line options
 
   * ``--concurrency_limit_for_upgrades``: Limit of concurrency used in Upgrade processes. If not set the default value of `1000` will be used.
 
+.. _option_ssh_connection_timeout_cmd:
+
+  * ``--ssh_connection_timeout``: Timeout to establish SSH connection from Yorc SSH client, especially used for Slurm and HostsPool locations. If not set the default value of `10 s` will be used.
+
+
 .. _yorc_config_file_section:
 
 Configuration files
@@ -307,6 +312,10 @@ Below is an example of configuration file with TLS enabled.
 .. _option_upgrades_concurrency_cfg:
 
   * ``concurrency_limit_for_upgrades``: Equivalent to :ref:`--concurrency_limit_for_upgrades <option_upgrades_concurrency_cmd>` command-line flag.
+
+.. _option_ssh_connection_timeout_cfg:
+
+  * ``ssh_connection_timeout``: Equivalent to :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -861,6 +870,10 @@ Environment variables
 .. _option_upgrades_concurrency_env:
 
   * ``YORC_CONCURRENCY_LIMIT_FOR_UPGRADES``: Equivalent to :ref:`--concurrency_limit_for_upgrades <option_upgrades_concurrency_cmd>` command-line flag.
+
+.. _option_ssh_connection_timeout_env:
+
+  * ``YORC_SSH_CONNECTION_TIMEOUT``: Equivalent to :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>` command-line flag.
 
 .. _option_log_env:
 

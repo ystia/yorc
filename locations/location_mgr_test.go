@@ -53,7 +53,7 @@ func GetManagerWithSSHFactory(cfg config.Configuration, sshClientFactory hostspo
 			return nil, nil, err
 		}
 		locationMgr = &locationManager{cc: client}
-		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapterWithSSHFactory(client, sshClientFactory)
+		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapterWithSSHFactory(client, cfg, sshClientFactory)
 	}
 
 	return locationMgr, mgr, nil

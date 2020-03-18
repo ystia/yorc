@@ -127,7 +127,7 @@ func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploym
 		return nil, err
 	}
 	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
-	execCommon.client, err = getSSHClient(creds, locationProps)
+	execCommon.client, err = getSSHClient(cfg, creds, locationProps)
 	if err != nil {
 		return nil, err
 	}
