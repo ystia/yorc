@@ -216,8 +216,8 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
 					tasks.NotifyErrorOnTask(s.t.taskID)
-					// set task status and error message
-					err2 := checkAndSetTaskStatus(ctx, s.t.targetID, s.t.taskID, tasks.TaskStatusFAILED, err)
+					// set task status and generic error message
+					err2 := checkAndSetTaskStatus(ctx, s.t.targetID, s.t.taskID, tasks.TaskStatusFAILED, errors.Errorf("Workflow %q step%q failed.", workflowName, s.Name))
 					if err2 != nil {
 						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to set task status to error for step:%q: %v", s.Name, err2)
 					}
