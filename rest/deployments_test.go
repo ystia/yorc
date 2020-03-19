@@ -19,8 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/ziputil"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -34,11 +32,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/ziputil"
 	"github.com/ystia/yorc/v4/tasks"
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )

@@ -15,14 +15,15 @@
 package testutil
 
 import (
-	"github.com/ystia/yorc/v4/storage"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/ystia/yorc/v4/storage"
+
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ystia/yorc/v4/config"

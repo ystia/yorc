@@ -29,27 +29,27 @@ func createTestVaultServer(t *testing.T) (net.Listener, *api.Client) {
 	t.Helper()
 	return nil, nil
 	core, _, rootToken := vault.TestCoreUnsealed(t)
-	
+
 	ln, addr := http.TestServer(t, core)
 
-    conf := api.DefaultConfig()
-    conf.Address = addr
+	conf := api.DefaultConfig()
+	conf.Address = addr
 
-    client, err := api.NewClient(conf)
-    if err != nil {
-        t.Fatal(err)
-    }
-    client.SetToken(rootToken)
-    return ln, client
+	client, err := api.NewClient(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.SetToken(rootToken)
+	return ln, client
 }
 
-func createTestVaultClient(t *testing.T) (v.Client){
+func createTestVaultClient(t *testing.T) v.Client {
 	b := clientBuilder{}
 	client, err := b.BuildClient(config.Configuration{Vault: config.DynamicMap{
-		"address" : "http://127.0.0.1:8200",
-		"token": "root",
-		  "tls_skip_verify": true, },
-		})
+		"address":         "http://127.0.0.1:8200",
+		"token":           "root",
+		"tls_skip_verify": true},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +58,11 @@ func createTestVaultClient(t *testing.T) (v.Client){
 
 func Test_vaultClient_GetSecret(t *testing.T) {
 	ln, client := createTestVaultServer(t)
-    defer ln.Close()
+	defer ln.Close()
 	c := client.Logical()
 
 	c.Write("secret/data/my-secret", map[string]interface{}{
-        "secret": "bar",
+		"secret": "bar",
 	})
 
 	vc := createTestVaultClient(t)

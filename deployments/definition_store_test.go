@@ -17,9 +17,6 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	stdlog "log"
 	"os"
@@ -29,9 +26,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 	"vbom.ml/util/sortorder"
 
-	ctu "github.com/hashicorp/consul/testutil"
+	ctu "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
