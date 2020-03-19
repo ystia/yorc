@@ -76,5 +76,8 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleAWSInstanceWithPersistentDisk", func(t *testing.T) {
 			testSimpleAWSInstanceWithPersistentDisk(t, cfg, srv)
 		})
+		t.Run("simpleVPC", func(t *testing.T) {
+			testSimpleVPC(t, cfg)
+		})
 	})
 }
