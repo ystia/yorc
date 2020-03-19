@@ -75,12 +75,12 @@ type VolumeAttachment struct {
 // VPC represents a virtual private cloud
 // see : https://www.terraform.io/docs/providers/aws/r/vpc.html
 type VPC struct {
-	CidrBlock                    string `json:"cidr_block,omitempty"`
-	InstanceTenancy              string `json:"instance_tenancy,omitempty"`
-	EnableDNSSupport             string `json:"enable_dns_support,omitempty"`
-	EnableDNSHostnames           string `json:"enable_dns_hostnames,omitempty"`
-	EnableClassiclink            string `json:"enable_classiclink,omitempty"`
-	EnableClassiclinkDNSSupport  string `json:"enable_classiclink_dns_support,omitempty"`
-	AssignGeneratedIpv6CidrBlock string `json:"assign_generated_ipv6_cidr_block,omitempty"`
-	Tags                         string `json:"tags,omitempty"`
+	CidrBlock                    string            `json:"cidr_block,omitempty"`
+	InstanceTenancy              string            `json:"instance_tenancy,omitempty"`
+	EnableDNSSupport             string            `json:"enable_dns_support,omitempty"`
+	EnableDNSHostnames           string            `json:"enable_dns_hostnames,omitempty"`
+	EnableClassiclink            string            `json:"enable_classiclink,omitempty"`
+	EnableClassiclinkDNSSupport  string            `json:"enable_classiclink_dns_support,omitempty"`
+	AssignGeneratedIpv6CidrBlock string            `json:"assign_generated_ipv6_cidr_block,omitempty"`
+	Tags                         map[string]string `json:"tags,omitempty"`
 }

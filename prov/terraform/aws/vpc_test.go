@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
@@ -29,6 +30,7 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 	ctx := context.Background()
 	infrastructure := commons.Infrastructure{}
 	g := awsGenerator{}
+	networkName := "simplevpc_network"
 
 	nodeParams := nodeParams{
 		deploymentID:   deploymentID,
@@ -40,5 +42,14 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 
 	require.NoError(t, err, "Unexpected error attempting to generate vpc for %s", deploymentID)
 	require.Len(t, infrastructure.Resource["aws_vpc"], 1, "Expected one vpc")
+
+	instancesMap := infrastructure.Resource["aws_vpc"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, networkName)
+
+	vpc, ok := instancesMap[networkName].(*VPC)
+	require.True(t, ok, "%s is not a VPC", networkName)
+	assert.Equal(t, "10.0.0.0/16", vpc.CidrBlock)
+	assert.Equal(t, "true", vpc.AssignGeneratedIpv6CidrBlock)
 
 }

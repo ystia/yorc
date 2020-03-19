@@ -29,7 +29,7 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams) e
 		return err
 	}
 
-	vpc := &vpc{}
+	vpc := &VPC{}
 
 	stringParams := []struct {
 		pAttr        *string
@@ -70,11 +70,11 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams) e
 	}
 
 	// Create the name for the resource
-	var name = nil
-	if vpc.tags["Name"] != nil {
-		name := vpc.tags["Name"]
+	var name = ""
+	if vpc.Tags["Name"] != "" {
+		name = vpc.Tags["Name"]
 	} else {
-		name := strings.ToLower(nodeParams.nodeName + "-" + instanceName)
+		name = strings.ToLower(nodeParams.deploymentID + "_" + nodeParams.nodeName)
 	}
 
 	commons.AddResource(nodeParams.infrastructure, "aws_vpc", name, vpc)
