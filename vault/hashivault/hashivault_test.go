@@ -18,57 +18,53 @@ import (
 	"net"
 	"testing"
 
-	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/http"
 	"github.com/hashicorp/vault/vault"
+	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	v "github.com/ystia/yorc/v4/vault"
 )
 
-func createTestVaultServer(t *testing.T) (net.Listener, *api.Client) {
+func createTestVaultServer(t *testing.T) (ln net.Listener, addr string, rootToken string) {
 	t.Helper()
-	return nil, nil
 	core, _, rootToken := vault.TestCoreUnsealed(t)
 
-	ln, addr := http.TestServer(t, core)
-
-	conf := api.DefaultConfig()
-	conf.Address = addr
-
-	client, err := api.NewClient(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	client.SetToken(rootToken)
-	return ln, client
+	ln, addr = http.TestServer(t, core)
+	return ln, addr, rootToken
 }
 
-func createTestVaultClient(t *testing.T) v.Client {
+func createTestVaultClient(t *testing.T) (net.Listener, v.Client) {
+	ln, addr, rootToken := createTestVaultServer(t)
 	b := clientBuilder{}
 	client, err := b.BuildClient(config.Configuration{Vault: config.DynamicMap{
-		"address":         "http://127.0.0.1:8200",
-		"token":           "root",
+		"address":         addr,
+		"token":           rootToken,
 		"tls_skip_verify": true},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return client
+	return ln, client
 }
 
 func Test_vaultClient_GetSecret(t *testing.T) {
-	ln, client := createTestVaultServer(t)
+	ln, vc := createTestVaultClient(t)
 	defer ln.Close()
-	c := client.Logical()
+	c, ok := vc.(*vaultClient)
+	if !ok {
+		t.Fatal("Conversion error")
+	}
+	client := c.vClient.Logical()
 
-	c.Write("secret/data/my-secret", map[string]interface{}{
-		"secret": "bar",
+	secretPath := "secret/data/my-secret"
+	myStrongPassword := "MySr0ngP4ssw0rd"
+	client.Write(secretPath, map[string]interface{}{
+		"password": myStrongPassword,
 	})
 
-	vc := createTestVaultClient(t)
-	secret, err := vc.GetSecret("secret/data/my-secret")
+	secret, err := vc.GetSecret(secretPath, "data=password")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(secret)
+	require.Equal(t, myStrongPassword, secret.String(), "Secret get should be equals !")
 }
