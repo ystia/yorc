@@ -38,7 +38,7 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 		infrastructure: &infrastructure,
 	}
 
-	err := g.generateVPC(ctx, nodeParams)
+	err := g.generateVPC(ctx, nodeParams, "instance0", make(map[string]string))
 
 	require.NoError(t, err, "Unexpected error attempting to generate vpc for %s", deploymentID)
 	require.Len(t, infrastructure.Resource["aws_vpc"], 1, "Expected one vpc")

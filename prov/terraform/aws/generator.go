@@ -141,6 +141,11 @@ func (g *awsGenerator) generateInstances(ctx context.Context, cfg config.Configu
 			if err != nil {
 				return err
 			}
+		case "yorc.nodes.aws.VPC":
+			err = g.generateVPC(ctx, *nodeParams, instanceName, outputs)
+			if err != nil {
+				return err
+			}
 		default:
 			return errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeParams.nodeName, nodeParams.deploymentID)
 		}

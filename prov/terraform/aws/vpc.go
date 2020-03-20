@@ -16,14 +16,17 @@ package aws
 
 import (
 	"context"
+	"fmt"
+	"path"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams) error {
+func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, instanceName string, outputs map[string]string) error {
 	err := verifyThatNodeIsTypeOf(ctx, nodeParams, "yorc.nodes.aws.VPC")
 	if err != nil {
 		return err
@@ -74,12 +77,17 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams) e
 	if vpc.Tags["Name"] != "" {
 		name = vpc.Tags["Name"]
 	} else {
-		name = strings.ToLower(nodeParams.deploymentID + "_" + nodeParams.nodeName)
+		name = strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName)
 	}
 
 	commons.AddResource(nodeParams.infrastructure, "aws_vpc", name, vpc)
 
-	// Terraform Outputs
+	// Terraform  output
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, nodeParams.deploymentID, "topology", "instances", nodeParams.nodeName, instanceName)
 
+	idKey := nodeParams.nodeName + "-" + instanceName + "-id"
+	idValue := fmt.Sprintf("${aws_vpc.%s.id}", name)
+	commons.AddOutput(nodeParams.infrastructure, idKey, &commons.Output{Value: idValue})
+	outputs[path.Join(nodeKey, "/attributes/vpc_id")] = idKey
 	return nil
 }
