@@ -57,12 +57,13 @@ func Test_vaultClient_GetSecret(t *testing.T) {
 	client := c.vClient.Logical()
 
 	secretPath := "secret/data/my-secret"
+	key := "password"
 	myStrongPassword := "MySr0ngP4ssw0rd"
 	client.Write(secretPath, map[string]interface{}{
-		"password": myStrongPassword,
+		key : myStrongPassword,
 	})
 
-	secret, err := vc.GetSecret(secretPath, "data=password")
+	secret, err := vc.GetSecret(secretPath, "data="+key)
 	if err != nil {
 		t.Fatal(err)
 	}
