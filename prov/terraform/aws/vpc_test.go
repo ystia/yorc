@@ -16,11 +16,14 @@ package aws
 
 import (
 	"context"
+	"path"
 	"testing"
 
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
@@ -30,7 +33,7 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 	ctx := context.Background()
 	infrastructure := commons.Infrastructure{}
 	g := awsGenerator{}
-	networkName := "simplevpc_network"
+	networkName := "simplevpc-network"
 
 	nodeParams := nodeParams{
 		deploymentID:   deploymentID,
@@ -51,5 +54,37 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 	require.True(t, ok, "%s is not a VPC", networkName)
 	assert.Equal(t, "10.0.0.0/16", vpc.CidrBlock)
 	assert.Equal(t, "true", vpc.AssignGeneratedIpv6CidrBlock)
+
+}
+
+func testSimpleSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+	ctx := context.Background()
+	infrastructure := commons.Infrastructure{}
+	g := awsGenerator{}
+	subnetName := "simplesubnet-network-subnet" // deploymentID + "-" + nodeName (with _ changed to -)
+
+	nodeParams := nodeParams{
+		deploymentID:   deploymentID,
+		nodeName:       "Network_Subnet",
+		infrastructure: &infrastructure,
+	}
+
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network_VPC/0/attributes/vpc_id"): []byte("vpc_id"),
+	})
+
+	err := g.generateSubnet(ctx, nodeParams, "0", make(map[string]string))
+	require.NoError(t, err, "Unexpected error attempting to generate sub-network for %s", deploymentID)
+
+	instancesMap := infrastructure.Resource["aws_subnet"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, subnetName)
+
+	subnet, ok := instancesMap[subnetName].(*Subnet)
+	require.True(t, ok, "%s is not a Subnet", subnetName)
+	assert.Equal(t, "10.0.0.0/24", subnet.CidrBlock)
+	assert.Equal(t, "vpc_id", subnet.VPCId)
 
 }

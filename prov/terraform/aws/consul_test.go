@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
@@ -78,6 +77,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		})
 		t.Run("simpleVPC", func(t *testing.T) {
 			testSimpleVPC(t, cfg)
+		})
+		t.Run("simpleSubnet", func(t *testing.T) {
+			testSimpleSubnet(t, srv, cfg)
 		})
 	})
 }

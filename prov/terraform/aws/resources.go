@@ -84,3 +84,16 @@ type VPC struct {
 	AssignGeneratedIpv6CidrBlock string            `json:"assign_generated_ipv6_cidr_block,omitempty"`
 	Tags                         map[string]string `json:"tags,omitempty"`
 }
+
+// Subnet reprents a network in a VPC
+// see : https://www.terraform.io/docs/providers/aws/r/subnet.html
+type Subnet struct {
+	AvailabilityZone            string            `json:"availability_zone,omitempty"`
+	AvailabilityZoneID          string            `json:"availability_zone_id,omitempty"`
+	CidrBlock                   string            `json:"cidr_block,omitempty"`
+	Ipv6CidrBlock               string            `json:"ipv6_cidr_block,omitempty"`
+	MapPublicIPOnLaunch         string            `json:"map_public_ip_on_launch,omitempty"`
+	AssignIpv6AddressOnCreation string            `json:"assign_ipv6_address_on_creation,omitempty"`
+	VPCId                       string            `json:"vpc_id,omitempty"`
+	Tags                        map[string]string `json:"tags,omitempty"`
+}
