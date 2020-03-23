@@ -157,11 +157,12 @@ type OutputsCollection struct {
 
 // Task is the representation of a Yorc' task
 type Task struct {
-	ID        string          `json:"id"`
-	TargetID  string          `json:"target_id"`
-	Type      string          `json:"type"`
-	Status    string          `json:"status"`
-	ResultSet json.RawMessage `json:"result_set,omitempty"`
+	ID           string          `json:"id"`
+	TargetID     string          `json:"target_id"`
+	Type         string          `json:"type"`
+	Status       string          `json:"status"`
+	ErrorMessage string          `json:"error_message,omitempty"`
+	ResultSet    json.RawMessage `json:"result_set,omitempty"`
 }
 
 // TasksCollection is the collection of task's links
