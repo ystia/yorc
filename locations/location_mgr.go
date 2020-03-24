@@ -170,9 +170,9 @@ func (mgr *locationManager) GetLocations() ([]LocationConfiguration, error) {
 }
 
 // GetLocationProperties returns properties configured for a given location
-func (mgr *locationManager) GetLocationProperties(locationName, locationType string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetLocationProperties(locationName, infrastructureType string) (config.DynamicMap, error) {
 
-	if locationType == adapter.AdaptedLocationType {
+	if infrastructureType == adapter.AdaptedLocationType {
 		return mgr.hpAdapter.GetLocationConfiguration(locationName)
 	}
 	var props config.DynamicMap
@@ -186,12 +186,13 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 
 	var lConfig LocationConfiguration
 	err = json.Unmarshal(kvp.Value, &lConfig)
-	props = lConfig.Properties
 	if err != nil {
 		return props, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
 	}
-	if lConfig.Type != locationType {
-		return props, errors.Errorf("The location %q has %s type and not the expected %s type", locationName, lConfig.Type, locationType)
+	props = lConfig.Properties
+	locationType := lConfig.Type
+	if infrastructureType != locationType {
+		return props, errors.Errorf("The location %q has %s type and not the expected %s type", locationName, locationType, infrastructureType)
 	}
 
 	return props, err
@@ -201,8 +202,8 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 // on which the node template in argument is or will be created.
 // The corresponding location name should be provided in the node template metadata.
 // If no location name is provided in the node template metadata, the configuration
-// of the first location of the expected type in returned
-func (mgr *locationManager) GetLocationPropertiesForNode(ctx context.Context, deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
+// of the first location of the expected infrastructure type is returned
+func (mgr *locationManager) GetLocationPropertiesForNode(ctx context.Context, deploymentID, nodeName, infrastructureType string) (config.DynamicMap, error) {
 
 	// Get the location name in node template metadata
 	found, locationName, err := deployments.GetNodeMetadata(ctx, deploymentID, nodeName, tosca.MetadataLocationNameKey)
@@ -211,26 +212,26 @@ func (mgr *locationManager) GetLocationPropertiesForNode(ctx context.Context, de
 	}
 
 	if found {
-		return mgr.GetLocationProperties(locationName, locationType)
+		return mgr.GetLocationProperties(locationName, infrastructureType)
 	}
 
 	// No location specified, get the first location matching the expected type
-	return mgr.GetPropertiesForFirstLocationOfType(locationType)
+	return mgr.GetPropertiesForFirstLocationOfType(infrastructureType)
 
 }
 
 // GetPropertiesForFirstLocationOfType returns properties for the first location
 // of a given infrastructure type.
 // Returns an error if there is no location of such type
-func (mgr *locationManager) GetPropertiesForFirstLocationOfType(locationType string) (config.DynamicMap, error) {
+func (mgr *locationManager) GetPropertiesForFirstLocationOfType(infrastructureType string) (config.DynamicMap, error) {
 
 	var props config.DynamicMap
 	locations, err := mgr.GetLocations()
 	if err == nil {
 		// Set the error in case no location of such type is found
-		err = errors.Errorf("Found no location of type %q", locationType)
+		err = errors.Errorf("Found no location of type %q", infrastructureType)
 		for _, loc := range locations {
-			if loc.Type == locationType {
+			if loc.Type == infrastructureType {
 				props = loc.Properties
 				err = nil
 				break

@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Check for location type mismatch ([GH-550](https://github.com/ystia/yorc/issues/550))
+
 ## 4.0.0-M10 (March 10, 2020)
 
 ### FEATURES
