@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"io/ioutil"
 	"net/http"
@@ -25,31 +26,31 @@ import (
 	"testing"
 )
 
-func testTaskQueryHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testTaskQueryHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Run("testTaskQueryHandlers", func(t *testing.T) {
-		testGetTaskQueryHandler(t, client, srv)
+		testGetTaskQueryHandler(t, client, cfg, srv)
 	})
 	t.Run("testDeleteTaskQueryHandler", func(t *testing.T) {
-		testDeleteTaskQueryHandler(t, client, srv)
+		testDeleteTaskQueryHandler(t, client, cfg, srv)
 	})
 	t.Run("testListTaskQueryHandler", func(t *testing.T) {
-		testListTaskQueryHandler(t, client, srv)
+		testListTaskQueryHandler(t, client, cfg, srv)
 	})
 	t.Run("testDeleteTaskQueryHandlerWithTaskNotFound", func(t *testing.T) {
-		testDeleteTaskQueryHandlerWithTaskNotFound(t, client, srv)
+		testDeleteTaskQueryHandlerWithTaskNotFound(t, client, cfg, srv)
 	})
 	t.Run("testGetTaskQueryHandlerWithTaskNotFound", func(t *testing.T) {
-		testGetTaskQueryHandlerWithTaskNotFound(t, client, srv)
+		testGetTaskQueryHandlerWithTaskNotFound(t, client, cfg, srv)
 	})
 	t.Run("testDeleteTaskQueryHandlerWithRunningTask", func(t *testing.T) {
-		testDeleteTaskQueryHandlerWithRunningTask(t, client, srv)
+		testDeleteTaskQueryHandlerWithRunningTask(t, client, cfg, srv)
 	})
 	t.Run("testDeleteTaskQueryHandlerWithNotTaskQuery", func(t *testing.T) {
-		testDeleteTaskQueryHandlerWithNotTaskQuery(t, client, srv)
+		testDeleteTaskQueryHandlerWithNotTaskQuery(t, client, cfg, srv)
 	})
 }
 
-func testGetTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetTaskQueryHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":              []byte("7"),
 		consulutil.TasksPrefix + "/task123/targetId":          []byte("infra_usage:slurm"),
@@ -60,7 +61,7 @@ func testGetTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Tes
 
 	req := httptest.NewRequest("GET", "/infra_usage/myInfraName/myLocationName/tasks/task123", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
@@ -70,16 +71,16 @@ func testGetTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Tes
 	client.KV().DeleteTree(consulutil.TasksPrefix, nil)
 }
 
-func testGetTaskQueryHandlerWithTaskNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetTaskQueryHandlerWithTaskNotFound(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("GET", "/infra_usage/myInfraName/myLocationName/tasks/taskNotFound", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusNotFound, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNotFound)
 }
 
-func testDeleteTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteTaskQueryHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":              []byte("7"),
 		consulutil.TasksPrefix + "/task123/targetId":          []byte("infra_usage:slurm"),
@@ -89,7 +90,7 @@ func testDeleteTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.
 	})
 
 	req := httptest.NewRequest("DELETE", "/infra_usage/myInfraName/myLocationName/tasks/task123", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusAccepted, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusAccepted)
@@ -97,7 +98,7 @@ func testDeleteTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.
 	client.KV().DeleteTree(consulutil.TasksPrefix, nil)
 }
 
-func testDeleteTaskQueryHandlerWithRunningTask(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteTaskQueryHandlerWithRunningTask(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":              []byte("7"),
 		consulutil.TasksPrefix + "/task123/targetId":          []byte("infra_usage:slurm"),
@@ -107,7 +108,7 @@ func testDeleteTaskQueryHandlerWithRunningTask(t *testing.T, client *api.Client,
 	})
 
 	req := httptest.NewRequest("DELETE", "/infra_usage/myInfraName/myLocationName/tasks/task123", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
@@ -115,7 +116,7 @@ func testDeleteTaskQueryHandlerWithRunningTask(t *testing.T, client *api.Client,
 	client.KV().DeleteTree(consulutil.TasksPrefix, nil)
 }
 
-func testDeleteTaskQueryHandlerWithNotTaskQuery(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteTaskQueryHandlerWithNotTaskQuery(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":              []byte("2"),
 		consulutil.TasksPrefix + "/task123/targetId":          []byte("infra_usage:slurm"),
@@ -125,7 +126,7 @@ func testDeleteTaskQueryHandlerWithNotTaskQuery(t *testing.T, client *api.Client
 	})
 
 	req := httptest.NewRequest("DELETE", "/infra_usage/myInfraName/myLocationName/tasks/task123", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
@@ -133,15 +134,15 @@ func testDeleteTaskQueryHandlerWithNotTaskQuery(t *testing.T, client *api.Client
 	client.KV().DeleteTree(consulutil.TasksPrefix, nil)
 }
 
-func testDeleteTaskQueryHandlerWithTaskNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteTaskQueryHandlerWithTaskNotFound(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	req := httptest.NewRequest("DELETE", "/infra_usage/myInfraName/myLocationName/tasks/taskNotFound", nil)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusNotFound, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNotFound)
 }
 
-func testListTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListTaskQueryHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":              []byte("7"),
 		consulutil.TasksPrefix + "/task123/targetId":          []byte("infra_usage:slurm"),
@@ -162,7 +163,7 @@ func testListTaskQueryHandler(t *testing.T, client *api.Client, srv *testutil.Te
 
 	req := httptest.NewRequest("GET", "/infra_usage", nil)
 	req.Header.Add("Accept", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)

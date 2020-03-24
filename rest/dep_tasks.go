@@ -108,6 +108,11 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
+	taskErrorMessage, err := tasks.GetTaskErrorMessage(taskID)
+	if err != nil {
+		log.Panic(err)
+	}
+	task.ErrorMessage = taskErrorMessage
 	encodeJSONResponse(w, r, task)
 }
 

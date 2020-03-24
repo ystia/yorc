@@ -26,15 +26,17 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/config"
 )
 
-func testDeploymentWorkflowHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeploymentWorkflowHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Run("testExecuteWorkflow", func(t *testing.T) {
-		testExecuteWorkflow(t, client, srv)
+		testExecuteWorkflow(t, client, cfg, srv)
 	})
 }
 
-func testExecuteWorkflow(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testExecuteWorkflow(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	tests := []struct {
@@ -71,7 +73,7 @@ func testExecuteWorkflow(t *testing.T, client *api.Client, srv *testutil.TestSer
 			require.NoError(t, err, "unexpected error marshalling data to provide body request")
 			req := httptest.NewRequest("POST", wfEndpoint, bytes.NewBuffer(body))
 			req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			body, err = ioutil.ReadAll(resp.Body)
 			if (err != nil) != tt.wantErr {

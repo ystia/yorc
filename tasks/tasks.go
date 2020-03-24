@@ -123,6 +123,27 @@ func GetTasksIdsForTarget(targetID string) ([]string, error) {
 	return tasks, nil
 }
 
+// GetTaskErrorMessage retrieves the task related error message if any.
+//
+// If no error message is found, an empty string is returned instead
+func GetTaskErrorMessage(taskID string) (string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"))
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if exist {
+		return value, nil
+	}
+	return "", nil
+}
+
+// SetTaskErrorMessage retrieves the task related error message if any.
+//
+// If no error message is found, an empty string is returned instead
+func SetTaskErrorMessage(taskID, errorMessage string) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"), errorMessage)
+}
+
 // GetTaskResultSet retrieves the task related resultSet in json string format
 //
 // If no resultSet is found, nil is returned instead

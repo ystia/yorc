@@ -178,7 +178,7 @@ func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 }
 
 // checkAndSetTaskStatus allows to check the task status before updating it
-func checkAndSetTaskStatus(ctx context.Context, targetID, taskID string, finalStatus tasks.TaskStatus) error {
+func checkAndSetTaskStatus(ctx context.Context, targetID, taskID string, finalStatus tasks.TaskStatus, errReason error) error {
 	kvp, meta, err := consulutil.GetKV().Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get task status for taskID:%q", taskID)
@@ -203,12 +203,12 @@ func checkAndSetTaskStatus(ctx context.Context, targetID, taskID string, finalSt
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		}
-		return setTaskStatus(ctx, targetID, taskID, finalStatus, meta.LastIndex)
+		return setTaskStatus(ctx, targetID, taskID, finalStatus, meta.LastIndex, errReason)
 	}
 	return nil
 }
 
-func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
+func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.TaskStatus, lastIndex uint64, errReason error) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
 	set, _, err := consulutil.GetKV().CAS(p, nil)
@@ -218,7 +218,7 @@ func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.Ta
 	}
 	if !set {
 		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), taskID)
-		return checkAndSetTaskStatus(ctx, targetID, taskID, status)
+		return checkAndSetTaskStatus(ctx, targetID, taskID, status, errReason)
 	}
 
 	// Emit event for status change
@@ -231,6 +231,9 @@ func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.Ta
 		return nil
 	}
 	tasks.EmitTaskEventWithContextualLogs(ctx, targetID, taskID, taskType, wfName, status.String())
+	if errReason != nil {
+		return tasks.SetTaskErrorMessage(taskID, errReason.Error())
+	}
 	return nil
 }
 

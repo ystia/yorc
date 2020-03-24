@@ -45,7 +45,7 @@ func init() {
 			if err != nil {
 				return err
 			}
-			return getTaskInfo(client, args, withSteps)
+			return taskInfo(client, args, withSteps)
 		},
 	}
 
@@ -53,21 +53,20 @@ func init() {
 	tasksCmd.AddCommand(infoTaskCmd)
 }
 
-func getTaskInfo(client httputil.HTTPClient, args []string, withSteps bool) error {
+func taskInfo(client httputil.HTTPClient, args []string, withSteps bool) error {
 	if len(args) != 2 {
 		return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 	}
-
 	url := path.Join("/deployments", args[0], "/tasks/", args[1])
 	request, err := client.NewRequest("GET", url, nil)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	defer response.Body.Close()
 	ids := args[0] + "/" + args[1]
@@ -75,11 +74,11 @@ func getTaskInfo(client httputil.HTTPClient, args []string, withSteps bool) erro
 	var task rest.Task
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	err = json.Unmarshal(body, &task)
 	if err != nil {
-		httputil.ErrExit(err)
+		return err
 	}
 	fmt.Println("Task: ", task.ID)
 	fmt.Println("Task status:", task.Status)
@@ -93,6 +92,10 @@ func getTaskInfo(client httputil.HTTPClient, args []string, withSteps bool) erro
 			outputsTable.AddRow(outputName, outputValue)
 		}
 		fmt.Println(outputsTable.Render())
+	}
+
+	if task.ErrorMessage != "" {
+		fmt.Println("Task Error Message:", task.ErrorMessage)
 	}
 
 	if withSteps {

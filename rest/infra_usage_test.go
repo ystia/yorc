@@ -51,7 +51,7 @@ func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.
 	return nil, err
 }
 
-func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testPostInfraUsageHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	mock := new(mockInfraUsageCollector)
@@ -60,7 +60,7 @@ func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.T
 
 	req := httptest.NewRequest("POST", "/infra_usage/myInfraName/myLocationName?myparam=success", nil)
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusAccepted, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusAccepted)
@@ -69,7 +69,7 @@ func testPostInfraUsageHandler(t *testing.T, client *api.Client, srv *testutil.T
 	require.Equal(t, true, strings.HasPrefix(resp.Header["Location"][0], "/infra_usage/myInfraName/myLocationName/tasks"), "unexpected location header prefix")
 }
 
-func testPostInfraUsageHandlerError(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testPostInfraUsageHandlerError(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	mock := new(mockInfraUsageCollector)
@@ -78,7 +78,7 @@ func testPostInfraUsageHandlerError(t *testing.T, client *api.Client, srv *testu
 
 	req := httptest.NewRequest("POST", "/infra_usage/myInfraError/myLocationName?myparam=failure", nil)
 	req.Header.Add("Content-Type", mimeTypeApplicationJSON)
-	resp := newTestHTTPRouter(client, req)
+	resp := newTestHTTPRouter(client, cfg, req)
 
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusAccepted, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusAccepted)

@@ -84,7 +84,12 @@ func (s *Server) newHostInPool(w http.ResponseWriter, r *http.Request) {
 
 	err = s.hostsPoolMgr.Add(location, hostname, *host.Connection, labels)
 	if err != nil {
-		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
+		if hostspool.IsHostConnectionError(err) {
+			w.Header().Set("Warning", err.Error())
+			w.Header().Set("Location", fmt.Sprintf("/hosts_pool/%s/%s", location, hostname))
+			w.WriteHeader(http.StatusCreated)
+			return
+		} else if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}
@@ -116,15 +121,17 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 	if host.Connection != nil {
 		err = s.hostsPoolMgr.UpdateConnection(location, hostname, *host.Connection)
 		if err != nil {
-			if hostspool.IsBadRequestError(err) {
+			if hostspool.IsHostConnectionError(err) {
+				w.Header().Set("Warning", err.Error())
+			} else if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
 				return
-			}
-			if hostspool.IsHostNotFoundError(err) {
+			} else if hostspool.IsHostNotFoundError(err) {
 				writeError(w, r, errNotFound)
 				return
+			} else {
+				log.Panic(err)
 			}
-			log.Panic(err)
 		}
 	}
 	labelsAdd := make(map[string]string)

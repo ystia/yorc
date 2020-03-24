@@ -195,7 +195,7 @@ func (cm *consulManager) releaseWait(locationName, hostname, deploymentID, nodeN
 	err = cm.checkConnection(locationName, hostname)
 	if err != nil {
 		cm.backupHostStatus(locationName, hostname)
-		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "failed to connect to host")
+		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
 	}
 	return allocation, nil
 }

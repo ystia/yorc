@@ -16,14 +16,15 @@ package tasks
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/rest"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/rest"
 )
 
 type httpClientInfoTask struct {
@@ -72,6 +73,6 @@ func (c *httpClientInfoTask) PostForm(path string, data url.Values) (*http.Respo
 }
 
 func TestGetTaskInfo(t *testing.T) {
-	err := getTaskInfo(&httpClientInfoTask{}, []string{"deployment123", "task123"}, false)
+	err := taskInfo(&httpClientInfoTask{}, []string{"deployment123", "task123"}, false)
 	require.NoError(t, err, "Failed to get info task")
 }

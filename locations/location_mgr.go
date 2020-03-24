@@ -76,16 +76,16 @@ func GetManager(cfg config.Configuration) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewManager(client), nil
+	return NewManager(client, cfg), nil
 }
 
 // NewManager creates a Location Manager for the http server
 // The http server has already a Consul client instance that was
 // provided to it as a constructor input parameter (see rest.NewServer function).
-func NewManager(client *api.Client) Manager {
+func NewManager(client *api.Client, cfg config.Configuration) Manager {
 	locMgrInitOnce.Do(func() {
 		locationMgr = &locationManager{cc: client}
-		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client)
+		locationMgr.hpAdapter = adapter.NewHostsPoolLocationAdapter(client, cfg)
 	})
 	return locationMgr
 }

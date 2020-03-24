@@ -216,7 +216,13 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
 					tasks.NotifyErrorOnTask(s.t.taskID)
-					err2 := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
+					// set task status and generic error message
+					err2 := checkAndSetTaskStatus(ctx, s.t.targetID, s.t.taskID, tasks.TaskStatusFAILED, errors.Errorf("Workflow %q step%q failed.", workflowName, s.Name))
+					if err2 != nil {
+						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to set task status to error for step:%q: %v", s.Name, err2)
+					}
+
+					err2 = s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
 					if err2 != nil {
 						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to register on failure steps: %v", err2)
 					}
@@ -231,7 +237,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 		}
 	}
 	if !s.Async {
-		log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.id, s.Name, s.WorkflowName, s.t.taskID)
+		log.Debugf("Task execution: %q for step: %q, workflow: %q, taskID: %q done successfully.", s.t.id, s.Name, s.WorkflowName, s.t.taskID)
 		s.setStatus(tasks.TaskStepStatusDONE)
 	}
 	return nil

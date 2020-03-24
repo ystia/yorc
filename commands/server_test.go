@@ -59,6 +59,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 		PluginsDirectory        string
 		WorkersNumber           int
 		UpgradeConcurrencyLimit int
+		SSHConnectionTimeout    time.Duration
 	}{
 		LocationsFilePath:       "/path/to/locations/file",
 		ResourcesPrefix:         "pref-",
@@ -66,6 +67,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 		PluginsDirectory:        "plugdir",
 		WorkersNumber:           42,
 		UpgradeConcurrencyLimit: 100,
+		SSHConnectionTimeout:    30 * time.Second,
 	}
 
 	// Set server env variables
@@ -75,6 +77,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 	os.Setenv("YORC_PLUGINS_DIRECTORY", expectedConfig.PluginsDirectory)
 	os.Setenv("YORC_WORKERS_NUMBER", strconv.Itoa(expectedConfig.WorkersNumber))
 	os.Setenv("YORC_CONCURRENCY_LIMIT_FOR_UPGRADES", strconv.Itoa(expectedConfig.UpgradeConcurrencyLimit))
+	os.Setenv("YORC_SSH_CONNECTION_TIMEOUT", expectedConfig.SSHConnectionTimeout.String())
 
 	testResetConfig()
 	setConfig()
@@ -87,6 +90,7 @@ func TestServerConfigWithEnvVars(t *testing.T) {
 	assert.Equal(t, expectedConfig.PluginsDirectory, testConfig.PluginsDirectory, "Plugins Directory configuration differs from expected environment configuration")
 	assert.Equal(t, expectedConfig.WorkersNumber, testConfig.WorkersNumber, "Workers Number configuration differs from expected environment configuration")
 	assert.Equal(t, expectedConfig.UpgradeConcurrencyLimit, testConfig.UpgradeConcurrencyLimit, "Upgrade concurrency limit configuration differs from expected environment configuration")
+	assert.Equal(t, expectedConfig.SSHConnectionTimeout, testConfig.SSHConnectionTimeout, "SSH connection timeout configuration differs from expected environment configuration")
 
 	// cleanup env
 	os.Unsetenv("YORC_LOCATIONS_FILE_PATH")

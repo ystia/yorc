@@ -199,7 +199,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 		events.ExecutionID: t.taskID,
 	}
 	ctx := events.NewContext(context.Background(), logOptFields)
-	err = checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusRUNNING)
+	err = checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusRUNNING, nil)
 	if err != nil {
 		log.Printf("%+v", err)
 		return
@@ -250,13 +250,13 @@ func (w *worker) runOneExecutionTask(ctx context.Context, t *taskExecution) erro
 			// let's assume the we failed for this reason
 			// while we actually don't know if we encounter another error
 			tasks.UpdateTaskStepWithStatus(t.taskID, t.step, tasks.TaskStepStatusCANCELED)
-			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusCANCELED)
+			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusCANCELED, err)
 		} else if err != nil {
 			tasks.UpdateTaskStepWithStatus(t.taskID, t.step, tasks.TaskStepStatusERROR)
-			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED)
+			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
 		} else {
 			tasks.UpdateTaskStepWithStatus(t.taskID, t.step, tasks.TaskStepStatusDONE)
-			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE)
+			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE, nil)
 		}
 	}()
 	// We do not monitor task failure as there is only one execution
@@ -612,7 +612,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	if t.finalFunction == nil {
 		t.finalFunction = func() error {
 			if err != nil {
-				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED)
+				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
 				return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
 			}
 			return nil
@@ -668,7 +668,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		return err
 	}
 	// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
-	checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE)
+	checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE, nil)
 	err = tasks.DeleteTask(t.taskID)
 	if err != nil {
 		return err
@@ -795,7 +795,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 		return errors.Wrapf(err, "The workflow %s step %s ended on error", workflowName, t.step)
 	}
 	if !s.Async {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.targetID, workflowName, t.step))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID: %q, Workflow: %q, step: %q ended successfully", t.targetID, workflowName, t.step))
 		return s.registerNextSteps(ctx, workflowName)
 	}
 	// If we are asynchronous then no the workflow is not done

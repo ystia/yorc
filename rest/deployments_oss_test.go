@@ -19,6 +19,7 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/v4/config"
 	"reflect"
 
 	"io/ioutil"
@@ -33,7 +34,7 @@ import (
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
 
-func testUpdateDeployments(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testUpdateDeployments(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	depID := ytestutil.BuildDeploymentID(t)
 
 	type result struct {
@@ -56,7 +57,7 @@ func testUpdateDeployments(t *testing.T, client *api.Client, srv *testutil.TestS
 
 			req := httptest.NewRequest("PATCH", "/deployments/"+tt.deploymentID, nil)
 			req.Header.Set("Content-Type", mimeTypeApplicationZip)
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
 
