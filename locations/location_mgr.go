@@ -190,6 +190,9 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 	if err != nil {
 		return props, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
 	}
+	if lConfig.Type != locationType {
+		return props, errors.Errorf("The location %q has %s type and not the expected %s type", locationName, lConfig.Type, locationType)
+	}
 
 	return props, err
 }
