@@ -304,10 +304,10 @@ Example how to trigger the execution of workflow <workflowName> on instance "1" 
 
 .. code-block:: bash
 
-     yorc deployments workflows execute deployID -w workflowName --data '{ "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }], "inputs":{"key1":["value1","value2"],"key2":"value3"}}'
+     yorc deployments workflows execute deployID -w workflowName --data '{"inputs":{"key1":["value1","value2"],"key2":"value3"},  "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }]}'
 
-Note that if only one instance exists for the workflow's target node "node1", its not manadatory to provide it:
-
+Note that providing the target node instances is not mandatory. If not provided, Yorc will select all the instances available for the nodes concerned by the workflow execution.
+ 
 .. code-block:: bash
 
      yorc deployments workflows execute deployID -w workflowName --data '{"inputs": {"key1": ["value1","value2"], "key2": "value3"}}'
