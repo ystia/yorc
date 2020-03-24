@@ -42,6 +42,10 @@ func (m *mockActivity) Value() string {
 	return m.v
 }
 
+func (m *mockActivity) Inputs() map[string]tosca.ParameterDefinition {
+	return nil
+}
+
 func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Configuration) {
 	log.SetDebug(true)
 

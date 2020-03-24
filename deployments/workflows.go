@@ -81,7 +81,10 @@ func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 	for sn, s := range wf.Steps {
 		var isCancellable bool
 		for _, a := range s.Activities {
-			switch strings.ToLower(a.CallOperation) {
+			if a.CallOperation == nil {
+				continue
+			}
+			switch strings.ToLower(a.CallOperation.Operation) {
 			case tosca.RunnableSubmitOperationName, tosca.RunnableRunOperationName:
 				isCancellable = true
 			}
@@ -100,7 +103,7 @@ func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 					OperationHost:      s.OperationHost,
 					Activities: []tosca.Activity{
 						tosca.Activity{
-							CallOperation: tosca.RunnableCancelOperationName,
+							CallOperation: &tosca.OperationActivity{Operation: tosca.RunnableCancelOperationName},
 						},
 					},
 				}
@@ -115,4 +118,33 @@ func enhanceWorkflows(ctx context.Context, deploymentID string) error {
 		internal.StoreWorkflow(ctx, deploymentID, "run", wf)
 	}
 	return nil
+}
+
+// ResolveWorkflowOutputs allows to resolve workflow outputs
+func ResolveWorkflowOutputs(ctx context.Context, deploymentID, workflowName string) (map[string]*TOSCAValue, error) {
+	wf, err := GetWorkflow(ctx, deploymentID, workflowName)
+	if err != nil {
+		return nil, err
+	}
+
+	outputs := make(map[string]*TOSCAValue)
+	for outputName, outputDef := range wf.Outputs {
+		dataType := getTypeFromParamDefinition(ctx, &outputDef)
+
+		res, err := getValueAssignment(ctx, deploymentID, "", "0", "", dataType, outputDef.Value)
+		if err != nil {
+			return nil, err
+		}
+		// otherwise check the default
+		if res == nil {
+			res, err = getValueAssignment(ctx, deploymentID, "", "0", "", dataType, outputDef.Default)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		outputs[outputName] = res
+	}
+
+	return outputs, nil
 }

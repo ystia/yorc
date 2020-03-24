@@ -125,10 +125,10 @@ func getTopologyInputOrOutputType(ctx context.Context, deploymentID, parameterNa
 	if err != nil || !exist {
 		return "", err
 	}
-	return getTopologyInputOrOutputTypeFromParamDefinition(ctx, paramDef), nil
+	return getTypeFromParamDefinition(ctx, paramDef), nil
 }
 
-func getTopologyInputOrOutputTypeFromParamDefinition(ctx context.Context, parameterDefinition *tosca.ParameterDefinition) string {
+func getTypeFromParamDefinition(ctx context.Context, parameterDefinition *tosca.ParameterDefinition) string {
 	if parameterDefinition == nil {
 		return ""
 	}

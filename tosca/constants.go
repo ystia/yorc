@@ -93,3 +93,14 @@ const NetworkIDProperty = "network_id"
 //
 // See https://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/os/TOSCA-Simple-Profile-YAML-v1.2-os.html#TYPE_TOSCA_DATA_NETWORKINFO
 const NetworkAddressesProperty = "addresses"
+
+const (
+	// Self is a Tosca keyword which indicates the related object is being referenced from the node itself.
+	Self = "SELF"
+	// Source is a Tosca keyword which indicates the related object is being referenced from the source relationship.
+	Source = "SOURCE"
+	// Target is a Tosca keyword which indicates the object is being referenced from the target relationship.
+	Target = "TARGET"
+	// Host is a Tosca keyword which indicates the object is being referenced from the host in an hostedOn relationship.
+	Host = "HOST"
+)

@@ -17,6 +17,7 @@ package workflow
 import (
 	"context"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -31,16 +32,21 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/prov/operations"
 	"github.com/ystia/yorc/v4/registry"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 type mockExecutor struct {
-	delegateCalled bool
-	callOpsCalled  bool
-	errorsDelegate bool
-	errorsCallOps  bool
+	delegateCalled  bool
+	callOpsCalled   bool
+	errorsDelegate  bool
+	errorsCallOps   bool
+	envInputs       []*operations.EnvInput
+	varInputs       []string
+	executionInputs map[string]tosca.ParameterDefinition
 }
 
 func (m *mockExecutor) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -55,7 +61,16 @@ func (m *mockExecutor) ExecOperation(ctx context.Context, conf config.Configurat
 	if m.errorsCallOps {
 		return errors.New("Failed required for mock")
 	}
-	return nil
+
+	var err error
+	if nodeName == "GreetingsComponent" {
+		m.envInputs, m.varInputs, err = operations.ResolveInputs(ctx, deploymentID, nodeName, taskID, operation)
+		m.executionInputs = operation.Inputs
+	} else if nodeName == "ComputePIComponent" {
+		err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, "0", "result", "3.141592")
+	}
+
+	return err
 }
 func (m *mockExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
 	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
@@ -158,7 +173,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 				if mah.target != s.Target {
 					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.Target)
 				}
-				if mah.activity != s.Activities[0] {
+				if !reflect.DeepEqual(mah.activity, s.Activities[0]) {
 					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
 				}
 			}
@@ -173,7 +188,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
 				if mah.target != s.Target {
 					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.Target)
 				}
-				if mah.activity != s.Activities[0] {
+				if !reflect.DeepEqual(mah.activity, s.Activities[0]) {
 					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
 				}
 			}
@@ -313,5 +328,201 @@ func testInlineWorkflow(t *testing.T, srv1 *testutil.TestServer, cc *api.Client)
 	_ = tasks.SetTaskData(childTaskExec.taskID, "continueOnError", "123")
 	_, err = checkByPassErrors(childTaskExec, wfName)
 	require.Error(t, err, "Expected an error checking non boolean bypass value")
+
+}
+
+func testWorkflowInputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/test_topo_workflow_inputs.yaml")
+	require.NoError(t, err, "Failed to store deployment definition")
+
+	mockExecutor := &mockExecutor{}
+	registry.GetRegistry().RegisterDelegates([]string{"org.ystia.yorc.samples.GreetingsComponentType"}, mockExecutor, "tests")
+	registry.GetRegistry().RegisterOperationExecutor([]string{"ystia.yorc.tests.artifacts.Implementation.Custom"}, mockExecutor, "tests")
+
+	type args struct {
+		workflowName   string
+		workflowInputs map[string]string
+		stepName       string
+		isInline       bool
+	}
+	tests := []struct {
+		name                        string
+		args                        args
+		wantRunError                bool
+		expectedOperationInputValue map[string]string
+	}{
+		{"TestMissingWorkflowInput",
+			args{"greet", nil, "GreetingsComponent_say_hello", false},
+			true,
+			nil},
+		{"TestWorkflowInput",
+			// user in a workflow input whose value will be added in task inputs
+			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_hello", false},
+			false,
+			// greetings_user is defined  as {get_input user}
+			// hello_msg is defined in the topology inputs
+			map[string]string{"greetings_user": "YorcUser", "hello_msg": "Hello"}},
+		{"TestInlineWorkflowInput",
+			// No worfklow input here, inputs are provided in the workflow activity
+			args{"inline_wf", map[string]string{}, "inline_step", true},
+			false,
+			// greetings_user is defined in activity inputs
+			// hello_msg is defined in the topology inputs
+			map[string]string{"user": "inlineUser", "hello_msg": "Hello"}},
+		{"TestActivityInput",
+			// user in a workflow input whose value will be added in task inputs
+			args{"greet", map[string]string{"user": "YorcUser"}, "GreetingsComponent_say_goodbye", false},
+			false,
+			// greetings_user is assigned in activity inputs, its should take precedence over the task input
+			// goodbye_msg is defined in activity inputs
+			map[string]string{"greetings_user": "UserInActivity", "goodbye_msg": "Bye"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// Preparing test environment
+			mockExecutor.callOpsCalled = false
+			mockExecutor.errorsCallOps = false
+			mockExecutor.delegateCalled = false
+			mockExecutor.errorsDelegate = false
+			taskID := "task" + tt.name
+
+			// Adding task inputs
+			for iName, iValue := range tt.args.workflowInputs {
+
+				dataInput := path.Join("inputs", iName)
+				// Add an input to the task
+				err = tasks.SetTaskData(taskID, dataInput, iValue)
+			}
+
+			wfSteps, err := builder.BuildWorkFlow(context.Background(), deploymentID, tt.args.workflowName)
+			require.NoError(t, err, "Failed to build workflow %s", tt.args.workflowName)
+			bs := wfSteps[tt.args.stepName]
+			require.NotNil(t, bs, "Failed to find step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
+
+			bs.Next = nil
+			te := &taskExecution{id: "taskExec" + tt.name, taskID: taskID, targetID: deploymentID}
+			s := wrapBuilderStep(bs, cc, te)
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, tt.args.stepName), []byte("initial"))
+
+			err = s.run(context.Background(), config.Configuration{}, deploymentID, false, tt.args.workflowName, &worker{})
+			if tt.wantRunError {
+				require.Error(t, err, "Expected an error running step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
+				return
+			}
+
+			require.NoError(t, err, "Failed running step %s in workflow %s", tt.args.stepName, tt.args.workflowName)
+
+			if tt.args.isInline {
+				// Check a new task was created for the inline step
+				tasksIDs, err := tasks.GetQueryTaskIDs(tasks.TaskTypeCustomWorkflow, "", "")
+				require.NoError(t, err, "Failed to get tasks of type custom workflow")
+				taskIDFound := false
+				var taskData map[string]string
+				for _, tid := range tasksIDs {
+
+					taskData, err = tasks.GetAllTaskData(tid)
+					require.NoError(t, err, "Failed to get task data")
+					if taskData[taskDataParentWorkflowName] == tt.args.workflowName {
+						taskIDFound = true
+						break
+					}
+				}
+				require.True(t, taskIDFound, "No child task found for workflow %s", tt.args.workflowName)
+
+				// Check expected inputs in task data
+				for iName, iValue := range tt.expectedOperationInputValue {
+					expectedInputName := path.Join("inputs", iName)
+					assert.Equal(t, iValue, taskData[expectedInputName],
+						"Expected value %s for input %s not found in child task for inline workflow : %+v",
+						iValue, iName, taskData)
+				}
+
+			} else {
+				require.Equal(t, true, mockExecutor.callOpsCalled, "Expected an operation to be called running step %s", tt.args.stepName)
+
+				for iName, iValue := range tt.args.workflowInputs {
+					inputParam, found := mockExecutor.executionInputs[iName]
+					require.Equal(t, true, found, "Missing input parameter %s in operation execution context", iName)
+					require.Equal(t, iValue, inputParam.Value.GetLiteral(), "Wrong value for input parameter %s in operation execution context", iName)
+				}
+				for iName, iValue := range tt.expectedOperationInputValue {
+					var expectedEnvInput *operations.EnvInput
+					for _, envInput := range mockExecutor.envInputs {
+						if envInput.Name == iName {
+							expectedEnvInput = envInput
+							break
+						}
+					}
+					require.NotNil(t, expectedEnvInput, "No env input in operation execution context for operation input %s: %+v", iName, mockExecutor.envInputs)
+					assert.Equal(t, iValue, expectedEnvInput.Value, "Wrong value in operation execution context for operation input %s", iName)
+
+				}
+			}
+		})
+	}
+}
+
+func testWorkflowOutputs(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+	ctx := context.Background()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, "testdata/test_topo_workflow_outputs.yaml")
+	require.NoError(t, err, "Failed to store deployment definition")
+
+	mockExecutor := &mockExecutor{}
+	registry.GetRegistry().RegisterDelegates([]string{"org.ystia.yorc.samples.ComputePIComponentType"}, mockExecutor, "tests")
+	registry.GetRegistry().RegisterOperationExecutor([]string{"ystia.yorc.tests.artifacts.Implementation.Custom"}, mockExecutor, "tests")
+
+	taskID := "task_test_outputs"
+	workflowName := "compute_pi"
+	stepName := "ComputePIComponent_compute_pi"
+
+	outputName := "pi"
+	// Preparing test environment
+	mockExecutor.callOpsCalled = false
+	mockExecutor.errorsCallOps = false
+	mockExecutor.delegateCalled = false
+	mockExecutor.errorsDelegate = false
+
+	// Adding task inputs
+	inputName := "decimal"
+	inputValue := "6"
+	dataInput := path.Join("inputs", inputName)
+	// Add an input to the task
+	err = tasks.SetTaskData(taskID, dataInput, inputValue)
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", workflowName)
+	err = tasks.SetTaskData(taskID, taskDataWorkflowName, workflowName)
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", workflowName)
+	err = tasks.SetTaskData(taskID, "continueOnError", "false")
+	require.NoError(t, err, "Failed to prepare task data for workflow %s", workflowName)
+
+	taskExec := &taskExecution{id: "taskExec", taskID: taskID, targetID: deploymentID, cc: cc}
+	testWorker := &worker{
+		consulClient: cc,
+		cfg: config.Configuration{
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+	taskExec.step = stepName
+	srv1.SetKV(t, path.Join(consulutil.TasksPrefix, taskID, "status"), []byte("0"))
+	err = testWorker.runCustomWorkflow(ctx, taskExec, workflowName)
+	require.NoError(t, err, "Failed to run workflow %s", workflowName)
+	require.True(t, mockExecutor.callOpsCalled, "Expected an operation to be executed, when running workflow %s")
+	err = taskExec.finalFunction()
+	require.NoError(t, err, "Failed to execute final function of task execution for workflow %s", workflowName)
+	taskStatus, err := tasks.GetTaskStatus(taskID)
+	require.NoError(t, err, "Failed to get task status")
+	require.Equal(t, tasks.TaskStatusDONE.String(), taskStatus.String(), "Wrong status for task")
+
+	res, err := tasks.GetTaskOutput(taskID, outputName)
+	require.NoError(t, err, "Failed to get task output:%q", outputName)
+	require.Equal(t, "3.141592", res, "Wrong output for %q", outputName)
+
+	outputs, err := tasks.GetTaskOutputs(taskID)
+	require.NoError(t, err, "Failed to get task outputs")
+	require.Len(t, outputs, 1, "expected one output")
+	require.Equal(t, outputs[outputName], "3.141592")
 
 }

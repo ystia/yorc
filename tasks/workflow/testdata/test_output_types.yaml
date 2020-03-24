@@ -1,0 +1,37 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: org.ystia.yorc.samples.ComputePI
+  template_version: 1.0.0-SNAPSHOT
+  template_author: yorc
+
+
+node_types:
+  org.ystia.yorc.samples.ComputePIComponentType:
+    description: "Sample component to compute PI"
+    tags:
+      icon: /images/python.png
+    derived_from: tosca.nodes.SoftwareComponent
+    attributes:
+      result:
+        type: float
+        description: The result of PI calculation
+    interfaces:
+      custom:
+        inputs:
+          decimal: {get_input: pi_decimal}
+        compute_pi:
+          outputs:
+            result: [SELF, result]
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: compute_pi
+      Standard:
+        start:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: start
+        create:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: create

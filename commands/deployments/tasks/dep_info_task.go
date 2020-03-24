@@ -43,7 +43,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient(deployments.ClientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
 			return taskInfo(client, args, withSteps)
 		},
@@ -83,6 +83,17 @@ func taskInfo(client httputil.HTTPClient, args []string, withSteps bool) error {
 	fmt.Println("Task: ", task.ID)
 	fmt.Println("Task status:", task.Status)
 	fmt.Println("Task type:", task.Type)
+	fmt.Println("Task outputs:")
+
+	if task.Outputs != nil {
+		outputsTable := tabutil.NewTable()
+		outputsTable.AddHeaders("Name", "Value")
+		for outputName, outputValue := range task.Outputs {
+			outputsTable.AddRow(outputName, outputValue)
+		}
+		fmt.Println(outputsTable.Render())
+	}
+
 	if task.ErrorMessage != "" {
 		fmt.Println("Task Error Message:", task.ErrorMessage)
 	}

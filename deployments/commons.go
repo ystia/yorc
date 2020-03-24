@@ -47,7 +47,7 @@ func getNestedValue(value interface{}, nestedKeys ...string) interface{} {
 					return nil
 				}
 				if ind+1 > len(v) {
-					log.Printf("[ERROR] %q: index not found", nestedKeys[0])
+					log.Printf("[ERROR] %q: index not found", ind)
 					return nil
 				}
 				value = v[ind]

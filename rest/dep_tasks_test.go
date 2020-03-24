@@ -16,27 +16,67 @@ package rest
 
 import (
 	"encoding/json"
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
-func testTaskHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
-	t.Run("testGetTaskHandler", func(t *testing.T) {
-		testGetTaskHandler(t, client, cfg, srv)
+func testDeploymentTaskHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
+	t.Run("testGetTaskHandlerWithTaskOutput", func(t *testing.T) {
+		testGetTaskHandlerWithTaskOutput(t, client, cfg, srv)
+	})
+	t.Run("testGetTaskHandlerWithTaskError", func(t *testing.T) {
+		testGetTaskHandlerWithTaskError(t, client, cfg, srv)
 	})
 	t.Run("testGetTaskHandlerWithTaskNotFound", func(t *testing.T) {
 		testGetTaskHandlerWithTaskNotFound(t, client, cfg, srv)
 	})
 }
 
-func testGetTaskHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
+func testGetTaskHandlerWithTaskOutput(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.TasksPrefix + "/task123/type":                     []byte("6"),
+		consulutil.TasksPrefix + "/task123/targetId":                 []byte("MyDeploymentID"),
+		consulutil.TasksPrefix + "/task123/status":                   []byte("2"),
+		consulutil.TasksPrefix + "/task123/data/outputs/outputOne":   []byte("valueOne"),
+		consulutil.TasksPrefix + "/task123/data/outputs/outputTwo":   []byte("valueTwo"),
+		consulutil.TasksPrefix + "/task123/data/outputs/outputThree": []byte("valueThree"),
+	})
+
+	req := httptest.NewRequest("GET", "/deployments/MyDeploymentID/tasks/task123", nil)
+	req.Header.Add("Accept", mimeTypeApplicationJSON)
+	resp := newTestHTTPRouter(client, cfg, req)
+
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	require.Nil(t, err, "unexpected error reading body")
+
+	var task Task
+	err = json.Unmarshal(body, &task)
+	require.Nil(t, err, "unexpected error unmarshaling json body")
+	require.NotNil(t, task, "unexpected nil task information")
+	require.Equal(t, "CustomWorkflow", task.Type, "unexpected task type")
+	require.Equal(t, "MyDeploymentID", task.TargetID, "unexpected task targetID")
+	require.Equal(t, "DONE", task.Status, "unexpected task status")
+	require.Len(t, task.Outputs, 3, "expected 3 outputs")
+	require.Equal(t, "valueOne", task.Outputs["outputOne"])
+	require.Equal(t, "valueTwo", task.Outputs["outputTwo"])
+	require.Equal(t, "valueThree", task.Outputs["outputThree"])
+
+	client.KV().DeleteTree(consulutil.TasksPrefix, nil)
+}
+
+func testGetTaskHandlerWithTaskError(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/task123/type":         []byte("0"),
 		consulutil.TasksPrefix + "/task123/targetId":     []byte("myDepID"),

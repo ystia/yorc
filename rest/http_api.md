@@ -680,6 +680,11 @@ By default the execution of the workflow's steps take place on all the instances
 It is possible to select instances for the workflow's nodes by adding selection data in the request body.
 For nodes that have no selected instances specified, the execution steps take place on all instances.
 
+The request body can also contain input values assignments, that will be provided
+to the task handling this workflow execution.
+
+'Content-Type' header should be set to 'application/json'.
+
 `POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
 
 Request body allowing to execute a workflow's steps on selected node instances :
@@ -691,7 +696,11 @@ Request body allowing to execute a workflow's steps on selected node instances :
          "node": "Node_Name",
          "instances": [ "0", "2" ]
        }
-    ]
+    ],
+    "inputs": {
+      "param1":"",
+      "param2":"2"
+    }
 }
 ```
 
@@ -705,6 +714,12 @@ HTTP/1.1 201 Created
 Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
+
+This endpoint will fail with an error "400 Bad Request" if:
+
+* a node specified in request body does not exist
+* an instance specified in request body does not exist
+* no value is provided in request body for a required workflow input parameter.
 
 ### List workflows <a name="list-workflows></a>
 

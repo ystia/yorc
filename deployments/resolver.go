@@ -47,6 +47,7 @@ type functionResolver struct {
 	nodeName         string
 	instanceName     string
 	requirementIndex string
+	inputs           map[string]tosca.ParameterDefinition
 }
 
 type resolverContext func(*functionResolver)
@@ -77,6 +78,12 @@ func withInstanceName(instanceName string) resolverContext {
 func withRequirementIndex(reqIndex string) resolverContext {
 	return func(fr *functionResolver) {
 		fr.requirementIndex = reqIndex
+	}
+}
+
+func withInputParameters(inputs map[string]tosca.ParameterDefinition) resolverContext {
+	return func(fr *functionResolver) {
+		fr.inputs = inputs
 	}
 }
 
@@ -144,7 +151,7 @@ func (fr *functionResolver) resolveGetInput(ctx context.Context, operands []stri
 		return "", errors.Errorf("expecting at least one parameter for a get_input function")
 	}
 	args := getFuncNestedArgs(operands...)
-	return GetInputValue(ctx, fr.deploymentID, args[0], args[1:]...)
+	return GetInputValue(ctx, fr.inputs, fr.deploymentID, args[0], args[1:]...)
 }
 
 func (fr *functionResolver) resolveGetOperationOutput(ctx context.Context, operands []string) (string, error) {

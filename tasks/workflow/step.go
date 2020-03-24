@@ -294,7 +294,11 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 	case builder.ActivityTypeSetState:
 		setNodeStatus(wfCtx, s.t.taskID, deploymentID, s.Target, activity.Value())
 	case builder.ActivityTypeCallOperation:
-		op, err := operations.GetOperation(wfCtx, s.t.targetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
+		inputParameters, err := s.getActivityInputParameters(wfCtx, activity, deploymentID, workflowName)
+		if err != nil {
+			return err
+		}
+		op, err := operations.GetOperation(wfCtx, s.t.targetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost, inputParameters)
 		if err != nil {
 			if deployments.IsOperationNotImplemented(err) {
 				// Operation not implemented just skip it
@@ -378,13 +382,137 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 		}
 	case builder.ActivityTypeInline:
 		// Register inline workflow associated to the original task
-		return s.registerInlineWorkflow(wfCtx, deploymentID, activity.Value())
+		return s.registerInlineWorkflow(wfCtx, deploymentID, activity)
 	}
 	return nil
 }
 
-func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflowName string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
+func (s *step) getActivityInputParameters(ctx context.Context, activity builder.Activity,
+	deploymentID, workflowName string) (map[string]tosca.ParameterDefinition, error) {
+
+	// Getting activity input parameters first
+	result := make(map[string]tosca.ParameterDefinition)
+	for inputName, paramDef := range activity.Inputs() {
+
+		if paramDef.Value != nil || paramDef.Default != nil {
+			result[inputName] = paramDef
+		}
+	}
+
+	// Getting workflow inputs
+	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
+	if err != nil {
+		return nil, err
+	}
+
+	for inputName, propDef := range wf.Inputs {
+
+		if _, ok := result[inputName]; ok {
+			// Already defined in activity
+			continue
+		}
+
+		valueAssign, err := s.getWorkflowInputValue(ctx, deploymentID, workflowName, inputName, propDef)
+		if err != nil {
+			return result, err
+		}
+
+		result[inputName] = tosca.ParameterDefinition{
+			Type:        propDef.Type,
+			Description: propDef.Description,
+			Required:    propDef.Required,
+			Default:     propDef.Default,
+			Status:      propDef.Status,
+			EntrySchema: propDef.EntrySchema,
+			Value:       valueAssign,
+		}
+	}
+
+	// Getting inputs at the topology level that can be used
+	// if inputs aren't defined at lower levels (workflow or activity)
+	err = addTopologyInputs(ctx, deploymentID, result)
+
+	return result, err
+}
+
+func (s *step) getWorkflowInputValue(ctx context.Context, deploymentID, workflowName, inputName string,
+	propDef tosca.PropertyDefinition) (*tosca.ValueAssignment, error) {
+
+	var valueAssign *tosca.ValueAssignment
+	inputValue, err := tasks.GetTaskInput(s.t.taskID, inputName)
+	if err != nil {
+		if !tasks.IsTaskDataNotFoundError(err) {
+			return valueAssign, err
+		}
+
+		// No input value in task, defining an input parameter if this property
+		// has a default value or is defined in the topology
+		if propDef.Default == nil {
+			// No default value, and no input in this execution context
+			// => no parameter is defined in this execution context
+			// It can still be defined in the topology
+			valueAssign, err = getValueFromTopology(ctx, deploymentID, inputName)
+			if err != nil {
+				return valueAssign, err
+			}
+			if propDef.Required != nil && *propDef.Required && valueAssign == nil {
+				return valueAssign, errors.Errorf("Missing required value for input %q in step:%q workflow:%q, deploymentID:%q, taskID:%q",
+					inputName, s.Name, workflowName, deploymentID, s.t.taskID)
+			}
+		}
+	} else {
+		valueAssign, err = tosca.ToValueAssignment(inputValue)
+	}
+	return valueAssign, err
+
+}
+
+func getValueFromTopology(ctx context.Context, deploymentID, inputName string) (*tosca.ValueAssignment, error) {
+	var valueAssign *tosca.ValueAssignment
+
+	found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+	if err != nil {
+		return valueAssign, err
+	}
+	if found {
+		valueAssign = paramDef.Value
+		if valueAssign == nil {
+			valueAssign = paramDef.Default
+		}
+	}
+	return valueAssign, err
+}
+
+func addTopologyInputs(ctx context.Context, deploymentID string, result map[string]tosca.ParameterDefinition) error {
+
+	topologyInputNames, err := deployments.GetTopologyInputsNames(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+
+	for _, inputName := range topologyInputNames {
+		if _, ok := result[inputName]; ok {
+			// Already defined
+			continue
+		}
+
+		found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+		if err != nil {
+			return err
+		}
+
+		if found {
+			result[inputName] = *paramDef
+		}
+
+	}
+	return err
+}
+
+func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID string, activity builder.Activity) error {
+	workflowName := activity.Value()
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(
+		fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
 
 	// Preparing a new task with its own data referencing the parent workflow step
 	parentData, err := tasks.GetAllTaskData(s.t.taskID)
@@ -401,6 +529,22 @@ func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflo
 	data[taskDataDeploymentID] = deploymentID
 	data[taskDataWorkflowName] = workflowName
 
+	// Add workflow input parameters if any
+	inputParameters, err := s.getActivityInputParameters(ctx, activity, deploymentID, workflowName)
+	if err != nil {
+		return err
+	}
+	for inputName, param := range inputParameters {
+		inputValue := param.Value
+		if inputValue == nil {
+			inputValue = param.Default
+		}
+		if inputValue != nil {
+			log.Debugf("Adding to inline workflow %s input %s value %s", workflowName, inputName, inputValue.String())
+			data[path.Join("inputs", inputName)] = fmt.Sprintf("%v", inputValue)
+		}
+	}
+
 	taskID, err := collector.NewCollector(s.cc).RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register inline workflow %s in parent workflow %s step %s, targetID %s, taskID %s",
@@ -416,8 +560,6 @@ func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID, workflo
 	// Marking this step as asynchronous as it should not be considered as
 	// done by the caller
 	s.Async = true
-	// No final function as here the workflow is not done
-	s.t.finalFunction = nil
 	return err
 }
 
