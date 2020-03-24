@@ -290,18 +290,31 @@ Flags:
   * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
   * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
 
-Example using ``--data`` flag with instances selection and workflow input parameters:
+The ``--data`` flag allows to provide input parameters for the workflow, and if necessary, to select the target node instances. 
 
-Trigger the execution of workflow <workflowName> with instance "1" selected for node "node1",
-no instances selected for the other nodes, and workflow input parameters key1 and key2.
+Information about the inputs parameters can be obtained using the **workflows show** command.
+
+The list of the available node instances can be obtained with the **info** command:
 
 .. code-block:: bash
 
-     yorc deployments workflows execute deployID -w workflowName --data '{ "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }],"inputs":{"key1":["value1","value2"],"key2":"value3"}}'
+     yorc deployments info -d deployID
 
-This command returns the ID of a task created by Yorc to execute this workflow.
-You can then use the following command to get the status of this task,
-and workflow output values if any:
+Example how to trigger the execution of workflow <workflowName> on instance "1" selected for node "node1", and workflow input parameters "key1" and "key2".
+
+.. code-block:: bash
+
+     yorc deployments workflows execute deployID -w workflowName --data '{ "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }], "inputs":{"key1":["value1","value2"],"key2":"value3"}}'
+
+Note that if only one instance exists for the workflow's target node "node1", its not manadatory to provide it:
+
+.. code-block:: bash
+
+     yorc deployments workflows execute deployID -w workflowName --data '{"inputs": {"key1": ["value1","value2"], "key2": "value3"}}'
+
+The **exec** command returns the ID of a task created by Yorc to execute the <workflowName> workflow.
+
+You can then use the following command to get the status of this task, and workflow output values if any:
 
 .. code-block:: bash
 
