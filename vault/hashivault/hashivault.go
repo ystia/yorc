@@ -185,6 +185,17 @@ func (vc *vaultClient) startRenewing() {
 		}
 	}()
 }
+func (vc *vaultClient) Revoke(secret *api.Secret) (error){
+	if secret.LeaseID == ""{
+		log.Debugf("Secret %v is non-revocable since it as no lease_id.", secret.WrapInfo.CreationPath) 
+		return nil
+	}
+	err := vc.vClient.Sys().Revoke(secret.LeaseID)
+	if err != nil{
+		return errors.Errorf("Secret revocation failed. Err : %v", err)
+	}
+	return  nil
+}
 
 func (vc *vaultClient) Shutdown() error {
 	return nil
