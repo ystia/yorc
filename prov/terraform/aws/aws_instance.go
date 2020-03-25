@@ -141,6 +141,31 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	if placementGroup != nil {
 		instance.PlacementGroup = placementGroup.RawString()
 	}
+
+	// Network Interfaces
+	netInterfaces := []NetworkInterface{}
+	hasNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.Subnet")
+	if err != nil {
+		return err
+	}
+	if hasNetwork {
+		networkRequirements, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "network")
+		if err != nil {
+			return err
+		}
+
+		for _, networkReq := range networkRequirements {
+			networkInterface := &NetworkInterface{}
+			networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+			if err != nil {
+				return err
+			}
+			netInterfaces = append(netInterfaces, *networkInterface)
+		}
+
+	}
+	instance.NetworkInterfaces = netInterfaces
+
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 

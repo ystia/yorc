@@ -16,15 +16,16 @@ package aws
 
 // A ComputeInstance represent an AWS compute
 type ComputeInstance struct {
-	ImageID          string      `json:"ami,omitempty"`
-	InstanceType     string      `json:"instance_type,omitempty"`
-	AvailabilityZone string      `json:"availability_zone,omitempty"`
-	PlacementGroup   string      `json:"placement_group,omitempty"`
-	SecurityGroups   []string    `json:"security_groups,omitempty"`
-	KeyName          string      `json:"key_name,omitempty"`
-	Tags             Tags        `json:"tags,omitempty"`
-	ElasticIps       []string    `json:"-"`
-	RootBlockDevice  BlockDevice `json:"root_block_device,omitempty"`
+	ImageID           string             `json:"ami,omitempty"`
+	InstanceType      string             `json:"instance_type,omitempty"`
+	AvailabilityZone  string             `json:"availability_zone,omitempty"`
+	PlacementGroup    string             `json:"placement_group,omitempty"`
+	SecurityGroups    []string           `json:"security_groups,omitempty"`
+	KeyName           string             `json:"key_name,omitempty"`
+	Tags              Tags               `json:"tags,omitempty"`
+	ElasticIps        []string           `json:"-"`
+	RootBlockDevice   BlockDevice        `json:"root_block_device,omitempty"`
+	NetworkInterfaces []NetworkInterface `json:"network_interface,omitempty"`
 
 	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
 }
@@ -96,4 +97,12 @@ type Subnet struct {
 	AssignIpv6AddressOnCreation string            `json:"assign_ipv6_address_on_creation,omitempty"`
 	VPCId                       string            `json:"vpc_id,omitempty"`
 	Tags                        map[string]string `json:"tags,omitempty"`
+}
+
+// NetworkInterface create an ENI (Elastic Network Interface)
+// see : https://www.terraform.io/docs/providers/aws/r/network_interface.html#attachment
+type NetworkInterface struct {
+	SubnetID    string `json:"subnet_id,omitempty"`
+	Description string `json:"description,omitempty"`
+	PrivateIps  string `json:"private_ips,omitempty"`
 }
