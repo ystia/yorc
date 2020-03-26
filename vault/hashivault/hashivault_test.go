@@ -47,6 +47,19 @@ func createTestVaultClient(t *testing.T) (net.Listener, v.Client) {
 	return ln, client
 }
 
+func connectToLocalVaultClient(t *testing.T) v.Client {
+	b := clientBuilder{}
+	client, err := b.BuildClient(config.Configuration{Vault: config.DynamicMap{
+		"address":         "http://127.0.0.1:8200",
+		"token":           "root",
+		"tls_skip_verify": true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
+}
+
 func Test_vaultClient_GetSecret(t *testing.T) {
 	ln, vc := createTestVaultClient(t)
 	defer ln.Close()
@@ -60,7 +73,7 @@ func Test_vaultClient_GetSecret(t *testing.T) {
 	key := "password"
 	myStrongPassword := "MySr0ngP4ssw0rd"
 	client.Write(secretPath, map[string]interface{}{
-		key : myStrongPassword,
+		key: myStrongPassword,
 	})
 
 	secret, err := vc.GetSecret(secretPath, "data="+key)

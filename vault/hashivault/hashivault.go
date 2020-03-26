@@ -185,16 +185,16 @@ func (vc *vaultClient) startRenewing() {
 		}
 	}()
 }
-func (vc *vaultClient) Revoke(secret *api.Secret) (error){
-	if secret.LeaseID == ""{
-		log.Debugf("Secret %v is non-revocable since it as no lease_id.", secret.WrapInfo.CreationPath) 
+func (vc *vaultClient) Revoke(secret *api.Secret) error {
+	if secret.LeaseID == "" {
+		log.Debugf("Secret %v is non-revocable since it as no lease_id.", secret.WrapInfo.CreationPath)
 		return nil
 	}
 	err := vc.vClient.Sys().Revoke(secret.LeaseID)
-	if err != nil{
+	if err != nil {
 		return errors.Errorf("Secret revocation failed. Err : %v", err)
 	}
-	return  nil
+	return nil
 }
 
 func (vc *vaultClient) Shutdown() error {
@@ -207,8 +207,15 @@ type vaultSecret struct {
 }
 
 func (vs *vaultSecret) String() string {
-	if d, ok := vs.options["data"]; ok {
-		return fmt.Sprint(vs.Data[d])
+	//Option exists
+	if key, ok := vs.options["data"]; ok {
+		// For kv, secret is sored in a struct like : map[data:map[k1: val1 k2: val2] metadata:map[created_time:2020 version:1]]
+		if data, ok := vs.Data["data"]; ok {
+			if dataMap, ok := data.(map[string]interface{}); ok {
+				return fmt.Sprint(dataMap[key])
+			}
+			return fmt.Sprint(vs.Data["data"])
+		}
 	}
 	return fmt.Sprint(vs.Data)
 }
