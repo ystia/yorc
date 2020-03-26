@@ -119,6 +119,12 @@ func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 
 // RunCommand allows to run a specified command
 func (client *SSHClient) RunCommand(cmd string) (string, error) {
+	// without timeout
+	if client.Config == nil || client.Config.Timeout == 0 {
+		return client.runCommand(cmd)
+	}
+
+	// with timeout
 	var res string
 	var err error
 	c := make(chan struct{})
