@@ -209,17 +209,25 @@ type vaultSecret struct {
 func (vs *vaultSecret) String() string {
 	//Option exists
 	if key, ok := vs.options["data"]; ok {
-		// For kv, secret is sored in a struct like : map[data:map[k1: val1 k2: val2] metadata:map[created_time:2020 version:1]]
-		if data, ok := vs.Data["data"]; ok {
-			if dataMap, ok := data.(map[string]interface{}); ok {
-				return fmt.Sprint(dataMap[key])
-			}
-			return fmt.Sprint(vs.Data["data"])
+		if secretValue, ok := vs.getData()[key]; ok {
+			return fmt.Sprint(secretValue)
 		}
 	}
-	return fmt.Sprint(vs.Data)
+	return fmt.Sprint(vs.getData())
 }
 
 func (vs *vaultSecret) Raw() interface{} {
 	return vs.Secret
+}
+
+// In case of data nested into another data map return the actual data.
+// KV secret engine has 2 version; version 2 manage secret versioning. For a KV v2, secret are sored in a struct like : map[data:map[k1: val1 k2: val2] metadata:map[created_time:2020 version:3]]
+// For a KV v1, only the data map is stored
+func (vs *vaultSecret) getData() map[string]interface{} {
+	data := vs.Data
+	// Case of a KV v2 :
+	if nestedData, ok := data["data"].(map[string]interface{}); ok {
+		return nestedData
+	}
+	return data
 }

@@ -15,15 +15,99 @@
 package hashivault
 
 import (
+	"encoding/json"
 	"net"
 	"testing"
 
+	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/http"
 	"github.com/hashicorp/vault/vault"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	v "github.com/ystia/yorc/v4/vault"
 )
+
+// Sample from https://www.vaultproject.io/api/secret/kv/kv-v1.html#sample-response
+// and https://www.vaultproject.io/api/secret/kv/kv-v2.html#sample-response-1
+var KVv1ReadSampleResponse = `
+{
+	"auth": null,
+	"data": {
+		"foo": "bar",
+		"baz": "qux",
+		"ttl": "1h"
+	},
+	"lease_duration": 3600,
+	"lease_id": "",
+	"renewable": false
+}
+`
+var KVv2ReadsSampleResponse = `
+{
+	"data": {
+		"data": {
+		  "baz": "qux",
+		  "foo": "bar",
+		  "ttl": "1h"
+		},
+		"metadata": {
+		  "created_time": "2018-03-22T02:24:06.945319214Z",
+		  "deletion_time": "",
+		  "destroyed": false,
+		  "version": 1
+		}
+	  }
+}
+`
+
+var gcpReadSampleResponse = `
+{
+	"request_id": "12345",
+	"lease_id": "gcp/key/my-key-roleset/9876",
+	"renewable": true,
+	"lease_duration": 3600,
+	"data": {
+	  "private_key_data": "<private-key-data>",
+	  "key_algorithm": "TYPE_GOOGLE_CREDENTIALS_FILE",
+	  "key_type": "KEY_ALG_RSA_2048"
+	},
+	"wrap_info": null,
+	"warnings": null,
+	"auth": null
+  }
+`
+
+func Test_vaultSecret_String(t *testing.T) {
+	tests := []struct {
+		sampleResponse string
+		options        map[string]string
+		expected       string
+	}{
+		{
+			KVv1ReadSampleResponse,
+			map[string]string{"data": "foo"},
+			"bar",
+		}, {
+			KVv2ReadsSampleResponse,
+			map[string]string{"data": "foo"},
+			"bar",
+		}, {
+			gcpReadSampleResponse,
+			map[string]string{"data": "private_key_data"},
+			"<private-key-data>",
+		},
+	}
+	for _, testCase := range tests {
+		var s api.Secret
+		err := json.Unmarshal([]byte(testCase.sampleResponse), &s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		vs := &vaultSecret{&s, testCase.options}
+		require.Equal(t, vs.String(), testCase.expected, "It should retrieve the good value and not the entire map !")
+	}
+
+}
 
 func createTestVaultServer(t *testing.T) (ln net.Listener, addr string, rootToken string) {
 	t.Helper()
