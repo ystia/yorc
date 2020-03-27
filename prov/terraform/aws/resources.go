@@ -102,7 +102,9 @@ type Subnet struct {
 // NetworkInterface create an ENI (Elastic Network Interface)
 // see : https://www.terraform.io/docs/providers/aws/r/network_interface.html#attachment
 type NetworkInterface struct {
-	SubnetID    string `json:"subnet_id,omitempty"`
-	Description string `json:"description,omitempty"`
-	PrivateIps  string `json:"private_ips,omitempty"`
+	SubnetID       string            `json:"subnet_id,omitempty"`
+	Description    string            `json:"description,omitempty"`
+	PrivateIps     string            `json:"private_ips,omitempty"`
+	SecurityGroups []string          `json:"security_groups,omitempty"`
+	Attachment     map[string]string `json:"attachment,omitempty"`
 }

@@ -154,17 +154,32 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 			return err
 		}
 
+		// Start at 1, (0 reserved for the default network interface)
+		i := 1
 		for _, networkReq := range networkRequirements {
 			networkInterface := &NetworkInterface{}
 			networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
 			if err != nil {
 				return err
 			}
+			networkInterface.SecurityGroups = instance.SecurityGroups
 			netInterfaces = append(netInterfaces, *networkInterface)
+			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
+			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
+			commons.AddResource(infrastructure, "aws_network_interface", name, networkInterface)
+
+			networkInterface.Attachment = map[string]string{
+				"instance":     "${aws_instance." + instance.Tags.Name + ".id}",
+				"device_index": strconv.Itoa(i),
+			}
+
+			i++
 		}
 
+		// No security groups on instance level when defining customs ENI
+		// (So the instance will have be in the default security groups on creation)
+		instance.SecurityGroups = nil
 	}
-	instance.NetworkInterfaces = netInterfaces
 
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
