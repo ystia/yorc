@@ -143,7 +143,6 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	}
 
 	// Network Interfaces
-	netInterfaces := []NetworkInterface{}
 	hasNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.Subnet")
 	if err != nil {
 		return err
@@ -155,7 +154,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		}
 
 		// Start at 1, (0 reserved for the default network interface)
-		i := 1
+		i := 0
 		for _, networkReq := range networkRequirements {
 			networkInterface := &NetworkInterface{}
 			networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
@@ -163,14 +162,22 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 				return err
 			}
 			networkInterface.SecurityGroups = instance.SecurityGroups
-			netInterfaces = append(netInterfaces, *networkInterface)
 			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
 			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
 			commons.AddResource(infrastructure, "aws_network_interface", name, networkInterface)
 
-			networkInterface.Attachment = map[string]string{
-				"instance":     "${aws_instance." + instance.Tags.Name + ".id}",
-				"device_index": strconv.Itoa(i),
+			// First interface will be considered as default one
+			if i == 0 {
+				instance.NetworkInterface = map[string]string{
+					"network_interface_id": "${aws_network_interface." + name + ".id}",
+					"device_index":         strconv.Itoa(i),
+				}
+			} else {
+				// Others interfaces are considered attachment
+				networkInterface.Attachment = map[string]string{
+					"instance":     "${aws_instance." + instance.Tags.Name + ".id}",
+					"device_index": strconv.Itoa(i),
+				}
 			}
 
 			i++
