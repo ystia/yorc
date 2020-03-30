@@ -175,6 +175,8 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 	if locationType == adapter.AdaptedLocationType {
 		return mgr.hpAdapter.GetLocationConfiguration(locationName)
 	}
+
+	// get location configuration from the kv store
 	var props config.DynamicMap
 	kvp, _, err := mgr.cc.KV().Get(path.Join(consulutil.LocationsPrefix, locationName), nil)
 	if err != nil {
@@ -186,9 +188,14 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 
 	var lConfig LocationConfiguration
 	err = json.Unmarshal(kvp.Value, &lConfig)
-	props = lConfig.Properties
 	if err != nil {
 		return props, errors.Wrapf(err, "failed to unmarshal configuration for location %s", locationName)
+	}
+	// got configuration for the requested location
+	props = lConfig.Properties
+	// 	check if no mismatch between the type defined in the configuration and the given location type
+	if locationType != lConfig.Type {
+		return props, errors.Errorf("The location %q has %s type defined and not the requested %s type", locationName, lConfig.Type, locationType)
 	}
 
 	return props, err
@@ -198,7 +205,7 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 // on which the node template in argument is or will be created.
 // The corresponding location name should be provided in the node template metadata.
 // If no location name is provided in the node template metadata, the configuration
-// of the first location of the expected type in returned
+// of the first location having the requested location type is returned
 func (mgr *locationManager) GetLocationPropertiesForNode(ctx context.Context, deploymentID, nodeName, locationType string) (config.DynamicMap, error) {
 
 	// Get the location name in node template metadata

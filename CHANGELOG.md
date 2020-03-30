@@ -15,6 +15,7 @@
 ### BUG FIXES
 
 * CLI yorc locations list doesn't return HostsPool information ([GH-615](https://github.com/ystia/yorc/issues/615))
+* Check for location type mismatch ([GH-550](https://github.com/ystia/yorc/issues/550))
 
 ## 4.0.0-M10 (March 10, 2020)
 
