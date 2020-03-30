@@ -399,7 +399,7 @@ func simpleAWSInstanceWithVPCandSubnet(t *testing.T, cfg config.Configuration, s
 	compute, ok := instancesMap["AWS_Compute-0"].(*ComputeInstance)
 	require.True(t, ok, "%s is not a ComputeInstance", "AWS_Compute-0")
 
-	assert.Len(t, compute.NetworkInterfaces, 1, "1 NetworkInterface expected")
-	assert.Equal(t, "subnet_id", compute.NetworkInterfaces[0].SubnetID, "Subnetwork is not retrieved")
+	assert.Equal(t, "${aws_network_interface.network-inteface-0.id}", compute.NetworkInterface["network_interface_id"], "Subnetwork is not retrieved")
+	assert.Equal(t, "0", compute.NetworkInterface["device_index"], "Subnetwork is not retrieved")
 
 }

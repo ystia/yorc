@@ -164,7 +164,6 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 			networkInterface.SecurityGroups = instance.SecurityGroups
 			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
 			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
-			commons.AddResource(infrastructure, "aws_network_interface", name, networkInterface)
 
 			// First interface will be considered as default one
 			if i == 0 {
@@ -179,6 +178,8 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 					"device_index": strconv.Itoa(i),
 				}
 			}
+
+			commons.AddResource(infrastructure, "aws_network_interface", name, networkInterface)
 
 			i++
 		}
