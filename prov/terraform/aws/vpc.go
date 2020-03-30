@@ -55,21 +55,9 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, i
 	}
 
 	// Get tags map
-	tagsVal, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "tags")
-	if tagsVal != nil && tagsVal.RawString() != "" {
-		d, ok := tagsVal.Value.(map[string]interface{})
-		if !ok {
-			return errors.New("failed to retrieve tags map from Tosca Value: not expected type")
-		}
-
-		vpc.Tags = make(map[string]string, len(d))
-		for k, v := range d {
-			v, ok := v.(string)
-			if !ok {
-				return errors.Errorf("failed to retrieve string value from tags map from Tosca Value:%q not expected type", v)
-			}
-			vpc.Tags[k] = v
-		}
+	vpc.Tags, err = getTagsMap(ctx, nodeParams)
+	if err != nil {
+		return nil
 	}
 
 	// Create the name for the resource
@@ -122,22 +110,9 @@ func (g *awsGenerator) generateSubnet(ctx context.Context, nodeParams nodeParams
 		}
 	}
 
-	// Get tags map
-	tagsVal, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "tags")
-	if tagsVal != nil && tagsVal.RawString() != "" {
-		d, ok := tagsVal.Value.(map[string]interface{})
-		if !ok {
-			return errors.New("failed to retrieve tags map from Tosca Value: not expected type")
-		}
-
-		subnet.Tags = make(map[string]string, len(d))
-		for k, v := range d {
-			v, ok := v.(string)
-			if !ok {
-				return errors.Errorf("failed to retrieve string value from tags map from Tosca Value:%q not expected type", v)
-			}
-			subnet.Tags[k] = v
-		}
+	subnet.Tags, err = getTagsMap(ctx, nodeParams)
+	if err != nil {
+		return nil
 	}
 
 	// Create the name for the resource
