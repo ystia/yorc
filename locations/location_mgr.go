@@ -194,9 +194,8 @@ func (mgr *locationManager) GetLocationProperties(locationName, locationType str
 	// got configuration for the requested location
 	props = lConfig.Properties
 	// 	check if no mismatch between the type defined in the configuration and the given location type
-	kvLocationType := lConfig.Type
-	if locationType != kvLocationType {
-		return props, errors.Errorf("The location %q has %s type defined and not the requested %s type", locationName, kvLocationType, locationType)
+	if locationType != lConfig.Type {
+		return props, errors.Errorf("The location %q has %s type defined and not the requested %s type", locationName, lConfig.Type, locationType)
 	}
 
 	return props, err
