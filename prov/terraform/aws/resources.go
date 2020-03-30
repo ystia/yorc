@@ -78,11 +78,11 @@ type VolumeAttachment struct {
 type VPC struct {
 	CidrBlock                    string            `json:"cidr_block,omitempty"`
 	InstanceTenancy              string            `json:"instance_tenancy,omitempty"`
-	EnableDNSSupport             string            `json:"enable_dns_support,omitempty"`
-	EnableDNSHostnames           string            `json:"enable_dns_hostnames,omitempty"`
-	EnableClassiclink            string            `json:"enable_classiclink,omitempty"`
-	EnableClassiclinkDNSSupport  string            `json:"enable_classiclink_dns_support,omitempty"`
-	AssignGeneratedIpv6CidrBlock string            `json:"assign_generated_ipv6_cidr_block,omitempty"`
+	EnableDNSSupport             bool              `json:"enable_dns_support,omitempty"`
+	EnableDNSHostnames           bool              `json:"enable_dns_hostnames,omitempty"`
+	EnableClassiclink            bool              `json:"enable_classiclink,omitempty"`
+	EnableClassiclinkDNSSupport  bool              `json:"enable_classiclink_dns_support,omitempty"`
+	AssignGeneratedIpv6CidrBlock bool              `json:"assign_generated_ipv6_cidr_block,omitempty"`
 	Tags                         map[string]string `json:"tags,omitempty"`
 }
 
@@ -93,8 +93,8 @@ type Subnet struct {
 	AvailabilityZoneID          string            `json:"availability_zone_id,omitempty"`
 	CidrBlock                   string            `json:"cidr_block,omitempty"`
 	Ipv6CidrBlock               string            `json:"ipv6_cidr_block,omitempty"`
-	MapPublicIPOnLaunch         string            `json:"map_public_ip_on_launch,omitempty"`
-	AssignIpv6AddressOnCreation string            `json:"assign_ipv6_address_on_creation,omitempty"`
+	MapPublicIPOnLaunch         bool              `json:"map_public_ip_on_launch,omitempty"`
+	AssignIpv6AddressOnCreation bool              `json:"assign_ipv6_address_on_creation,omitempty"`
 	VPCId                       string            `json:"vpc_id,omitempty"`
 	Tags                        map[string]string `json:"tags,omitempty"`
 }

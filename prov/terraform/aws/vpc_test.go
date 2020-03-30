@@ -53,7 +53,8 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 	vpc, ok := instancesMap[networkName].(*VPC)
 	require.True(t, ok, "%s is not a VPC", networkName)
 	assert.Equal(t, "10.0.0.0/16", vpc.CidrBlock)
-	assert.Equal(t, "true", vpc.AssignGeneratedIpv6CidrBlock)
+	assert.Equal(t, true, vpc.AssignGeneratedIpv6CidrBlock)
+	assert.Equal(t, "foo", vpc.Tags["tag1"])
 
 }
 
@@ -86,5 +87,4 @@ func testSimpleSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Config
 	require.True(t, ok, "%s is not a Subnet", subnetName)
 	assert.Equal(t, "10.0.0.0/24", subnet.CidrBlock)
 	assert.Equal(t, "vpc_id", subnet.VPCId)
-
 }

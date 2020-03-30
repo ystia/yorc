@@ -33,25 +33,9 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, i
 	}
 
 	vpc := &VPC{}
-
-	stringParams := []struct {
-		pAttr        *string
-		propertyName string
-		mandatory    bool
-	}{
-		{&vpc.CidrBlock, "cidr_block", true},
-		{&vpc.InstanceTenancy, "instance_tenancy", false},
-		{&vpc.EnableDNSSupport, "enable_dns_support", false},
-		{&vpc.EnableDNSHostnames, "enable_dns_hostnames", false},
-		{&vpc.EnableClassiclink, "enable_classiclink", false},
-		{&vpc.EnableClassiclinkDNSSupport, "enable_classiclink_dns_support", false},
-		{&vpc.AssignGeneratedIpv6CidrBlock, "assign_generated_ipv6_cidr_block", false},
-	}
-
-	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, stringParam.propertyName, stringParam.mandatory); err != nil {
-			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", nodeParams.deploymentID, nodeParams.nodeName)
-		}
+	err = g.getVPCProperties(ctx, nodeParams, vpc)
+	if err != nil {
+		return err
 	}
 
 	// Get tags map
@@ -89,25 +73,9 @@ func (g *awsGenerator) generateSubnet(ctx context.Context, nodeParams nodeParams
 	}
 
 	subnet := &Subnet{}
-
-	stringParams := []struct {
-		pAttr        *string
-		propertyName string
-		mandatory    bool
-	}{
-		{&subnet.AvailabilityZone, "availability_zone", false},
-		{&subnet.AvailabilityZoneID, "availability_zone_id", false},
-		{&subnet.CidrBlock, "cidr_block", true},
-		{&subnet.Ipv6CidrBlock, "ipv6_cidr_block", true},
-		{&subnet.MapPublicIPOnLaunch, "map_public_ip_on_launch", false},
-		{&subnet.AssignIpv6AddressOnCreation, "assign_ipv6_address_on_creation", false},
-		{&subnet.VPCId, "vpc_id", false},
-	}
-
-	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, stringParam.propertyName, stringParam.mandatory); err != nil {
-			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", nodeParams.deploymentID, nodeParams.nodeName)
-		}
+	err = g.getSubnetProperties(ctx, nodeParams, subnet)
+	if err != nil {
+		return err
 	}
 
 	subnet.Tags, err = getTagsMap(ctx, nodeParams)
@@ -125,7 +93,7 @@ func (g *awsGenerator) generateSubnet(ctx context.Context, nodeParams nodeParams
 	// Name must respect regular expression
 	name = strings.Replace(strings.ToLower(name), "_", "-", -1)
 
-	// Get VPC ID if not given (if it's the case, it should be in a dependency relationship)
+	// If not VPCId defined, it should be a dependancy, find it
 	if subnet.VPCId == "" {
 		hasDep, vpcNodeName, err := deployments.HasAnyRequirementFromNodeType(ctx, nodeParams.deploymentID, nodeParams.nodeName, "dependency", "yorc.nodes.aws.VPC")
 		if err != nil {
@@ -150,6 +118,86 @@ func (g *awsGenerator) generateSubnet(ctx context.Context, nodeParams nodeParams
 	idValue := fmt.Sprintf("${aws_subnet.%s.id}", name)
 	commons.AddOutput(nodeParams.infrastructure, idKey, &commons.Output{Value: idValue})
 	outputs[path.Join(nodeKey, "/attributes/subnet_id")] = idKey
+
+	return nil
+}
+
+func (g *awsGenerator) getVPCProperties(ctx context.Context, nodeParams nodeParams, vpc *VPC) error {
+	stringParams := []struct {
+		pAttr        *string
+		propertyName string
+		mandatory    bool
+	}{
+		{&vpc.CidrBlock, "cidr_block", true},
+		{&vpc.InstanceTenancy, "instance_tenancy", false},
+	}
+
+	for _, stringParam := range stringParams {
+		val, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, stringParam.propertyName, stringParam.mandatory)
+		if err != nil {
+			return err
+		}
+		*stringParam.pAttr = val
+	}
+
+	// Get bool properties
+	boolProps := []struct {
+		pAttr        *bool
+		propertyName string
+	}{
+		{&vpc.EnableDNSSupport, "enable_dns_support"},
+		{&vpc.EnableDNSHostnames, "enable_dns_hostnames"},
+		{&vpc.EnableClassiclink, "enable_classiclink"},
+		{&vpc.EnableClassiclinkDNSSupport, "enable_classiclink_dns_support"},
+		{&vpc.AssignGeneratedIpv6CidrBlock, "assign_generated_ipv6_cidr_block"},
+	}
+	for _, boolProps := range boolProps {
+		val, err := deployments.GetBooleanNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, boolProps.propertyName)
+		if err != nil {
+			return err
+		}
+		*boolProps.pAttr = val
+	}
+
+	return nil
+}
+
+func (g *awsGenerator) getSubnetProperties(ctx context.Context, nodeParams nodeParams, subnet *Subnet) error {
+	stringParams := []struct {
+		pAttr        *string
+		propertyName string
+		mandatory    bool
+	}{
+		{&subnet.AvailabilityZone, "availability_zone", false},
+		{&subnet.AvailabilityZoneID, "availability_zone_id", false},
+		{&subnet.CidrBlock, "cidr_block", true},
+		{&subnet.Ipv6CidrBlock, "ipv6_cidr_block", true},
+		{&subnet.VPCId, "vpc_id", false},
+	}
+
+	for _, stringParam := range stringParams {
+		val, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, stringParam.propertyName, stringParam.mandatory)
+		if err != nil {
+			return err
+		}
+		*stringParam.pAttr = val
+	}
+
+	// Get bool properties
+	boolProps := []struct {
+		pAttr        *bool
+		propertyName string
+	}{
+		{&subnet.AssignIpv6AddressOnCreation, "assign_ipv6_address_on_creation"},
+		{&subnet.MapPublicIPOnLaunch, "map_public_ip_on_launch"},
+	}
+	for _, boolProps := range boolProps {
+		val, err := deployments.GetBooleanNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, boolProps.propertyName)
+		if err != nil {
+			return err
+		}
+		*boolProps.pAttr = val
+	}
 
 	return nil
 }
