@@ -40,7 +40,10 @@ func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
 
 	if req.URL.Path == "/locations" {
-		locations := &rest.LocationCollection{Locations: []rest.AtomLink{{Rel: "location", Href: "/locations/locationOne", LinkType: rest.LinkRelHost}}}
+		locations := &rest.LocationCollection{Locations: []rest.AtomLink{
+			{Rel: "location", Href: "/locations/locationOne", LinkType: rest.LinkRelHost},
+			{Rel: "location", Href: "/locations/locationTwo", LinkType: rest.LinkRelHost},
+		}}
 		b, err := json.Marshal(locations)
 		if err != nil {
 			return nil, errors.New("Failed to build MockList http client response")
@@ -76,6 +79,15 @@ func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 			},
 		}
 		locationConfig := &rest.LocationConfiguration{Name: "location3", Type: "aws", Properties: locationConfigProps}
+		b, err := json.Marshal(locationConfig)
+		if err != nil {
+			return nil, errors.New("Failed to build Mock http client response")
+		}
+		w.Write(b)
+	}
+
+	if req.URL.Path == "/locations/locationTwo" {
+		locationConfig := &rest.LocationConfiguration{Name: "location3", Type: "slurm"}
 		b, err := json.Marshal(locationConfig)
 		if err != nil {
 			return nil, errors.New("Failed to build Mock http client response")
