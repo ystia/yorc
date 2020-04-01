@@ -62,9 +62,13 @@ func listLocations(client httputil.HTTPClient) error {
 
 func displayLocationInfo(table tabutil.Table, locationName, locationType string, properties config.DynamicMap, colorize bool, operation int) {
 	propKeys := properties.Keys()
-	for i := 0; i < len(propKeys); i++ {
-		propValue := properties.Get(propKeys[i])
-		displayProperties(table, locationName, locationType, i, propKeys[i], propValue, 0, colorize, operation)
+	if len(propKeys) > 0 {
+		for i := 0; i < len(propKeys); i++ {
+			propValue := properties.Get(propKeys[i])
+			displayProperties(table, locationName, locationType, i, propKeys[i], propValue, 0, colorize, operation)
+		}
+	} else {
+		displayRow(table, locationName, locationType, 0, "", "", 0, false, 0)
 	}
 }
 

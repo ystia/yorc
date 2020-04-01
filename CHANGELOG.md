@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Location is not listed if its properties are missing ([GH-625](https://github.com/ystia/yorc/issues/625))
+
 ## 4.0.0-rc.1 (March 30, 2020)
 
 ### FEATURES
