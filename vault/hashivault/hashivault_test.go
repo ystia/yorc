@@ -19,7 +19,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/http"
 	"github.com/hashicorp/vault/vault"
 	"github.com/stretchr/testify/require"
@@ -29,6 +28,7 @@ import (
 
 // Sample from https://www.vaultproject.io/api/secret/kv/kv-v1.html#sample-response
 // and https://www.vaultproject.io/api/secret/kv/kv-v2.html#sample-response-1
+// and https://www.vaultproject.io/api-docs/secret/gcp/#sample-response-4
 var KVv1ReadSampleResponse = `
 {
 	"auth": null,
@@ -60,6 +60,7 @@ var KVv2ReadsSampleResponse = `
 }
 `
 
+// "<private-key-data>" encoded in base64 -> "PHByaXZhdGUta2V5LWRhdGE+Cg=="
 var gcpReadSampleResponse = `
 {
 	"request_id": "12345",
@@ -67,7 +68,7 @@ var gcpReadSampleResponse = `
 	"renewable": true,
 	"lease_duration": 3600,
 	"data": {
-	  "private_key_data": "<private-key-data>",
+	  "private_key_data": "PHByaXZhdGUta2V5LWRhdGE+",
 	  "key_algorithm": "TYPE_GOOGLE_CREDENTIALS_FILE",
 	  "key_type": "KEY_ALG_RSA_2048"
 	},
@@ -80,31 +81,29 @@ var gcpReadSampleResponse = `
 func Test_vaultSecret_String(t *testing.T) {
 	tests := []struct {
 		sampleResponse string
-		options        map[string]string
+		secret         v.Secret
 		expected       string
 	}{
 		{
 			KVv1ReadSampleResponse,
-			map[string]string{"data": "foo"},
+			&kvV1Secret{nil, map[string]string{"data": "foo"}},
 			"bar",
 		}, {
 			KVv2ReadsSampleResponse,
-			map[string]string{"data": "foo"},
+			&kvV2Secret{nil, map[string]string{"data": "foo"}},
 			"bar",
 		}, {
 			gcpReadSampleResponse,
-			map[string]string{"data": "private_key_data"},
+			&gcpSecret{nil, map[string]string{"data": "private_key_data"}},
 			"<private-key-data>",
 		},
 	}
 	for _, testCase := range tests {
-		var s api.Secret
-		err := json.Unmarshal([]byte(testCase.sampleResponse), &s)
+		err := json.Unmarshal([]byte(testCase.sampleResponse), testCase.secret)
 		if err != nil {
 			t.Fatal(err)
 		}
-		vs := &vaultSecret{&s, testCase.options}
-		require.Equal(t, vs.String(), testCase.expected, "It should retrieve the good value and not the entire map !")
+		require.Equal(t, testCase.expected, testCase.secret.String(), "String() should retrieve the good value of the data map !")
 	}
 
 }

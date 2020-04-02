@@ -15,6 +15,7 @@
 package hashivault
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -153,7 +154,23 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 	if s == nil {
 		return nil, errors.Errorf("secret %q not found", id)
 	}
-	secret := &vaultSecret{Secret: s, options: opts}
+	// TODO: in the future combine this with mountPathDetection to see secret engine use
+	path := strings.SplitN(strings.TrimPrefix(strings.TrimSpace(id), "/"), "/", 2)
+	var secret vault.Secret
+	switch path[0] {
+	case "gcp":
+		secret = &gcpSecret{Secret: s, options: opts}
+		//return &gcpSecret{Secret: s, options: opts}, nil
+	case "secret":
+		// /secret/data/foo is a kv v2 path
+		if strings.HasPrefix(path[1], "data") {
+			secret = &kvV2Secret{Secret: s, options: opts}
+		} else {
+			secret = &kvV1Secret{Secret: s, options: opts}
+		}
+	default:
+		secret = &defaultSecret{Secret: s, options: opts}
+	}
 	return secret, nil
 }
 
@@ -185,6 +202,20 @@ func (vc *vaultClient) startRenewing() {
 		}
 	}()
 }
+
+/* Vault users could register secret engine at different path. For example a gcp secret engine could be at /infra-prod/
+   So it will be better to know which path corresponds to which type to correctly manage secrets. TODO: In the future
+func (vc *vaultClient) registerMounts()error{
+	mounts, err := vc.vClient.Sys().ListMounts()
+	if err != nil {
+		return errors.Errorf("Unable to list mounts. Err : %v", err)
+	}
+	for path, mount := range mounts {
+		type := mount.Type
+	}
+}
+*/
+
 func (vc *vaultClient) Revoke(secret *api.Secret) error {
 	if secret.LeaseID == "" {
 		log.Debugf("Secret %v is non-revocable since it as no lease_id.", secret.WrapInfo.CreationPath)
@@ -201,21 +232,96 @@ func (vc *vaultClient) Shutdown() error {
 	return nil
 }
 
+// Default secret is the basic secret type, used type is not yet supported
+type defaultSecret struct {
+	*api.Secret
+	options map[string]string
+}
+
+func (ds *defaultSecret) Raw() interface{} {
+	return ds.Secret
+}
+
+func (ds *defaultSecret) String() string {
+	if key, ok := ds.options["data"]; ok {
+		return fmt.Sprint(ds.Data[key])
+	}
+	return fmt.Sprint(ds.Data)
+}
+
+// Management of KV v1 secret engine
+type kvV1Secret defaultSecret
+
+func (kv1s *kvV1Secret) Raw() interface{} {
+	return kv1s.Secret
+}
+
+func (kv1s *kvV1Secret) String() string {
+	if key, ok := kv1s.options["data"]; ok {
+		return fmt.Sprint(kv1s.Data[key])
+	}
+	return fmt.Sprint(kv1s.Data)
+}
+
+// Management of KV v2 secret engine
+type kvV2Secret defaultSecret
+
+func (kv2s *kvV2Secret) Raw() interface{} {
+	return kv2s.Secret
+}
+
+func (kv2s *kvV2Secret) String() string {
+	if key, ok := kv2s.options["data"]; ok {
+		if secretValue, ok := getData(kv2s.Secret)[key]; ok {
+			return fmt.Sprint(secretValue)
+		}
+	}
+	return fmt.Sprint(getData(kv2s.Secret))
+}
+
+// Management of GCP secret engine
+type gcpSecret defaultSecret
+
+func (gcps *gcpSecret) Raw() interface{} {
+	return gcps.Secret
+}
+
+func (gcps *gcpSecret) String() string {
+	data := gcps.Data
+	if key, ok := gcps.options["data"]; ok {
+		switch key {
+		// Private key is base64 encoded
+		case "private_key_data":
+			decodedKey, err := base64.StdEncoding.DecodeString(fmt.Sprint(data[key]))
+			if err == nil {
+				return string(decodedKey)
+			}
+			break
+		default:
+			return fmt.Sprint(data[key])
+		}
+	}
+	return fmt.Sprint(data)
+}
+
+//DEPRECATED use defaultSecret type instead
 type vaultSecret struct {
 	*api.Secret
 	options map[string]string
 }
 
+//DEPRECATED use defaultSecret type instead
 func (vs *vaultSecret) String() string {
 	//Option exists
 	if key, ok := vs.options["data"]; ok {
-		if secretValue, ok := vs.getData()[key]; ok {
+		if secretValue, ok := getData(vs.Secret)[key]; ok {
 			return fmt.Sprint(secretValue)
 		}
 	}
-	return fmt.Sprint(vs.getData())
+	return fmt.Sprint(getData(vs.Secret))
 }
 
+//DEPRECATED use defaultSecret type instead
 func (vs *vaultSecret) Raw() interface{} {
 	return vs.Secret
 }
@@ -223,8 +329,8 @@ func (vs *vaultSecret) Raw() interface{} {
 // In case of data nested into another data map return the actual data.
 // KV secret engine has 2 version; version 2 manage secret versioning. For a KV v2, secret are sored in a struct like : map[data:map[k1: val1 k2: val2] metadata:map[created_time:2020 version:3]]
 // For a KV v1, only the data map is stored
-func (vs *vaultSecret) getData() map[string]interface{} {
-	data := vs.Data
+func getData(secret *api.Secret) map[string]interface{} {
+	data := secret.Data
 	// Case of a KV v2 :
 	if nestedData, ok := data["data"].(map[string]interface{}); ok {
 		return nestedData
