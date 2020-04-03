@@ -158,17 +158,18 @@ node_types:
       availability_zone_id:
         type: string
         required: false
-        description: The AZ for the subnet
+        description: The AZ ID for the subnet
       cidr_block:
         type: string
         required: true
       ipv6_cidr_block :
         type: string
         required: false
+        description: The IPv6 network range for the subnet, in CIDR notation. The subnet size must use a /64 prefix length.
       map_public_ip_on_launch:
         type: boolean
         required: false
-        description: The AZ for the subnet
+        description: Specify true to indicate that instances launched into the subnet should be assigned a public IP address. 
       assign_ipv6_address_on_creation:
         type: boolean
         required: false
@@ -176,7 +177,7 @@ node_types:
           Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
       vpc_id:
         type: string
-        required: true
+        required: false
       tags:
         type: map
         description: A mapping of tags to assign to the resource.
