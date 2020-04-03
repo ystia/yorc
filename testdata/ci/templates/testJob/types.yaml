@@ -1,0 +1,21 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: org.ystia.ci.tests.test_job
+  template_version: 1.0.0-SNAPSHOT
+  template_author: test
+
+description: ""
+
+imports:
+  - org.ystia.samples.job.mock:1.0.0-SNAPSHOT
+  - tosca-normative-types:1.0.0-ALIEN20
+
+topology_template:
+  node_templates:
+    DelayJob:
+      type: org.ystia.samples.job.mocks.DelayJob
+      properties:
+        run_delay: 30
+        random_status: false
+        failure: false
