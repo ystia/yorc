@@ -159,17 +159,17 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 	var secret vault.Secret
 	switch path[0] {
 	case "gcp":
-		secret = &gcpSecret{Secret: s, options: opts}
+		secret = &gcpSecret{defaultSecret{Secret: s, Options: opts}}
 		//return &gcpSecret{Secret: s, options: opts}, nil
 	case "secret":
 		// /secret/data/foo is a kv v2 path
 		if strings.HasPrefix(path[1], "data") {
-			secret = &kvV2Secret{Secret: s, options: opts}
+			secret = &kvV2Secret{kvSecret{defaultSecret{Secret: s, Options: opts}}}
 		} else {
-			secret = &kvV1Secret{Secret: s, options: opts}
+			secret = &kvV1Secret{kvSecret{defaultSecret{Secret: s, Options: opts}}}
 		}
 	default:
-		secret = &defaultSecret{Secret: s, options: opts}
+		secret = &defaultSecret{Secret: s, Options: opts}
 	}
 	return secret, nil
 }
@@ -235,7 +235,7 @@ func (vc *vaultClient) Shutdown() error {
 // Default secret is the basic secret type, used type is not yet supported
 type defaultSecret struct {
 	*api.Secret
-	options map[string]string
+	Options map[string]string
 }
 
 func (ds *defaultSecret) Raw() interface{} {
@@ -243,52 +243,44 @@ func (ds *defaultSecret) Raw() interface{} {
 }
 
 func (ds *defaultSecret) String() string {
-	if key, ok := ds.options["data"]; ok {
+	if key, ok := ds.Options["data"]; ok {
 		return fmt.Sprint(ds.Data[key])
 	}
 	return fmt.Sprint(ds.Data)
 }
 
-// Management of KV v1 secret engine
-type kvV1Secret defaultSecret
-
-func (kv1s *kvV1Secret) Raw() interface{} {
-	return kv1s.Secret
+type kvSecret struct {
+	defaultSecret
 }
 
-func (kv1s *kvV1Secret) String() string {
-	if key, ok := kv1s.options["data"]; ok {
-		return fmt.Sprint(kv1s.Data[key])
-	}
-	return fmt.Sprint(kv1s.Data)
-}
-
-// Management of KV v2 secret engine
-type kvV2Secret defaultSecret
-
-func (kv2s *kvV2Secret) Raw() interface{} {
-	return kv2s.Secret
-}
-
-func (kv2s *kvV2Secret) String() string {
-	if key, ok := kv2s.options["data"]; ok {
-		if secretValue, ok := getData(kv2s.Secret)[key]; ok {
+// Generic method for kv secret engines
+func (kvs *kvSecret) String() string {
+	if key, ok := kvs.Options["data"]; ok {
+		if secretValue, ok := getData(kvs.Secret)[key]; ok {
 			return fmt.Sprint(secretValue)
 		}
 	}
-	return fmt.Sprint(getData(kv2s.Secret))
+	return fmt.Sprint(getData(kvs.Secret))
+}
+
+// Management of KV v1 secret engine
+type kvV1Secret struct {
+	kvSecret
+}
+
+// Management of KV v2 secret engine
+type kvV2Secret struct {
+	kvSecret
 }
 
 // Management of GCP secret engine
-type gcpSecret defaultSecret
-
-func (gcps *gcpSecret) Raw() interface{} {
-	return gcps.Secret
+type gcpSecret struct {
+	defaultSecret
 }
 
 func (gcps *gcpSecret) String() string {
 	data := gcps.Data
-	if key, ok := gcps.options["data"]; ok {
+	if key, ok := gcps.Options["data"]; ok {
 		switch key {
 		// Private key is base64 encoded
 		case "private_key_data":

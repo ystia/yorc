@@ -60,7 +60,7 @@ var KVv2ReadsSampleResponse = `
 }
 `
 
-// "<private-key-data>" encoded in base64 -> "PHByaXZhdGUta2V5LWRhdGE+Cg=="
+// "<private-key-data>" encoded in base64 -> "PHByaXZhdGUta2V5LWRhdGE+"
 var gcpReadSampleResponse = `
 {
 	"request_id": "12345",
@@ -86,15 +86,15 @@ func Test_vaultSecret_String(t *testing.T) {
 	}{
 		{
 			KVv1ReadSampleResponse,
-			&kvV1Secret{nil, map[string]string{"data": "foo"}},
+			&kvV1Secret{kvSecret{defaultSecret{nil, map[string]string{"data": "foo"}}}},
 			"bar",
 		}, {
 			KVv2ReadsSampleResponse,
-			&kvV2Secret{nil, map[string]string{"data": "foo"}},
+			&kvV2Secret{kvSecret{defaultSecret{nil, map[string]string{"data": "foo"}}}},
 			"bar",
 		}, {
 			gcpReadSampleResponse,
-			&gcpSecret{nil, map[string]string{"data": "private_key_data"}},
+			&gcpSecret{defaultSecret{nil, map[string]string{"data": "private_key_data"}}},
 			"<private-key-data>",
 		},
 	}
