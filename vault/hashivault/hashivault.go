@@ -159,8 +159,7 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 	var secret vault.Secret
 	switch path[0] {
 	case "gcp":
-		secret = &gcpSecret{defaultSecret{Secret: s, Options: opts}}
-		//return &gcpSecret{Secret: s, options: opts}, nil
+		secret = &gcpSecret{dynamicSecret{defaultSecret{Secret: s, Options: opts}}}
 	case "secret":
 		// /secret/data/foo is a kv v2 path
 		if strings.HasPrefix(path[1], "data") {
@@ -249,6 +248,7 @@ func (ds *defaultSecret) String() string {
 	return fmt.Sprint(ds.Data)
 }
 
+// Generic type for kv secret engine
 type kvSecret struct {
 	defaultSecret
 }
@@ -273,9 +273,14 @@ type kvV2Secret struct {
 	kvSecret
 }
 
+// Generic type for dynamic secret engines
+type dynamicSecret struct {
+	defaultSecret
+}
+
 // Management of GCP secret engine
 type gcpSecret struct {
-	defaultSecret
+	dynamicSecret
 }
 
 func (gcps *gcpSecret) String() string {

@@ -94,7 +94,7 @@ func Test_vaultSecret_String(t *testing.T) {
 			"bar",
 		}, {
 			gcpReadSampleResponse,
-			&gcpSecret{defaultSecret{nil, map[string]string{"data": "private_key_data"}}},
+			&gcpSecret{dynamicSecret{defaultSecret{nil, map[string]string{"data": "private_key_data"}}}},
 			"<private-key-data>",
 		},
 	}
