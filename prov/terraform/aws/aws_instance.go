@@ -142,7 +142,14 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		instance.PlacementGroup = placementGroup.RawString()
 	}
 
-	// Network Interfaces
+	// Network
+	subnetID, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "subnet_id")
+	if err != nil {
+		return err
+	}
+	if subnetID != nil {
+		instance.SubnetID = subnetID.RawString()
+	}
 	hasNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.Subnet")
 	if err != nil {
 		return err
@@ -153,7 +160,6 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 			return err
 		}
 
-		// Start at 1, (0 reserved for the default network interface)
 		i := 0
 		for _, networkReq := range networkRequirements {
 			networkInterface := &NetworkInterface{}

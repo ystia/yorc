@@ -30,6 +30,11 @@ node_types:
         description: >
           Comma-separated list of security groups to add to the Compute
         required: true
+      subnet_id:
+        type: string
+        description: >
+          The VPC Subnet ID to launch in.
+        required: false
       availability_zone:
         type: string
         required: false

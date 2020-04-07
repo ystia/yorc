@@ -101,6 +101,7 @@ func testSimpleAWSInstance(t *testing.T, cfg config.Configuration) {
 	require.Equal(t, "ComputeAWS-0", compute.Tags.Name)
 	require.Equal(t, "us-east-2c", compute.AvailabilityZone)
 	require.Equal(t, "myPlacement", compute.PlacementGroup)
+	require.Equal(t, "subnet-f578918e", compute.SubnetID)
 	require.Equal(t, true, compute.RootBlockDevice.DeleteOnTermination)
 	require.Len(t, compute.SecurityGroups, 1)
 	require.Contains(t, compute.SecurityGroups, "yorc-securityGroup")

@@ -21,6 +21,7 @@ type ComputeInstance struct {
 	AvailabilityZone string            `json:"availability_zone,omitempty"`
 	PlacementGroup   string            `json:"placement_group,omitempty"`
 	SecurityGroups   []string          `json:"security_groups,omitempty"`
+	SubnetID         string            `json:"subnet_id,omitempty"`
 	KeyName          string            `json:"key_name,omitempty"`
 	Tags             Tags              `json:"tags,omitempty"`
 	ElasticIps       []string          `json:"-"`
