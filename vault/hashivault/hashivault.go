@@ -215,12 +215,12 @@ func (vc *vaultClient) registerMounts()error{
 }
 */
 
-func (vc *vaultClient) Revoke(secret *api.Secret) error {
-	if secret.LeaseID == "" {
-		log.Debugf("Secret %v is non-revocable since it as no lease_id.", secret.WrapInfo.CreationPath)
+func (vc *vaultClient) Revoke(dynSecret *dynamicSecret) error {
+	if dynSecret.LeaseID == "" {
+		log.Debugf("Secret %v is non-revocable since it as no lease_id.", dynSecret.WrapInfo.CreationPath)
 		return nil
 	}
-	err := vc.vClient.Sys().Revoke(secret.LeaseID)
+	err := vc.vClient.Sys().Revoke(dynSecret.LeaseID)
 	if err != nil {
 		return errors.Errorf("Secret revocation failed. Err : %v", err)
 	}
