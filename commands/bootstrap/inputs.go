@@ -102,6 +102,10 @@ var (
 			description: "Prefix used to create resources (like Computes and so on)",
 			value:       "yorc-",
 		},
+		"yorc.host_operations_allowed": defaultInputType{
+			description: "Allow to execute operations on orchestrator host",
+			value:       false,
+		},
 	}
 
 	yorcPluginDefaultInputs = map[string]defaultInputType{

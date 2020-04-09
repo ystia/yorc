@@ -156,6 +156,7 @@ topology_template:
         ca_pem: |{{indent .Yorc.CAPEMContent 10}}
         ca_key: |{{indent .Yorc.CAKeyContent 10}}
         ca_passphrase: "{{.Yorc.CAPassPhrase}}"
+        host_operations_allowed: "{{.Yorc.HostOperationsAllowed}}"
       requirements:
         - hostedOnComputeHost:
             type_requirement: host

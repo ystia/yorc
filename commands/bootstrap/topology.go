@@ -50,19 +50,20 @@ const (
 
 // YorcConfiguration provides Yorc user-defined settings
 type YorcConfiguration struct {
-	DownloadURL       string `yaml:"download_url" mapstructure:"download_url"`
-	Port              int
-	Protocol          string
-	PrivateKeyContent string `yaml:"private_key_content" mapstructure:"private_key_content"`
-	PrivateKeyFile    string `yaml:"private_key_file" mapstructure:"private_key_file"`
-	CAPEMContent      string `yaml:"ca_pem" mapstructure:"ca_pem"`
-	CAPEMFile         string `yaml:"ca_pem_file" mapstructure:"ca_pem_file"`
-	CAKeyContent      string `yaml:"ca_key" mapstructure:"ca_key"`
-	CAKeyFile         string `yaml:"ca_key_file" mapstructure:"ca_key_file"`
-	CAPassPhrase      string `yaml:"ca_passphrase" mapstructure:"ca_passphrase"`
-	DataDir           string `yaml:"data_dir" mapstructure:"data_dir"`
-	WorkersNumber     int    `yaml:"workers_number" mapstructure:"workers_number"`
-	ResourcesPrefix   string `yaml:"resources_prefix" mapstructure:"resources_prefix"`
+	DownloadURL           string `yaml:"download_url" mapstructure:"download_url"`
+	Port                  int
+	Protocol              string
+	PrivateKeyContent     string `yaml:"private_key_content" mapstructure:"private_key_content"`
+	PrivateKeyFile        string `yaml:"private_key_file" mapstructure:"private_key_file"`
+	CAPEMContent          string `yaml:"ca_pem" mapstructure:"ca_pem"`
+	CAPEMFile             string `yaml:"ca_pem_file" mapstructure:"ca_pem_file"`
+	CAKeyContent          string `yaml:"ca_key" mapstructure:"ca_key"`
+	CAKeyFile             string `yaml:"ca_key_file" mapstructure:"ca_key_file"`
+	CAPassPhrase          string `yaml:"ca_passphrase" mapstructure:"ca_passphrase"`
+	DataDir               string `yaml:"data_dir" mapstructure:"data_dir"`
+	WorkersNumber         int    `yaml:"workers_number" mapstructure:"workers_number"`
+	ResourcesPrefix       string `yaml:"resources_prefix" mapstructure:"resources_prefix"`
+	HostOperationsAllowed bool   `yaml:"host_operations_allowed" mapstructure:"host_operations_allowed"`
 }
 
 // YorcPluginConfiguration provides Yorc plugin user-defined settings
