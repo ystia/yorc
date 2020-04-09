@@ -7,4 +7,4 @@ ansible_version: 2.7.9
 tf_consul_plugin_version: 2.1.0
 tf_aws_plugin_version: 1.36.0
 tf_openstack_plugin_version: 1.9.0
-tf_google_plugin_version: 2.0.0
+tf_google_plugin_version: 2.20.3

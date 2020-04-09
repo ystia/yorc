@@ -116,7 +116,7 @@ Globals Command-line options
 
 .. _option_terraform_google_plugin_version_constraint_cmd:
 
-  * ``--terraform_google_plugin_version_constraint``: Specify the Terraform Google plugin version constraint. Default one compatible with our source code is ``"~> 2.0"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+  * ``--terraform_google_plugin_version_constraint``: Specify the Terraform Google plugin version constraint. Default one compatible with our source code is ``"~> 2.20"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
 
 .. _option_terraform_openstack_plugin_version_constraint_cmd:
 
