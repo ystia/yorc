@@ -376,7 +376,6 @@ topology_template:
         ca_pem: |{{indent .Yorc.CAPEMContent 10}}
         ca_key: |{{indent .Yorc.CAKeyContent 10}}
         ca_passphrase: "{{.Yorc.CAPassPhrase}}"
-        host_operations_allowed: "{{.Yorc.HostOperationsAllowed}}"
       requirements:
         - hostedOnComputeYorcHost:
             type_requirement: host
@@ -433,6 +432,7 @@ topology_template:
       properties:
         use_openssh: {{.Ansible.UseOpenSSH}}
         inventory: {{formatAsJSON .Ansible.Inventory}}
+        unsandboxed_operations_allowed: {{.Ansible.HostOperationsAllowed}}
       requirements:
         - ansibleYorcServer:
             type_requirement: host

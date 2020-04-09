@@ -20,7 +20,6 @@ yorc:
   resources_prefix: yorc-test-
   private_key_file: ../../pkg/rootfs/var/yorc/.ssh/yorc.pem
   ca_passphrase: tmp123
-  host_operations_allowed: true
 yorc_plugin:
   download_url: https://ystia.jfrog.io/ystia/binaries/ystia/yorc-a4c-plugin/dist/develop/alien4cloud-yorc-plugin-4.0.0-SNAPSHOT.zip
 locations:

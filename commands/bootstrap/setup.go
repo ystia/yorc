@@ -114,7 +114,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 			KeepGeneratedRecipes: true,
 			UseOpenSSH:           inputValues.Ansible.UseOpenSSH,
 			Inventory:            inputValues.Ansible.Inventory,
-			HostedOperations:     config.HostedOperations{UnsandboxedOperationsAllowed: inputValues.Yorc.HostOperationsAllowed},
+			HostedOperations:     config.HostedOperations{UnsandboxedOperationsAllowed: inputValues.Ansible.HostOperationsAllowed},
 		},
 	}
 
