@@ -231,7 +231,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg confi
 	}
 
 	// Define the private IP address using the value exported by Terraform
-	privateIP := fmt.Sprintf("${google_compute_instance.%s.network_interface.0.address}",
+	privateIP := fmt.Sprintf("${google_compute_instance.%s.network_interface.0.network_ip}",
 		instance.Name)
 
 	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
@@ -245,7 +245,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg confi
 		accessIP = privateIP
 		accessIPKey = privateIPKey
 	} else {
-		accessIP = fmt.Sprintf("${google_compute_instance.%s.network_interface.0.access_config.0.assigned_nat_ip}",
+		accessIP = fmt.Sprintf("${google_compute_instance.%s.network_interface.0.access_config.0.nat_ip}",
 			instance.Name)
 
 		publicIPKey := nodeName + "-" + instanceName + "-publicIP"
