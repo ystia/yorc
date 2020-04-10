@@ -1076,11 +1076,15 @@ Google Cloud Platform location type is ``google`` in lower case.
 +-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
 | ``credentials``             | Content of file containing credentials       | string    | no       | Google Application Default Credentials |
 +-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
+| ``oauth_access_token``      | OAuth2 access token*                         | string    | no       |                                        |
++-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
 | ``region``                  | The region to operate under                  | string    | no       |                                        |
 +-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
 
 ``application_credentials`` is the path (accessible to Yorc server) of a file containing service account private keys in JSON format.
 This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
+
+``oauth_access_token`` is a temporary OAuth 2.0 access token used to authenticate requests to GCP APIs. If it is specified, this token will be used over credentials. It is strongly recommended to use this configuration field as a secret that will be dynamicly read. See vault section for more details.
 
 If no file path is specified in ``application_credentials`` and no file content is specified in ``credentials``, the orchestrator will fall back to using the `Google Application Default Credentials <https://cloud.google.com/docs/authentication/production>`_ if any.
 
