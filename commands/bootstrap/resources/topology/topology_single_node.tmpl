@@ -271,7 +271,7 @@ topology_template:
       properties:
         use_openssh: {{.Ansible.UseOpenSSH}}
         inventory: {{formatAsJSON .Ansible.Inventory}}
-        unsandboxed_operations_allowed: {{.Ansible.HostOperationsAllowed}}
+        host_operations_allowed: {{.Ansible.HostOperationsAllowed}}
       requirements:
         - ansibleYorcServer:
             type_requirement: host
