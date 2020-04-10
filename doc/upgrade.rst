@@ -92,8 +92,8 @@ binary. So you also need to download them separately.
     wget https://releases.hashicorp.com/terraform-provider-aws/1.36.0/terraform-provider-aws_1.36.0_linux_amd64.zip
     sudo unzip terraform-provider-aws_1.36.0_linux_amd64.zip -d /var/terraform/plugins
 
-    wget https://releases.hashicorp.com/terraform-provider-google/1.18.0/terraform-provider-google_1.18.0_linux_amd64.zip
-    sudo unzip terraform-provider-google_1.18.0_linux_amd64.zip -d /var/terraform/plugins
+    wget https://releases.hashicorp.com/terraform-provider-google/2.20.3/terraform-provider-google_2.20.3_linux_amd64.zip
+    sudo unzip terraform-provider-google_2.20.3_linux_amd64.zip -d /var/terraform/plugins
 
     wget https://releases.hashicorp.com/terraform-provider-openstack/1.9.0/terraform-provider-openstack_1.9.0_linux_amd64.zip
     sudo unzip terraform-provider-openstack_1.9.0_linux_amd64.zip -d /var/terraform/plugins

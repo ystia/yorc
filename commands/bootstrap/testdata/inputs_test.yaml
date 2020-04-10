@@ -11,7 +11,7 @@ terraform:
   - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-consul_2.1.0_linux_amd64.zip
   - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-openstack_1.9.0_linux_amd64.zip
   - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-aws_1.36.0_linux_amd64.zip
-  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-google_1.18.0_linux_amd64.zip
+  - http://1.2.3.4/ystia/yorc-deploy/terraform-provider-google_2.20.3_linux_amd64.zip
 jdk:
   download_url: http://1.2.3.4/ystia/java-a4c/jdk-8u131-linux-x64.tar.gz
   version: 1.8.0-131-b11
