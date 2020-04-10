@@ -175,24 +175,24 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 
 func (vc *vaultClient) startRenewing() {
 	go func() {
-		renewer, err := vc.vClient.NewRenewer(&api.RenewerInput{
+		watcher, err := vc.vClient.NewLifetimeWatcher(&api.LifetimeWatcherInput{
 			Secret: vc.token,
 		})
 		if err != nil {
-			log.Print("Failed to create renewer for the Vault token")
+			log.Print("Failed to create watcher for the Vault token")
 		}
-		go renewer.Renew()
-		defer renewer.Stop()
-
+		go watcher.Start()
+		defer watcher.Stop()
+		
 		for {
 			select {
-			case err := <-renewer.DoneCh():
+			case err := <-watcher.DoneCh():
 				if err != nil {
 					log.Fatal(err)
 				}
 
 				// Renewal is now over
-			case renewal := <-renewer.RenewCh():
+			case renewal := <-watcher.RenewCh():
 				log.Debugf("Successfully renewed vault auth token at: %v", renewal.RenewedAt)
 			case <-vc.shutdownCh:
 				log.Debug("stopping vault client token renewal")
