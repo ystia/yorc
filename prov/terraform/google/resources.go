@@ -50,7 +50,7 @@ type NetworkInterface struct {
 	Network           string         `json:"network,omitempty"`
 	Subnetwork        string         `json:"subnetwork,omitempty"`
 	SubNetworkProject string         `json:"subnetwork_project,omitempty"`
-	Address           string         `json:"address,omitempty"`
+	NetworkIP         string         `json:"network_ip,omitempty"`
 	AccessConfigs     []AccessConfig `json:"access_config,omitempty"`
 }
 

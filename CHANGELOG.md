@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* The orchestrator requires now at least Terraform google plugin with version constraint `~ 2.20` ([GH-628](https://github.com/ystia/yorc/issues/628))
+
 ### BUG FIXES
 
 * Location is not listed if its properties are missing ([GH-625](https://github.com/ystia/yorc/issues/625))
