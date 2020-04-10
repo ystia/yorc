@@ -9,5 +9,4 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20200209033844-7e00b02ea7d2
 	github.com/chromedp/chromedp v0.5.3
 	github.com/spf13/viper v1.6.1
-	github.com/ystia/yorc/v4 v4.0.0-rc.1
 )
