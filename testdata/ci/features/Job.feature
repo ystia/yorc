@@ -11,7 +11,6 @@ Feature: Deploy a TestJobApp application using Alien4Cloud with a job mock
     And I have uploaded the artifact named "testJob" to Alien
 
   @CI
-  @hp
   @cleanupAlien
   Scenario: Run a job and check its workflow status
     Given I have created an application named "TestJobApp" based on template named "org.ystia.ci.tests.test_job"
@@ -22,7 +21,6 @@ Feature: Deploy a TestJobApp application using Alien4Cloud with a job mock
     Then The status of the workflow is finally "SUCCEEDED" waiting max "30" seconds
 
   @CI
-  @hp
   @cleanupAlien
   Scenario: Cancel a job and check its workflow status
     Given I have created an application named "TestJobApp" based on template named "org.ystia.ci.tests.test_job"
