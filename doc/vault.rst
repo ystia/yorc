@@ -55,3 +55,17 @@ Bellow are some of the most common ways to get a specific secret using the templ
   * ``{{ with (secret "/secret/yorc/mysecret").Raw }}{{ .Data.myKey }}{{end}}``
   * ``{{ secret "/secret/yorc/mysecret" "data=myKey" | print }}``
   * ``{{ (secret "/secret/yorc/mysecret" "data=myKey").String }}``
+
+Secrets engines support
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Yorc currently support only Google Cloud secret engine but it is planned to support more and more secrets engines in the future. If you try to read in another secret engine, behaviours can be different so do it at your own risk.
+
+Google Cloud
+^^^^^^^^^^^^^^
+Google cloud secret engine allow to dynamically read secrets of two types: service account keys and OAuth 2 tokens. It is **strongly reccomended** to use OAuth 2 tokens over service account key to reduce potential key leak. For more information and configuration of this engine, see its `online documentation <https://www.vaultproject.io/docs/secrets/gcp>`_.
+
+Supposing we have configured token roleset at path *gcp/roleset/yorc-token-roleset* and service account key at path *gcp/roleset/yorc-key-roleset*, in order to dynamically read google credentials, we can access them using go template as described above. For example:
+  
+  * ``{{ (secret "gcp/roleset/yorc-token-roleset" "data=token").String }}`` to read a token 
+  * ``{{ (secret "gcp/roleset/yorc-key-roleset" "data=private_key_data").String }}`` to read a service account key

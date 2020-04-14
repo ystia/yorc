@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Support Vault dynamic secret generation for GCP ([GH-618](https://github.com/ystia/yorc/issues/618))
+
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Terraform google plugin with version constraint `~ 2.20` ([GH-628](https://github.com/ystia/yorc/issues/628))
