@@ -32,7 +32,7 @@ func verifyThatNodeIsTypeOf(ctx context.Context, nodeParams nodeParams, nodeType
 	return nil
 }
 
-func getTagsMap(ctx context.Context, nodeParams nodeParams) (map[string]string, error) {
+func getTagsMap(ctx context.Context, nodeParams nodeParams, nestedKeys ...string) (map[string]string, error) {
 	tagsVal, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "tags")
 	if err != nil {
 		return nil, err

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -56,6 +57,8 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, i
 
 	commons.AddResource(nodeParams.infrastructure, "aws_vpc", name, vpc)
 
+	g.generatedVPCSubnets(ctx, nodeParams, name)
+
 	// Terraform  output
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, nodeParams.deploymentID, "topology", "instances", nodeParams.nodeName, instanceName)
 
@@ -92,22 +95,6 @@ func (g *awsGenerator) generateSubnet(ctx context.Context, nodeParams nodeParams
 	}
 	// Name must respect regular expression
 	name = strings.Replace(strings.ToLower(name), "_", "-", -1)
-
-	// If not VPCId defined, it should be a dependancy, find it
-	if subnet.VPCId == "" {
-		hasDep, vpcNodeName, err := deployments.HasAnyRequirementFromNodeType(ctx, nodeParams.deploymentID, nodeParams.nodeName, "dependency", "yorc.nodes.aws.VPC")
-		if err != nil {
-			return err
-		}
-		if !hasDep {
-			return errors.Errorf("failed to retrieve dependency btw any network and the subnet with name:%q", name)
-		}
-
-		subnet.VPCId, err = deployments.LookupInstanceAttributeValue(ctx, nodeParams.deploymentID, vpcNodeName, instanceName, "vpc_id")
-		if err != nil {
-			return err
-		}
-	}
 
 	commons.AddResource(nodeParams.infrastructure, "aws_subnet", name, subnet)
 
@@ -172,7 +159,7 @@ func (g *awsGenerator) getSubnetProperties(ctx context.Context, nodeParams nodeP
 		{&subnet.AvailabilityZoneID, "availability_zone_id", false},
 		{&subnet.CidrBlock, "cidr_block", true},
 		{&subnet.Ipv6CidrBlock, "ipv6_cidr_block", true},
-		{&subnet.VPCId, "vpc_id", false},
+		{&subnet.VPCId, "vpc_id", true},
 	}
 
 	for _, stringParam := range stringParams {
@@ -197,6 +184,87 @@ func (g *awsGenerator) getSubnetProperties(ctx context.Context, nodeParams nodeP
 			return err
 		}
 		*boolProps.pAttr = val
+	}
+
+	return nil
+}
+
+func (g *awsGenerator) generatedVPCSubnets(ctx context.Context, nodeParams nodeParams, vpcName string) error {
+	subNetsRaw, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "subnets")
+	if err != nil {
+		return err
+	}
+
+	if subNetsRaw == nil || subNetsRaw.RawString() == "" {
+		return nil
+	}
+
+	list, ok := subNetsRaw.Value.([]interface{})
+	if !ok {
+		return errors.New("failed to retrieve yorc.datatypes.aws.SubnetType Tosca Value: not expected type")
+	}
+
+	for i := range list {
+		g.generatedVPCSubnet(ctx, nodeParams, vpcName, i)
+	}
+
+	return nil
+}
+
+func (g *awsGenerator) generatedVPCSubnet(ctx context.Context, nodeParams nodeParams, vpcName string, i int) error {
+	ind := strconv.Itoa(i)
+	subnet := &Subnet{}
+
+	params := []struct {
+		pStringAtt   *string
+		pBoolAtt     *bool
+		propertyName string
+		mandatory    bool
+	}{
+		{&subnet.AvailabilityZone, nil, "availability_zone", false},
+		{&subnet.AvailabilityZoneID, nil, "availability_zone_id", false},
+		{&subnet.CidrBlock, nil, "cidr_block", true},
+		{&subnet.Ipv6CidrBlock, nil, "ipv6_cidr_block", false},
+		{nil, &subnet.AssignIpv6AddressOnCreation, "assign_ipv6_address_on_creation", false},
+		{nil, &subnet.MapPublicIPOnLaunch, "map_public_ip_on_launch", false},
+	}
+
+	for _, params := range params {
+		val, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "subnets", ind, params.propertyName)
+		if err != nil {
+			return err
+		}
+		if val == nil && params.mandatory {
+			return errors.New("Missing mandatory params " + params.propertyName)
+		}
+		if params.pStringAtt != nil {
+			*params.pStringAtt = val.RawString()
+		} else if params.pBoolAtt != nil {
+			res, err := strconv.ParseBool(val.RawString())
+			if err != nil {
+				return err
+			}
+			*params.pBoolAtt = res
+		}
+
+		subnet.Tags, err = getTagsMap(ctx, nodeParams, ind, "tags")
+		if err != nil {
+			return err
+		}
+
+		subnet.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
+
+		// Create the name for the resource
+		var name = ""
+		if subnet.Tags["Name"] != "" {
+			name = subnet.Tags["Name"]
+		} else {
+			name = strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + vpcName)
+		}
+		// Name must respect regular expression
+		name = strings.Replace(strings.ToLower(name), "_", "-", -1)
+
+		commons.AddResource(nodeParams.infrastructure, "aws_subnet", name, subnet)
 	}
 
 	return nil

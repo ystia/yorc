@@ -84,5 +84,8 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleSubnet", func(t *testing.T) {
 			testSimpleSubnet(t, srv, cfg)
 		})
+		t.Run("simpleVPCWithSubnet", func(t *testing.T) {
+			testSimpleVPCWithSubnet(t, srv, cfg)
+		})
 	})
 }

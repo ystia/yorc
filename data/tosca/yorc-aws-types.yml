@@ -8,6 +8,81 @@ metadata:
 imports:
   - yorc: <yorc-types.yml>
 
+data_types:
+  yorc.datatypes.aws.SubnetType:
+    derived_from: tosca.datatypes.Root
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      availability_zone:
+        type: string
+        required: false
+        description: The AZ for the subnet
+      availability_zone_id:
+        type: string
+        required: false
+        description: The AZ ID for the subnet
+      cidr_block:
+        type: string
+        required: true
+      ipv6_cidr_block :
+        type: string
+        required: false
+        description: The IPv6 network range for the subnet, in CIDR notation. The subnet size must use a /64 prefix length.
+      map_public_ip_on_launch:
+        type: boolean
+        required: false
+        description: Specify true to indicate that instances launched into the subnet should be assigned a public IP address. 
+      assign_ipv6_address_on_creation:
+        type: boolean
+        required: false
+        description: >
+          Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+
+  yorc.datatypes.aws.SecurityRuleType:
+    derived_from: tosca.datatypes.Root
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      from_port:
+        type: string
+        required: true
+      to_port:
+        type: string
+        required: true
+      protocol:
+        type: string
+        required: true
+
+  yorc.datatypes.aws.SecurityGroupType:
+    derived_from: tosca.datatypes.Root
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      name:
+        type: string
+        required: true
+      ingress:
+        type: yorc.datatypes.aws.SecurityRuleType
+        required: true
+      egress:
+        type: yorc.datatypes.aws.SecurityRuleType
+        required: true
+
+relationship_types:
+  yorc.relationships.aws.Network:
+    derived_from: tosca.relationships.Network
+    properties:
+      subnet_id: 
+        type: string
+        required: true
+      security_group:
+        type: string
+        required: true
+
 node_types:
   yorc.nodes.aws.Compute:
     derived_from: yorc.nodes.Compute
@@ -29,7 +104,7 @@ node_types:
         type: string
         description: >
           Comma-separated list of security groups to add to the Compute
-        required: true
+        required: false
       subnet_id:
         type: string
         description: >
@@ -106,6 +181,44 @@ node_types:
         required: false
         default: false
 
+  yorc.nodes.aws.Subnet:
+    derived_from: tosca.nodes.Network
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      availability_zone:
+        type: string
+        required: false
+        description: The AZ for the subnet
+      availability_zone_id:
+        type: string
+        required: false
+        description: The AZ ID for the subnet
+      cidr_block:
+        type: string
+        required: true
+      ipv6_cidr_block :
+        type: string
+        required: false
+        description: The IPv6 network range for the subnet, in CIDR notation. The subnet size must use a /64 prefix length.
+      map_public_ip_on_launch:
+        type: boolean
+        required: false
+        description: Specify true to indicate that instances launched into the subnet should be assigned a public IP address. 
+      assign_ipv6_address_on_creation:
+        type: boolean
+        required: false
+        description: >
+          Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
+      vpc_id:
+        type: string
+        required: true
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+
   yorc.nodes.aws.VPC:
     derived_from: tosca.nodes.Network
     # See https://www.terraform.io/docs/providers/aws/r/vpc.html
@@ -151,42 +264,22 @@ node_types:
         required: false
         entry_schema:
           type: string
-
-  yorc.nodes.aws.Subnet:
-    derived_from: tosca.nodes.Network
-    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
-    properties:
-      availability_zone:
-        type: string
-        required: false
-        description: The AZ for the subnet
-      availability_zone_id:
-        type: string
-        required: false
-        description: The AZ ID for the subnet
-      cidr_block:
-        type: string
+      subnets:
+        type: list
+        description: Subnetworks in this VPC
         required: true
-      ipv6_cidr_block :
-        type: string
-        required: false
-        description: The IPv6 network range for the subnet, in CIDR notation. The subnet size must use a /64 prefix length.
-      map_public_ip_on_launch:
-        type: boolean
-        required: false
-        description: Specify true to indicate that instances launched into the subnet should be assigned a public IP address. 
-      assign_ipv6_address_on_creation:
-        type: boolean
-        required: false
-        description: >
-          Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
-      vpc_id:
-        type: string
-        required: false
-      tags:
-        type: map
-        description: A mapping of tags to assign to the resource.
-        required: false
         entry_schema:
-          type: string
+          type: yorc.datatypes.aws.SubnetType
+          constraints:
+            - greater_or_equal: 1
+      security_groups:
+        type: list
+        description: SecurityGroups in this VPC
+        required: true
+        entry_schema:
+          type: yorc.datatypes.aws.SecurityGroupType
+          constraints:
+            - greater_or_equal: 1
+
+
 
