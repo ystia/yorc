@@ -63,9 +63,8 @@ Yorc currently support only Google Cloud secret engine but it is planned to supp
 
 Google Cloud
 ^^^^^^^^^^^^^^
-Google cloud secret engine allow to dynamically read secrets of two types: service account keys and OAuth 2 tokens. It is **strongly reccomended** to use OAuth 2 tokens over service account key to reduce potential key leak. For more information and configuration of this engine, see its `online documentation <https://www.vaultproject.io/docs/secrets/gcp>`_.
+Google cloud secret engine allow to dynamically read secrets of two types: service account keys and OAuth 2 tokens. It is **strongly reccomended** to use OAuth 2 tokens over service account key to reduce potential key leak. Moreover, as service account only permits to have 10 different keys, it is not possible to use them for Yorc. For more information and configuration guide of this engine, see its `online documentation <https://www.vaultproject.io/docs/secrets/gcp>`_.
 
-Supposing we have configured token roleset at path *gcp/roleset/yorc-token-roleset* and service account key at path *gcp/roleset/yorc-key-roleset*, in order to dynamically read google credentials, we can access them using go template as described above. For example:
+Supposing we have configured token roleset at path *gcp/roleset/yorc-token-roleset*, in order to dynamically read google credentials, we will be using go template as described above. For example:
   
   * ``{{ (secret "gcp/roleset/yorc-token-roleset" "data=token").String }}`` to read a token 
-  * ``{{ (secret "gcp/roleset/yorc-key-roleset" "data=private_key_data").String }}`` to read a service account key
