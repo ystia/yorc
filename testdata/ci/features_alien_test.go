@@ -214,17 +214,8 @@ func (c *suiteContext) iRunAsyncTheWorkflowNamed(workflowName string) error {
 		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
 	}
 
-	closeCh := make(chan struct{})
-	defer close(closeCh)
 	go func() {
 		c.a4cClient.DeploymentService().RunWorkflow(c.ctx, c.applicationID, c.environmentID, workflowName, 10*time.Minute)
-		for {
-			select {
-			case <-closeCh:
-				return
-			default:
-			}
-		}
 	}()
 	return nil
 }
