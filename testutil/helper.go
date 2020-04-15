@@ -19,7 +19,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ystia/yorc/v4/storage"
 
@@ -74,8 +73,10 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
-	// TODO: Workaround for tests
-	time.Sleep(time.Duration(5 * time.Second))
+
+	// Wait for API to be available before loading store
+	srv1.WaitForLeader(nil)
+
 	// Load stores
 	// Load main stores used for deployments, logs, events
 	err = storage.LoadStores(*cfg)

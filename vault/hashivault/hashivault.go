@@ -183,7 +183,7 @@ func (vc *vaultClient) startRenewing() {
 		}
 		go watcher.Start()
 		defer watcher.Stop()
-		
+
 		for {
 			select {
 			case err := <-watcher.DoneCh():
