@@ -115,6 +115,7 @@ require (
 	gopkg.in/ory-am/dockertest.v3 v3.3.5 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	gotest.tools v2.2.0+incompatible // indirect
+	gotest.tools/v3 v3.0.0
 	k8s.io/api v0.0.0-20180628040859-072894a440bd
 	k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d
 	k8s.io/client-go v8.0.0+incompatible

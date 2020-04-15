@@ -5,6 +5,7 @@
 ### BUG FIXES
 
 * Location is not listed if its properties are missing ([GH-625](https://github.com/ystia/yorc/issues/625))
+* Sometimes Yorc bootstrap fails to start local Yorc instance because Consul is not properly started ([GH-623](https://github.com/ystia/yorc/issues/623))
 
 ## 4.0.0-rc.1 (March 30, 2020)
 
