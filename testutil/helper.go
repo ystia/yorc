@@ -15,11 +15,16 @@
 package testutil
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/storage"
 
 	"github.com/hashicorp/consul/api"
@@ -74,8 +79,7 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 	kv := client.KV()
 	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
 
-	// Wait for API to be available before loading store
-	srv1.WaitForLeader(nil)
+	waitForConsulReadiness(fmt.Sprintf("http://%s", srv1.HTTPAddr))
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
@@ -89,6 +93,41 @@ func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallb
 	}
 
 	return srv1, client
+}
+
+// Wait for a known leader and an index of
+// 2 or more to be observed to confirm leader election is done
+// Inspired by : https://github.com/hashicorp/consul/blob/master/sdk/testutil/server.go#L406
+func waitForConsulReadiness(consulHTTPEndpoint string) {
+	for {
+		leader, index, _ := getConsulLeaderAndIndex(consulHTTPEndpoint)
+		if leader != "" && index >= 2 {
+			return
+		}
+
+		<-time.After(2 * time.Second)
+	}
+}
+
+func getConsulLeaderAndIndex(consulHTTPEndpoint string) (string, int64, error) {
+	// Query the API and check the status code.
+	resp, err := http.Get(fmt.Sprintf("%s/v1/catalog/nodes", consulHTTPEndpoint))
+	if err != nil {
+		return "", -1, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", -1, errors.New(resp.Status)
+	}
+	leader := resp.Header.Get("X-Consul-KnownLeader")
+	if leader != "true" {
+		return "", -1, errors.Errorf("Consul leader status: %#v", leader)
+	}
+	index, err := strconv.ParseInt(resp.Header.Get("X-Consul-Index"), 10, 64)
+	if err != nil {
+		errors.Wrap(err, "bad consul index")
+	}
+	return leader, index, nil
 }
 
 // BuildDeploymentID allows to create a deploymentID from the test name value
