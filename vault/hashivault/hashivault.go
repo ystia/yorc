@@ -15,6 +15,7 @@
 package hashivault
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -136,7 +137,7 @@ type vaultClient struct {
 }
 
 func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, error) {
-	// log.Debugf("Getting secret: %q", id)
+	log.Debugf("Getting secret: %q", id)
 	opts := make(map[string]string)
 	for _, o := range options {
 		optsList := strings.SplitN(o, "=", 2)
@@ -153,30 +154,45 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 	if s == nil {
 		return nil, errors.Errorf("secret %q not found", id)
 	}
-	secret := &vaultSecret{Secret: s, options: opts}
+	// TODO: in the future combine this with mountPathDetection to see secret engine use
+	path := strings.SplitN(strings.TrimPrefix(strings.TrimSpace(id), "/"), "/", 2)
+	var secret vault.Secret
+	switch path[0] {
+	case "gcp":
+		secret = &gcpSecret{dynamicSecret{defaultSecret{Secret: s, Options: opts}}}
+	case "secret":
+		// /secret/data/foo is a kv v2 path
+		if strings.HasPrefix(path[1], "data") {
+			secret = &kvV2Secret{kvSecret{defaultSecret{Secret: s, Options: opts}}}
+		} else {
+			secret = &kvV1Secret{kvSecret{defaultSecret{Secret: s, Options: opts}}}
+		}
+	default:
+		secret = &defaultSecret{Secret: s, Options: opts}
+	}
 	return secret, nil
 }
 
 func (vc *vaultClient) startRenewing() {
 	go func() {
-		renewer, err := vc.vClient.NewRenewer(&api.RenewerInput{
+		watcher, err := vc.vClient.NewLifetimeWatcher(&api.LifetimeWatcherInput{
 			Secret: vc.token,
 		})
 		if err != nil {
-			log.Print("Failed to create renewer for the Vault token")
+			log.Print("Failed to create watcher for the Vault token")
 		}
-		go renewer.Renew()
-		defer renewer.Stop()
+		go watcher.Start()
+		defer watcher.Stop()
 
 		for {
 			select {
-			case err := <-renewer.DoneCh():
+			case err := <-watcher.DoneCh():
 				if err != nil {
 					log.Fatal(err)
 				}
 
 				// Renewal is now over
-			case renewal := <-renewer.RenewCh():
+			case renewal := <-watcher.RenewCh():
 				log.Debugf("Successfully renewed vault auth token at: %v", renewal.RenewedAt)
 			case <-vc.shutdownCh:
 				log.Debug("stopping vault client token renewal")
@@ -186,22 +202,135 @@ func (vc *vaultClient) startRenewing() {
 	}()
 }
 
+/* Vault users could register secret engine at different path. For example a gcp secret engine could be at /infra-prod/
+   So it will be better to know which path corresponds to which type to correctly manage secrets. TODO: In the future
+func (vc *vaultClient) registerMounts()error{
+	mounts, err := vc.vClient.Sys().ListMounts()
+	if err != nil {
+		return errors.Errorf("Unable to list mounts. Err : %v", err)
+	}
+	for path, mount := range mounts {
+		type := mount.Type
+	}
+}
+*/
+
+func (vc *vaultClient) Revoke(dynSecret *dynamicSecret) error {
+	if dynSecret.LeaseID == "" {
+		log.Debugf("Secret %v is non-revocable since it as no lease_id.", dynSecret.WrapInfo.CreationPath)
+		return nil
+	}
+	err := vc.vClient.Sys().Revoke(dynSecret.LeaseID)
+	if err != nil {
+		return errors.Errorf("Secret revocation failed. Err : %v", err)
+	}
+	return nil
+}
+
 func (vc *vaultClient) Shutdown() error {
 	return nil
 }
 
+// Default secret is the basic secret type, used type is not yet supported
+type defaultSecret struct {
+	*api.Secret
+	Options map[string]string
+}
+
+func (ds *defaultSecret) Raw() interface{} {
+	return ds.Secret
+}
+
+func (ds *defaultSecret) String() string {
+	if key, ok := ds.Options["data"]; ok {
+		return fmt.Sprint(ds.Data[key])
+	}
+	return fmt.Sprint(ds.Data)
+}
+
+// Generic type for kv secret engine
+type kvSecret struct {
+	defaultSecret
+}
+
+// Generic method for kv secret engines
+func (kvs *kvSecret) String() string {
+	if key, ok := kvs.Options["data"]; ok {
+		if secretValue, ok := getData(kvs.Secret)[key]; ok {
+			return fmt.Sprint(secretValue)
+		}
+	}
+	return fmt.Sprint(getData(kvs.Secret))
+}
+
+// Management of KV v1 secret engine
+type kvV1Secret struct {
+	kvSecret
+}
+
+// Management of KV v2 secret engine
+type kvV2Secret struct {
+	kvSecret
+}
+
+// Generic type for dynamic secret engines
+type dynamicSecret struct {
+	defaultSecret
+}
+
+// Management of GCP secret engine
+type gcpSecret struct {
+	dynamicSecret
+}
+
+func (gcps *gcpSecret) String() string {
+	data := gcps.Data
+	if key, ok := gcps.Options["data"]; ok {
+		switch key {
+		// Private key is base64 encoded
+		case "private_key_data":
+			decodedKey, err := base64.StdEncoding.DecodeString(fmt.Sprint(data[key]))
+			if err == nil {
+				return string(decodedKey)
+			}
+			break
+		default:
+			return fmt.Sprint(data[key])
+		}
+	}
+	return fmt.Sprint(data)
+}
+
+//DEPRECATED use defaultSecret type instead
 type vaultSecret struct {
 	*api.Secret
 	options map[string]string
 }
 
+//DEPRECATED use defaultSecret type instead
 func (vs *vaultSecret) String() string {
-	if d, ok := vs.options["data"]; ok {
-		return fmt.Sprint(vs.Data[d])
+	//Option exists
+	if key, ok := vs.options["data"]; ok {
+		if secretValue, ok := getData(vs.Secret)[key]; ok {
+			return fmt.Sprint(secretValue)
+		}
 	}
-	return fmt.Sprint(vs.Data)
+	return fmt.Sprint(getData(vs.Secret))
 }
 
+//DEPRECATED use defaultSecret type instead
 func (vs *vaultSecret) Raw() interface{} {
 	return vs.Secret
+}
+
+// In case of data nested into another data map return the actual data.
+// KV secret engine has 2 version; version 2 manage secret versioning. For a KV v2, secret are sored in a struct like : map[data:map[k1: val1 k2: val2] metadata:map[created_time:2020 version:3]]
+// For a KV v1, only the data map is stored
+func getData(secret *api.Secret) map[string]interface{} {
+	data := secret.Data
+	// Case of a KV v2 :
+	if nestedData, ok := data["data"].(map[string]interface{}); ok {
+		return nestedData
+	}
+	return data
 }

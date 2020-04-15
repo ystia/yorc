@@ -16,14 +16,15 @@ package builder
 
 import (
 	"context"
-	"github.com/hashicorp/consul/testutil"
+	"path"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"path"
-	"testing"
-	"time"
 )
 
 func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {

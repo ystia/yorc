@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/events"

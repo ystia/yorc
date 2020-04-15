@@ -18,7 +18,7 @@ import (
 	"os"
 	"testing"
 
-	consultests "github.com/hashicorp/consul/testutil"
+	consultests "github.com/hashicorp/consul/sdk/testutil"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"

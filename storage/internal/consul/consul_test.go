@@ -15,9 +15,10 @@
 package consul
 
 import (
-	"github.com/hashicorp/consul/testutil"
 	"os"
 	"testing"
+
+	"github.com/hashicorp/consul/sdk/testutil"
 
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/store"

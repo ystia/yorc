@@ -58,7 +58,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 		return false, nil, nil, nil, err
 	}
 	var cmdEnv []string
-	configParams := []string{"application_credentials", "credentials", "project", "region"}
+	configParams := []string{"application_credentials", "credentials", "oauth_access_token", "project", "region"}
 	for _, configParam := range configParams {
 		value := locationProps.GetString(configParam)
 		if value != "" {
