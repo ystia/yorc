@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 4.0.0 (April 17, 2020)
 
 ### BUG FIXES
 
