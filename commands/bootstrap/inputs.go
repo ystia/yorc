@@ -63,6 +63,10 @@ var (
 			description: "Prefer OpenSSH over Paramiko, python implementation of SSH",
 			value:       false,
 		},
+		"ansible.host_operations_allowed": defaultInputType{
+			description: "Allow to execute operations on orchestrator host",
+			value:       false,
+		},
 	}
 
 	yorcDefaultInputs = map[string]defaultInputType{

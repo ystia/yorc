@@ -67,8 +67,10 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^The workflow with name "([^"]*)" is again executable$`, c.theWorkflowWithNameIsAgainExecutable)
 	s.Step(`^I have deployed an application named "([^"]*)" on environment named "([^"]*)"$`, c.iHaveDeployedAnApplicationNamedOnEnvironmentNamed)
 	s.Step(`^I run the workflow named "([^"]*)"$`, c.iRunTheWorkflowNamed)
+	s.Step(`^I run asynchronously the workflow named "([^"]*)"$`, c.iRunAsyncTheWorkflowNamed)
+	s.Step(`^I cancel the last run workflow`, c.iCancelTheLastRunWorkflow)
 	s.Step(`^The status of the instance "([^"]*)" of the node named "([^"]*)" is "([^"]*)"$`, c.theStatusOfTheInstanceOfTheNodeNamedIs)
-
+	s.Step(`^The status of the workflow is finally "([^"]*)" waiting max "([^"]*)" seconds$`, c.theStatusOfTheWorkflowIsFinally)
 	s.Step(`^I have built the artifact named "([^"]*)" from templates named "([^"]*)" to Alien$`, c.iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien)
 	s.Step(`^The attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)" is equal to the attribute "([^"]*)" of the instance "([^"]*)" of the node named "([^"]*)"$`, c.theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed)
 	s.Step(`^I have added a policy named "([^"]*)" of type "([^"]*)" on targets "([^"]*)"$`, c.iHaveAddedAPolicyNamedOfTypeOnTargets)
