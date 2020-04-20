@@ -487,16 +487,15 @@ func download(url, fileName, destinationPath string, overwrite bool) (string, er
 		defer outputFile.Close()
 
 		response, err := http.Get(url)
-
-		//bar
-		bar := pb.Full.Start(int(response.ContentLength))
-		barReader := bar.NewProxyReader(response.Body)
-
 		if err != nil {
 			outputFile.Close()
 			return filePath, err
 		}
 		defer response.Body.Close()
+
+		//bar
+		bar := pb.Full.Start(int(response.ContentLength))
+		barReader := bar.NewProxyReader(response.Body)
 
 		_, err = io.Copy(outputFile, barReader)
 		outputFile.Close()
