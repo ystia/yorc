@@ -25,11 +25,11 @@ topology_template:
         security_groups: 
           - name: groupOpen
             ingress: 
-              from_port: 0
-              to_port: 0
-              protocol: "-1"
+              from_port: 1
+              to_port: 15
+              protocol: "TCP"
             egress: 
               from_port: 0
-              protocol: 1
+              protocol: "-1"
               to_port: 0
         tags: {"tag1": "foo"}

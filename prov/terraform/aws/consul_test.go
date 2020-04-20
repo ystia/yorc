@@ -78,14 +78,11 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleAWSInstanceWithPersistentDisk", func(t *testing.T) {
 			testSimpleAWSInstanceWithPersistentDisk(t, cfg, srv)
 		})
-		t.Run("simpleVPC", func(t *testing.T) {
-			testSimpleVPC(t, cfg)
+		t.Run("VPC", func(t *testing.T) {
+			testVPC(t, cfg)
 		})
-		t.Run("simpleSubnet", func(t *testing.T) {
-			testSimpleSubnet(t, srv, cfg)
-		})
-		t.Run("simpleVPCWithSubnet", func(t *testing.T) {
-			testSimpleVPCWithSubnet(t, srv, cfg)
+		t.Run("VPCWithNestedSubnetAndSG", func(t *testing.T) {
+			testVPCWithNestedSubnetAndSG(t, srv, cfg)
 		})
 	})
 }

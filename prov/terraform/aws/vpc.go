@@ -44,7 +44,7 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, i
 	// Get tags map
 	vpc.Tags, err = getTagsMap(ctx, nodeParams)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// Create the name for the resource
@@ -59,29 +59,19 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, i
 
 	commons.AddResource(nodeParams.infrastructure, "aws_vpc", name, vpc)
 
-	// Terraform  output
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, nodeParams.deploymentID, "topology", "instances", nodeParams.nodeName, instanceName)
 
-	g.generateVPCSubnets(ctx, nodeParams, name, vpc, nodeKey, outputs)
-	g.generateVPCSecurityGroups(ctx, nodeParams, name, nodeKey, outputs)
-
-	internetGateway := &InternetGateway{}
-	internetGateway.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", name)
-	internetGatewayName := nodeParams.nodeName + "_defaultInternetGateway"
-	commons.AddResource(nodeParams.infrastructure, "aws_internet_gateway", internetGatewayName, internetGateway)
-
-	routeTable := DefaultRouteTable{}
-	// routeTable.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", name)
-	routeTable.DefaultRouteTableID = fmt.Sprintf("${aws_vpc.%s.default_route_table_id}", name)
-	routeTable.Route = map[string]string{
-		"cidr_block": "0.0.0.0/0",
-		"gateway_id": fmt.Sprintf("${aws_internet_gateway.%s.id}", internetGatewayName),
+	err = g.generateVPCSubnets(ctx, nodeParams, name, vpc, nodeKey, outputs)
+	if err != nil {
+		return err
 	}
-	routeTable.DependsOn = []string{
-		fmt.Sprintf("aws_internet_gateway.%s", internetGatewayName),
+	err = g.generateVPCSecurityGroups(ctx, nodeParams, name, nodeKey, outputs)
+	if err != nil {
+		return err
 	}
-	commons.AddResource(nodeParams.infrastructure, "aws_default_route_table", nodeParams.nodeName+"_defaultRouteTable", routeTable)
+	g.generateIGandRT(ctx, nodeParams, name)
 
+	// Terraform  output
 	idKey := nodeParams.nodeName + "-" + instanceName + "-id"
 	idValue := fmt.Sprintf("${aws_vpc.%s.id}", name)
 	commons.AddOutput(nodeParams.infrastructure, idKey, &commons.Output{Value: idValue})
@@ -281,11 +271,11 @@ func (g *awsGenerator) generatedVPCSubnet(ctx context.Context, nodeParams nodePa
 		if params.pStringAtt != nil {
 			*params.pStringAtt = val.RawString()
 		} else if params.pBoolAtt != nil {
-			res, err := strconv.ParseBool(val.RawString())
+			val, err := deployments.GetBooleanNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "subnets", ind, params.propertyName)
 			if err != nil {
 				return err
 			}
-			*params.pBoolAtt = res
+			*params.pBoolAtt = val
 		}
 
 		subnet.Tags, err = getTagsMap(ctx, nodeParams, ind, "tags")
@@ -351,7 +341,7 @@ func (g *awsGenerator) generateDefaultSecurityGroup(ctx context.Context, nodePar
 	securityGroup := &SecurityGroups{}
 	securityGroup.Egress = SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}
 	securityGroup.Ingress = SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}
-	securityGroup.Name = "Default of " + vpcName
+	securityGroup.Name = "Default " + vpcName
 	securityGroup.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
 
 	name := strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + "defaultSecurityGroup")
@@ -377,11 +367,61 @@ func (g *awsGenerator) generateVPCSecurityGroup(ctx context.Context, nodeParams 
 	}
 	securityGroup.Name = val.RawString()
 
-	val, err = deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", ind, "ingress", "protocol")
+	protocol, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", true, ind, "ingress", "protocol")
 	if err != nil {
 		return err
 	}
-	fmt.Println(val)
+
+	fromPort, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", true, ind, "ingress", "from_port")
+	if err != nil {
+		return err
+	}
+
+	toPort, err := deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", true, ind, "ingress", "to_port")
+	if err != nil {
+		return err
+	}
+
+	securityGroup.Ingress = SecurityRule{FromPort: fromPort, ToPort: toPort, Protocol: protocol}
+
+	protocol, err = deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", true, ind, "egress", "protocol")
+	if err != nil {
+		return err
+	}
+
+	fromPort, err = deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", true, ind, "egress", "from_port")
+	if err != nil {
+		return err
+	}
+
+	toPort, err = deployments.GetStringNodeProperty(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", true, ind, "egress", "to_port")
+	if err != nil {
+		return err
+	}
+
+	securityGroup.Egress = SecurityRule{FromPort: fromPort, ToPort: toPort, Protocol: protocol}
+
+	commons.AddResource(nodeParams.infrastructure, "aws_security_group", securityGroup.Name, securityGroup)
 
 	return nil
+}
+
+// Generate an InternetGateway and Routable so the VPC is accesible through internet
+func (g *awsGenerator) generateIGandRT(ctx context.Context, nodeParams nodeParams, vpcName string) {
+	internetGateway := &InternetGateway{}
+	internetGateway.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
+	internetGatewayName := nodeParams.nodeName + "_defaultInternetGateway"
+	commons.AddResource(nodeParams.infrastructure, "aws_internet_gateway", internetGatewayName, internetGateway)
+
+	routeTable := DefaultRouteTable{}
+	// routeTable.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", name)
+	routeTable.DefaultRouteTableID = fmt.Sprintf("${aws_vpc.%s.default_route_table_id}", vpcName)
+	routeTable.Route = map[string]string{
+		"cidr_block": "0.0.0.0/0",
+		"gateway_id": fmt.Sprintf("${aws_internet_gateway.%s.id}", internetGatewayName),
+	}
+	routeTable.DependsOn = []string{
+		fmt.Sprintf("aws_internet_gateway.%s", internetGatewayName),
+	}
+	commons.AddResource(nodeParams.infrastructure, "aws_default_route_table", nodeParams.nodeName+"_defaultRouteTable", routeTable)
 }

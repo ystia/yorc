@@ -431,9 +431,9 @@ func GetNodePropertyValue(ctx context.Context, deploymentID, nodeName, propertyN
 
 // GetStringNodeProperty returns the string value of a property.
 // If this value is empty and the argument mandatory is true, an error is returned
-func GetStringNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string, mandatory bool) (string, error) {
+func GetStringNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string, mandatory bool, nestedKeys ...string) (string, error) {
 
-	result, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
+	result, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName, nestedKeys...)
 	if err != nil {
 		return "", err
 	}
@@ -449,9 +449,9 @@ func GetStringNodeProperty(ctx context.Context, deploymentID, nodeName, property
 }
 
 // GetBooleanNodeProperty returns the boolean value of a property (default: false)
-func GetBooleanNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string) (bool, error) {
+func GetBooleanNodeProperty(ctx context.Context, deploymentID, nodeName, propertyName string, nestedKeys ...string) (bool, error) {
 	var result bool
-	va, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName)
+	va, err := GetNodePropertyValue(ctx, deploymentID, nodeName, propertyName, nestedKeys...)
 	if err != nil {
 		return result, err
 	}

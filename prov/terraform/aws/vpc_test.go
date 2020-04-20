@@ -16,6 +16,10 @@ package aws
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
@@ -25,13 +29,13 @@ import (
 	"github.com/ystia/yorc/v4/prov/terraform/commons"
 )
 
-func testSimpleVPC(t *testing.T, cfg config.Configuration) {
+func testVPC(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
 	ctx := context.Background()
 	infrastructure := commons.Infrastructure{}
 	g := awsGenerator{}
-	networkName := "simplevpc-network"
+	networkName := "vpc-network"
 
 	nodeParams := nodeParams{
 		deploymentID:   deploymentID,
@@ -44,6 +48,7 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 	require.NoError(t, err, "Unexpected error attempting to generate vpc for %s", deploymentID)
 	require.Len(t, infrastructure.Resource["aws_vpc"], 1, "Expected one vpc")
 
+	// VPC resource test
 	instancesMap := infrastructure.Resource["aws_vpc"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
 	require.Contains(t, instancesMap, networkName)
@@ -54,9 +59,97 @@ func testSimpleVPC(t *testing.T, cfg config.Configuration) {
 	assert.Equal(t, true, vpc.AssignGeneratedIpv6CidrBlock)
 	assert.Equal(t, "foo", vpc.Tags["tag1"])
 
+	// Default subnet test
+	defaultSubnetName := strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + "defaultsubnet")
+	instancesMap = infrastructure.Resource["aws_subnet"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, defaultSubnetName)
+
+	subnet, ok := instancesMap[defaultSubnetName].(*Subnet)
+	require.True(t, ok, "%s is not a Subnet", defaultSubnetName)
+	assert.Equal(t, "10.0.0.0/16", subnet.CidrBlock)
+	assert.Equal(t, true, subnet.MapPublicIPOnLaunch)
+
+	defaultSubnetKey := nodeParams.nodeName + "-defaultSubnet"
+	require.NotNil(t, infrastructure.Output[defaultSubnetKey], "Expected related output to default subnet ID")
+	output := infrastructure.Output[defaultSubnetKey]
+	defaultSubnetName = strings.Replace(strings.ToLower(defaultSubnetName), "_", "-", -1)
+	require.Equal(t, output.Value, fmt.Sprintf("${aws_subnet.%s.id}", defaultSubnetName))
+
+	// Default Security Group test
+	defaultSecurityGroupName := strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + "defaultSecurityGroup")
+	instancesMap = infrastructure.Resource["aws_security_group"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, defaultSecurityGroupName)
+
+	securityGroup, ok := instancesMap[defaultSecurityGroupName].(*SecurityGroups)
+	require.True(t, ok, "%s is not a Subnet", defaultSubnetName)
+	url := "https://api.ipify.org"
+	resp, err := http.Get(url)
+	require.NoError(t, err, "Error GET with api.ipify", deploymentID)
+	defer resp.Body.Close()
+	ip, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err, "Can't read IP on ipify response", deploymentID)
+	assert.Equal(t, SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}, securityGroup.Egress)
 }
 
-func testSimpleSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+func testVPCWithNestedSubnetAndSG(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+	ctx := context.Background()
+	infrastructure := commons.Infrastructure{}
+	g := awsGenerator{}
+	networkName := "vpcwithnestedsubnetandsg-network"
+
+	nodeParams := nodeParams{
+		deploymentID:   deploymentID,
+		nodeName:       "Network",
+		infrastructure: &infrastructure,
+	}
+
+	err := g.generateVPC(ctx, nodeParams, "instance0", make(map[string]string))
+
+	require.NoError(t, err, "Unexpected error attempting to generate vpc for %s", deploymentID)
+	require.Len(t, infrastructure.Resource["aws_vpc"], 1, "Expected one vpc")
+
+	// VPC resource test
+	instancesMap := infrastructure.Resource["aws_vpc"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, networkName)
+
+	vpc, ok := instancesMap[networkName].(*VPC)
+	require.True(t, ok, "%s is not a VPC", networkName)
+	assert.Equal(t, "10.0.0.0/16", vpc.CidrBlock)
+	assert.Equal(t, true, vpc.AssignGeneratedIpv6CidrBlock)
+	assert.Equal(t, "foo", vpc.Tags["tag1"])
+
+	// Generated SubnetTest
+	subnetName := strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + networkName)
+	subnetName = strings.Replace(strings.ToLower(subnetName), "_", "-", -1)
+	instancesMap = infrastructure.Resource["aws_subnet"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, subnetName)
+
+	subnet, ok := instancesMap[subnetName].(*Subnet)
+	require.True(t, ok, "%s is not a subnet", subnet)
+	assert.Equal(t, "10.0.0.0/24", subnet.CidrBlock)
+	assert.Equal(t, "us-east-2a", subnet.AvailabilityZone)
+	assert.Equal(t, true, subnet.MapPublicIPOnLaunch)
+
+	// Generated SecurityGroups
+	securityGroupName := "groupOpen"
+	instancesMap = infrastructure.Resource["aws_security_group"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, securityGroupName)
+
+	securityGroup, ok := instancesMap[securityGroupName].(*SecurityGroups)
+	require.True(t, ok, "%s is not a securityGroup", securityGroup)
+	assert.Equal(t, SecurityRule{FromPort: "0", ToPort: "0", Protocol: "-1"}, securityGroup.Egress)
+	assert.Equal(t, SecurityRule{FromPort: "1", ToPort: "15", Protocol: "TCP"}, securityGroup.Ingress)
+
+}
+
+func testSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
 	// t.Parallel()
 	// deploymentID := loadTestYaml(t)
 	// ctx := context.Background()
@@ -85,8 +178,4 @@ func testSimpleSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Config
 	// require.True(t, ok, "%s is not a Subnet", subnetName)
 	// assert.Equal(t, "10.0.0.0/24", subnet.CidrBlock)
 	// assert.Equal(t, "vpc_id", subnet.VPCId)
-}
-
-func testSimpleVPCWithSubnet(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
-	// TODO
 }
