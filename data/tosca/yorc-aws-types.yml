@@ -267,19 +267,15 @@ node_types:
       subnets:
         type: list
         description: Subnetworks in this VPC
-        required: true
+        required: false
         entry_schema:
           type: yorc.datatypes.aws.SubnetType
-          constraints:
-            - greater_or_equal: 1
       security_groups:
         type: list
         description: SecurityGroups in this VPC
-        required: true
+        required: false
         entry_schema:
           type: yorc.datatypes.aws.SecurityGroupType
-          constraints:
-            - greater_or_equal: 1
 
 
 

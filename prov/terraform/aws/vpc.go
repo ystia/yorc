@@ -17,6 +17,8 @@ package aws
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -57,10 +59,28 @@ func (g *awsGenerator) generateVPC(ctx context.Context, nodeParams nodeParams, i
 
 	commons.AddResource(nodeParams.infrastructure, "aws_vpc", name, vpc)
 
-	g.generatedVPCSubnets(ctx, nodeParams, name)
-
 	// Terraform  output
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, nodeParams.deploymentID, "topology", "instances", nodeParams.nodeName, instanceName)
+
+	g.generateVPCSubnets(ctx, nodeParams, name, vpc, nodeKey, outputs)
+	g.generateVPCSecurityGroups(ctx, nodeParams, name, nodeKey, outputs)
+
+	internetGateway := &InternetGateway{}
+	internetGateway.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", name)
+	internetGatewayName := nodeParams.nodeName + "_defaultInternetGateway"
+	commons.AddResource(nodeParams.infrastructure, "aws_internet_gateway", internetGatewayName, internetGateway)
+
+	routeTable := DefaultRouteTable{}
+	// routeTable.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", name)
+	routeTable.DefaultRouteTableID = fmt.Sprintf("${aws_vpc.%s.default_route_table_id}", name)
+	routeTable.Route = map[string]string{
+		"cidr_block": "0.0.0.0/0",
+		"gateway_id": fmt.Sprintf("${aws_internet_gateway.%s.id}", internetGatewayName),
+	}
+	routeTable.DependsOn = []string{
+		fmt.Sprintf("aws_internet_gateway.%s", internetGatewayName),
+	}
+	commons.AddResource(nodeParams.infrastructure, "aws_default_route_table", nodeParams.nodeName+"_defaultRouteTable", routeTable)
 
 	idKey := nodeParams.nodeName + "-" + instanceName + "-id"
 	idValue := fmt.Sprintf("${aws_vpc.%s.id}", name)
@@ -189,26 +209,47 @@ func (g *awsGenerator) getSubnetProperties(ctx context.Context, nodeParams nodeP
 	return nil
 }
 
-func (g *awsGenerator) generatedVPCSubnets(ctx context.Context, nodeParams nodeParams, vpcName string) error {
+func (g *awsGenerator) generateVPCSubnets(ctx context.Context, nodeParams nodeParams, vpcName string, vpc *VPC, nodeKey string, outputs map[string]string) error {
 	subNetsRaw, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "subnets")
 	if err != nil {
 		return err
 	}
 
 	if subNetsRaw == nil || subNetsRaw.RawString() == "" {
-		return nil
-	}
+		// Generate default subnet
+		g.generateDefaultSubnet(ctx, nodeParams, vpcName, vpc, nodeKey, outputs)
+	} else {
+		list, ok := subNetsRaw.Value.([]interface{})
+		if !ok {
+			return errors.New("failed to retrieve yorc.datatypes.aws.SubnetType Tosca Value: not expected type")
+		}
 
-	list, ok := subNetsRaw.Value.([]interface{})
-	if !ok {
-		return errors.New("failed to retrieve yorc.datatypes.aws.SubnetType Tosca Value: not expected type")
-	}
-
-	for i := range list {
-		g.generatedVPCSubnet(ctx, nodeParams, vpcName, i)
+		for i := range list {
+			g.generatedVPCSubnet(ctx, nodeParams, vpcName, i)
+		}
 	}
 
 	return nil
+}
+
+func (g *awsGenerator) generateDefaultSubnet(ctx context.Context, nodeParams nodeParams, vpcName string, vpc *VPC, nodeKey string, outputs map[string]string) {
+	subnet := &Subnet{}
+	subnet.MapPublicIPOnLaunch = true
+	subnet.CidrBlock = vpc.CidrBlock
+	subnet.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
+	subnet.Tags = map[string]string{
+		"name": "DefaultSubnet",
+	}
+
+	name := strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + "defaultsubnet")
+	name = strings.Replace(strings.ToLower(name), "_", "-", -1)
+
+	commons.AddResource(nodeParams.infrastructure, "aws_subnet", name, subnet)
+
+	idKey := nodeParams.nodeName + "-defaultSubnet"
+	idValue := fmt.Sprintf("${aws_subnet.%s.id}", name)
+	commons.AddOutput(nodeParams.infrastructure, idKey, &commons.Output{Value: idValue})
+	outputs[path.Join(nodeKey, "/attributes/default_subnet_id")] = idKey
 }
 
 func (g *awsGenerator) generatedVPCSubnet(ctx context.Context, nodeParams nodeParams, vpcName string, i int) error {
@@ -266,6 +307,81 @@ func (g *awsGenerator) generatedVPCSubnet(ctx context.Context, nodeParams nodePa
 
 		commons.AddResource(nodeParams.infrastructure, "aws_subnet", name, subnet)
 	}
+
+	return nil
+}
+
+func (g *awsGenerator) generateVPCSecurityGroups(ctx context.Context, nodeParams nodeParams, vpcName string, nodeKey string, outputs map[string]string) error {
+	securityGroupsRaw, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups")
+	if err != nil {
+		return err
+	}
+
+	if securityGroupsRaw == nil || securityGroupsRaw.RawString() == "" {
+		err := g.generateDefaultSecurityGroup(ctx, nodeParams, vpcName, nodeKey, outputs)
+		if err != nil {
+			return err
+		}
+	} else {
+		list, ok := securityGroupsRaw.Value.([]interface{})
+		if !ok {
+			return errors.New("failed to retrieve yorc.datatypes.aws.SecurityGroupType Tosca Value: not expected type")
+		}
+
+		for i := range list {
+			g.generateVPCSecurityGroup(ctx, nodeParams, vpcName, i)
+		}
+	}
+
+	return nil
+}
+
+func (g *awsGenerator) generateDefaultSecurityGroup(ctx context.Context, nodeParams nodeParams, vpcName string, nodeKey string, outputs map[string]string) error {
+	url := "https://api.ipify.org"
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	ip, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	securityGroup := &SecurityGroups{}
+	securityGroup.Egress = SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}
+	securityGroup.Ingress = SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}
+	securityGroup.Name = "Default of " + vpcName
+	securityGroup.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
+
+	name := strings.ToLower(nodeParams.deploymentID + "-" + nodeParams.nodeName + "-" + "defaultSecurityGroup")
+	name = strings.Replace(strings.ToLower(name), "_", "-", -1)
+
+	commons.AddResource(nodeParams.infrastructure, "aws_security_group", name, securityGroup)
+
+	idKey := nodeParams.nodeName + "-defaultSecurityGroup"
+	idValue := fmt.Sprintf("${aws_security_group.%s.id}", name)
+	commons.AddOutput(nodeParams.infrastructure, idKey, &commons.Output{Value: idValue})
+	outputs[path.Join(nodeKey, "/attributes/default_security_group")] = idKey
+
+	return nil
+}
+
+func (g *awsGenerator) generateVPCSecurityGroup(ctx context.Context, nodeParams nodeParams, vpcName string, i int) error {
+	ind := strconv.Itoa(i)
+	securityGroup := &SecurityGroups{}
+
+	val, err := deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", ind, "name")
+	if err != nil {
+		return err
+	}
+	securityGroup.Name = val.RawString()
+
+	val, err = deployments.GetNodePropertyValue(ctx, nodeParams.deploymentID, nodeParams.nodeName, "security_groups", ind, "ingress", "protocol")
+	if err != nil {
+		return err
+	}
+	fmt.Println(val)
 
 	return nil
 }

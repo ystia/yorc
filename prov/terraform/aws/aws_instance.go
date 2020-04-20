@@ -75,18 +75,16 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	}
 	instance.KeyName = keyName.RawString()
 
-	// security_groups needs to contain a least one occurrence
 	secGroups, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
 	}
-	if secGroups == nil || secGroups.RawString() == "" {
-		return errors.Errorf("Missing mandatory parameter 'security_groups' node type for %s", nodeName)
-	}
 
-	for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
-		secGroup = strings.TrimSpace(secGroup)
-		instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
+	if secGroups.RawString() != "" {
+		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
+			secGroup = strings.TrimSpace(secGroup)
+			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
+		}
 	}
 
 	// Get connection info (user, private key)
@@ -150,7 +148,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	if subnetID != nil {
 		instance.SubnetID = subnetID.RawString()
 	}
-	hasNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.Subnet")
+	hasNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.VPC")
 	if err != nil {
 		return err
 	}
@@ -163,11 +161,27 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		i := 0
 		for _, networkReq := range networkRequirements {
 			networkInterface := &NetworkInterface{}
-			networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+			// TODO : Check if subnet and security group are defined in relationship
+			// networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+			// if err != nil {
+			// 	return err
+			// }
+
+			// If not, use default one
+			defaultSubnetID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_subnet_id")
 			if err != nil {
 				return err
 			}
-			networkInterface.SecurityGroups = instance.SecurityGroups
+			networkInterface.SubnetID = defaultSubnetID
+
+			// With default Security Group
+			defaultSecurityGroup, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_security_group")
+			if err != nil {
+				return err
+			}
+			networkInterface.SecurityGroups = make([]string, 1)
+			networkInterface.SecurityGroups = append(networkInterface.SecurityGroups, defaultSecurityGroup)
+
 			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
 			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
 

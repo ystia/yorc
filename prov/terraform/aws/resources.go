@@ -109,3 +109,37 @@ type NetworkInterface struct {
 	SecurityGroups []string          `json:"security_groups,omitempty"`
 	Attachment     map[string]string `json:"attachment,omitempty"`
 }
+
+// todo
+type SecurityRule struct {
+	FromPort  string   `json:"from_port,omitempty"`
+	ToPort    string   `json:"to_port,omitempty"`
+	Protocol  string   `json:"protocol,omitempty"`
+	CidrBlock []string `json:"cidr_blocks,omitempty"`
+}
+
+// todo
+type SecurityGroups struct {
+	VPCId   string       `json:"vpc_id,omitempty"`
+	Egress  SecurityRule `json:"egress,omitempty"`
+	Ingress SecurityRule `json:"ingress,omitempty"`
+	Name    string       `json:"name,omitempty"`
+}
+
+// todo
+type RouteTable struct {
+	VPCId     string            `json:"vpc_id,omitempty"`
+	Route     map[string]string `json:"route,omitempty"`
+	DependsOn []string          `json:"depends_on,omitempty"`
+}
+
+type DefaultRouteTable struct {
+	DefaultRouteTableID string            `json:"default_route_table_id,omitempty"`
+	Route               map[string]string `json:"route,omitempty"`
+	DependsOn           []string          `json:"depends_on,omitempty"`
+}
+
+// todo
+type InternetGateway struct {
+	VPCId string `json:"vpc_id,omitempty"`
+}

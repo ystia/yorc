@@ -18,4 +18,18 @@ topology_template:
       properties:
         cidr_block: 10.0.0.0/16
         assign_generated_ipv6_cidr_block: true
+        subnets: 
+          - availability_zone: "us-east-2a"
+            cidr_block: "10.0.0.0/24"
+            map_public_ip_on_launch: true
+        security_groups: 
+          - name: groupOpen
+            ingress: 
+              from_port: 0
+              to_port: 0
+              protocol: "-1"
+            egress: 
+              from_port: 0
+              protocol: 1
+              to_port: 0
         tags: {"tag1": "foo"}
