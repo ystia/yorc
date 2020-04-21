@@ -81,6 +81,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("VPC", func(t *testing.T) {
 			testVPC(t, cfg)
 		})
+		t.Run("Subnet", func(t *testing.T) {
+			testSubnet(t, srv, cfg)
+		})
 		t.Run("VPCWithNestedSubnetAndSG", func(t *testing.T) {
 			testVPCWithNestedSubnetAndSG(t, srv, cfg)
 		})
