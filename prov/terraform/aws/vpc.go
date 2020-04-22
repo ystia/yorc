@@ -401,6 +401,7 @@ func (g *awsGenerator) generateVPCSecurityGroup(ctx context.Context, nodeParams 
 
 	securityGroup.Egress = SecurityRule{FromPort: fromPort, ToPort: toPort, Protocol: protocol}
 
+	securityGroup.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
 	commons.AddResource(nodeParams.infrastructure, "aws_security_group", securityGroup.Name, securityGroup)
 
 	return nil

@@ -63,8 +63,8 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleAWSInstanceWithMalformedEIP", func(t *testing.T) {
 			testSimpleAWSInstanceWithMalformedEIP(t, cfg)
 		})
-		t.Run("simpleAWSInstanceWithVPCandSubnet", func(t *testing.T) {
-			simpleAWSInstanceWithVPCandSubnet(t, cfg, srv)
+		t.Run("simpleAWSInstanceWitthVPC", func(t *testing.T) {
+			testSimpleAWSInstanceWitthVPC(t, cfg, srv)
 		})
 		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
 			testGenerateTerraformInfraForAWSNode(t, cfg, locationMgr)

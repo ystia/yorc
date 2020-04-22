@@ -110,7 +110,7 @@ type NetworkInterface struct {
 	Attachment     map[string]string `json:"attachment,omitempty"`
 }
 
-// todo
+// SecurityRule provide a egress/ingress resource.
 type SecurityRule struct {
 	FromPort  string   `json:"from_port,omitempty"`
 	ToPort    string   `json:"to_port,omitempty"`
@@ -118,7 +118,8 @@ type SecurityRule struct {
 	CidrBlock []string `json:"cidr_blocks,omitempty"`
 }
 
-// todo
+// SecurityGroups provides a security group resource
+// see : https://www.terraform.io/docs/providers/aws/r/security_group.html
 type SecurityGroups struct {
 	VPCId   string       `json:"vpc_id,omitempty"`
 	Egress  SecurityRule `json:"egress,omitempty"`
@@ -126,20 +127,24 @@ type SecurityGroups struct {
 	Name    string       `json:"name,omitempty"`
 }
 
-// todo
+// RouteTable provides a resource to create a VPC routing table.
+// see : https://www.terraform.io/docs/providers/aws/r/route_table.html
 type RouteTable struct {
 	VPCId     string            `json:"vpc_id,omitempty"`
 	Route     map[string]string `json:"route,omitempty"`
 	DependsOn []string          `json:"depends_on,omitempty"`
 }
 
+// DefaultRouteTable provides a resource to manage a Default VPC Routing Table
+// see : https://www.terraform.io/docs/providers/aws/r/default_route_table.html
 type DefaultRouteTable struct {
 	DefaultRouteTableID string            `json:"default_route_table_id,omitempty"`
 	Route               map[string]string `json:"route,omitempty"`
 	DependsOn           []string          `json:"depends_on,omitempty"`
 }
 
-// todo
+// InternetGateway provides a resource to create a VPC Internet Gateway
+// see : https://www.terraform.io/docs/providers/aws/r/internet_gateway.html
 type InternetGateway struct {
 	VPCId string `json:"vpc_id,omitempty"`
 }

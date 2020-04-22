@@ -14,7 +14,7 @@ imports:
 
 topology_template:
   node_templates:
-    Network_VPC:
+    Network:
       type: yorc.nodes.aws.VPC
       properties:
         cidr_block: 10.0.0.0/16
@@ -30,7 +30,7 @@ topology_template:
       requirements:
         - AWS_Compute_network:
             type_requirement: network
-            node: Network_Subnet
+            node: Network
             capability: tosca.capabilities.Connectivity
             relationship: tosca.relationships.Network
       capabilities:
@@ -46,14 +46,3 @@ topology_template:
               network_name: PRIVATE
               initiator: source
               credentials: {user: centos}
-    Network_Subnet:
-      type: yorc.nodes.aws.Subnet
-      properties:
-        cidr_block: 10.10.0.0/24
-        availability_zone: "us-east-2c"
-      requirements:
-        - VPC_Requirements:
-            type_requirement: dependency
-            node: Network_VPC
-            capability: tosca.capabilities.Node
-            relationship: tosca.relationships.DependsOn

@@ -161,26 +161,31 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		i := 0
 		for _, networkReq := range networkRequirements {
 			networkInterface := &NetworkInterface{}
-			// TODO : Check if subnet and security group are defined in relationship
-			// networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
-			// if err != nil {
-			// 	return err
-			// }
-
-			// If not, use default one
-			defaultSubnetID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_subnet_id")
-			if err != nil {
-				return err
-			}
-			networkInterface.SubnetID = defaultSubnetID
-
-			// With default Security Group
-			defaultSecurityGroup, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_security_group")
-			if err != nil {
-				return err
-			}
 			networkInterface.SecurityGroups = make([]string, 1)
-			networkInterface.SecurityGroups = append(networkInterface.SecurityGroups, defaultSecurityGroup)
+
+			if networkReq.Relationship == "tosca.relationships.Network" {
+				defaultSubnetID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_subnet_id")
+				if err != nil {
+					return err
+				}
+				networkInterface.SubnetID = defaultSubnetID
+				defaultSecurityGroup, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_security_group")
+				if err != nil {
+					return err
+				}
+				networkInterface.SecurityGroups = append(networkInterface.SecurityGroups, defaultSecurityGroup)
+
+			} else if networkReq.Relationship == "yorc.relationships.aws.Network" {
+				networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+				if err != nil {
+					return err
+				}
+				securityGroup, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+				if err != nil {
+					return err
+				}
+				networkInterface.SecurityGroups = append(networkInterface.SecurityGroups, securityGroup)
+			}
 
 			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
 			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
@@ -205,7 +210,6 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		}
 
 		// No security groups on instance level when defining customs ENI
-		// (So the instance will have be in the default security groups on creation)
 		instance.SecurityGroups = nil
 	}
 
