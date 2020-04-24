@@ -72,17 +72,6 @@ data_types:
         type: yorc.datatypes.aws.SecurityRuleType
         required: true
 
-relationship_types:
-  yorc.relationships.aws.Network:
-    derived_from: tosca.relationships.Network
-    properties:
-      subnet_id: 
-        type: string
-        required: true
-      security_group:
-        type: string
-        required: true
-
 node_types:
   yorc.nodes.aws.Compute:
     derived_from: yorc.nodes.Compute
