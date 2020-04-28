@@ -119,7 +119,7 @@ var (
 		"alien4cloud.download_url": defaultInputType{
 			description: "Alien4Cloud download URL",
 			value: fmt.Sprintf(
-				"https://fastconnect.org/maven/content/repositories/opensource/alien4cloud/alien4cloud-dist/%s/alien4cloud-dist-%s-dist.tar.gz",
+				"https://www.portaildulibre.fr/nexus/repository/opensource-releases/alien4cloud/alien4cloud-premium-dist/%s/alien4cloud-premium-dist-%s-dist.tar.gz",
 				alien4cloudVersion, alien4cloudVersion),
 		},
 		"alien4cloud.port": defaultInputType{
