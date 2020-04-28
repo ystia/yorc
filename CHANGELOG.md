@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
+
 ### BUG FIXES
 
 * Bootstrap may failed with a nil pointer error if download of a component fails ([GH-634](https://github.com/ystia/yorc/issues/634))
