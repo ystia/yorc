@@ -160,6 +160,10 @@ spec:
     env:
     - name: "GOPROXY"
       value: ""
+    - name: "http_proxy"
+      value: "${ENV_YORC_CI_HTTP_PROXY}"
+    - name: "https_proxy"
+      value: "${ENV_YORC_CI_HTTP_PROXY}"
 """
                     }
                 }
