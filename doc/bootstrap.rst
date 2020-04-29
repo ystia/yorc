@@ -190,7 +190,7 @@ Bootstrapping the setup using command line options
 
 The following ``yorc bootstrap`` option are available:
 
-  * ``--alien4cloud_download_url`` Alien4Cloud download URL (defaults to the Alien4Cloud version compatible with this Yorc, under https://fastconnect.org/maven/content/repositories/opensource/alien4cloud/alien4cloud-dist/)
+  * ``--alien4cloud_download_url`` Alien4Cloud download URL (defaults to the Alien4Cloud version compatible with this Yorc, under https://www.portaildulibre.fr/nexus/repository/opensource-releases/alien4cloud/alien4cloud-premium-dist/)
   * ``--alien4cloud_password`` Alien4Cloud password (default, admin)
   * ``--alien4cloud_port`` Alien4Cloud port (default 8088)
   * ``--alien4cloud_user`` Alien4Cloud user (default, admin)
