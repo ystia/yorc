@@ -55,6 +55,7 @@ type fileStore struct {
 	cache             *ristretto.Cache
 	withEncryption    bool
 	encryptor         *encryption.Encryptor
+	concurrencyLimit  int
 }
 
 // NewStore returns a new File store
@@ -75,6 +76,7 @@ func NewStore(cfg config.Configuration, storeID string, properties config.Dynami
 		fileLocks:         make(map[string]*sync.RWMutex),
 		withCache:         withCache,
 		withEncryption:    withEncryption,
+		concurrencyLimit:  cfg.UpgradeConcurrencyLimit,
 	}
 
 	// Instantiate cache if necessary
@@ -208,9 +210,14 @@ func (s *fileStore) SetCollection(ctx context.Context, keyValues []store.KeyValu
 		return nil
 	}
 	errGroup, ctx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, s.concurrencyLimit)
 	for _, kv := range keyValues {
+		sem <- struct{}{}
 		kvItem := kv
 		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
 			return s.Set(ctx, kvItem.Key, kvItem.Value)
 		})
 	}
