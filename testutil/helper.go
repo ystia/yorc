@@ -99,6 +99,7 @@ func SetupTestConfig(t testing.TB) config.Configuration {
 	assert.Nil(t, err)
 
 	return config.Configuration{
-		WorkingDirectory: workingDir,
+		WorkingDirectory:        workingDir,
+		UpgradeConcurrencyLimit: config.DefaultUpgradesConcurrencyLimit,
 	}
 }
