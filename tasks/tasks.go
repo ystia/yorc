@@ -137,11 +137,40 @@ func GetTaskErrorMessage(taskID string) (string, error) {
 	return "", nil
 }
 
-// SetTaskErrorMessage retrieves the task related error message if any.
+// SetTaskErrorMessage sets a task related error message.
 //
-// If no error message is found, an empty string is returned instead
+// Set task error message even if it already contains a value.
+// For a better control on gracefully setting this error message use CheckAndSetTaskErrorMessage
 func SetTaskErrorMessage(taskID, errorMessage string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"), errorMessage)
+}
+
+// CheckAndSetTaskErrorMessage sets a task related error message.
+//
+// This function check for an existing message and overwrite it only if requested.
+func CheckAndSetTaskErrorMessage(taskID, errorMessage string, overwriteExisting bool) error {
+	keyPath := path.Join(consulutil.TasksPrefix, taskID, "errorMessage")
+	kvp := &api.KVPair{Key: keyPath, Value: []byte(errorMessage)}
+	kv := consulutil.GetKV()
+	for {
+		existingKey, meta, err := kv.Get(keyPath, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if existingKey != nil && len(existingKey.Value) > 0 && !overwriteExisting {
+			return nil
+		}
+		if existingKey != nil {
+			kvp.ModifyIndex = meta.LastIndex
+		}
+		set, _, err := consulutil.GetKV().CAS(kvp, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if set {
+			return nil
+		}
+	}
 }
 
 // GetTaskResultSet retrieves the task related resultSet in json string format
