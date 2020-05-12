@@ -91,5 +91,8 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 		t.Run("TestIsStepRegistrationInProgress", func(t *testing.T) {
 			testIsStepRegistrationInProgress(t)
 		})
+		t.Run("TestCheckAndSetTaskErrorMessage", func(t *testing.T) {
+			testCheckAndSetTaskErrorMessage(t)
+		})
 	})
 }
