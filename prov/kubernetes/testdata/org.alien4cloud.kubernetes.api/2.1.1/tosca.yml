@@ -1152,7 +1152,7 @@ node_types:
       apiVersion:
         type: string
         description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#resources"
-        default: "apps/v1beta1"
+        default: "apps/v1"
       kind:
         type: string
         description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#types-kinds"
@@ -1245,10 +1245,10 @@ node_types:
           inputs:
             KUBE_DEPLOYMENT_ID: { get_attribute: [SELF, deployment_id] }
             NAMESPACE: { get_property: [SELF, namespace] }
-            EXPECTED_INSTANCES: 
+            EXPECTED_INSTANCES:
               type: integer
 
-            INSTANCES_DELTA: 
+            INSTANCES_DELTA:
               type: integer
 
           implementation: scripts/kubectl_deployment_scale.sh

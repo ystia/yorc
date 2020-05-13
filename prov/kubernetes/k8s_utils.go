@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -34,18 +34,18 @@ import (
 	"github.com/ystia/yorc/v4/events"
 )
 
-func isDeploymentFailed(deployment *v1beta1.Deployment) (bool, string) {
+func isDeploymentFailed(deployment *v1.Deployment) (bool, string) {
 	for _, c := range deployment.Status.Conditions {
-		if c.Type == v1beta1.DeploymentReplicaFailure && c.Status == corev1.ConditionTrue {
+		if c.Type == v1.DeploymentReplicaFailure && c.Status == corev1.ConditionTrue {
 			return true, c.Message
-		} else if c.Type == v1beta1.DeploymentProgressing && c.Status == corev1.ConditionFalse {
+		} else if c.Type == v1.DeploymentProgressing && c.Status == corev1.ConditionFalse {
 			return true, c.Message
 		}
 	}
 	return false, ""
 }
 
-func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) {
+func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1.Deployment) {
 	go func() {
 		watcher, err := clientset.CoreV1().Events(deployment.Namespace).Watch(metav1.ListOptions{})
 		if err != nil {
@@ -104,9 +104,9 @@ func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) 
 	case "pod":
 		om, err = clientset.CoreV1().Pods(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	case "replicaset":
-		om, err = clientset.ExtensionsV1beta1().ReplicaSets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+		om, err = clientset.AppsV1().ReplicaSets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	case "deployment":
-		om, err = clientset.ExtensionsV1beta1().Deployments(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+		om, err = clientset.AppsV1().Deployments(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	case "job":
 		om, err = clientset.BatchV1().Jobs(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	default:
@@ -130,11 +130,11 @@ func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) 
 /* Return the number of pod controllers (Deployment and StatefulSet, more in the future) in a specific namespace or -1, err != nil in case of error */
 func podControllersInNamespace(clientset kubernetes.Interface, namespace string) (int, error) {
 	var nbcontrollers int
-	deploymentsList, err := clientset.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
+	deploymentsList, err := clientset.AppsV1().Deployments(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return -1, err
 	}
-	stsList, err := clientset.AppsV1beta1().StatefulSets(namespace).List(metav1.ListOptions{})
+	stsList, err := clientset.AppsV1().StatefulSets(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return -1, err
 	}
