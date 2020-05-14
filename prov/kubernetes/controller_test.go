@@ -16,9 +16,6 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"testing"
 
 	ctu "github.com/hashicorp/consul/testutil"
@@ -26,6 +23,9 @@ import (
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 func testsController(t *testing.T, srv *ctu.TestServer) {

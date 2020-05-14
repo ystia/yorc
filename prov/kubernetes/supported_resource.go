@@ -21,15 +21,15 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/events"
-	appsv1 "k8s.io/api/apps/v1beta1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
 )
 
 //Interface to implement for new supported objects in K8s
@@ -56,8 +56,8 @@ type yorcK8sObject interface {
 // Supported k8s resources
 type yorcK8sPersistentVolumeClaim corev1.PersistentVolumeClaim
 type yorcK8sService corev1.Service
-type yorcK8sDeployment v1beta1.Deployment
-type yorcK8sStatefulSet appsv1.StatefulSet
+type yorcK8sDeployment v1.Deployment
+type yorcK8sStatefulSet v1.StatefulSet
 
 /*
 	----------------------------------------------
@@ -153,28 +153,28 @@ func (yorcDep *yorcK8sDeployment) getObjectMeta() metav1.ObjectMeta {
 }
 
 func (yorcDep *yorcK8sDeployment) createResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error {
-	deploy := v1beta1.Deployment(*yorcDep)
-	_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Create(&deploy)
+	deploy := v1.Deployment(*yorcDep)
+	_, err := clientset.AppsV1().Deployments(namespace).Create(&deploy)
 	return err
 }
 
 func (yorcDep *yorcK8sDeployment) deleteResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error {
-	deploy := v1beta1.Deployment(*yorcDep)
+	deploy := v1.Deployment(*yorcDep)
 	deletePolicy := metav1.DeletePropagationForeground
 	var gracePeriod int64 = 5
-	return clientset.ExtensionsV1beta1().Deployments(namespace).Delete(deploy.Name, &metav1.DeleteOptions{
+	return clientset.AppsV1().Deployments(namespace).Delete(deploy.Name, &metav1.DeleteOptions{
 		GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy})
 }
 
 func (yorcDep *yorcK8sDeployment) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
-	deploy := v1beta1.Deployment(*yorcDep)
+	deploy := v1.Deployment(*yorcDep)
 	expectedInstances, err := e.getExpectedInstances()
 	if err != nil {
 		return err
 	}
 	deploy.Spec.Replicas = &expectedInstances
 
-	_, err = clientset.ExtensionsV1beta1().Deployments(namespace).Update(&deploy)
+	_, err = clientset.AppsV1().Deployments(namespace).Update(&deploy)
 	if err != nil {
 		return errors.Wrap(err, "failed to scale kubernetes deployment")
 	}
@@ -186,7 +186,7 @@ func (yorcDep *yorcK8sDeployment) setAttributes(ctx context.Context, e *executio
 }
 
 func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
-	dep, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(yorcDep.Name, metav1.GetOptions{})
+	dep, err := clientset.AppsV1().Deployments(namespace).Get(yorcDep.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -206,7 +206,7 @@ func (yorcDep *yorcK8sDeployment) isSuccessfullyDeployed(ctx context.Context, de
 }
 
 func (yorcDep *yorcK8sDeployment) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
-	_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(yorcDep.Name, metav1.GetOptions{})
+	_, err := clientset.AppsV1().Deployments(namespace).Get(yorcDep.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return true, nil
@@ -221,12 +221,12 @@ func (yorcDep *yorcK8sDeployment) String() string {
 }
 
 func (yorcDep *yorcK8sDeployment) getObjectRuntime() runtime.Object {
-	deploy := v1beta1.Deployment(*yorcDep)
+	deploy := v1.Deployment(*yorcDep)
 	return &deploy
 }
 
 func (yorcDep *yorcK8sDeployment) streamLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface) {
-	deploy := v1beta1.Deployment(*yorcDep)
+	deploy := v1.Deployment(*yorcDep)
 	streamDeploymentLogs(ctx, deploymentID, clientset, &deploy)
 }
 
@@ -254,28 +254,28 @@ func (yorcSts *yorcK8sStatefulSet) getObjectMeta() metav1.ObjectMeta {
 }
 
 func (yorcSts *yorcK8sStatefulSet) createResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error {
-	sts := appsv1.StatefulSet(*yorcSts)
-	_, err := clientset.AppsV1beta1().StatefulSets(namespace).Create(&sts)
+	sts := v1.StatefulSet(*yorcSts)
+	_, err := clientset.AppsV1().StatefulSets(namespace).Create(&sts)
 	return err
 }
 
 func (yorcSts *yorcK8sStatefulSet) deleteResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error {
-	sts := appsv1.StatefulSet(*yorcSts)
+	sts := v1.StatefulSet(*yorcSts)
 	deletePolicy := metav1.DeletePropagationForeground
 	var gracePeriod int64 = 5
-	return clientset.AppsV1beta1().StatefulSets(namespace).Delete(sts.Name, &metav1.DeleteOptions{
+	return clientset.AppsV1().StatefulSets(namespace).Delete(sts.Name, &metav1.DeleteOptions{
 		GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy})
 }
 
 func (yorcSts *yorcK8sStatefulSet) scaleResource(ctx context.Context, e *execution, clientset kubernetes.Interface, namespace string) error {
-	sts := appsv1.StatefulSet(*yorcSts)
+	sts := v1.StatefulSet(*yorcSts)
 	expectedInstances, err := e.getExpectedInstances()
 	if err != nil {
 		return err
 	}
 	sts.Spec.Replicas = &expectedInstances
 
-	_, err = clientset.AppsV1beta1().StatefulSets(namespace).Update(&sts)
+	_, err = clientset.AppsV1().StatefulSets(namespace).Update(&sts)
 	if err != nil {
 		return errors.Wrap(err, "failed to scale kubernetes statefulset")
 	}
@@ -287,7 +287,7 @@ func (yorcSts *yorcK8sStatefulSet) setAttributes(ctx context.Context, e *executi
 }
 
 func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
-	stfs, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(yorcSts.Name, metav1.GetOptions{})
+	stfs, err := clientset.AppsV1().StatefulSets(namespace).Get(yorcSts.Name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -301,7 +301,7 @@ func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeployed(ctx context.Context, d
 }
 
 func (yorcSts *yorcK8sStatefulSet) isSuccessfullyDeleted(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) (bool, error) {
-	_, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(yorcSts.Name, metav1.GetOptions{})
+	_, err := clientset.AppsV1().StatefulSets(namespace).Get(yorcSts.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return true, nil
@@ -316,7 +316,7 @@ func (yorcSts *yorcK8sStatefulSet) String() string {
 }
 
 func (yorcSts *yorcK8sStatefulSet) getObjectRuntime() runtime.Object {
-	sts := appsv1.StatefulSet(*yorcSts)
+	sts := v1.StatefulSet(*yorcSts)
 	return &sts
 }
 

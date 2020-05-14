@@ -17,29 +17,30 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/prov"
-	"github.com/ystia/yorc/v4/tasks"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 var JSONvalidDeployment = `
 {
-  "apiVersion": "extensions/v1beta1",
+  "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
      "name": "test-deploy"
@@ -675,7 +676,7 @@ func testExecutionManageNamespaceDeletion(t *testing.T) {
 	// One ns "test-ns", 1 controler
 	k8s1 := newTestSimpleK8s()
 	k8s1.clientset.CoreV1().Namespaces().Create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test-ns"}})
-	k8s1.clientset.ExtensionsV1beta1().Deployments("test-ns").Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}})
+	k8s1.clientset.AppsV1().Deployments("test-ns").Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}})
 
 	type args struct {
 		clientset         kubernetes.Interface
