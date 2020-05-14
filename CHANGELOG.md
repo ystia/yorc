@@ -1,5 +1,18 @@
 # Yorc Changelog
 
+## 4.0.1 (May 14, 2020)
+
+### ENHANCEMENTS
+
+* Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
+
+### BUG FIXES
+
+* Kubernetes Client uses deprecated apis removed on recent versions of K8S (v1.17+) ([GH-645](https://github.com/ystia/yorc/issues/645))
+* Bootstrap may failed with a nil pointer error if download of a component fails ([GH-634](https://github.com/ystia/yorc/issues/634))
+* Missing concurrency limit during data migration for logs and events file storage ([GH-640](https://github.com/ystia/yorc/issues/640))
+* Unable to undeploy a deployment in progress from Alien4Cloud ([GH-630](https://github.com/ystia/yorc/issues/630))
+
 ## 4.0.0 (April 17, 2020)
 
 ### BUG FIXES
