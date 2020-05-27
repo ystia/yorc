@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
+
 ## 4.0.1 (May 14, 2020)
 
 ### ENHANCEMENTS
