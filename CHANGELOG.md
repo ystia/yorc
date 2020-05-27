@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### SECURITY FIXES
+
+* Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
+
 ### BUG FIXES
 
 * Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
