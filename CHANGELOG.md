@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### SECURITY FIXES
+
+* Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
+
 ### ENHANCEMENTS
 
 * Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
