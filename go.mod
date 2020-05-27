@@ -105,7 +105,7 @@ require (
 	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
 	github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 // indirect
 	github.com/ystia/tdt2go v0.3.0
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
