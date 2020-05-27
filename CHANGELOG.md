@@ -5,6 +5,7 @@
 ### BUG FIXES
 
 * Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
+* Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
 
 ## 4.0.1 (May 14, 2020)
 
