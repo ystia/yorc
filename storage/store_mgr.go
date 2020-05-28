@@ -38,6 +38,10 @@ import (
 
 const consulStoreImpl = "consul"
 
+const fileStoreImpl = "file"
+
+const fileStoreWithEncryptionImpl = "cipherFile"
+
 const fileStoreWithCacheImpl = "fileCache"
 
 const fileStoreWithCacheAndEncryptionImpl = "cipherFileCache"
@@ -145,14 +149,16 @@ func LoadStores(cfg config.Configuration) error {
 		// load stores implementations
 		stores = make(map[types.StoreType]store.Store, 0)
 		for _, configStore := range cfgStores {
+			var storeImpl store.Store
+			storeImpl, err = createStoreImpl(cfg, configStore)
+			if err != nil {
+				return
+			}
 			for _, storeTypeName := range configStore.Types {
 				st, _ := types.ParseStoreType(storeTypeName)
 				if _, ok := stores[st]; !ok {
 					log.Printf("Using store with name:%q, implementation:%q for type: %q", configStore.Name, configStore.Implementation, storeTypeName)
-					err = createStoreImpl(cfg, configStore, st)
-					if err != nil {
-						return
-					}
+					stores[st] = storeImpl
 
 					// Handle Consul data migration for log/event stores
 					if configStore.MigrateDataFromConsul && init && configStore.Implementation != consulStoreImpl {
@@ -302,7 +308,7 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 		}
 
 		// Complete store properties with default for fileCache implementation
-		if cfgStore.Implementation == fileStoreWithCacheAndEncryptionImpl || cfgStore.Implementation == fileStoreWithCacheImpl {
+		if cfgStore.Implementation == fileStoreWithCacheAndEncryptionImpl || cfgStore.Implementation == fileStoreWithCacheImpl || cfgStore.Implementation == fileStoreImpl {
 			props := completePropertiesWithDefault(cfg, cfgStore.Properties)
 			cfgStore.Properties = props
 		}
@@ -338,21 +344,27 @@ func checkAndBuildConfigStores(cfg config.Configuration) ([]config.Store, error)
 }
 
 // Create store implementations
-func createStoreImpl(cfg config.Configuration, configStore config.Store, storeType types.StoreType) error {
+func createStoreImpl(cfg config.Configuration, configStore config.Store) (store.Store, error) {
+	var storeImpl store.Store
 	var err error
 	impl := strings.ToLower(configStore.Implementation)
 	switch impl {
 	case strings.ToLower(fileStoreWithCacheImpl), strings.ToLower(fileStoreWithCacheAndEncryptionImpl):
-		stores[storeType], err = file.NewStore(cfg, configStore.Name, configStore.Properties, true, impl == strings.ToLower(fileStoreWithCacheAndEncryptionImpl))
+		storeImpl, err = file.NewStore(cfg, configStore.Name, configStore.Properties, true, impl == strings.ToLower(fileStoreWithCacheAndEncryptionImpl))
 		if err != nil {
-			return err
+			return nil, err
+		}
+	case strings.ToLower(fileStoreImpl), strings.ToLower(fileStoreWithEncryptionImpl):
+		storeImpl, err = file.NewStore(cfg, configStore.Name, configStore.Properties, false, impl == strings.ToLower(fileStoreWithEncryptionImpl))
+		if err != nil {
+			return nil, err
 		}
 	case strings.ToLower(consulStoreImpl):
-		stores[storeType] = consul.NewStore()
+		storeImpl = consul.NewStore()
 	default:
-		log.Printf("[WARNING] unknown store implementation:%q. This will be ignored.", storeType)
+		log.Printf("[WARNING] unknown store implementation:%q. This will be ignored.", impl)
 	}
-	return nil
+	return storeImpl, nil
 }
 
 // this allows to migrate log or events from Consul to new store implementations (other than Consul)
