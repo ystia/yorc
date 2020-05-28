@@ -452,6 +452,32 @@ func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeou
 	return s.list(ctx, k, waitIndex, index)
 }
 
+func (s *fileStore) listFirstLevelKVAndDirs(rootPath string, waitIndex, lastIndex uint64) ([]string, []store.KeyValueOut, error) {
+	// Retrieve all sub-directories to list keys in concurrency at first level
+	var subPaths []string
+	infos, err := ioutil.ReadDir(rootPath)
+	if err != nil {
+		return subPaths, nil, err
+	}
+
+	kvs := make([]store.KeyValueOut, 0)
+	for _, info := range infos {
+		pathFile := path.Join(rootPath, info.Name())
+		if info.IsDir() {
+			subPaths = append(subPaths, pathFile)
+		} else {
+			kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
+			if err != nil {
+				return subPaths, nil, err
+			}
+			if kv != nil {
+				kvs = append(kvs, *kv)
+			}
+		}
+	}
+	return subPaths, kvs, err
+}
+
 func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uint64) ([]store.KeyValueOut, uint64, error) {
 	rootPath := s.buildFilePath(k, false)
 	fInfo, err := os.Stat(rootPath)
@@ -467,29 +493,7 @@ func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uin
 	}
 
 	// Fill kv collection recursively for the related directory
-	kvs := make([]store.KeyValueOut, 0)
-
-	// Retrieve all sub-directories to list keys in concurrency at first level
-	var subPaths []string
-	infos, err := ioutil.ReadDir(rootPath)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	for _, info := range infos {
-		pathFile := path.Join(rootPath, info.Name())
-		if info.IsDir() {
-			subPaths = append(subPaths, pathFile)
-		} else {
-			kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
-			if err != nil {
-				return nil, 0, err
-			}
-			if kv != nil {
-				kvs = append(kvs, *kv)
-			}
-		}
-	}
+	subPaths, kvs, err := s.listFirstLevelKVAndDirs(rootPath, waitIndex, lastIndex)
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 	sem := make(chan struct{}, s.concurrencyLimit)
