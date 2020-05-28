@@ -411,7 +411,11 @@ func (s *fileStore) GetLastModifyIndex(k string) (uint64, error) {
 
 func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
 	if waitIndex == 0 {
-		return s.list(k)
+		index, err := s.GetLastModifyIndex(k)
+		if err != nil {
+			return nil, index, err
+		}
+		return s.list(ctx, k, waitIndex, index)
 	}
 
 	// Default timeout to 5 minutes if not set as param or as config property
@@ -445,10 +449,10 @@ func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeou
 		}
 	}
 
-	return s.list(k)
+	return s.list(ctx, k, waitIndex, index)
 }
 
-func (s *fileStore) list(k string) ([]store.KeyValueOut, uint64, error) {
+func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uint64) ([]store.KeyValueOut, uint64, error) {
 	rootPath := s.buildFilePath(k, false)
 	fInfo, err := os.Stat(rootPath)
 	if err != nil {
@@ -461,39 +465,93 @@ func (s *fileStore) list(k string) ([]store.KeyValueOut, uint64, error) {
 	if !fInfo.IsDir() {
 		return nil, 0, nil
 	}
-	var index, lastIndex uint64
+
 	// Fill kv collection recursively for the related directory
 	kvs := make([]store.KeyValueOut, 0)
 
-	err = filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// Add kv for a file
-		// determine lastIndex for a directory
-		if !info.IsDir() {
-			var raw []byte
-			var value map[string]interface{}
-			_, raw, err = s.getValueFromFile(pathFile, &value)
-			if err != nil {
-				return err
-			}
+	// Retrieve all sub-directories to list keys in concurrency at first level
+	var subPaths []string
+	infos, err := ioutil.ReadDir(rootPath)
+	if err != nil {
+		return nil, 0, err
+	}
 
-			kv := store.KeyValueOut{
-				Key:             s.extractKeyFromFilePath(pathFile, true),
-				LastModifyIndex: uint64(info.ModTime().UnixNano()),
-				Value:           value,
-				RawValue:        raw,
-			}
-			kvs = append(kvs, kv)
+	for _, info := range infos {
+		pathFile := path.Join(rootPath, info.Name())
+		if info.IsDir() {
+			subPaths = append(subPaths, pathFile)
 		} else {
-			index = uint64(info.ModTime().UnixNano())
-			if index > lastIndex {
-				lastIndex = index
+			kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
+			if err != nil {
+				return nil, 0, err
+			}
+			if kv != nil {
+				kvs = append(kvs, *kv)
 			}
 		}
-		return nil
-	})
+	}
 
-	return kvs, lastIndex, err
+	errGroup, ctx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, s.concurrencyLimit)
+
+	// Use a channel to provide kvs concurrently safe
+	c := make(chan store.KeyValueOut)
+	for _, subPath := range subPaths {
+		pathItem := subPath
+		sem <- struct{}{}
+		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
+			err = filepath.Walk(pathItem, func(pathFile string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				// Add kv for a file
+				if !info.IsDir() {
+					kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
+					if err != nil {
+						return err
+					}
+					if kv != nil {
+						c <- *kv
+					}
+				}
+				return nil
+			})
+			return err
+		})
+	}
+
+	go func() {
+		errGroup.Wait()
+		close(c)
+	}()
+
+	// Fill the kvs from channel once all goroutines are finished
+	for r := range c {
+		kvs = append(kvs, r)
+	}
+
+	return kvs, lastIndex, errGroup.Wait()
+}
+
+func (s *fileStore) addKeyValueToList(info os.FileInfo, pathFile string, waitIndex, lastIndex uint64) (*store.KeyValueOut, error) {
+	index := uint64(info.ModTime().UnixNano())
+	// Retrieve only files before last modification Index
+	if index > waitIndex && (lastIndex == 0 || index <= lastIndex) {
+		var value map[string]interface{}
+		_, raw, err := s.getValueFromFile(pathFile, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		return &store.KeyValueOut{
+			Key:             s.extractKeyFromFilePath(pathFile, true),
+			LastModifyIndex: index,
+			Value:           value,
+			RawValue:        raw,
+		}, nil
+	}
+	return nil, nil
 }

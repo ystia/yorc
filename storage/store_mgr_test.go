@@ -47,6 +47,9 @@ func TestRunConsulStoragePackageTests(t *testing.T) {
 		t.Run("testLoadStoresWithPartialStorageConfig", func(t *testing.T) {
 			testLoadStoresWithPartialStorageConfig(t, srv, cfg)
 		})
+		t.Run("testLoadStoresWithPartialStorageConfig2", func(t *testing.T) {
+			testLoadStoresWithPartialStorageConfig2(t, srv, cfg)
+		})
 		t.Run("testLoadStoresWithMissingPassphraseForCipherFileCache", func(t *testing.T) {
 			testLoadStoresWithMissingPassphraseForCipherFileCache(t, srv, cfg)
 		})
@@ -93,6 +96,113 @@ func testLoadStoresWithNoStorageConfig(t *testing.T, srv1 *testutil.TestServer, 
 		}
 	}
 
+}
+
+func testLoadStoresWithPartialStorageConfig2(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
+	// Reset once to allow reload config
+	once.Reset()
+
+	deploymentID := t.Name()
+
+	obj := map[string]string{
+		"key1": "content1",
+		"key2": "content2",
+		"key3": "content3",
+	}
+	b, err := json.Marshal(obj)
+	require.NoError(t, err)
+
+	logKeys := []string{path.Join(consulutil.LogsPrefix, deploymentID, "log0001"),
+		path.Join(consulutil.LogsPrefix, deploymentID, "log0002"),
+		path.Join(consulutil.LogsPrefix, deploymentID, "log0003")}
+
+	eventKeys := []string{path.Join(consulutil.EventsPrefix, deploymentID, "event0001"),
+		path.Join(consulutil.LogsPrefix, deploymentID, "event0002"),
+		path.Join(consulutil.LogsPrefix, deploymentID, "event0003")}
+
+	keys := append(logKeys, eventKeys...)
+	for _, key := range keys {
+		srv1.PopulateKV(t, map[string][]byte{key: b})
+	}
+
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.LogsPrefix, deploymentID, "log0001"):     b,
+		path.Join(consulutil.LogsPrefix, deploymentID, "log0002"):     b,
+		path.Join(consulutil.LogsPrefix, deploymentID, "log0003"):     b,
+		path.Join(consulutil.EventsPrefix, deploymentID, "event0001"): b,
+		path.Join(consulutil.EventsPrefix, deploymentID, "event0002"): b,
+		path.Join(consulutil.EventsPrefix, deploymentID, "event0003"): b,
+	})
+
+	myStore := config.Store{
+		Name:                  "myPersonalStore",
+		MigrateDataFromConsul: true,
+		Implementation:        "file",
+		Types:                 []string{"Log", "Event"},
+	}
+
+	cfg.Storage = config.Storage{
+		Reset:  true,
+		Stores: []config.Store{myStore},
+	}
+
+	err = LoadStores(cfg)
+	require.NoError(t, err)
+
+	// Check custom configuration + default complement has been saved in Consul
+	MapStores, err := consulutil.List(consulutil.StoresPrefix)
+	require.NoError(t, err)
+	require.NotNil(t, MapStores)
+	require.Len(t, MapStores, 2)
+
+	defaultStores := getDefaultConfigStores(cfg)
+	require.NotNil(t, defaultStores)
+	require.Len(t, defaultStores, 2)
+
+	for k, v := range MapStores {
+		key := path.Base(k)
+		switch key {
+		case "myPersonalStore":
+			s := new(config.Store)
+			err = json.Unmarshal(v, s)
+			require.NoError(t, err)
+
+			require.Equal(t, myStore.Implementation, s.Implementation)
+			require.Equal(t, myStore.Name, s.Name)
+			require.Equal(t, myStore.MigrateDataFromConsul, s.MigrateDataFromConsul)
+			require.Equal(t, myStore.Types, s.Types)
+			require.Equal(t, path.Join(cfg.WorkingDirectory, defaultRelativeRootDir), s.Properties["root_dir"])
+			require.Equal(t, defaultCacheNumCounters, s.Properties["cache_num_counters"])
+			require.Equal(t, defaultCacheMaxCost, s.Properties["cache_max_cost"])
+			require.Equal(t, defaultCacheBufferItems, s.Properties["cache_buffer_items"])
+		case "defaultFileStoreWithCache":
+			s := new(config.Store)
+			err = json.Unmarshal(v, s)
+			if !reflect.DeepEqual(*s, defaultStores[0]) {
+				t.Errorf("LoadStores() = %v, want %v", *s, defaultStores[0])
+			}
+		default:
+			t.Errorf("unexpected key:%q", key)
+		}
+	}
+
+	value := new(map[string]string)
+	for _, key := range logKeys {
+		exist, err := GetStore(types.StoreTypeLog).Get(key, value)
+		require.NoError(t, err)
+		require.True(t, exist)
+		require.NotNil(t, value)
+		val := *value
+		require.Equal(t, "content1", val["key1"])
+	}
+	for _, key := range eventKeys {
+		exist, err := GetStore(types.StoreTypeEvent).Get(key, value)
+		require.NoError(t, err)
+		require.True(t, exist)
+		require.NotNil(t, value)
+		val := *value
+		require.Equal(t, "content1", val["key1"])
+	}
 }
 
 func testLoadStoresWithPartialStorageConfig(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
