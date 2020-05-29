@@ -40,6 +40,8 @@ import (
 
 const indexFileNotExist = uint64(1)
 
+const defaultConcurrencyLimit = 1000
+
 type fileStore struct {
 	id         string
 	properties config.DynamicMap
@@ -76,7 +78,7 @@ func NewStore(cfg config.Configuration, storeID string, properties config.Dynami
 		fileLocks:         make(map[string]*sync.RWMutex),
 		withCache:         withCache,
 		withEncryption:    withEncryption,
-		concurrencyLimit:  cfg.UpgradeConcurrencyLimit,
+		concurrencyLimit:  properties.GetIntOrDefault("concurrency_limit", defaultConcurrencyLimit),
 	}
 
 	// Instantiate cache if necessary
@@ -452,7 +454,7 @@ func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeou
 	return s.list(ctx, k, waitIndex, index)
 }
 
-func (s *fileStore) listFirstLevelKVAndDirs(rootPath string, waitIndex, lastIndex uint64) ([]string, []store.KeyValueOut, error) {
+func (s *fileStore) listFirstLevelTree(rootPath string, waitIndex, lastIndex uint64) ([]string, []store.KeyValueOut, error) {
 	// Retrieve all sub-directories to list keys in concurrency at first level
 	var subPaths []string
 	infos, err := ioutil.ReadDir(rootPath)
@@ -492,8 +494,8 @@ func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uin
 		return nil, 0, nil
 	}
 
-	// Fill kv collection recursively for the related directory
-	subPaths, kvs, err := s.listFirstLevelKVAndDirs(rootPath, waitIndex, lastIndex)
+	// List first-level tree directories in order to walk them concurrently
+	subPaths, kvs, err := s.listFirstLevelTree(rootPath, waitIndex, lastIndex)
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 	sem := make(chan struct{}, s.concurrencyLimit)
@@ -507,23 +509,7 @@ func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uin
 			defer func() {
 				<-sem
 			}()
-			err = filepath.Walk(pathItem, func(pathFile string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-				// Add kv for a file
-				if !info.IsDir() {
-					kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
-					if err != nil {
-						return err
-					}
-					if kv != nil {
-						c <- *kv
-					}
-				}
-				return nil
-			})
-			return err
+			return s.walk(c, pathItem, k, waitIndex, lastIndex)
 		})
 	}
 
@@ -538,6 +524,26 @@ func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uin
 	}
 
 	return kvs, lastIndex, errGroup.Wait()
+}
+
+func (s *fileStore) walk(c chan store.KeyValueOut, pathItem, k string, waitIndex, lastIndex uint64) error {
+	err := filepath.Walk(pathItem, func(pathFile string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// Add kv for a file
+		if !info.IsDir() {
+			kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
+			if err != nil {
+				return err
+			}
+			if kv != nil {
+				c <- *kv
+			}
+		}
+		return nil
+	})
+	return err
 }
 
 func (s *fileStore) addKeyValueToList(info os.FileInfo, pathFile string, waitIndex, lastIndex uint64) (*store.KeyValueOut, error) {
