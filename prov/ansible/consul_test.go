@@ -43,4 +43,7 @@ func TestRunConsulAnsiblePackageTests(t *testing.T) {
 	t.Run("TestLogAnsibleOutputInConsulFromScriptFailure", func(t *testing.T) {
 		testLogAnsibleOutputInConsulFromScriptFailure(t)
 	})
+	t.Run("TestSandbox", func(t *testing.T) {
+		testCreatesandbox(t)
+	})
 }

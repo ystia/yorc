@@ -16,6 +16,8 @@ package ansible
 
 import (
 	"context"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/opts"
 	"io/ioutil"
 	"time"
 
@@ -31,7 +33,11 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.DockerSandbox, deploymentID string) (string, error) {
+var nanoCPUs opts.NanoCPUs
+var memoryInBytes opts.MemBytes
+
+func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.DockerSandbox, deploymentID,
+	ansibleRecipePath, overlayPath, sshAgentSocket string, env []string) (string, error) {
 
 	// check context is cancelable
 	if ctx.Done() == nil {
@@ -42,25 +48,28 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 	if sandboxCfg.Image == "" {
 		return "", errors.New("Docker sandbox for orchestrator-hosted operation misconfigured, image option is missing")
 	}
-
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Pulling docker image: %s", sandboxCfg.Image)
-	pullResp, err := cli.ImagePull(ctx, sandboxCfg.Image, types.ImagePullOptions{})
-	if pullResp != nil {
-		b, errRead := ioutil.ReadAll(pullResp)
-		if errRead == nil && len(b) > 0 {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Pulled docker image: %s", string(b))
-		}
-		pullResp.Close()
-	}
+	// pull docker image if not exists
+	_, _, err := cli.ImageInspectWithRaw(ctx, sandboxCfg.Image)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to pull docker image %q", sandboxCfg.Image)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Docker image %s not exists. "+
+			"Pulling docker image.", sandboxCfg.Image)
+		pullResp, err := cli.ImagePull(ctx, sandboxCfg.Image, types.ImagePullOptions{})
+		if pullResp != nil {
+			b, errRead := ioutil.ReadAll(pullResp)
+			if errRead == nil && len(b) > 0 {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Pulled docker image: %s", string(b))
+			}
+			pullResp.Close()
+		}
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to pull docker image %q", sandboxCfg.Image)
+		}
 	}
-
+	env = append(env, sandboxCfg.Env...)
 	cc := &container.Config{
 		Image: sandboxCfg.Image,
-		Env:   sandboxCfg.Env,
+		Env:   env,
 	}
-
 	if len(sandboxCfg.Command) == 0 && len(sandboxCfg.Entrypoint) == 0 {
 		cc.Entrypoint = strslice.StrSlice{"python"}
 		cc.Cmd = strslice.StrSlice{"-c", "import time;time.sleep(31536000);"}
@@ -71,9 +80,53 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 	if len(sandboxCfg.Entrypoint) > 0 {
 		cc.Entrypoint = strslice.StrSlice(sandboxCfg.Entrypoint)
 	}
-
+	// run sandbox container with non-root user
+	if sandboxCfg.User != "" {
+		cc.User = sandboxCfg.User
+	}
+	// limit resources for sandbox container to avoid DoS attacks
+	c, err := getNanoCPUs(sandboxCfg.Cpus)
+	if err != nil {
+		return "", err
+	}
+	m, err := getMemoryInBytes(sandboxCfg.Memory)
+	if err != nil {
+		return "", err
+	}
 	hc := &container.HostConfig{
 		AutoRemove: true,
+		// Security hardening for the sandbox container
+		// do not allow privilege escalation
+		SecurityOpt: []string{"no-new-privileges=true"},
+		// run the sandbox container with read-only root file system
+		ReadonlyRootfs: true,
+		// drop all capabilities
+		CapDrop: []string{"ALL"},
+		Resources: container.Resources{
+			NanoCPUs: c,
+			Memory:   m,
+		},
+		// mount volumes
+		Mounts: []mount.Mount{
+			{
+				Type:     "bind",
+				Source:   ansibleRecipePath,
+				Target:   config.DefaultSandboxWorkDir,
+				ReadOnly: false,
+			},
+			{
+				Type:     "bind",
+				Source:   overlayPath,
+				Target:   config.DefaultSandboxOverlayDir,
+				ReadOnly: true,
+			},
+			{
+				Type:     "bind",
+				Source:   sshAgentSocket,
+				Target:   config.DefaultSandboxMountAgentSocket,
+				ReadOnly: true,
+			},
+		},
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Creating docker container from image: %s", sandboxCfg.Image)
@@ -107,4 +160,36 @@ func stopSandboxOnContextCancellation(ctx context.Context, cli *client.Client, d
 		cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
 	}
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Docker container with id %q removed", containerID)
+}
+
+// getNanoCPUs converts user defined cpus string to nano cpus presentation
+// defaults cpu to 0.5 cpu if not set
+func getNanoCPUs(c string) (int64, error) {
+	if nanoCPUs != 0 {
+		return nanoCPUs.Value(), nil
+	}
+	if c != "" {
+		if err := nanoCPUs.Set(c); err != nil {
+			return 0, err
+		}
+	} else {
+		_ = nanoCPUs.Set("0.5")
+	}
+	return nanoCPUs.Value(), nil
+}
+
+// getMemoryInBytes converts user defined memory string to memory in bytes presentation
+// defaults memory to 256m if not set
+func getMemoryInBytes(m string) (int64, error) {
+	if memoryInBytes != 0 {
+		return memoryInBytes.Value(), nil
+	}
+	if m != "" {
+		if err := memoryInBytes.Set(m); err != nil {
+			return 0, err
+		}
+	} else {
+		_ = memoryInBytes.Set("256m")
+	}
+	return memoryInBytes.Value(), nil
 }

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/config"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -207,27 +208,32 @@ func getExecutionScriptTemplateFnMap(e *executionCommon, ansibleRecipePath strin
 	}
 }
 
-func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
+func (e *executionScript) generateRunAnsible(ctx context.Context, currentInstance, ansibleRecipePath string) (outputHandler, error) {
 	var err error
-	e.ScriptToRun, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
-	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve script absolute path")
+	outputHandler := &scriptOutputHandler{}
+	// for operation on host machine, set the ansible destination folder to the ansible recipe path on host machine
+	// for operation on sandbox, set the ansible destination folder and overlay to the default mount path inside the container
+	overlayPathOnHost := e.OverlayPath
+	wrapperLocationOnHost := filepath.Join(ansibleRecipePath, "wrapper")
+	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+		e.OverlayPath = config.DefaultSandboxOverlayDir
+		e.DestFolder = config.DefaultSandboxWorkDir
+		defer func() {
+			e.OverlayPath = overlayPathOnHost
+		}()
+	} else {
+		e.DestFolder = ansibleRecipePath
 	}
-
-	e.DestFolder, err = filepath.Abs(ansibleRecipePath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve script wrapper absolute path")
-	}
-
+	e.ScriptToRun = filepath.Join(e.OverlayPath, e.Primary)
 	e.WrapperLocation = filepath.Join(e.DestFolder, "wrapper")
 
-	outputHandler := &scriptOutputHandler{execution: e, context: ctx, instanceName: currentInstance}
-
+	scriptHandler := scriptOutputHandler{execution: e, context: ctx, instanceName: currentInstance}
+	outputHandler = &scriptHandler
 	var buffer bytes.Buffer
 
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(e.executionCommon, ansibleRecipePath, outputHandler.getWrappedCommand))
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(e.executionCommon, ansibleRecipePath, scriptHandler.getWrappedCommand))
 	wrapTemplate := template.New("execTemplate")
 	wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
 	if e.isPython {
@@ -236,17 +242,17 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		wrapTemplate, err = tmpl.Parse(scriptCustomWrapper)
 	}
 	if err != nil {
-		return err
+		return outputHandler, err
 	}
 	if err := wrapTemplate.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate wrapper template")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-		return err
+		return outputHandler, err
 	}
-	if err := ioutil.WriteFile(e.WrapperLocation, buffer.Bytes(), 0664); err != nil {
+	if err := ioutil.WriteFile(wrapperLocationOnHost, buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-		return err
+		return outputHandler, err
 	}
 
 	buffer.Reset()
@@ -254,24 +260,24 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	if err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-		return err
+		return outputHandler, err
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook template")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-		return err
+		return outputHandler, err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-		return err
+		return outputHandler, err
 	}
 
 	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
-		return err
+		return outputHandler, err
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
-	return e.executePlaybook(ctx, retry, ansibleRecipePath, outputHandler)
+	return outputHandler, err
 }

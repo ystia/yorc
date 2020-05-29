@@ -744,6 +744,19 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 		len(resultMap[ansibleConfigDefaultsHeader]),
 		"Missing entries in ansible config file with fact caching, content: %q", content)
 
+	// Test enabling ansible sandbox, OpenSSH also adds ssh_connection control path
+	execution.cfg.Ansible.UseOpenSSH = true
+	execution.cfg.Ansible.HostedOperations.DefaultSandbox = &config.DockerSandbox{}
+	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
+	require.NoError(t, err, "Error generating ansible config file")
+	resultMap, content = readAnsibleConfigSettings(t, cfgPath)
+	assert.Equal(t,
+		initialConfigMapLength+len(ansibleFactCaching)+2,
+		len(resultMap[ansibleConfigDefaultsHeader]),
+		"Missing entries in ansible config file with local_tmp, content: %q", content)
+	assert.Equal(t, 1, len(resultMap[ansibleConfigSSHConnection]),
+		"Missing entries in ansible config file with ssh connection, content: %q", content)
+
 	// Test with ansible config settings in Yorc server configuration
 	// one of them overriding Yorc default ansible config setting
 	newSettingName := "special_context_filesystems"

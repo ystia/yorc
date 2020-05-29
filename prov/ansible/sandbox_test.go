@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/docker/docker/api/types"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -62,29 +63,45 @@ func newFailingDockerMockForPaths(t *testing.T, paths []string, status int) *cli
 	})
 }
 
-func newJSONBodyResponseDockerMock(t *testing.T, p string, obj interface{}) *client.Client {
+func newJSONBodyResponseDockerMock(t *testing.T, p map[string]interface{}) *client.Client {
 	return newMockDockerClient(t, func(r *http.Request) (*http.Response, error) {
 		if r == nil {
 			return nil, errors.New("nil http request")
 		}
-		resp := &http.Response{StatusCode: http.StatusOK}
-		b, err := json.Marshal(obj)
-		if err != nil {
-			return nil, err
-		}
-		if strings.Contains(r.URL.Path, p) {
-			resp.Body = ioutil.NopCloser(bytes.NewReader(b))
+		resp := &http.Response{}
+		for k, v := range p {
+			if strings.Contains(r.URL.Path, k) {
+				resp.StatusCode = http.StatusOK
+				b, err := json.Marshal(v)
+				if err != nil {
+					return nil, err
+				}
+				resp.Body = ioutil.NopCloser(bytes.NewReader(b))
+				break
+			}
 		}
 		return resp, nil
 	})
 }
 
-func Test_createSandbox(t *testing.T) {
+func testCreatesandbox(t *testing.T) {
 
 	type args struct {
 		cli          *client.Client
 		sandboxCfg   *config.DockerSandbox
 		deploymentID string
+	}
+	// mock success request and response
+	request := map[string]interface{}{
+		"/images/busybox:latest": &types.ImageInspect{
+			ID: "exist_image_id",
+		},
+		"/containers/create": &container.ContainerCreateCreatedBody{
+			ID: "myid",
+		},
+		"/containers/myid/start": []byte(""),
+		"/containers/myid/stop":  []byte(""),
+		"/containers/myid":       []byte(""),
 	}
 	tests := []struct {
 		name    string
@@ -92,14 +109,14 @@ func Test_createSandbox(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{"FailOnPull", args{newFailingDockerMockForPaths(t, []string{"/images/create"}, 404), &config.DockerSandbox{Image: "busybox:latest"}, "d1"}, "", true},
-		{"Success", args{newJSONBodyResponseDockerMock(t, "/containers/create", &container.ContainerCreateCreatedBody{ID: "myid"}), &config.DockerSandbox{Image: "busybox:latest"}, "d1"}, "myid", false},
+		{"FailOnPull", args{newFailingDockerMockForPaths(t, []string{"/images/create", "/images/busybox:latest"}, 404), &config.DockerSandbox{Image: "busybox:latest"}, "d1"}, "", true},
+		{"Success", args{newJSONBodyResponseDockerMock(t, request), &config.DockerSandbox{Image: "busybox:latest"}, "d1"}, "myid", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cf := context.WithCancel(context.Background())
 			defer cf()
-			got, err := createSandbox(ctx, tt.args.cli, tt.args.sandboxCfg, tt.args.deploymentID)
+			got, err := createSandbox(ctx, tt.args.cli, tt.args.sandboxCfg, tt.args.deploymentID, "/path/host", "/path/host", "/path/host", []string{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createSandbox() error = %v, wantErr %v", err, tt.wantErr)
 				return
