@@ -116,7 +116,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		return true, err
 	}
 	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
-	sshClient, err := getSSHClient(credentials, locationProps)
+	sshClient, err := getSSHClient(cfg, credentials, locationProps)
 	if err != nil {
 		return true, err
 	}

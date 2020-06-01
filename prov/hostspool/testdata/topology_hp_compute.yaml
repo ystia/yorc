@@ -32,6 +32,12 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
+            resources:
+              - name: gpu
+                number: 2
+              - name: cpu
+                ids:
+                  - "cpu0"
         os:
           properties:
             type: linux
@@ -58,6 +64,12 @@ topology_template:
             num_cpus: 1
             disk_size: "20 GB"
             mem_size: "1 GB"
+            resources:
+              - name: gpu
+                number: 2
+              - name: cpu
+                ids:
+                  - "cpu0"
         os:
           properties:
             type: linux
@@ -120,6 +132,10 @@ topology_template:
             min_instances: 1
             max_instances: 1
             default_instances: 1
+  policies:
+    - BinPackingPlacementPolicy:
+        type: yorc.policies.hostspool.BinPackingPlacement
+        targets: [ Compute,Compute2]
   workflows:
     install:
       steps:

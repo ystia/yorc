@@ -78,6 +78,12 @@ const DefaultTasksDispatcherLongPollWaitTime = 1 * time.Minute
 // DefaultTasksDispatcherLockWaitTime is the default wait time for acquiring a lock for an execution task
 const DefaultTasksDispatcherLockWaitTime = 50 * time.Millisecond
 
+// DefaultUpgradesConcurrencyLimit is the default limit of concurrency used in Upgrade processes
+const DefaultUpgradesConcurrencyLimit = 1000
+
+// DefaultSSHConnectionTimeout is the default timeout for SSH connections
+const DefaultSSHConnectionTimeout = 10 * time.Second
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
@@ -103,6 +109,9 @@ type Configuration struct {
 	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
+	Storage                          Storage       `yaml:"storage,omitempty" mapstructure:"storage"`
+	UpgradeConcurrencyLimit          int           `yaml:"concurrency_limit_for_upgrades,omitempty" mapstructure:"concurrency_limit_for_upgrades"`
+	SSHConnectionTimeout             time.Duration `yaml:"ssh_connection_timeout,omitempty" mapstructure:"ssh_connection_timeout"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -190,6 +199,22 @@ type Dispatcher struct {
 	LockWaitTime     time.Duration `yaml:"lock_wait_time,omitempty" mapstructure:"lock_wait_time" json:"lock_wait_time,omitempty"`
 }
 
+// Storage configuration
+type Storage struct {
+	Reset             bool       `yaml:"reset,omitempty" json:"reset,omitempty" mapstructure:"reset"`
+	Stores            []Store    `yaml:"stores,omitempty" json:"stores,omitempty" mapstructure:"stores"`
+	DefaultProperties DynamicMap `yaml:"default_properties,omitempty" json:"default_properties,omitempty" mapstructure:"default_properties"`
+}
+
+// Store configuration
+type Store struct {
+	Name                  string     `yaml:"name" json:"name" mapstructure:"name"`
+	MigrateDataFromConsul bool       `yaml:"migrate_data_from_consul,omitempty" json:"migrate_data_from_consul,omitempty"  mapstructure:"migrate_data_from_consul"`
+	Implementation        string     `yaml:"implementation" json:"implementation" mapstructure:"implementation"` // not an enum as it may be extended by plugins
+	Types                 []string   `yaml:"types" json:"types" mapstructure:"types"`
+	Properties            DynamicMap `yaml:"properties,omitempty" json:"properties,omitempty" mapstructure:"properties"`
+}
+
 // DynamicMap allows to store configuration parameters that are not known in advance.
 // This is particularly useful when configuration parameters may be defined in a plugin such for locations.
 //
@@ -262,6 +287,12 @@ func (dm DynamicMap) GetStringSlice(name string) []string {
 // 0 is returned if not found.
 func (dm DynamicMap) GetInt(name string) int {
 	return cast.ToInt(dm.Get(name))
+}
+
+// GetInt64 returns the value of the given key casted into an int64.
+// 0 is returned if not found.
+func (dm DynamicMap) GetInt64(name string) int64 {
+	return cast.ToInt64(dm.Get(name))
 }
 
 // GetDuration returns the value of the given key casted into a Duration.

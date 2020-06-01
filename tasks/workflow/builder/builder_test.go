@@ -40,15 +40,15 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer) {
 			Target:             "nodeName",
 			TargetRelationShip: "",
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 				{SetState: "installed"},
-				{CallOperation: "script.sh"},
+				{CallOperation: &tosca.OperationActivity{Operation: "script.sh"}},
 			},
 		},
 		"Some_other_inline": {
 			//Target:             "nodeName",
 			Activities: []tosca.Activity{
-				{Inline: "my_custom_wf"},
+				{Inline: &tosca.WorkflowActivity{Workflow: "my_custom_wf"}},
 			},
 		},
 	}}
@@ -88,13 +88,13 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer) {
 			Target:    "nodeName",
 			OnSuccess: []string{"downstream"},
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 		"downstream": {
 			Target: "downstream",
 			Activities: []tosca.Activity{
-				{CallOperation: "script.sh"},
+				{CallOperation: &tosca.OperationActivity{Operation: "script.sh"}},
 			},
 		},
 	}}
@@ -126,7 +126,7 @@ func testBuildStepWithNonExistentNextStep(t *testing.T, srv1 *testutil.TestServe
 			Target:    "nodeName",
 			OnSuccess: []string{"nonexistent"},
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 	}}
@@ -154,39 +154,39 @@ func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer) {
 			Target:    "nodeName",
 			OnSuccess: []string{"step10", "step12"},
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 		"step10": {
 			Target:    "nodeName",
 			OnSuccess: []string{"step13"},
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 		"step12": {
 			Target:    "nodeName",
 			OnSuccess: []string{"step13"},
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 		"step13": {
 			Target: "nodeName",
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 		"step15": {
 			Target: "nodeName",
 			Activities: []tosca.Activity{
-				{Inline: "inception"},
+				{Inline: &tosca.WorkflowActivity{Workflow: "inception"}},
 			},
 		},
 		"step20": {
 			Target: "nodeName",
 			Activities: []tosca.Activity{
-				{Delegate: "install"},
+				{Delegate: &tosca.WorkflowActivity{Workflow: "install"}},
 			},
 		},
 	}}

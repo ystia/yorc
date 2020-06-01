@@ -310,7 +310,7 @@ func applyHostsPoolConfig(client httputil.HTTPClient, args []string, location st
 	}
 	fmt.Println("New hosts pool configuration applied successfully.")
 	if connectionFailure {
-		fmt.Println("Connection failures occured for the following hosts:")
+		fmt.Println("Connection failures occurred for the following hosts:")
 		fmt.Println("")
 		fmt.Println(hostsTable.Render())
 	}
@@ -323,7 +323,12 @@ func toPrintableLabels(labels map[string]string) string {
 	var labelsList string
 	for k, v := range labels {
 		if labelsList != "" {
-			labelsList += ","
+			labelsList += "|"
+		}
+
+		// Specific display for generic resources
+		if strings.HasPrefix(k, "host.resource.") {
+			v = fmt.Sprintf("\"%s\"", v)
 		}
 		labelsList += fmt.Sprintf("%s: %s", k, v)
 	}
@@ -357,13 +362,13 @@ func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHo
 		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), ",")...)
 	}
 	oldConnectionSubRows := strings.Split(toPrintableConnection(oldConnection), ",")
-	oldLabelSubRows := strings.Split(toPrintableLabels(oldLabels), ",")
+	oldLabelSubRows := strings.Split(toPrintableLabels(oldLabels), "|")
 	// Sorting labels for an easier comparison between old and new labels
 	sort.Strings(oldLabelSubRows)
 	sliceutil.PadSlices("", &allocationsSubRows, &oldConnectionSubRows, &oldLabelSubRows)
 
 	newConnectionSubRows := strings.Split(toPrintableConnection(newConnection), ",")
-	newLabelSubRows := strings.Split(toPrintableLabels(newLabels), ",")
+	newLabelSubRows := strings.Split(toPrintableLabels(newLabels), "|")
 	// Sorting labels for an easier comparison between old and new labels
 	sort.Strings(newLabelSubRows)
 	sliceutil.PadSlices("", &allocationsSubRows, &newConnectionSubRows, &newLabelSubRows)

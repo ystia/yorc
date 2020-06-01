@@ -21,6 +21,7 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -231,6 +232,42 @@ func testFipOSInstance(t *testing.T, srv *testutil.TestServer) {
 
 }
 
+func testFipMissingOSInstance(t *testing.T, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": true,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
+
+	g := osGenerator{}
+	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
+	outputs := make(map[string]string, 0)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(3 * time.Second)
+		cancel()
+	}()
+
+	err := g.generateOSInstance(
+		ctx,
+		osInstanceOptions{
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			locationProps:  locationProps,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
+	require.Errorf(t, err, "expected context canceled")
+}
+
 func testFipOSInstanceNotAllowed(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t)
@@ -370,7 +407,7 @@ func testComputeNetworkAttributes(t *testing.T, srv *testutil.TestServer) {
 	infrastructure := commons.Infrastructure{}
 	outputs := make(map[string]string, 0)
 	resourceTypes := getOpenstackResourceTypes(locationProps)
-	opts := osInstanceOptions{
+	optsInstance1 := osInstanceOptions{
 		cfg:            cfg,
 		infrastructure: &infrastructure,
 		locationProps:  locationProps,
@@ -385,15 +422,35 @@ func testComputeNetworkAttributes(t *testing.T, srv *testutil.TestServer) {
 	instKey := "instKey"
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-			"/topology/instances", networkNodeName, opts.instanceName, "attributes", "network_id"): []byte(networkID),
+			"/topology/instances", networkNodeName, "0", "attributes", "network_id"): []byte(networkID),
 	})
 
-	instance := ComputeInstance{
+	instance1 := ComputeInstance{
 		Name: "instanceName",
 	}
-	err := computeNetworkAttributes(context.Background(), opts, networkNodeName, instKey,
-		&instance, outputs)
+	err := computeNetworkAttributes(context.Background(), optsInstance1, networkNodeName, instKey,
+		&instance1, outputs)
 	require.NoError(t, err, "Failed to compute network attributes")
-	require.Equal(t, 1, len(instance.Networks), "Expected to have one compute instance network")
-	assert.Equal(t, networkID, instance.Networks[0].UUID, "Wrong network ID")
+	require.Equal(t, 1, len(instance1.Networks), "Expected to have one compute instance network")
+	assert.Equal(t, networkID, instance1.Networks[0].UUID, "Wrong network ID")
+
+	// Check another instance
+	optsInstance2 := osInstanceOptions{
+		cfg:            cfg,
+		infrastructure: &infrastructure,
+		locationProps:  locationProps,
+		deploymentID:   deploymentID,
+		nodeName:       "ComputeA",
+		instanceName:   "1",
+		resourceTypes:  resourceTypes,
+	}
+
+	instance2 := ComputeInstance{
+		Name: "instanceName2",
+	}
+	err = computeNetworkAttributes(context.Background(), optsInstance2, networkNodeName, instKey,
+		&instance2, outputs)
+	require.NoError(t, err, "Failed to compute network attributes")
+	require.Equal(t, 1, len(instance2.Networks), "Expected to have one compute instance network")
+	assert.Equal(t, networkID, instance2.Networks[0].UUID, "Wrong network ID")
 }

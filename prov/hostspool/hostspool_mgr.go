@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"reflect"
 	"strconv"
@@ -44,21 +45,27 @@ const (
 	maxNbTransactionOps = 64
 )
 
+type resourceOperationFunc func(a int64, b int64) int64
+type resourceUpdateFunc func(origin map[string]string, diff map[string]string, operation resourceOperationFunc) (map[string]string, error)
+type genericResourceOperationFunc func(source, elements []string) []string
+type genericResourceUpdateFunc func(origin map[string]string, genericResources []*GenericResource, operation genericResourceOperationFunc) map[string]string
+
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(locationName, hostname string, connection Connection, labels map[string]string) error
 	Apply(locationName string, pool []Host, checkpoint *uint64) error
 	Remove(locationName, hostname string) error
-	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
+	UpdateResourcesLabels(locationName, hostname string, diff map[string]string, operation resourceOperationFunc, update resourceUpdateFunc, gResources []*GenericResource, gResourcesOperation genericResourceOperationFunc, updateGenericResources genericResourceUpdateFunc) error
 	AddLabels(locationName, hostname string, labels map[string]string) error
 	RemoveLabels(locationName, hostname string, labels []string) error
 	UpdateConnection(locationName, hostname string, connection Connection) error
 	List(locationName string, filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(locationName, hostname string) (Host, error)
 	Allocate(locationName string, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
-	Release(locationName, hostname string, allocation *Allocation) error
+	Release(locationName, hostname, deploymentID, nodeName, instance string) (*Allocation, error)
 	ListLocations() ([]string, error)
 	RemoveLocation(locationName string) error
+	CheckPlacementPolicy(placementPolicy string) error
 }
 
 // SSHClientFactory is a that could be called to customize the client used to check the connection.
@@ -67,8 +74,8 @@ type Manager interface {
 type SSHClientFactory func(config *ssh.ClientConfig, conn Connection) sshutil.Client
 
 // NewManager creates a Manager backed to Consul
-func NewManager(cc *api.Client) Manager {
-	return NewManagerWithSSHFactory(cc, func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
+func NewManager(cc *api.Client, cfg config.Configuration) Manager {
+	return NewManagerWithSSHFactory(cc, cfg, func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
 		return &sshutil.SSHClient{
 			Config: config,
 			Host:   conn.Host,
@@ -80,8 +87,8 @@ func NewManager(cc *api.Client) Manager {
 // NewManagerWithSSHFactory creates a Manager with a given ssh factory
 //
 // Currently this is used for testing purpose to mock the ssh connection.
-func NewManagerWithSSHFactory(cc *api.Client, sshClientFactory SSHClientFactory) Manager {
-	return &consulManager{cc: cc, getSSHClient: sshClientFactory}
+func NewManagerWithSSHFactory(cc *api.Client, cfg config.Configuration, sshClientFactory SSHClientFactory) Manager {
+	return &consulManager{cc: cc, cfg: cfg, getSSHClient: sshClientFactory}
 }
 
 // Lock key is not under HostsPoolPrefix so that taking the lock and releasing
@@ -91,6 +98,7 @@ const kvLockKey = consulutil.YorcManagementPrefix + "/hosts_pool/lock"
 
 type consulManager struct {
 	cc           *api.Client
+	cfg          config.Configuration
 	getSSHClient SSHClientFactory
 }
 
@@ -126,9 +134,10 @@ func (cm *consulManager) addWait(locationName, hostname string, conn Connection,
 
 	err = cm.checkConnection(locationName, hostname)
 	if err != nil {
-		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "can't connect to host")
+		cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
+		return errors.WithStack(hostConnectionError{message: err.Error()})
 	}
-	return err
+	return nil
 }
 
 func (cm *consulManager) getAddOperations(
@@ -577,7 +586,7 @@ func (cm *consulManager) GetHost(locationName, hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
-	host.Allocations, err = cm.GetAllocations(locationName, hostname)
+	host.Allocations, err = cm.getAllocations(locationName, hostname)
 	if err != nil {
 		return host, err
 	}
@@ -586,10 +595,11 @@ func (cm *consulManager) GetHost(locationName, hostname string) (Host, error) {
 	return host, err
 }
 
-func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
+func getSSHConfig(cfg config.Configuration, conn Connection) (*ssh.ClientConfig, error) {
 	conf := &ssh.ClientConfig{
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		User:            conn.User,
+		Timeout:         cfg.SSHConnectionTimeout,
 	}
 
 	if conn.PrivateKey != "" {
@@ -713,7 +723,7 @@ func (cm *consulManager) applyWait(
 				return err
 			}
 
-			allocations, err := cm.GetAllocations(locationName, host.Name)
+			allocations, err := cm.getAllocations(locationName, host.Name)
 			if err != nil {
 				return err
 			}

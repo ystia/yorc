@@ -123,6 +123,56 @@ func GetTasksIdsForTarget(targetID string) ([]string, error) {
 	return tasks, nil
 }
 
+// GetTaskErrorMessage retrieves the task related error message if any.
+//
+// If no error message is found, an empty string is returned instead
+func GetTaskErrorMessage(taskID string) (string, error) {
+	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"))
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if exist {
+		return value, nil
+	}
+	return "", nil
+}
+
+// SetTaskErrorMessage sets a task related error message.
+//
+// Set task error message even if it already contains a value.
+// For a better control on gracefully setting this error message use CheckAndSetTaskErrorMessage
+func SetTaskErrorMessage(taskID, errorMessage string) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"), errorMessage)
+}
+
+// CheckAndSetTaskErrorMessage sets a task related error message.
+//
+// This function check for an existing message and overwrite it only if requested.
+func CheckAndSetTaskErrorMessage(taskID, errorMessage string, overwriteExisting bool) error {
+	keyPath := path.Join(consulutil.TasksPrefix, taskID, "errorMessage")
+	kvp := &api.KVPair{Key: keyPath, Value: []byte(errorMessage)}
+	kv := consulutil.GetKV()
+	for {
+		existingKey, meta, err := kv.Get(keyPath, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if existingKey != nil && len(existingKey.Value) > 0 && !overwriteExisting {
+			return nil
+		}
+		if existingKey != nil {
+			kvp.ModifyIndex = meta.LastIndex
+		}
+		set, _, err := consulutil.GetKV().CAS(kvp, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if set {
+			return nil
+		}
+	}
+}
+
 // GetTaskResultSet retrieves the task related resultSet in json string format
 //
 // If no resultSet is found, nil is returned instead
@@ -300,6 +350,24 @@ func TargetHasLivingTasks(targetID string, tasksTypesToIgnore []TaskType) (bool,
 // GetTaskInput retrieves inputs for tasks
 func GetTaskInput(taskID, inputName string) (string, error) {
 	return GetTaskData(taskID, path.Join("inputs", inputName))
+}
+
+// GetTaskOutput retrieves a specified output with name outputName for tasks
+func GetTaskOutput(taskID, outputName string) (string, error) {
+	return GetTaskData(taskID, path.Join("outputs", outputName))
+}
+
+// GetTaskOutputs retrieves all outputs for tasks
+func GetTaskOutputs(taskID string) (map[string]string, error) {
+	outputs := make(map[string]string)
+	kvs, err := consulutil.List(path.Join(consulutil.TasksPrefix, taskID, "data", "outputs") + "/")
+	if err != nil {
+		return nil, err
+	}
+	for outputName, outputValue := range kvs {
+		outputs[path.Base(outputName)] = string(outputValue)
+	}
+	return outputs, nil
 }
 
 // GetTaskData retrieves data for tasks

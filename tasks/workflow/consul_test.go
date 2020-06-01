@@ -15,27 +15,38 @@
 package workflow
 
 import (
+	"os"
 	"path"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulWorkflowPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
+
+		t.Run("testMetrics", func(t *testing.T) {
+			testMetrics(t, client)
+		})
 		t.Run("testRunStep", func(t *testing.T) {
 			testRunStep(t, srv, client)
 		})
-		t.Run("testRegisterInlineWorkflow", func(t *testing.T) {
-			testRegisterInlineWorkflow(t, srv, client)
+		t.Run("testInlineWorkflow", func(t *testing.T) {
+			testInlineWorkflow(t, srv, client)
 		})
 		t.Run("testDeleteExecutionTreeSamePrefix", func(t *testing.T) {
 			testDeleteExecutionTreeSamePrefix(t, client)
@@ -46,29 +57,71 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testDispatcherRun", func(t *testing.T) {
 			testDispatcherRun(t, srv, client)
 		})
+		t.Run("testWorkflowInputs", func(t *testing.T) {
+			testWorkflowInputs(t, srv, client)
+		})
+		t.Run("testWorkflowOutputs", func(t *testing.T) {
+			testWorkflowOutputs(t, srv, client)
+		})
 	})
-}
-
-func TestRunConsulWorkerTests(t *testing.T) {
-	log.SetDebug(true)
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
 
 	populateKV(t, srv)
-
-	t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
-		testRunQueryInfraUsage(t, srv, client)
-	})
-	t.Run("TestRunPurge", func(t *testing.T) {
-		testRunPurge(t, srv, client)
-	})
-	t.Run("TestRunPurgeFails", func(t *testing.T) {
-		testRunPurgeFails(t, srv, client)
+	t.Run("groupWorker", func(t *testing.T) {
+		t.Run("TestRunQueryInfraUsage", func(t *testing.T) {
+			testRunQueryInfraUsage(t, srv, client)
+		})
+		t.Run("TestRunPurge", func(t *testing.T) {
+			testRunPurge(t, srv, client)
+		})
+		t.Run("TestRunPurgeFails", func(t *testing.T) {
+			testRunPurgeFails(t, srv, client)
+		})
 	})
 }
 
 func createTaskExecutionKVWithKey(t *testing.T, execID, keyName, keyValue string) {
 	t.Helper()
 	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, execID, keyName), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+}
+
+func createTaskKV(t *testing.T, taskID string) {
+	t.Helper()
+
+	var keyValue string
+	keyValue = strconv.Itoa(int(tasks.TaskStatusINITIAL))
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+
+	creationDate := time.Now()
+	keyValue = creationDate.Format(time.RFC3339Nano)
+	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "creationDate"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+}
+
+func createWfStepStatusInitial(t *testing.T, taskID, stepName string) {
+	t.Helper()
+
+	keyValue := "INITIAL"
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, stepName), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+}
+
+func createTaskKVWithExecution(t *testing.T, taskID string) {
+	t.Helper()
+
+	var keyValue string
+	keyValue = strconv.Itoa(int(tasks.TaskStatusINITIAL))
+	_, err := consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+
+	creationDate := time.Now()
+	keyValue = creationDate.Format(time.RFC3339Nano)
+	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "creationDate"), Value: []byte(keyValue)}, nil)
+	require.NoError(t, err)
+
+	keyValue = "yorcnode"
+	execID := "2c6a9f86-a63d-4774-9f2b-ed53f96349d7"
+	_, err = consulutil.GetKV().Put(&api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions", execID), Value: []byte(keyValue)}, nil)
 	require.NoError(t, err)
 }

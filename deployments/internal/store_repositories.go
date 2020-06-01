@@ -17,6 +17,7 @@ package internal
 import (
 	"context"
 	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 
@@ -26,14 +27,14 @@ import (
 // StoreRepositories store repositories
 func StoreRepositories(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
 	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for repositoryName, repo := range topology.Repositories {
 		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
 		// Default repository token is password
 		if repo.Credit.TokenType == "" {
 			repo.Credit.TokenType = "password"
 		}
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   repoPrefix,
 			Value: repo,
 		})

@@ -16,6 +16,7 @@ package deployments
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,8 +26,13 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulDeploymentsPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
+
 	t.Run("groupDeployments", func(t *testing.T) {
 		t.Run("testArtifacts", func(t *testing.T) {
 			testArtifacts(t, srv)
@@ -122,6 +128,11 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testDeleteRelationshipInstance", func(t *testing.T) {
 			testDeleteRelationshipInstance(t)
 		})
+
+		t.Run("testResolveAttributeMapping", func(t *testing.T) {
+			testResolveAttributeMapping(t)
+		})
+
 	})
 
 	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {

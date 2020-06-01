@@ -17,6 +17,7 @@ package hostspool
 import (
 	"context"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -29,8 +30,12 @@ import (
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulHostsPoolPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, client := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	log.SetDebug(true)
 
 	// Populate hosts for this test location
@@ -46,78 +51,81 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("TestConsulManagerAdd", func(t *testing.T) {
-		testConsulManagerAdd(t, client)
+		testConsulManagerAdd(t, client, cfg)
 	})
 	t.Run("TestConsulManagerRemove", func(t *testing.T) {
-		testConsulManagerRemove(t, client)
+		testConsulManagerRemove(t, client, cfg)
 	})
 	t.Run("TestConsulManagerRemoveHostWithSamePrefix", func(t *testing.T) {
-		testConsulManagerRemoveHostWithSamePrefix(t, client)
+		testConsulManagerRemoveHostWithSamePrefix(t, client, cfg)
 	})
 	t.Run("TestConsulManagerAddLabels", func(t *testing.T) {
-		testConsulManagerAddLabels(t, client)
+		testConsulManagerAddLabels(t, client, cfg)
 	})
 	t.Run("TestConsulManagerRemoveLabels", func(t *testing.T) {
-		testConsulManagerRemoveLabels(t, client)
+		testConsulManagerRemoveLabels(t, client, cfg)
 	})
 	t.Run("TestConsulManagerConcurrency", func(t *testing.T) {
-		testConsulManagerConcurrency(t, client)
+		testConsulManagerConcurrency(t, client, cfg)
 	})
 	t.Run("TestConsulManagerUpdateConnection", func(t *testing.T) {
-		testConsulManagerUpdateConnection(t, client)
+		testConsulManagerUpdateConnection(t, client, cfg)
 	})
 	t.Run("TestConsulManagerList", func(t *testing.T) {
-		testConsulManagerList(t, client)
+		testConsulManagerList(t, client, cfg)
 	})
 	t.Run("TestConsulManagerGetHost", func(t *testing.T) {
-		testConsulManagerGetHost(t, client)
+		testConsulManagerGetHost(t, client, cfg)
 	})
 	t.Run("TestConsulManagerApply", func(t *testing.T) {
-		testConsulManagerApply(t, client)
+		testConsulManagerApply(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyErrorNoName", func(t *testing.T) {
-		testConsulManagerApplyErrorNoName(t, client)
+		testConsulManagerApplyErrorNoName(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyErrorDuplicateName", func(t *testing.T) {
-		testConsulManagerApplyErrorDuplicateName(t, client)
+		testConsulManagerApplyErrorDuplicateName(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyErrorDeleteAllocatedHost", func(t *testing.T) {
-		testConsulManagerApplyErrorDeleteAllocatedHost(t, client)
+		testConsulManagerApplyErrorDeleteAllocatedHost(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyErrorOutdatedCheckpoint", func(t *testing.T) {
-		testConsulManagerApplyErrorOutdatedCheckpoint(t, client)
+		testConsulManagerApplyErrorOutdatedCheckpoint(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyBadConnection", func(t *testing.T) {
-		testConsulManagerApplyBadConnection(t, client)
+		testConsulManagerApplyBadConnection(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyBadConnectionAndRestoreHostStatus", func(t *testing.T) {
-		testConsulManagerApplyBadConnectionAndRestoreHostStatus(t, client)
+		testConsulManagerApplyBadConnectionAndRestoreHostStatus(t, client, cfg)
 	})
 	t.Run("testConsulManagerAllocateConcurrency", func(t *testing.T) {
-		testConsulManagerAllocateConcurrency(t, client)
+		testConsulManagerAllocateConcurrency(t, client, cfg)
 	})
 	t.Run("testConsulManagerAllocateShareableCompute", func(t *testing.T) {
-		testConsulManagerAllocateShareableCompute(t, client)
+		testConsulManagerAllocateShareableCompute(t, client, cfg)
+	})
+	t.Run("testConsulManagerAllocateWithWeightBalancedPlacement", func(t *testing.T) {
+		testConsulManagerAllocateWithWeightBalancedPlacement(t, client, cfg)
 	})
 	t.Run("testConsulManagerAllocateShareableComputeWithSameAllocationPrefix", func(t *testing.T) {
-		testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t, client)
+		testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t, client, cfg)
 	})
 	t.Run("testConsulManagerApplyWithAllocation", func(t *testing.T) {
-		testConsulManagerApplyWithAllocation(t, client)
+		testConsulManagerApplyWithAllocation(t, client, cfg)
 	})
 	t.Run("testConsulManagerAddLabelsWithAllocation", func(t *testing.T) {
-		testConsulManagerAddLabelsWithAllocation(t, client)
+		testConsulManagerAddLabelsWithAllocation(t, client, cfg)
 	})
 	t.Run("testCreateFiltersFromComputeCapabilities", func(t *testing.T) {
 		testCreateFiltersFromComputeCapabilities(t, deploymentID)
 	})
 	t.Run("testConcurrentExecDelegateShareableHost", func(t *testing.T) {
-		testConcurrentExecDelegateShareableHost(t, srv, client, deploymentID, location)
+		testConcurrentExecDelegateShareableHost(t, srv, client, cfg, deploymentID, location)
 	})
 	t.Run("testFailureExecDelegateShareableHost", func(t *testing.T) {
-		testFailureExecDelegateShareableHost(t, srv, client, deploymentID, location)
+		testFailureExecDelegateShareableHost(t, srv, client, cfg, deploymentID, location)
 	})
 	t.Run("testExecDelegateFailure", func(t *testing.T) {
-		testExecDelegateFailure(t, srv, client, deploymentID, location)
+		testExecDelegateFailure(t, srv, client, cfg, deploymentID, location)
 	})
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tasks/workflow/builder"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 type mockActivity struct {
@@ -47,6 +48,9 @@ func (m *mockActivity) Value() string {
 	return m.v
 }
 
+func (m *mockActivity) Inputs() map[string]tosca.ParameterDefinition {
+	return nil
+}
 func testPostComputeCreationHook(t *testing.T, cfg config.Configuration) {
 	ctx := context.Background()
 

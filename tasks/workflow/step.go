@@ -35,6 +35,7 @@ import (
 	"github.com/ystia/yorc/v4/prov/scheduling"
 	"github.com/ystia/yorc/v4/registry"
 	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/collector"
 	"github.com/ystia/yorc/v4/tasks/workflow/builder"
 	"github.com/ystia/yorc/v4/tosca"
 )
@@ -215,6 +216,10 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
 					tasks.NotifyErrorOnTask(s.t.taskID)
+					// only set generic error message here.
+					// Task status is handled in task execution final function
+					tasks.CheckAndSetTaskErrorMessage(s.t.taskID, fmt.Sprintf("Workflow %q step %q failed.", workflowName, s.Name), false)
+
 					err2 := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
 					if err2 != nil {
 						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to register on failure steps: %v", err2)
@@ -230,7 +235,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 		}
 	}
 	if !s.Async {
-		log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.id, s.Name, s.WorkflowName, s.t.taskID)
+		log.Debugf("Task execution: %q for step: %q, workflow: %q, taskID: %q done successfully.", s.t.id, s.Name, s.WorkflowName, s.t.taskID)
 		s.setStatus(tasks.TaskStepStatusDONE)
 	}
 	return nil
@@ -261,26 +266,37 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			// Need to publish INITIAL status before RUNNING one with operationName set
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
+
+		executorDelegateLabels := []metrics.Label{
+			metrics.Label{Name: "Deployment", Value: deploymentID},
+			metrics.Label{Name: "Name", Value: delegateOp},
+			metrics.Label{Name: "Node", Value: nodeType},
+		}
+
 		err = func() error {
-			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
+			defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "duration"}), time.Now(), executorDelegateLabels)
 			return provisioner.ExecDelegate(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, delegateOp)
 		}()
 
 		if err != nil {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "failures"}), 1, executorDelegateLabels)
 			for _, instanceName := range instances {
 				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "delegate", "successes"}), 1, executorDelegateLabels)
 		for _, instanceName := range instances {
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 		}
 	case builder.ActivityTypeSetState:
 		setNodeStatus(wfCtx, s.t.taskID, deploymentID, s.Target, activity.Value())
 	case builder.ActivityTypeCallOperation:
-		op, err := operations.GetOperation(wfCtx, s.t.targetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
+		inputParameters, err := s.getActivityInputParameters(wfCtx, activity, deploymentID, workflowName)
+		if err != nil {
+			return err
+		}
+		op, err := operations.GetOperation(wfCtx, s.t.targetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost, inputParameters)
 		if err != nil {
 			if deployments.IsOperationNotImplemented(err) {
 				// Operation not implemented just skip it
@@ -308,10 +324,16 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			// Need to publish INITIAL status before RUNNING one with operationName set
 			s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
+
+		executorOperationLabels := []metrics.Label{
+			metrics.Label{Name: "Deployment", Value: deploymentID},
+			metrics.Label{Name: "Name", Value: op.Name},
+			metrics.Label{Name: "Node", Value: nodeType},
+		}
 		// In function of the operation, the execution is sync or async
 		if s.Async {
 			err = func() error {
-				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
+				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "duration"}), time.Now(), executorOperationLabels)
 				action, timeInterval, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op, s.Name)
 				if err != nil {
 					return err
@@ -339,18 +361,18 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 			}()
 		} else {
 			err = func() error {
-				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
+				defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "duration"}), time.Now(), executorOperationLabels)
 				return exec.ExecOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op)
 			}()
 		}
 		if err != nil {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "failures"}), 1, executorOperationLabels)
 			for _, instanceName := range instances {
 				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "successes"}), 1, executorOperationLabels)
 		if !s.Async {
 			for _, instanceName := range instances {
 				s.publishInstanceRelatedEvents(wfCtx, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
@@ -358,22 +380,184 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 		}
 	case builder.ActivityTypeInline:
 		// Register inline workflow associated to the original task
-		return s.registerInlineWorkflow(wfCtx, activity.Value())
+		return s.registerInlineWorkflow(wfCtx, deploymentID, activity)
 	}
 	return nil
 }
 
-func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
-	wfOps, err := builder.BuildInitExecutionOperations(ctx, s.t.targetID, s.t.taskID, workflowName, true)
+func (s *step) getActivityInputParameters(ctx context.Context, activity builder.Activity,
+	deploymentID, workflowName string) (map[string]tosca.ParameterDefinition, error) {
+
+	// Getting activity input parameters first
+	result := make(map[string]tosca.ParameterDefinition)
+	for inputName, paramDef := range activity.Inputs() {
+
+		if paramDef.Value != nil || paramDef.Default != nil {
+			result[inputName] = paramDef
+		}
+	}
+
+	// Getting workflow inputs
+	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
+	if err != nil {
+		return nil, err
+	}
+
+	for inputName, propDef := range wf.Inputs {
+
+		if _, ok := result[inputName]; ok {
+			// Already defined in activity
+			continue
+		}
+
+		valueAssign, err := s.getWorkflowInputValue(ctx, deploymentID, workflowName, inputName, propDef)
+		if err != nil {
+			return result, err
+		}
+
+		result[inputName] = tosca.ParameterDefinition{
+			Type:        propDef.Type,
+			Description: propDef.Description,
+			Required:    propDef.Required,
+			Default:     propDef.Default,
+			Status:      propDef.Status,
+			EntrySchema: propDef.EntrySchema,
+			Value:       valueAssign,
+		}
+	}
+
+	// Getting inputs at the topology level that can be used
+	// if inputs aren't defined at lower levels (workflow or activity)
+	err = addTopologyInputs(ctx, deploymentID, result)
+
+	return result, err
+}
+
+func (s *step) getWorkflowInputValue(ctx context.Context, deploymentID, workflowName, inputName string,
+	propDef tosca.PropertyDefinition) (*tosca.ValueAssignment, error) {
+
+	var valueAssign *tosca.ValueAssignment
+	inputValue, err := tasks.GetTaskInput(s.t.taskID, inputName)
+	if err != nil {
+		if !tasks.IsTaskDataNotFoundError(err) {
+			return valueAssign, err
+		}
+
+		// No input value in task, defining an input parameter if this property
+		// has a default value or is defined in the topology
+		if propDef.Default == nil {
+			// No default value, and no input in this execution context
+			// => no parameter is defined in this execution context
+			// It can still be defined in the topology
+			valueAssign, err = getValueFromTopology(ctx, deploymentID, inputName)
+			if err != nil {
+				return valueAssign, err
+			}
+			if propDef.Required != nil && *propDef.Required && valueAssign == nil {
+				return valueAssign, errors.Errorf("Missing required value for input %q in step:%q workflow:%q, deploymentID:%q, taskID:%q",
+					inputName, s.Name, workflowName, deploymentID, s.t.taskID)
+			}
+		}
+	} else {
+		valueAssign, err = tosca.ToValueAssignment(inputValue)
+	}
+	return valueAssign, err
+
+}
+
+func getValueFromTopology(ctx context.Context, deploymentID, inputName string) (*tosca.ValueAssignment, error) {
+	var valueAssign *tosca.ValueAssignment
+
+	found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+	if err != nil {
+		return valueAssign, err
+	}
+	if found {
+		valueAssign = paramDef.Value
+		if valueAssign == nil {
+			valueAssign = paramDef.Default
+		}
+	}
+	return valueAssign, err
+}
+
+func addTopologyInputs(ctx context.Context, deploymentID string, result map[string]tosca.ParameterDefinition) error {
+
+	topologyInputNames, err := deployments.GetTopologyInputsNames(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
-	err = tasks.StoreOperations(s.t.taskID, wfOps)
+
+	for _, inputName := range topologyInputNames {
+		if _, ok := result[inputName]; ok {
+			// Already defined
+			continue
+		}
+
+		found, paramDef, err := deployments.GetTopologyInputParameter(ctx, deploymentID, inputName)
+		if err != nil {
+			return err
+		}
+
+		if found {
+			result[inputName] = *paramDef
+		}
+
+	}
+	return err
+}
+
+func (s *step) registerInlineWorkflow(ctx context.Context, deploymentID string, activity builder.Activity) error {
+	workflowName := activity.Value()
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).RegisterAsString(
+		fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, s.t.taskID, s.t.targetID))
+
+	// Preparing a new task with its own data referencing the parent workflow step
+	parentData, err := tasks.GetAllTaskData(s.t.taskID)
 	if err != nil {
-		err = errors.Wrapf(err, "Failed to register workflow init operations with workflow:%q, targetID:%q, taskID:%q", workflowName, s.t.targetID, s.t.taskID)
+		return err
+	}
+	data := make(map[string]string)
+	for k, v := range parentData {
+		data[k] = v
+	}
+	data[taskDataParentWorkflowName] = s.WorkflowName
+	data[taskDataParentStepName] = s.Name
+	data[taskDataParentTaskID] = s.t.taskID
+	data[taskDataDeploymentID] = deploymentID
+	data[taskDataWorkflowName] = workflowName
+
+	// Add workflow input parameters if any
+	inputParameters, err := s.getActivityInputParameters(ctx, activity, deploymentID, workflowName)
+	if err != nil {
+		return err
+	}
+	for inputName, param := range inputParameters {
+		inputValue := param.Value
+		if inputValue == nil {
+			inputValue = param.Default
+		}
+		if inputValue != nil {
+			log.Debugf("Adding to inline workflow %s input %s value %s", workflowName, inputName, inputValue.String())
+			data[path.Join("inputs", inputName)] = fmt.Sprintf("%v", inputValue)
+		}
 	}
 
+	taskID, err := collector.NewCollector(s.cc).RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
+	if err != nil {
+		err = errors.Wrapf(err, "Failed to register inline workflow %s in parent workflow %s step %s, targetID %s, taskID %s",
+			workflowName, s.WorkflowName, s.Name, s.t.targetID, s.t.taskID)
+		_ = s.setStatus(tasks.TaskStepStatusERROR)
+		return err
+	}
+
+	log.Debugf("Registered task %s for inline workflow %s in parent workflow %s step %s",
+		taskID, workflowName, s.WorkflowName, s.Name)
+	_ = s.setStatus(tasks.TaskStepStatusRUNNING)
+
+	// Marking this step as asynchronous as it should not be considered as
+	// done by the caller
+	s.Async = true
 	return err
 }
 

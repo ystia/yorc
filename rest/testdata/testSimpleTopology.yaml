@@ -51,4 +51,13 @@ topology_template:
             - delegate: stop
     run:
     cancel:
+    testWorkflow:
+      inputs:
+        param1:
+          type: string
+      steps:
+        Compute_start:
+          target: Compute
+          activities:
+            - delegate: start
 

@@ -14,14 +14,15 @@
 
 package tosca
 
-// An Workflow is the representation of a TOSCA Workflow
+// A Workflow is the representation of a TOSCA Workflow
 //
-// Currently Workflows are not part of the TOSCA specification
 type Workflow struct {
-	Steps map[string]*Step `yaml:"steps,omitempty" json:"steps,omitempty"`
+	Inputs  map[string]PropertyDefinition  `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	Steps   map[string]*Step               `yaml:"steps,omitempty" json:"steps,omitempty"`
+	Outputs map[string]ParameterDefinition `yaml:"outputs,omitempty" json:"outputs,omitempty"`
 }
 
-// An Step is the representation of a TOSCA Workflow Step
+// A Step is the representation of a TOSCA Workflow Step
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_WORKFLOW_STEP_DEFN
 // for more details
@@ -39,11 +40,67 @@ type Step struct {
 
 // An Activity is the representation of a TOSCA Workflow Step Activity
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_WORKFLOW_ACTIVITY_DEFN
+// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.3/TOSCA-Simple-Profile-YAML-v1.3.html#DEFN_ENTITY_WORKFLOW_ACTIVITY_DEFN
 // for more details
 type Activity struct {
-	SetState      string `yaml:"set_state,omitempty" json:"set_state,omitempty"`
-	Delegate      string `yaml:"delegate,omitempty" json:"delegate,omitempty"`
-	CallOperation string `yaml:"call_operation,omitempty" json:"call_operation,omitempty"`
-	Inline        string `yaml:"inline,omitempty" json:"inline,omitempty"`
+	SetState      string             `yaml:"set_state,omitempty" json:"set_state,omitempty"`
+	Delegate      *WorkflowActivity  `yaml:"delegate,omitempty" json:"delegate,omitempty"`
+	CallOperation *OperationActivity `yaml:"call_operation,omitempty" json:"call_operation,omitempty"`
+	Inline        *WorkflowActivity  `yaml:"inline,omitempty" json:"inline,omitempty"`
+}
+
+// WorkflowActivity defines the name of a workflow and optional input assignments
+type WorkflowActivity struct {
+	Workflow string                         `yaml:"workflow" json:"workflow"`
+	Inputs   map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+}
+
+// OperationActivity defines the name of an operation and optional input assignments
+type OperationActivity struct {
+	Operation string                         `yaml:"operation" json:"operation"`
+	Inputs    map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+}
+
+// UnmarshalYAML unmarshals a yaml into a WorkflowActivity
+func (w *WorkflowActivity) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var err error
+	var s string
+	if err = unmarshal(&s); err == nil {
+		w.Workflow = s
+		return nil
+	}
+
+	var str struct {
+		Workflow string                         `yaml:"workflow" json:"workflow"`
+		Inputs   map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	}
+	if err = unmarshal(&str); err == nil {
+		w.Workflow = str.Workflow
+		w.Inputs = str.Inputs
+		return nil
+	}
+
+	return err
+}
+
+// UnmarshalYAML unmarshals a yaml into a WorkflowActivity
+func (o *OperationActivity) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var err error
+	var s string
+	if err = unmarshal(&s); err == nil {
+		o.Operation = s
+		return nil
+	}
+
+	var str struct {
+		Operation string                         `yaml:"operation" json:"workflow"`
+		Inputs    map[string]ParameterDefinition `yaml:"inputs,omitempty" json:"inputs,omitempty"`
+	}
+	if err = unmarshal(&str); err == nil {
+		o.Operation = str.Operation
+		o.Inputs = str.Inputs
+		return nil
+	}
+
+	return err
 }

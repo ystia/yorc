@@ -41,51 +41,68 @@ func init() {
 		Short: "Get information about a deployment task",
 		Long:  `Display information about a given task specifying the deployment id and the task id.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 2 {
-				return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
-			}
 			client, err := httputil.GetClient(deployments.ClientConfig)
 			if err != nil {
-				httputil.ErrExit(err)
+				return err
 			}
-
-			url := path.Join("/deployments", args[0], "/tasks/", args[1])
-			request, err := client.NewRequest("GET", url, nil)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-
-			request.Header.Add("Accept", "application/json")
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-			ids := args[0] + "/" + args[1]
-			httputil.HandleHTTPStatusCode(response, ids, "deployment/task", http.StatusOK)
-			var task rest.Task
-			body, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			err = json.Unmarshal(body, &task)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			fmt.Println("Task: ", task.ID)
-			fmt.Println("Task status:", task.Status)
-			fmt.Println("Task type:", task.Type)
-
-			if withSteps {
-				displayStepTables(client, args)
-			}
-
-			return nil
+			return taskInfo(client, args, withSteps)
 		},
 	}
 
 	infoTaskCmd.PersistentFlags().BoolVarP(&withSteps, "steps", "w", false, "Show steps of the related workflow associated to the task")
 	tasksCmd.AddCommand(infoTaskCmd)
+}
+
+func taskInfo(client httputil.HTTPClient, args []string, withSteps bool) error {
+	if len(args) != 2 {
+		return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
+	}
+	url := path.Join("/deployments", args[0], "/tasks/", args[1])
+	request, err := client.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	request.Header.Add("Accept", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	ids := args[0] + "/" + args[1]
+	httputil.HandleHTTPStatusCode(response, ids, "deployment/task", http.StatusOK)
+	var task rest.Task
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body, &task)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Task: ", task.ID)
+	fmt.Println("Task status:", task.Status)
+	fmt.Println("Task type:", task.Type)
+	fmt.Println("Task outputs:")
+
+	if task.Outputs != nil {
+		outputsTable := tabutil.NewTable()
+		outputsTable.AddHeaders("Name", "Value")
+		for outputName, outputValue := range task.Outputs {
+			outputsTable.AddRow(outputName, outputValue)
+		}
+		fmt.Println(outputsTable.Render())
+	}
+
+	if task.ErrorMessage != "" {
+		fmt.Println("Task Error Message:", task.ErrorMessage)
+	}
+
+	if withSteps {
+		displayStepTables(client, args)
+	}
+
+	return nil
 }
 
 func displayStepTables(client httputil.HTTPClient, args []string) {

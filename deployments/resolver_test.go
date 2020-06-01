@@ -99,6 +99,11 @@ func testGetOperationOutput(t *testing.T) {
 	require.NotNil(t, result)
 	require.Equal(t, "part3", result.RawString())
 
+	outputs, err := GetOperationOutputs(ctx, deploymentID, "", "yorc.tests.nodes.GetOPOutputs", "Standard.start")
+	require.Nil(t, err, "%+v", err)
+	require.NotNil(t, outputs)
+	require.NotNil(t, outputs["ANOTHER_OUTPUT"].AttributeMapping)
+	require.Equal(t, []string{"SELF", "my_output"}, outputs["ANOTHER_OUTPUT"].AttributeMapping.Parameters)
 }
 
 func testGetOperationOutputReal(t *testing.T) {

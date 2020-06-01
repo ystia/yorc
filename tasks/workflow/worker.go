@@ -52,20 +52,20 @@ import (
 // If an error occurred during the step execution, task status need to be updated
 // Each done step will register the next ones. In case of join, the last done of previous steps will register the next step
 type worker struct {
-	workerPool   chan chan *taskExecution
-	TaskChannel  chan *taskExecution
-	shutdownCh   chan struct{}
-	consulClient *api.Client
-	cfg          config.Configuration
+	workerPool           chan chan *taskExecution
+	TaskExecutionChannel chan *taskExecution
+	shutdownCh           chan struct{}
+	consulClient         *api.Client
+	cfg                  config.Configuration
 }
 
 func newWorker(workerPool chan chan *taskExecution, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) worker {
 	return worker{
-		workerPool:   workerPool,
-		TaskChannel:  make(chan *taskExecution),
-		shutdownCh:   shutdownCh,
-		consulClient: consulClient,
-		cfg:          cfg,
+		workerPool:           workerPool,
+		TaskExecutionChannel: make(chan *taskExecution),
+		shutdownCh:           shutdownCh,
+		consulClient:         consulClient,
+		cfg:                  cfg,
 	}
 }
 
@@ -75,12 +75,12 @@ func (w *worker) Start() {
 	go func() {
 		for {
 			// register the current worker into the worker queue.
-			w.workerPool <- w.TaskChannel
+			w.workerPool <- w.TaskExecutionChannel
 			select {
-			case task := <-w.TaskChannel:
+			case taskExecution := <-w.TaskExecutionChannel:
 				// we have received a work request.
-				log.Debugf("Worker got Task Execution with id %s", task.taskID)
-				w.handleExecution(task)
+				log.Debugf("Worker reveived a TaskExecution with task id %s", taskExecution.taskID)
+				w.handleExecution(taskExecution)
 
 			case <-w.shutdownCh:
 				// we have received a signal to stop
@@ -155,6 +155,7 @@ func (w *worker) cleanupScaledDownNodes(ctx context.Context, t *taskExecution) e
 	return nil
 }
 
+// worker handle a taskExecution
 func (w *worker) handleExecution(t *taskExecution) {
 	log.Debugf("Handle task execution:%+v", t)
 	err := t.notifyStart()
@@ -162,12 +163,25 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func() {
+	taskExecutionLabels := []metrics.Label{
+		metrics.Label{Name: "TaskID", Value: t.taskID},
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Type", Value: t.taskType.String()},
+	}
+	metrics.MeasureSinceWithLabels([]string{"taskExecution", "wait"}, t.creationDate, taskExecutionLabels)
+	defer func(t *taskExecution, start time.Time, taskExecutionLabels []metrics.Label) {
 		// Remove currently processing execution flag
 		err := t.notifyEnd()
 		if err != nil {
 			log.Printf("%+v", err)
 		}
+		// emit metrics on taskExecution duration and status on termination
+		if taskStatus, err := t.getTaskStatus(); err == nil && taskStatus != tasks.TaskStatusRUNNING {
+			metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "duration"}), start, taskExecutionLabels)
+			taskExecutionLabels = append(taskExecutionLabels, metrics.Label{Name: "Status", Value: taskStatus.String()})
+			metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"taskExecution", "total"}), 1, taskExecutionLabels)
+		}
+		// clean-up
 		t.delete()
 		if err != nil {
 			log.Printf("%+v", err)
@@ -176,13 +190,8 @@ func (w *worker) handleExecution(t *taskExecution) {
 		if err != nil {
 			log.Printf("%+v", err)
 		}
-	}()
+	}(t, time.Now(), taskExecutionLabels)
 
-	if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus == tasks.TaskStatusINITIAL {
-		metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
-	}
-
-	metrics.MeasureSince([]string{"TaskExecution", "wait"}, t.creationDate)
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
@@ -190,17 +199,11 @@ func (w *worker) handleExecution(t *taskExecution) {
 		events.ExecutionID: t.taskID,
 	}
 	ctx := events.NewContext(context.Background(), logOptFields)
-	err = checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusRUNNING)
+	err = checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusRUNNING, nil)
 	if err != nil {
 		log.Printf("%+v", err)
 		return
 	}
-	defer func(t *taskExecution, start time.Time) {
-		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
-			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String(), taskStatus.String()}), 1)
-			metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String()}), start)
-		}
-	}(t, time.Now())
 
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
@@ -247,13 +250,13 @@ func (w *worker) runOneExecutionTask(ctx context.Context, t *taskExecution) erro
 			// let's assume the we failed for this reason
 			// while we actually don't know if we encounter another error
 			tasks.UpdateTaskStepWithStatus(t.taskID, t.step, tasks.TaskStepStatusCANCELED)
-			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusCANCELED)
+			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusCANCELED, err)
 		} else if err != nil {
 			tasks.UpdateTaskStepWithStatus(t.taskID, t.step, tasks.TaskStepStatusERROR)
-			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED)
+			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
 		} else {
 			tasks.UpdateTaskStepWithStatus(t.taskID, t.step, tasks.TaskStepStatusDONE)
-			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE)
+			checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE, nil)
 		}
 	}()
 	// We do not monitor task failure as there is only one execution
@@ -294,7 +297,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	if err != nil {
 		return ctx, err
 	}
-	op, err := operations.GetOperation(ctx, t.targetID, nodeName, interfaceName+"."+commandName, "", "")
+	op, err := operations.GetOperation(ctx, t.targetID, nodeName, interfaceName+"."+commandName, "", "", nil)
 	if err != nil {
 		err = setNodeStatus(ctx, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err != nil {
@@ -314,19 +317,25 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	ctx = operations.SetOperationLogFields(ctx, op)
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName, events.OperationName: op.Name})
 
+	executorOperationLabels := []metrics.Label{
+		metrics.Label{Name: "Deployment", Value: t.targetID},
+		metrics.Label{Name: "Name", Value: op.Name},
+		metrics.Label{Name: "Node", Value: nodeType},
+	}
+
 	err = func() error {
-		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name}), time.Now())
+		defer metrics.MeasureSinceWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation"}), time.Now(), executorOperationLabels)
 		return exec.ExecOperation(ctx, w.cfg, t.taskID, t.targetID, nodeName, op)
 	}()
 	if err != nil {
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "failures"}), 1)
+		metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "failures"}), 1, executorOperationLabels)
 		err2 := setNodeStatus(ctx, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err2 != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("failed to update node %q state to error", nodeName)
 		}
 		return ctx, err
 	}
-	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
+	metrics.IncrCounterWithLabels(metricsutil.CleanupMetricKey([]string{"executor", "operation", "successes"}), 1, executorOperationLabels)
 	return ctx, err
 }
 
@@ -542,6 +551,12 @@ func (w *worker) makeWorkflowFinalFunction(ctx context.Context, deploymentID, ta
 		if taskStatus != tasks.TaskStatusDONE {
 			wfStatus = failureWfStatus
 		}
+
+		err = storeWorkflowOutputs(ctx, deploymentID, taskID, wfName)
+		if err != nil {
+			return err
+		}
+
 		return deployments.SetDeploymentStatus(ctx, deploymentID, wfStatus)
 	}
 }
@@ -579,7 +594,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 			}
 			return nil
 		}
-		bypassErrors, err := w.checkByPassErrors(t, "uninstall")
+		bypassErrors, err := checkByPassErrors(t, "uninstall")
 		if err != nil {
 			return err
 		}
@@ -597,7 +612,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	if t.finalFunction == nil {
 		t.finalFunction = func() error {
 			if err != nil {
-				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED)
+				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
 				return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
 			}
 			return nil
@@ -632,12 +647,12 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		}
 	}
 	// Delete events tree corresponding to the deployment TaskExecution
-	err = events.PurgeDeploymentEvents(t.targetID)
+	err = events.PurgeDeploymentEvents(ctx, t.targetID)
 	if err != nil {
 		return err
 	}
 	// Delete logs tree corresponding to the deployment
-	err = events.PurgeDeploymentLogs(t.targetID)
+	err = events.PurgeDeploymentLogs(ctx, t.targetID)
 	if err != nil {
 		return err
 	}
@@ -653,7 +668,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 		return err
 	}
 	// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
-	checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE)
+	checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusDONE, nil)
 	err = tasks.DeleteTask(t.taskID)
 	if err != nil {
 		return err
@@ -727,28 +742,35 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 	if wfName == "" {
 		return errors.New("workflow name missing")
 	}
-	bypassErrors, err := w.checkByPassErrors(t, wfName)
+	bypassErrors, err := checkByPassErrors(t, wfName)
 	if err != nil {
 		return err
 	}
 	t.finalFunction = func() error {
-		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.targetID, t.taskID, wfName)
+		taskStatus, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.targetID, t.taskID, wfName)
+		if err != nil {
+			return err
+		}
+
+		// Check if this workflow was launched as an inline workflow by a parent workflow
+		parentWorkflow, err := getParentWorkflow(ctx, t, wfName)
+		if err != nil {
+			return err
+		}
+
+		if parentWorkflow != "" {
+			err = updateParentWorkflowStepAndRegisterNextSteps(ctx, t, parentWorkflow, taskStatus)
+		}
+
+		err = storeWorkflowOutputs(ctx, t.targetID, t.taskID, wfName)
+		if err != nil {
+			return err
+		}
+
 		return err
 	}
 
 	return w.runWorkflowStep(ctx, t, wfName, bypassErrors)
-}
-
-func (w *worker) checkByPassErrors(t *taskExecution, wfName string) (bool, error) {
-	continueOnError, err := tasks.GetTaskData(t.taskID, "continueOnError")
-	if err != nil {
-		return false, err
-	}
-	bypassErrors, err := strconv.ParseBool(continueOnError)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to parse \"continueOnError\" flag for workflow:%q", wfName)
-	}
-	return bypassErrors, nil
 }
 
 // bool return indicates if the workflow is done
@@ -758,7 +780,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	if err != nil {
 		return errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
-	if wfSteps == nil || len(wfSteps) == 0 {
+	if len(wfSteps) == 0 {
 		// Nothing to do
 		return nil
 	}
@@ -773,7 +795,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 		return errors.Wrapf(err, "The workflow %s step %s ended on error", workflowName, t.step)
 	}
 	if !s.Async {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.targetID, workflowName, t.step))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID: %q, Workflow: %q, step: %q ended successfully", t.targetID, workflowName, t.step))
 		return s.registerNextSteps(ctx, workflowName)
 	}
 	// If we are asynchronous then no the workflow is not done

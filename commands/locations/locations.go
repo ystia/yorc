@@ -28,7 +28,6 @@ import (
 	"github.com/ystia/yorc/v4/commands"
 	"github.com/ystia/yorc/v4/commands/httputil"
 	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/tabutil"
 	"github.com/ystia/yorc/v4/rest"
 )
 
@@ -104,32 +103,6 @@ func getColoredText(colorize bool, text string, operation int) string {
 		return color.New(color.FgHiRed, color.Bold).SprintFunc()(text)
 	default:
 		return text
-	}
-}
-
-// AddRow adds a row to a table, with text colored according to the operation
-// longTable specifies table with all headers
-func addRow(table tabutil.Table, colorize bool, operation int, lConfig rest.LocationConfiguration) {
-	colNumber := 3
-
-	coloredColumns := make([]interface{}, colNumber)
-	locProps := lConfig.Properties
-	propKeys := locProps.Keys()
-	for i := 0; i < len(propKeys); i++ {
-		propValue := locProps.Get(propKeys[i])
-		value := fmt.Sprintf("%v", propValue)
-		prop := propKeys[i] + ": " + value
-		if i == 0 {
-			coloredColumns[0] = getColoredText(colorize, lConfig.Name, operation)
-			coloredColumns[1] = getColoredText(colorize, lConfig.Type, operation)
-			coloredColumns[2] = getColoredText(colorize, prop, operation)
-		} else {
-			coloredColumns[0] = getColoredText(colorize, "", operation)
-			coloredColumns[1] = getColoredText(colorize, "", operation)
-			coloredColumns[2] = getColoredText(colorize, prop, operation)
-
-		}
-		table.AddRow(coloredColumns...)
 	}
 }
 

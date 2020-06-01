@@ -17,30 +17,30 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/prov"
-	"github.com/ystia/yorc/v4/tasks"
-	"github.com/ystia/yorc/v4/testutil"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 var JSONvalidDeployment = `
 {
-  "apiVersion": "extensions/v1beta1",
+  "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
      "name": "test-deploy"
@@ -304,8 +304,6 @@ func Test_execution_invalid_JSON(t *testing.T) {
 
 func Test_execution_scale_resources(t *testing.T) {
 	t.Skip()
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
 	deploymentID := "Dep-ID"
 	e := &execution{
 		deploymentID: deploymentID,
@@ -353,8 +351,6 @@ func Test_execution_scale_resources(t *testing.T) {
 func Test_execution_del_resources(t *testing.T) {
 	t.Skip()
 	ctx := context.Background()
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
 	deploymentID := "Dep-ID"
 
 	e := &execution{
@@ -424,8 +420,6 @@ func deployTestResources(ctx context.Context, e *execution, k8s *k8s, resources 
 
 func Test_execution_create_resource(t *testing.T) {
 	t.Skip()
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
 	deploymentID := "Dep-ID"
 	e := &execution{
 		deploymentID: deploymentID,
@@ -487,7 +481,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 	}
 }
 
-func Test_execution_executeInvalidOperation(t *testing.T) {
+func testExecutionExecuteInvalidOperation(t *testing.T) {
 	tests := []struct {
 		name    string
 		opName  string
@@ -592,10 +586,7 @@ func Test_execution_executeInvalidOperation(t *testing.T) {
 // 	}
 // }
 
-func Test_execution_getExpectedInstances(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
-
+func testExecutionGetExpectedInstances(t *testing.T) {
 	deploymentID := "Dep-ID"
 
 	type fields struct {
@@ -651,9 +642,7 @@ func Test_execution_getExpectedInstances(t *testing.T) {
 	}
 }
 
-func Test_execution_manageNamespaceDeletion(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+func testExecutionManageNamespaceDeletion(t *testing.T) {
 	deploymentID := "Dep-ID"
 	ctx := context.Background()
 
@@ -687,7 +676,7 @@ func Test_execution_manageNamespaceDeletion(t *testing.T) {
 	// One ns "test-ns", 1 controler
 	k8s1 := newTestSimpleK8s()
 	k8s1.clientset.CoreV1().Namespaces().Create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test-ns"}})
-	k8s1.clientset.ExtensionsV1beta1().Deployments("test-ns").Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}})
+	k8s1.clientset.AppsV1().Deployments("test-ns").Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}})
 
 	type args struct {
 		clientset         kubernetes.Interface

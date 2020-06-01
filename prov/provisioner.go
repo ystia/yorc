@@ -21,6 +21,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // DelegateExecutor is the interface that wraps the ExecDelegate method
@@ -46,6 +47,8 @@ type Operation struct {
 	RelOp RelationshipOperation `json:"rel_op,omitempty"`
 	// Node on which operation should be executed
 	OperationHost string `json:"operation_host,omitempty"`
+	// Inputs parameters provided by the execution context of the operation
+	Inputs map[string]tosca.ParameterDefinition `json:"inputs,omitempty"`
 }
 
 // String implements the fmt.Stringer interface

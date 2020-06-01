@@ -2,7 +2,81 @@
 
 ## UNRELEASED
 
+### SECURITY FIXES
+
+* Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
+
+### ENHANCEMENTS
+
+* Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
+
+### BUG FIXES
+
+* Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
+* Kubernetes Client uses deprecated apis removed on recent versions of K8S (v1.17+) ([GH-645](https://github.com/ystia/yorc/issues/645))
+* Bootstrap may failed with a nil pointer error if download of a component fails ([GH-634](https://github.com/ystia/yorc/issues/634))
+* Missing concurrency limit during data migration for logs and events file storage ([GH-640](https://github.com/ystia/yorc/issues/640))
+* Unable to undeploy a deployment in progress from Alien4Cloud ([GH-630](https://github.com/ystia/yorc/issues/630))
+
+## 4.0.0 (April 17, 2020)
+
+### BUG FIXES
+
+* Location is not listed if its properties are missing ([GH-625](https://github.com/ystia/yorc/issues/625))
+* Sometimes Yorc bootstrap fails to start local Yorc instance because Consul is not properly started ([GH-623](https://github.com/ystia/yorc/issues/623))
+
+## 4.0.0-rc.1 (March 30, 2020)
+
+### FEATURES
+
+* Support TOSCA 1.3 inputs/outputs for workflows ([GH-556](https://github.com/ystia/yorc/issues/556))
+
+### ENHANCEMENTS
+
+* Yorc Tasks should have an error message when appropriate ([GH-613](https://github.com/ystia/yorc/issues/613))
+
+### BUG FIXES
+
+* CLI yorc locations list doesn't return HostsPool information ([GH-615](https://github.com/ystia/yorc/issues/615))
+* Check for location type mismatch ([GH-550](https://github.com/ystia/yorc/issues/550))
+
+## 4.0.0-M10 (March 10, 2020)
+
+### FEATURES
+
+* Add a consumable resources concept to the Hosts Pool ([GH-205](https://github.com/ystia/yorc/issues/205))
+
+### BUG FIXES
+
+* Yorc Bootstrap doesn't uninstall yorc binary ([GH-605](https://github.com/ystia/yorc/issues/605))
+* Document server info REST API endpoint and change returned JSON to comply to our standards ([GH-609](https://github.com/ystia/yorc/issues/609))
+* Default cache size for file storage is too large ([GH-612](https://github.com/ystia/yorc/issues/612))
+
+## 4.0.0-M9 (February 14, 2020)
+
+### FEATURES
+
+* Host pool election for compute allocation can be more relevant ([GH-83](https://github.com/ystia/yorc/issues/83))
+
+### BUG FIXES
+
+* Tosca public_ip_address attribute is wrongly set with private address for hosts pool computes ([GH-593](https://github.com/ystia/yorc/issues/593))
+* REQ_TARGET keyword on TOSCA doesn't work with requirement type ([GH-598](https://github.com/ystia/yorc/issues/598))
+* Failure running workflow with inline activity ([GH-592](https://github.com/ystia/yorc/issues/592))
+
+## 4.0.0-M8 (January 24, 2020)
+
 ### BREAKING CHANGES
+
+#### Refactor Yorc storage system
+
+Yorc supports several store types and store implementations that can be configured by users correspondingly with their needs.
+See below enhancement allowing to implement a File+Cache sorage backend.
+
+#### Changes in Yorc metric namespace
+
+In order to improve the observability of Yorc execution, the exposed metrics' names were modified.
+Now labels are used which allow to provide metric trees ([GH-297](https://github.com/ystia/yorc/issues/297)).
 
 #### Changes on the deployments API
 
@@ -23,10 +97,17 @@ func GetRequirementsByTypeForNode(ctx context.Context, deploymentID, nodeName, r
 func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca.Workflow, error)
 ```
 
+### FEATURES
+
+* Volume attachment on AWS Compute nodes ([GH-122](https://github.com/ystia/yorc/issues/122))
+
 ### ENHANCEMENTS
 
 * Should be able to bootstrap Yorc on OpenStack with Identity API v3 ([GH-575](https://github.com/ystia/yorc/issues/575))
 * Refactor deployments package to be able to use different storage backends - part Two: Consul as default Deployments store implementation ([GH-530](https://github.com/ystia/yorc/issues/530))
+* Implement a File+Cache storage backend for static parts of deployments (GH-554](https://github.com/ystia/yorc/issues/554))
+* Refactor logs to allow to config new implementations (GH-552](https://github.com/ystia/yorc/issues/552))
+* Refactor deployments events to allow to use different backends (GH-553](https://github.com/ystia/yorc/issues/553))
 
 ### BUG FIXES
 
@@ -37,12 +118,14 @@ func GetWorkflow(ctx context.Context, deploymentID, workflowName string) (*tosca
 * An error during deployment purge may let the deployment in a wrong state ([GH-572](https://github.com/ystia/yorc/issues/572))
 * Can have current deployment and undeployment on the same application on specific conditions ([GH-567](https://github.com/ystia/yorc/issues/567))
 * API calls to deploy and update a deployment will now prevent other API calls that may modify a deployment to run at the same time
+* Yorc HTTP health check is defined on localhost address ([GH-585](https://github.com/ystia/yorc/issues/585))
+* Unable to get network ID attribute for Openstack many compute instances ([GH-584](https://github.com/ystia/yorc/issues/584))
 
 ## 4.0.0-M7 (November 29, 2019)
 
 ### BREAKING CHANGES
 
-#### Changes on the REST API
+#### Changes in the REST API
 
 ##### Deployment updates
 

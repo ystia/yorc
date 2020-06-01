@@ -16,6 +16,7 @@ package internal
 
 import (
 	"context"
+	"github.com/ystia/yorc/v4/storage/store"
 	"path"
 	"strings"
 
@@ -37,11 +38,11 @@ func StoreWorkflow(ctx context.Context, deploymentID, workflowName string, workf
 func transformedWorkflow(workflow *tosca.Workflow) *tosca.Workflow {
 	for _, step := range workflow.Steps {
 		for _, activity := range step.Activities {
-			if activity.CallOperation != "" {
+			if activity.CallOperation != nil {
 				// Preserve case for requirement and target node name in case of relationship operation
-				opSlice := strings.SplitN(activity.CallOperation, "/", 2)
+				opSlice := strings.SplitN(activity.CallOperation.Operation, "/", 2)
 				opSlice[0] = strings.ToLower(opSlice[0])
-				activity.CallOperation = strings.Join(opSlice, "/")
+				activity.CallOperation.Operation = strings.Join(opSlice, "/")
 			}
 		}
 	}
@@ -50,14 +51,14 @@ func transformedWorkflow(workflow *tosca.Workflow) *tosca.Workflow {
 
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) error {
-	kv := make([]*types.KeyValue, 0)
+	kv := make([]store.KeyValueIn, 0)
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
 		// no need to store empty workflow
 		if workflow.Steps == nil {
 			continue
 		}
 		wfPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName)
-		kv = append(kv, &types.KeyValue{
+		kv = append(kv, store.KeyValueIn{
 			Key:   wfPrefix,
 			Value: *transformedWorkflow(&workflow),
 		})
@@ -81,11 +82,11 @@ func checkNestedWorkflow(topology tosca.Topology, workflow tosca.Workflow, neste
 	nestedWfs = append(nestedWfs, wfName)
 	for _, step := range workflow.Steps {
 		for _, activity := range step.Activities {
-			if activity.Inline != "" {
-				if collections.ContainsString(nestedWfs, activity.Inline) {
-					return errors.Errorf("A cycle has been detected in inline workflows [initial: %q, repeated: %q]", nestedWfs[0], activity.Inline)
+			if activity.Inline != nil {
+				if collections.ContainsString(nestedWfs, activity.Inline.Workflow) {
+					return errors.Errorf("A cycle has been detected in inline workflows [initial: %q, repeated: %q]", nestedWfs[0], activity.Inline.Workflow)
 				}
-				if err := checkNestedWorkflow(topology, topology.TopologyTemplate.Workflows[activity.Inline], nestedWfs, activity.Inline); err != nil {
+				if err := checkNestedWorkflow(topology, topology.TopologyTemplate.Workflows[activity.Inline.Workflow], nestedWfs, activity.Inline.Workflow); err != nil {
 					return err
 				}
 			}

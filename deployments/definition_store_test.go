@@ -22,11 +22,13 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	stdlog "log"
+	"os"
 	"path"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 	"vbom.ml/util/sortorder"
 
 	ctu "github.com/hashicorp/consul/testutil"
@@ -766,7 +768,7 @@ func testValueAssignmentsWithTopologyInputs(t *testing.T, ctx context.Context, d
 	}
 	for _, tt := range topoInputTests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetInputValue(ctx, deploymentID, tt.args.inputName, tt.args.nestedKeys...)
+			got, err := GetInputValue(ctx, nil, deploymentID, tt.args.inputName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInputValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1031,12 +1033,14 @@ func testInlineWorkflow(t *testing.T) {
 	step := wfInstall.Steps["Some_other_inline"]
 	require.Equal(t, step.Target, "")
 	require.Equal(t, len(step.Activities), 1)
-	require.Equal(t, step.Activities[0].Inline, "my_custom_wf")
+	require.NotNil(t, step.Activities[0].Inline)
+	require.Equal(t, step.Activities[0].Inline.Workflow, "my_custom_wf")
 
 	step = wfInstall.Steps["inception_inline"]
 	require.Equal(t, step.Target, "")
 	require.Equal(t, len(step.Activities), 1)
-	require.Equal(t, step.Activities[0].Inline, "inception")
+	require.NotNil(t, step.Activities[0].Inline)
+	require.Equal(t, step.Activities[0].Inline.Workflow, "inception")
 
 	wfInception, err := GetWorkflow(ctx, deploymentID, "inception")
 	require.Nil(t, err)
@@ -1056,6 +1060,9 @@ func testDeleteWorkflow(t *testing.T) {
 
 	err = DeleteWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error deleting install workflow")
+
+	// wait for value to be deleted
+	time.Sleep(10 * time.Millisecond)
 
 	wfInstall, err := GetWorkflow(ctx, deploymentID, "install")
 	require.NoError(t, err, "Unexpected error reading a non-existing workflow")
@@ -1166,6 +1173,7 @@ func testNotifyAttributeOnValueChange(t *testing.T, deploymentID string) {
 }
 
 func BenchmarkDefinitionStore(b *testing.B) {
+	topoFilePath := "testdata/test_topology.yml"
 	log.SetDebug(false)
 	log.SetOutput(ioutil.Discard)
 	stdlog.SetOutput(ioutil.Discard)
@@ -1176,13 +1184,18 @@ func BenchmarkDefinitionStore(b *testing.B) {
 		c.Stderr = ioutil.Discard
 	}
 
-	srv, _ := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(b)
+	srv, _ := testutil.NewTestConsulInstanceWithConfigAndStore(b, cb, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 	deploymentID := testutil.BuildDeploymentID(b)
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		StoreDeploymentDefinition(ctx, fmt.Sprintf("%s-%d", deploymentID, i), "testdata/import_many_types.yaml")
+		err := StoreDeploymentDefinition(ctx, fmt.Sprintf("%s-%d", deploymentID, i), topoFilePath)
+		require.NoError(b, err, "Error storing deployment definition from file:%s", topoFilePath)
 	}
 	b.StopTimer()
 

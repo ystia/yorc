@@ -14,6 +14,8 @@
 
 package builder
 
+import "github.com/ystia/yorc/v4/tosca"
+
 //go:generate go-enum -f=activities.go --lower
 
 // ActivityType x ENUM(
@@ -36,10 +38,15 @@ type Activity interface {
 	// For call-operation activities it's the operation name.
 	// For inline activities it's the inlined workflow name.
 	Value() string
+
+	// Inputs returns the inputs parameters defined in the activity
+	// It is not relevant for set-state activities
+	Inputs() map[string]tosca.ParameterDefinition
 }
 
 type delegateActivity struct {
 	delegate string
+	inputs   map[string]tosca.ParameterDefinition
 }
 
 func (da delegateActivity) Type() ActivityType {
@@ -47,6 +54,9 @@ func (da delegateActivity) Type() ActivityType {
 }
 func (da delegateActivity) Value() string {
 	return da.delegate
+}
+func (da delegateActivity) Inputs() map[string]tosca.ParameterDefinition {
+	return da.inputs
 }
 
 type setStateActivity struct {
@@ -59,9 +69,13 @@ func (s setStateActivity) Type() ActivityType {
 func (s setStateActivity) Value() string {
 	return s.state
 }
+func (s setStateActivity) Inputs() map[string]tosca.ParameterDefinition {
+	return nil
+}
 
 type callOperationActivity struct {
 	operation string
+	inputs    map[string]tosca.ParameterDefinition
 }
 
 func (c callOperationActivity) Type() ActivityType {
@@ -70,9 +84,13 @@ func (c callOperationActivity) Type() ActivityType {
 func (c callOperationActivity) Value() string {
 	return c.operation
 }
+func (c callOperationActivity) Inputs() map[string]tosca.ParameterDefinition {
+	return c.inputs
+}
 
 type inlineActivity struct {
 	inline string
+	inputs map[string]tosca.ParameterDefinition
 }
 
 func (i inlineActivity) Type() ActivityType {
@@ -80,4 +98,7 @@ func (i inlineActivity) Type() ActivityType {
 }
 func (i inlineActivity) Value() string {
 	return i.inline
+}
+func (i inlineActivity) Inputs() map[string]tosca.ParameterDefinition {
+	return i.inputs
 }

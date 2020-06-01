@@ -67,3 +67,17 @@ func IsNoMatchingHostFoundError(err error) bool {
 	_, ok := errors.Cause(err).(noMatchingHostFoundError)
 	return ok
 }
+
+type hostConnectionError struct {
+	message string
+}
+
+func (e hostConnectionError) Error() string {
+	return e.message
+}
+
+// IsHostConnectionError checks if an error is an error due to host connection error
+func IsHostConnectionError(err error) bool {
+	_, ok := errors.Cause(err).(hostConnectionError)
+	return ok
+}

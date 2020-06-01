@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/ziputil"
 	"io"
 	"io/ioutil"
@@ -42,24 +43,24 @@ import (
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
 
-func testDeploymentHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeploymentHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Run("testDeleteDeploymentHandlerWithStopOnErrorParam", func(t *testing.T) {
-		testDeleteDeploymentHandlerWithStopOnErrorParam(t, client, srv)
+		testDeleteDeploymentHandlerWithStopOnErrorParam(t, client, cfg, srv)
 	})
 	t.Run("testDeleteDeploymentHandlerWithPurgeParam", func(t *testing.T) {
-		testDeleteDeploymentHandlerWithPurgeParam(t, client, srv)
+		testDeleteDeploymentHandlerWithPurgeParam(t, client, cfg, srv)
 	})
 	t.Run("testGetDeploymentHandler", func(t *testing.T) {
-		testGetDeploymentHandler(t, client, srv)
+		testGetDeploymentHandler(t, client, cfg, srv)
 	})
 	t.Run("testListDeploymentHandler", func(t *testing.T) {
-		testListDeploymentHandler(t, client, srv)
+		testListDeploymentHandler(t, client, cfg, srv)
 	})
 	t.Run("testUpdateDeployments", func(t *testing.T) {
-		testUpdateDeployments(t, client, srv)
+		testUpdateDeployments(t, client, cfg, srv)
 	})
 	t.Run("testNewDeployments", func(t *testing.T) {
-		testNewDeployments(t, client, srv)
+		testNewDeployments(t, client, cfg, srv)
 	})
 
 	// Cleanup work
@@ -91,7 +92,7 @@ func prepareTest(t *testing.T, deploymentID string, client *api.Client, srv *tes
 	}
 }
 
-func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 	type result struct {
 		statusCode      int
@@ -118,7 +119,7 @@ func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.C
 			params := url.Values{}
 			params.Add("stopOnError", tt.stopOnErrorParam)
 			req.URL.RawQuery = params.Encode()
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
 
@@ -156,7 +157,7 @@ func testDeleteDeploymentHandlerWithStopOnErrorParam(t *testing.T, client *api.C
 	}
 }
 
-func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	type result struct {
@@ -184,7 +185,7 @@ func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client,
 			params := url.Values{}
 			params.Add("purge", tt.purgeParam)
 			req.URL.RawQuery = params.Encode()
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
 
@@ -220,7 +221,7 @@ func testDeleteDeploymentHandlerWithPurgeParam(t *testing.T, client *api.Client,
 	}
 }
 
-func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testGetDeploymentHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	t.Parallel()
 
 	type result struct {
@@ -245,7 +246,7 @@ func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.Te
 			prepareTest(t, tt.name, client, srv)
 			req := httptest.NewRequest("GET", "/deployments/"+tt.deploymentID, nil)
 			req.Header.Set("Accept", mimeTypeApplicationJSON)
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
 
@@ -274,7 +275,7 @@ func testGetDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.Te
 	}
 }
 
-func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testListDeploymentHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 	//t.Parallel() because conflicts can occurs with other tests
 
 	type result struct {
@@ -298,7 +299,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 			prepareTest(t, tt.name, client, srv)
 			req := httptest.NewRequest("GET", "/deployments", nil)
 			req.Header.Set("Accept", mimeTypeApplicationJSON)
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
 
@@ -327,7 +328,7 @@ func testListDeploymentHandler(t *testing.T, client *api.Client, srv *testutil.T
 	}
 }
 
-func testNewDeployments(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func testNewDeployments(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
 
 	tests := []struct {
 		name           string
@@ -376,7 +377,7 @@ func testNewDeployments(t *testing.T, client *api.Client, srv *testutil.TestServ
 			req := httptest.NewRequest("PUT", "/deployments/"+depID, reqBody)
 			req.Header.Set("Content-Type", mimeTypeApplicationZip)
 
-			resp := newTestHTTPRouter(client, req)
+			resp := newTestHTTPRouter(client, cfg, req)
 			require.NotNil(t, resp, "unexpected nil response")
 			require.Equal(t, tt.wantStatusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.wantStatusCode)
 

@@ -17,6 +17,10 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/collections"
@@ -27,9 +31,6 @@ import (
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"path"
-	"path/filepath"
-	"strings"
 )
 
 // IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
@@ -148,24 +149,50 @@ func getOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, node
 	interfaceName := stringutil.GetAllExceptLastElement(operationName, ".")
 	operationNameShort := stringutil.GetLastElement(operationName, ".")
 
-	var interfaceDef *tosca.InterfaceDefinition
+	var interfaceDefTemplate *tosca.InterfaceDefinition
 	if nodeTemplate != "" {
 		node, err := getNodeTemplate(ctx, deploymentID, nodeTemplate)
 		if err != nil {
 			return nil, nil, err
 		}
-		interfaceDef = getInterface(interfaceName, node.Interfaces)
-	} else if nodeType != "" {
+		interfaceDefTemplate = getInterface(interfaceName, node.Interfaces)
+	}
+	var interfaceDefType *tosca.InterfaceDefinition
+	if nodeType != "" {
 		interfaces, err := getTypeInterfaces(ctx, deploymentID, nodeType)
 		if err != nil {
 			return nil, nil, err
 		}
-		interfaceDef = getInterface(interfaceName, interfaces)
+		interfaceDefType = getInterface(interfaceName, interfaces)
+	}
+
+	interfaceDef := interfaceDefType
+	if interfaceDef == nil {
+		interfaceDef = interfaceDefTemplate
+	} else if interfaceDefTemplate != nil {
+		// Inputs and operations in node template augment those defined in type
+		if interfaceDef.Inputs == nil && interfaceDefTemplate.Inputs != nil {
+			interfaceDef.Inputs = make(map[string]tosca.Input)
+		}
+		for k, v := range interfaceDefTemplate.Inputs {
+			interfaceDef.Inputs[k] = v
+		}
+		if interfaceDef.Operations == nil && interfaceDefTemplate.Operations != nil {
+			interfaceDef.Operations = make(map[string]tosca.OperationDefinition)
+		}
+		for k, v := range interfaceDefTemplate.Operations {
+			interfaceDef.Operations[k] = v
+		}
 	}
 
 	if interfaceDef != nil {
-		opeDef := interfaceDef.Operations[operationNameShort]
-		return &opeDef, interfaceDef, nil
+		var opDefPtr *tosca.OperationDefinition
+		opeDef, ok := interfaceDef.Operations[operationNameShort]
+		if ok {
+			opDefPtr = &opeDef
+		}
+
+		return opDefPtr, interfaceDef, nil
 	}
 
 	return nil, nil, nil
@@ -543,25 +570,22 @@ type OperationInputResult struct {
 
 // GetOperationInput retrieves the value of an input for a given operation
 func GetOperationInput(ctx context.Context, deploymentID, nodeName string, operation prov.Operation, inputName string) ([]OperationInputResult, error) {
-	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
-	if err != nil {
-		return nil, err
-	}
 
-	// Check operation input
 	var va *tosca.ValueAssignment
-	if operationDef != nil {
-		input, is := operationDef.Inputs[inputName]
-		if is && &input != nil {
-			va = input.ValueAssign
+	// Trying first to get the input from the operation execution context
+	execInput, found := operation.Inputs[inputName]
+	if found {
+		va = execInput.Value
+		if va == nil {
+			va = execInput.Default
 		}
 	}
 
-	// Check global interface input
-	if va == nil && interfaceDef != nil {
-		input, is := interfaceDef.Inputs[inputName]
-		if is && &input != nil {
-			va = input.ValueAssign
+	if va == nil {
+		var err error
+		va, err = getInputValueFromOperationAndInterfaceDefinitions(ctx, deploymentID, nodeName, operation, inputName)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -625,7 +649,8 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 		}
 
 		for _, ins := range instances {
-			res, err = resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(ctx, f)
+			res, err = resolver(deploymentID).context(withNodeName(nodeName), withInstanceName(ins),
+				withInputParameters(operation.Inputs), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(ctx, f)
 			if err != nil {
 				return nil, err
 			}
@@ -655,9 +680,37 @@ func GetOperationInput(ctx context.Context, deploymentID, nodeName string, opera
 	return results, err
 }
 
+func getInputValueFromOperationAndInterfaceDefinitions(ctx context.Context, deploymentID, nodeName string,
+	operation prov.Operation, inputName string) (*tosca.ValueAssignment, error) {
+
+	var va *tosca.ValueAssignment
+	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, nodeName, operation.ImplementedInType, operation.Name)
+	if err != nil {
+		return va, err
+	}
+
+	// Check operation input
+	if operationDef != nil {
+		input, is := operationDef.Inputs[inputName]
+		if is && &input != nil {
+			va = input.ValueAssign
+		}
+	}
+
+	// Check global interface input
+	if va == nil && interfaceDef != nil {
+		input, is := interfaceDef.Inputs[inputName]
+		if is && &input != nil {
+			va = input.ValueAssign
+		}
+	}
+
+	return va, err
+}
+
 // GetOperationInputPropertyDefinitionDefault retrieves the default value of an input of type property definition for a given operation
 func GetOperationInputPropertyDefinitionDefault(ctx context.Context, deploymentID, nodeName string, operation prov.Operation, inputName string) ([]OperationInputResult, error) {
-	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
+	operationDef, interfaceDef, err := getOperationAndInterfaceDefinitions(ctx, deploymentID, nodeName, operation.ImplementedInType, operation.Name)
 	if err != nil {
 		return nil, err
 	}

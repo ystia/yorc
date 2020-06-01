@@ -157,11 +157,13 @@ type OutputsCollection struct {
 
 // Task is the representation of a Yorc' task
 type Task struct {
-	ID        string          `json:"id"`
-	TargetID  string          `json:"target_id"`
-	Type      string          `json:"type"`
-	Status    string          `json:"status"`
-	ResultSet json.RawMessage `json:"result_set,omitempty"`
+	ID           string            `json:"id"`
+	TargetID     string            `json:"target_id"`
+	Type         string            `json:"type"`
+	Status       string            `json:"status"`
+	ErrorMessage string            `json:"error_message,omitempty"`
+	ResultSet    json.RawMessage   `json:"result_set,omitempty"`
+	Outputs      map[string]string `json:"outputs,omitempty"`
 }
 
 // TasksCollection is the collection of task's links
@@ -202,7 +204,8 @@ type NodeInstances struct {
 
 // WorkflowRequest allows to provide instances selection for nodes in a workflow
 type WorkflowRequest struct {
-	NodesInstances []NodeInstances `json:"nodesinstances"`
+	NodesInstances []NodeInstances        `json:"nodesinstances"`
+	Inputs         map[string]interface{} `json:"inputs"`
 }
 
 // WorkflowsCollection is a collection of workflows links
@@ -329,6 +332,6 @@ type RegistryInfraUsageCollectorsCollection struct {
 
 // Info are the infos about the current YORC server
 type Info struct {
-	YorcVersion string
-	GitCommit   string
+	YorcVersion string `json:"yorc_version"`
+	GitCommit   string `json:"git_commit"`
 }

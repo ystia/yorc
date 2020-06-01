@@ -19,12 +19,21 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/ystia/yorc/v4/helper/stringutil"
+	"net/url"
 	"strconv"
 	"strings"
 
-	"fmt"
 	"github.com/pkg/errors"
-	"net/url"
+)
+
+const (
+	hostCapabilityName               = "host"
+	genericResourceName              = "resource"
+	genericResourceLabelPrefix       = hostCapabilityName + "." + genericResourceName
+	genericResourcesPropertyName     = "resources"
+	genericResourceNoConsumeProperty = "no_consume"
 )
 
 // HostStatus x ENUM(
@@ -113,19 +122,33 @@ type HostConfig struct {
 
 // An Allocation describes the related allocation associated to a host pool
 type Allocation struct {
-	ID           string            `json:"id"`
-	NodeName     string            `json:"node_name"`
-	Instance     string            `json:"instance"`
-	DeploymentID string            `json:"deployment_id"`
-	Shareable    bool              `json:"shareable"`
-	Resources    map[string]string `json:"resource_labels,omitempty"`
+	ID               string             `json:"id"`
+	NodeName         string             `json:"node_name"`
+	Instance         string             `json:"instance"`
+	DeploymentID     string             `json:"deployment_id"`
+	Shareable        bool               `json:"shareable"`
+	Resources        map[string]string  `json:"resource_labels,omitempty"`
+	GenericResources []*GenericResource `json:"gres_labels,omitempty"`
+	PlacementPolicy  string             `json:"placement_policy"`
 }
 
 func (alloc *Allocation) String() string {
-	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable)
+	// Display placement only if filled
+	var placementStr string
+	if alloc.PlacementPolicy != "" {
+		placementStr = "|placement: " + stringutil.GetLastElement(alloc.PlacementPolicy, ".")
+	}
+
+	allocStr := fmt.Sprintf("deployment: %s|node-instance: %s-%s|shareable: %t%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable, placementStr)
 	if alloc.Resources != nil && len(alloc.Resources) > 0 {
 		for k, v := range alloc.Resources {
-			allocStr += "," + k + ": " + v
+			allocStr += "|" + k + ": " + v
+		}
+	}
+
+	if alloc.GenericResources != nil && len(alloc.GenericResources) > 0 {
+		for _, gr := range alloc.GenericResources {
+			allocStr += "|" + gr.Label + ": \"" + gr.Value + "\""
 		}
 	}
 
@@ -137,7 +160,27 @@ func (alloc *Allocation) buildID() error {
 		return errors.New("Node name, instance and deployment ID must be set")
 	}
 	if alloc.ID == "" {
-		alloc.ID = url.QueryEscape(strings.Join([]string{alloc.DeploymentID, alloc.NodeName, alloc.Instance}, "-"))
+		alloc.ID = buildAllocationID(alloc.DeploymentID, alloc.NodeName, alloc.Instance)
 	}
 	return nil
+}
+
+func buildAllocationID(deploymentID, nodeName, instance string) string {
+	return url.QueryEscape(strings.Join([]string{deploymentID, nodeName, instance}, "-"))
+}
+
+// GenericResource represents a generic resource requirement
+type GenericResource struct {
+	// name of the generic resource
+	Name string `json:"name"`
+	// label used in allocations and hosts pool as host.resource.<name>
+	Label string `json:"label"`
+	// allocation label value set once the generic resource is allocated/released
+	Value string `json:"value"`
+	// define if the generic resource can be only used by a single compute (consumable) or not
+	NoConsumable bool `json:"no_consumable"`
+	// list of ids of generic resources required for the allocation need. Either ids or nb are used
+	ids [][]string
+	// nb of generic resources required for the allocation need. either ids or nb are used
+	nb int
 }

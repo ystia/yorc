@@ -1,0 +1,65 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: org.ystia.ci.tests.test_resource
+  template_version: 1.0.0
+  template_author: test
+
+description: ""
+
+imports:
+  - tosca-normative-types:1.0.0-ALIEN20
+  - yorc-types:1.1.0
+  - yorc-hostspool-types:1.1.0
+
+topology_template:
+  node_templates:
+    ComputeA:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: true
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: "not significant, will be set by Yorc itself"
+              token_type: "password"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            resources:
+              - name: gpu
+                ids:
+                  - "gpu2"
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    ComputeB:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: true
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: "not significant, will be set by Yorc itself"
+              token_type: "password"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        host:
+          properties:
+            resources:
+              - name: gpu
+                number: 2
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1

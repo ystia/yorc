@@ -16,6 +16,7 @@ package sshutil
 
 import (
 	"context"
+	"os"
 	"path"
 	"testing"
 
@@ -25,8 +26,12 @@ import (
 )
 
 func TestRunConsulSSHUtilPackageTests(t *testing.T) {
-	srv, _ := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+	cfg := testutil.SetupTestConfig(t)
+	srv, _ := testutil.NewTestConsulInstance(t, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
 
 	t.Run("KeysTests", func(t *testing.T) {
 		testGetKeysFromCredentialsAttribute(t)

@@ -15,6 +15,7 @@
 package scheduler
 
 import (
+	"context"
 	"encoding/json"
 	"path"
 	"strconv"
@@ -146,6 +147,7 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 
 func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client *api.Client) {
 	t.Parallel()
+	ctx := context.Background()
 	deploymentID := "dep-" + t.Name()
 	ti := 1 * time.Second
 	actionType := "test-action"
@@ -242,7 +244,7 @@ func testProceedScheduledActionWithFirstActionStillRunning(t *testing.T, client 
 
 	require.Equal(t, checkCpt, 3, "unexpected number of checks done")
 
-	logs, _, err := events.LogsEvents(deploymentID, 0, 5*time.Second)
+	logs, _, err := events.LogsEvents(ctx, deploymentID, 0, 5*time.Second)
 	require.NoError(t, err, "Could not retrieve logs")
 	require.Equal(t, true, len(logs) > 0, "expected at least one logged event")
 

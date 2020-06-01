@@ -242,30 +242,6 @@ Lists workflows defined in a deployment <DeploymentId>.
 
      yorc deployments workflows list <DeploymentId> [flags]
 
-Execute a workflow on a given deployment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Trigger a workflow on deployment <DeploymentId>.
-
-.. code-block:: bash
-
-     yorc deployments workflows execute <DeploymentId> [flags]
-
-Flags:
-  * ``-d``, ``--data``: Provide the JSON format of the node instances selection
-  * ``--continue-on-error``: By default if an error occurs in a step of a workflow then other running steps are cancelled and the workflow is stopped. This flag allows to continue to the next steps even if an error occurs.
-  * ``-e``, ``--stream-events``: Stream events after riggering a workflow.
-  * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
-  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
-
-Example using ``--data`` flag with instances selection:
-
-Trigger execution of workflow <workflowName> with instance "1" selected for node "node1", and no instances selected for the other nodes.
-
-.. code-block:: bash
-
-     yorc deployments workflows execute deployID -w workflowName --data '{ "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }]}'
-
 Show a workflow on a given deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -276,15 +252,19 @@ Show a human readable textual representation of a given TOSCA workflow defined i
      yorc deployments workflows show <DeploymentId> [flags]
 
 Flags:
-  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+  * ``-w``, ``--workflow-name``: The workflow name (**mandatory**)
+
+
+When used with flag ``-w`` or ``--workflow-name``, the command will show:
+  * the worflow input parameters, if any
+  * the workflow steps
+  * the workflow output values, if any
 
 Generate a graphical representation of a workflow on a given deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot 
 command provided by GraphViz:
-
-
 
 .. code-block:: bash
 
@@ -293,6 +273,52 @@ command provided by GraphViz:
 Flags:
   * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
   * ``--horizontal``: Draw graph with an horizontal layout. (layout is vertical by default)
+
+Execute a workflow on a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Trigger a workflow on deployment <DeploymentId>.
+
+.. code-block:: bash
+
+     yorc deployments workflows execute <DeploymentId> [flags]
+
+Flags:
+  * ``-d``, ``--data``: Provide the JSON format of the node instances selection and inputs data
+  * ``--continue-on-error``: By default if an error occurs in a step of a workflow then other running steps are cancelled and the workflow is stopped. This flag allows to continue to the next steps even if an error occurs.
+  * ``-e``, ``--stream-events``: Stream events after riggering a workflow.
+  * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
+  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+
+The ``--data`` flag allows to provide input parameters for the workflow, and if necessary, to select the target node instances. 
+
+Information about the inputs parameters can be obtained using the **workflows show** command.
+
+The list of the available node instances can be obtained with the **info** command:
+
+.. code-block:: bash
+
+     yorc deployments info -d deployID
+
+Example how to trigger the execution of workflow <workflowName> on instance "1" selected for node "node1", and workflow input parameters "key1" and "key2".
+
+.. code-block:: bash
+
+     yorc deployments workflows execute deployID -w workflowName --data '{"inputs":{"key1":["value1","value2"],"key2":"value3"},  "nodesinstances": [{ "name": "node1", "instances": [ "1" ] }]}'
+
+Note that providing the target node instances is not mandatory. If not provided, Yorc will select all the instances available for the nodes concerned by the workflow execution.
+ 
+.. code-block:: bash
+
+     yorc deployments workflows execute deployID -w workflowName --data '{"inputs": {"key1": ["value1","value2"], "key2": "value3"}}'
+
+The **exec** command returns the ID of a task created by Yorc to execute the <workflowName> workflow.
+
+You can then use the following command to get the status of this task, and workflow output values if any:
+
+.. code-block:: bash
+
+     yorc deployments task info deployID taskId
 
 .. _yorc_cli_locations_section:
 

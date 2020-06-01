@@ -83,6 +83,43 @@ func (t *taskExecution) notifyStart() error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions", t.id), consulNodeName)
 }
 
+func numberOfWaitingExecutionsForTask(cc *api.Client, taskID string) (int, error) {
+	var nbWaiting int
+	l, err := acquireRunningExecLock(cc, taskID)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Unlock()
+	execPath := path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions")
+	kv := cc.KV()
+	keys, _, err := kv.Keys(execPath+"/", "/", nil)
+	if err != nil {
+		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, execKey := range keys {
+		execID := path.Base(execKey)
+		if execWaiting, err := isWaitingExec(taskID, execID); err == nil && execWaiting {
+			nbWaiting++
+		}
+	}
+	return nbWaiting, nil
+}
+
+func isWaitingExec(taskID, execID string) (bool, error) {
+	exist, step, err := consulutil.GetStringValue(path.Join(consulutil.ExecutionsTaskPrefix, execID, "step"))
+	if err != nil || !exist {
+		return false, errors.Errorf("Cannot get the step of execution %q", execID)
+	}
+	status, err := tasks.GetTaskStepStatus(taskID, step)
+	if err != nil {
+		return false, errors.Errorf("Cannot get status for step %q in task %q", step, taskID)
+	}
+	if status == tasks.TaskStepStatusINITIAL {
+		return true, nil
+	}
+	return false, nil
+}
+
 func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consulutil.AutoDeleteLock, int, error) {
 	l, err := acquireRunningExecLock(cc, taskID)
 	if err != nil {
@@ -141,7 +178,7 @@ func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 }
 
 // checkAndSetTaskStatus allows to check the task status before updating it
-func checkAndSetTaskStatus(ctx context.Context, targetID, taskID string, finalStatus tasks.TaskStatus) error {
+func checkAndSetTaskStatus(ctx context.Context, targetID, taskID string, finalStatus tasks.TaskStatus, errReason error) error {
 	kvp, meta, err := consulutil.GetKV().Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get task status for taskID:%q", taskID)
@@ -166,12 +203,12 @@ func checkAndSetTaskStatus(ctx context.Context, targetID, taskID string, finalSt
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		}
-		return setTaskStatus(ctx, targetID, taskID, finalStatus, meta.LastIndex)
+		return setTaskStatus(ctx, targetID, taskID, finalStatus, meta.LastIndex, errReason)
 	}
 	return nil
 }
 
-func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
+func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.TaskStatus, lastIndex uint64, errReason error) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
 	set, _, err := consulutil.GetKV().CAS(p, nil)
@@ -181,7 +218,7 @@ func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.Ta
 	}
 	if !set {
 		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), taskID)
-		return checkAndSetTaskStatus(ctx, targetID, taskID, status)
+		return checkAndSetTaskStatus(ctx, targetID, taskID, status, errReason)
 	}
 
 	// Emit event for status change
@@ -194,6 +231,9 @@ func setTaskStatus(ctx context.Context, targetID, taskID string, status tasks.Ta
 		return nil
 	}
 	tasks.EmitTaskEventWithContextualLogs(ctx, targetID, taskID, taskType, wfName, status.String())
+	if errReason != nil {
+		return tasks.SetTaskErrorMessage(taskID, errReason.Error())
+	}
 	return nil
 }
 

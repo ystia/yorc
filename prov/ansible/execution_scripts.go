@@ -81,7 +81,7 @@ for n in names:
 		environ[n]=val
 	gVar[n]=val
 
-names=[ [[[range $eidx, $ei := .EnvInputs]]][[[if ($eidx) gt 0]]], [[[end]]]"[[[if (len $ei.InstanceName) gt 0]]][[[printf "%s_" $ei.InstanceName]]][[[end]]][[[$ei.Name]]]"[[[end]]] ]
+names=[ [[[range $eidx, $ei := .EnvInputs]]][[[if gt ($eidx) 0]]], [[[end]]]"[[[if gt (len $ei.InstanceName) 0]]][[[printf "%s_" $ei.InstanceName]]][[[end]]][[[$ei.Name]]]"[[[end]]] ]
 names.extend([ [[[qJoinKeys .Artifacts]]] ])
 names.extend([ [[[qJoinKeys .Context]]] ])
 for n in names:
@@ -152,8 +152,8 @@ const shellAnsiblePlaybook = `
     [[[printf "- shell: \"/bin/bash -l -c %s\"" (getWrappedCommand)]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]
-        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name (encEnvInput $envInput)]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
-        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %s" $envInput.Name (encEnvInput $envInput)]]][[[else]]]
+        [[[ if gt (len $envInput.InstanceName) 0]]][[[ if gt (len $envInput.Value) 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name (encEnvInput $envInput)]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
+        [[[end]]][[[else]]][[[ if gt (len $envInput.Value) 0]]][[[printf  "%s: %s" $envInput.Name (encEnvInput $envInput)]]][[[else]]]
         [[[printf  "%s: \"\"" $envInput.Name]]]
         [[[end]]][[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]

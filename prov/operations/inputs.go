@@ -76,17 +76,16 @@ func ResolveInputsWithInstances(ctx context.Context, deploymentID, nodeName, tas
 	}
 
 	for _, input := range inputKeys {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name, input)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(ctx, deploymentID, nodeName, operation.ImplementedInType, operation.Name, input)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		if isPropDef {
-			inputValue, err := tasks.GetTaskInput(taskID, input)
-			if err != nil {
-				if !tasks.IsTaskDataNotFoundError(err) {
-					return nil, nil, err
-				}
+			_, found := operation.Inputs[input]
+			if !found {
+
+				// Rely on default values if any
 				defaultInputValues, err := deployments.GetOperationInputPropertyDefinitionDefault(ctx, deploymentID, nodeName, operation, input)
 				if err != nil {
 					return nil, nil, err
@@ -99,26 +98,16 @@ func ResolveInputsWithInstances(ctx context.Context, deploymentID, nodeName, tas
 				}
 				continue
 			}
-			instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
-			if err != nil {
-				return nil, nil, err
-			}
-			for i, ins := range instances {
-				envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(nodeName, ins), Value: inputValue})
-				if i == 0 {
-					varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
-				}
-			}
-		} else {
-			inputValues, err := deployments.GetOperationInput(ctx, deploymentID, nodeName, operation, input)
-			if err != nil {
-				return nil, nil, err
-			}
-			for i, iv := range inputValues {
-				envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value, IsSecret: iv.IsSecret})
-				if i == 0 {
-					varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
-				}
+		}
+
+		inputValues, err := deployments.GetOperationInput(ctx, deploymentID, nodeName, operation, input)
+		if err != nil {
+			return nil, nil, err
+		}
+		for i, iv := range inputValues {
+			envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value, IsSecret: iv.IsSecret})
+			if i == 0 {
+				varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
 			}
 		}
 	}

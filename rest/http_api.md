@@ -680,6 +680,11 @@ By default the execution of the workflow's steps take place on all the instances
 It is possible to select instances for the workflow's nodes by adding selection data in the request body.
 For nodes that have no selected instances specified, the execution steps take place on all instances.
 
+The request body can also contain input values assignments, that will be provided
+to the task handling this workflow execution.
+
+'Content-Type' header should be set to 'application/json'.
+
 `POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
 
 Request body allowing to execute a workflow's steps on selected node instances :
@@ -691,7 +696,11 @@ Request body allowing to execute a workflow's steps on selected node instances :
          "node": "Node_Name",
          "instances": [ "0", "2" ]
        }
-    ]
+    ],
+    "inputs": {
+      "param1":"",
+      "param2":"2"
+    }
 }
 ```
 
@@ -705,6 +714,12 @@ HTTP/1.1 201 Created
 Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
+
+This endpoint will fail with an error "400 Bad Request" if:
+
+* a node specified in request body does not exist
+* an instance specified in request body does not exist
+* no value is provided in request body for a required workflow input parameter.
 
 ### List workflows <a name="list-workflows></a>
 
@@ -755,11 +770,39 @@ Content-Type: application/json
   }
 }
 ```
-## Health
 
-### Get the Yorc service health
+## Server related endpoints
 
-This request si made by Consul to check the Yorc service is alive
+These endpoints are related to the queried Yorc server instance.
+
+### Get the Yorc server info
+
+This request return static information about the server. For now it only contains versions information.
+`yorc_version` field contains a [semantic versioning](https://semver.org/spec/v2.0.0.html) version number,
+while `git_commit` contains the git `sha1` of the server version.
+`yorc_version` may contain an option `build identifier` for specific builds like Yorc premium (see below for a sample).
+
+'Accept' header should be set to 'application/json'.
+
+`GET /server/info`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+
+```json
+{
+  "yorc_version": "4.0.0-M10+premium",
+  "git_commit": "4572679f61f102088a8fe431fa88fd7f75dd9c1a"
+}
+```
+
+### Get the Yorc server health
+
+This endpoint is typically used by Consul to check the Yorc service is alive.
 
 'Accept' header should be set to 'application/json'.
 
@@ -1287,7 +1330,7 @@ Content-Type: application/json
 
 ### List locations
 
-List all the existent location definitions. 
+List all the existent location definitions.
 
 'Content-Type' header should be set to 'application/json'.
 
@@ -1314,7 +1357,7 @@ Content-Type: application/json
 
 ### Get location
 
-Get an existent location's definitions. 
+Get an existent location's definitions.
 
 'Content-Type' header should be set to 'application/json'.
 
