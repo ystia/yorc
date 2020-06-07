@@ -924,7 +924,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 
 	vaultPassScript := fmt.Sprintf(vaultPassScriptFormat, pythonInterpreter)
-	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, ".vault_pass"), []byte(vaultPassScript), 0764); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, ".vault_pass"), []byte(vaultPassScript), 0750); err != nil {
 		err = errors.Wrap(err, "Failed to write .vault_pass file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -1203,8 +1203,12 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	env = append(env, "VAULT_PASSWORD="+e.vaultToken)
 	var sshAgentSocket string
 	if !e.cfg.DisableSSHAgent {
+		socketDir, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "ssh-agent"))
+		if err != nil {
+			return err
+		}
 		// Check if SSHAgent is needed
-		sshAgent, err := e.configureSSHAgent(ctx)
+		sshAgent, err := e.configureSSHAgent(ctx, socketDir)
 		if err != nil {
 			return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
 		}
@@ -1287,7 +1291,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	return nil
 }
 
-func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAgent, error) {
+func (e *executionCommon) configureSSHAgent(ctx context.Context, socketDir string) (*sshutil.SSHAgent, error) {
 	var addSSHAgent bool
 	for _, host := range e.hosts {
 		if len(host.privateKeys) > 0 {
@@ -1299,7 +1303,7 @@ func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAg
 		return nil, nil
 	}
 
-	agent, err := sshutil.NewSSHAgent(ctx)
+	agent, err := sshutil.NewSSHAgent(ctx, socketDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1418,7 +1422,7 @@ func (e *executionCommon) generateAnsibleConfigurationFile(
 		ansibleConfig[ansibleConfigDefaultsHeader]["local_tmp"] = path.Join(config.DefaultSandboxWorkDir, "tmp")
 		// Specify where ansible writes SSH control path sockets in the sandbox container for SSH multiplexing.
 		// (By default, ansible writes to ~/.ansible/cp on host machine and may cause permission denied from inside the container)
-		// Each sandbox contrainer should have its own control path
+		// Each sandbox container should have its own control path
 		if e.cfg.Ansible.UseOpenSSH {
 			ansibleConfig[ansibleConfigSSHConnection]["control_path_dir"] = path.Join(config.DefaultSandboxWorkDir, "cp")
 		}

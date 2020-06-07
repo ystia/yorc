@@ -65,6 +65,9 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 			return "", errors.Wrapf(err, "Failed to pull docker image %q", sandboxCfg.Image)
 		}
 	}
+	// set the home environment for the sandbox container so that ansible resolves its default path (~/.ansible)
+	// to the work dir inside the container
+	env = append(env, "HOME="+config.DefaultSandboxWorkDir)
 	env = append(env, sandboxCfg.Env...)
 	cc := &container.Config{
 		Image: sandboxCfg.Image,
@@ -93,6 +96,7 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 	if err != nil {
 		return "", err
 	}
+
 	hc := &container.HostConfig{
 		AutoRemove: true,
 		// Security hardening for the sandbox container
@@ -120,13 +124,16 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 				Target:   config.DefaultSandboxOverlayDir,
 				ReadOnly: true,
 			},
-			{
-				Type:     "bind",
-				Source:   sshAgentSocket,
-				Target:   config.DefaultSandboxMountAgentSocket,
-				ReadOnly: true,
-			},
 		},
+	}
+
+	if sshAgentSocket != "" {
+		hc.Mounts = append(hc.Mounts, mount.Mount{
+			Type:     "bind",
+			Source:   sshAgentSocket,
+			Target:   config.DefaultSandboxMountAgentSocket,
+			ReadOnly: true,
+		})
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Creating docker container from image: %s", sandboxCfg.Image)
