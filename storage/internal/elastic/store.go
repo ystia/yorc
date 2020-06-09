@@ -132,14 +132,11 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 	debugESResponse("IndexRequest:"+indexName, res, err)
 
 	defer res.Body.Close()
-
-	if err != nil {
+	if err != nil || res.IsError() {
+		err = handleESResponseError(res, "Index:"+indexName, string(body), err)
 		return err
-	} else if res.IsError() {
-		return errors.Errorf("Error while indexing document, response code was <%d> and response message was <%s>", res.StatusCode, res.String())
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // SetCollection index collections using ES bulk requests.
@@ -227,9 +224,9 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 		Body:  strings.NewReader(query),
 	}
 	res, err := req.Do(context.Background(), s.esClient)
-	debugESResponse("DeleteByQueryRequest:"+indexName, res, err)
-
 	defer res.Body.Close()
+	debugESResponse("DeleteByQueryRequest:"+indexName, res, err)
+	err = handleESResponseError(res, "DeleteByQueryRequest:"+indexName, query, err)
 	return err
 }
 
@@ -253,26 +250,9 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		s.esClient.Search.WithBody(strings.NewReader(query)),
 	)
 	defer res.Body.Close()
-	if err != nil {
-		e = errors.Wrapf(err, "Error while sending LastModifiedIndexQuery request to ES for k %s, query was: %s", k, query)
+	e = handleESResponseError(res, "LastModifiedIndexQuery for " + k, query, err)
+	if e != nil {
 		return
-	}
-
-	if res.IsError() {
-		var errResponse map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&errResponse); err != nil {
-			e = errors.Wrapf(
-				err,
-				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %s, but the response cannot be decoded, query was: %s",
-				k, res.Status(), query,
-			)
-			return
-		} else {
-			e = errors.Wrapf(err,
-				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %s, query was: %s, response: %+v",
-				k, res.Status(), query, errResponse)
-			return
-		}
 	}
 
 	var r lastIndexResponse
@@ -304,7 +284,6 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 	)
 
 	return lastIndex, nil
-
 }
 
 // List simulates long polling request by :

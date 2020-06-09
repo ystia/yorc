@@ -47,7 +47,7 @@ type stringValue struct {
 }
 
 // Init ES index for logs or events storage: create it if not found.
-func initStorageIndex(c *elasticsearch6.Client, indexName string) {
+func initStorageIndex(c *elasticsearch6.Client, indexName string) error {
 	log.Printf("Checking if index <%s> already exists", indexName)
 
 	// check if the sequences index exists
@@ -60,11 +60,14 @@ func initStorageIndex(c *elasticsearch6.Client, indexName string) {
 	debugESResponse("IndicesExistsRequest:"+indexName, res, err)
 	defer res.Body.Close()
 
-	if res.StatusCode == 200 {
-		log.Printf("Indice %s was found, nothing to do !", indexName)
+	if err != nil {
+		return err
 	}
 
-	if res.StatusCode == 404 {
+	if res.StatusCode == 200 {
+		log.Printf("Indice %s was found, nothing to do !", indexName)
+		return nil
+	} else if res.StatusCode == 404 {
 		log.Printf("Indice %s was not found, let's create it !", indexName)
 
 		requestBodyData := buildInitStorageIndexQuery()
@@ -75,13 +78,11 @@ func initStorageIndex(c *elasticsearch6.Client, indexName string) {
 			Body:  strings.NewReader(requestBodyData),
 		}
 		res, err := req.Do(context.Background(), c)
-		debugESResponse("IndicesCreateRequest:"+indexName, res, err)
 		defer res.Body.Close()
-		if res.IsError() {
-			var rsp map[string]interface{}
-			json.NewDecoder(res.Body).Decode(&rsp)
-			log.Printf("Response for IndicesCreateRequest (%s) : %+v", indexName, rsp)
-		}
+		debugESResponse("IndicesCreateRequest:"+indexName, res, err)
+		return handleESResponseError(res, "IndicesCreateRequest:"+indexName, requestBodyData, err)
+	} else {
+		return handleESResponseError(res, "IndicesExistsRequest:"+indexName, "", err)
 	}
 }
 
@@ -156,19 +157,8 @@ func doQueryEs(c *elasticsearch6.Client,
 	}
 	defer res.Body.Close()
 
-	if res.IsError() {
-		var responseErrorBody map[string]interface{}
-		if decodeErr := json.NewDecoder(res.Body).Decode(&responseErrorBody); decodeErr != nil {
-			err = errors.Wrapf(decodeErr,
-				"An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !",
-				index, query, res.StatusCode, res.Status(),
-			)
-			return
-		}
-		err = errors.Errorf(
-			"An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v",
-			index, query, res.StatusCode, res.Status(), responseErrorBody,
-		)
+	err = handleESResponseError(res, "Search:" + index, query, e)
+	if err != nil {
 		return
 	}
 
@@ -239,10 +229,7 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 	if err != nil {
 		return err
 	} else if res.IsError() {
-		return errors.Errorf(
-			"Error while sending bulk request, response code was <%d> and response message was <%s>",
-			res.StatusCode, res.String(),
-		)
+		return handleESResponseError(res, "BulkRequest", string(*body), err)
 	} else {
 		var rsp map[string]interface{}
 		json.NewDecoder(res.Body).Decode(&rsp)
@@ -254,3 +241,27 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 	log.Printf("Bulk request containing %d operations (%d bytes) has been accepted without errors", opeCount, len(*body))
 	return nil
 }
+
+// Consider the ES Response and wrap errors when needed
+func handleESResponseError(res *esapi.Response, requestDescription string, query string, requestError error) error {
+	if requestError != nil {
+		return errors.Wrapf(requestError, "Error while sending %s, query was: %s", requestDescription, query)
+	}
+	if res.IsError() {
+		var errResponse map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&errResponse); err != nil {
+			e := errors.Wrapf(
+				err,
+				"An error was returned by ES while sending <%s>, status was %s, but the response cannot be decoded, query was: %s, response was: %s",
+				requestDescription, res.Status(), query, res.String(),
+			)
+			return e
+		}
+		e := errors.Errorf(
+			"An error was returned by ES while sending %s, status was %s, query was: %s, response: %+v",
+			requestDescription, res.Status(), query, errResponse)
+		return e
+	}
+	return nil
+}
+
