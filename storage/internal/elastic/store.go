@@ -373,7 +373,6 @@ func (s *elasticStore) Get(k string, v interface{}) (bool, error) {
 	if err := utils.CheckKeyAndValue(k, v); err != nil {
 		return false, err
 	}
-	log.Fatalf("Function Get(string, interface{}) not yet implemented for Elastic store !")
 	return false, errors.Errorf("Function Get(string, interface{}) not yet implemented for Elastic store !")
 }
 
@@ -382,12 +381,10 @@ func (s *elasticStore) Exist(k string) (bool, error) {
 	if err := utils.CheckKey(k); err != nil {
 		return false, err
 	}
-	log.Fatalf("Function Exist(string) not yet implemented for Elastic store !")
 	return false, errors.Errorf("Function Exist(string) not yet implemented for Elastic store !")
 }
 
 // Keys is not used for logs nor events: fails in FATAL.
 func (s *elasticStore) Keys(k string) ([]string, error) {
-	log.Fatalf("Function Keys(string) not yet implemented for Elastic store !")
 	return nil, errors.Errorf("Function Keys(string) not yet implemented for Elastic store !")
 }
