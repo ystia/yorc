@@ -85,13 +85,13 @@ const DefaultUpgradesConcurrencyLimit = 1000
 const DefaultSSHConnectionTimeout = 10 * time.Second
 
 // DefaultSandboxWorkDir is the default workdir in the sandbox container where we mount the ansible recipes
-const DefaultSandboxWorkDir = "/home/ansible"
+const DefaultSandboxWorkDir = "/work/ansible"
 
 // DefaultSandboxOverlayDir is the default directory in the sandbox container where we mount the overlay
-const DefaultSandboxOverlayDir = "/home/overlay"
+const DefaultSandboxOverlayDir = "/work/overlay"
 
 // DefaultSandboxMountAgentSocket is the default location in the sandbox container where we mount the ssh agent socket
-const DefaultSandboxMountAgentSocket = "/ssh-agent"
+const DefaultSandboxMountAgentSocket = "/work/ssh-agent"
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
