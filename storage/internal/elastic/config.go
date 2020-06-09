@@ -103,4 +103,3 @@ func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) int {
 	}
 	return cast.ToInt(getElasticStorageConfigPropertyTag(fn, "default"))
 }
-
