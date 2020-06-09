@@ -1,15 +1,15 @@
 package elastic
 
 import (
-	"context"
 	"encoding/json"
-	"github.com/elastic/go-elasticsearch/v6"
-	"github.com/elastic/go-elasticsearch/v6/esapi"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage/store"
+	"github.com/ystia/yorc/v4/storage/utils"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Precompiled regex to extract storeType and timestamp from a key of the form: "_yorc/logs/MyApp/2020-06-07T21:03:17.812178429Z".
@@ -41,75 +41,6 @@ func extractStoreTypeAndDeploymentID(k string) (storeType string, deploymentID s
 		}
 	}
 	return storeType, deploymentID
-}
-
-// Init ES index for logs or events storage: create it if not found.
-func initStorageIndex(esClient *v6.Client, indexName string) {
-
-	log.Printf("Checking if index <%s> already exists", indexName)
-
-	// check if the sequences index exists
-	req := esapi.IndicesExistsRequest{
-		Index:           []string{indexName},
-		ExpandWildcards: "none",
-		AllowNoIndices:  &pfalse,
-	}
-	res, err := req.Do(context.Background(), esClient)
-	debugESResponse("IndicesExistsRequest:"+indexName, res, err)
-	defer res.Body.Close()
-
-	if res.StatusCode == 200 {
-		log.Printf("Indice %s was found, nothing to do !", indexName)
-	}
-
-	if res.StatusCode == 404 {
-		log.Printf("Indice %s was not found, let's create it !", indexName)
-
-		requestBodyData := buildInitStorageIndexQuery()
-
-		// indice doest not exist, let's create it
-		req := esapi.IndicesCreateRequest{
-			Index: indexName,
-			Body:  strings.NewReader(requestBodyData),
-		}
-		res, err := req.Do(context.Background(), esClient)
-		debugESResponse("IndicesCreateRequest:"+indexName, res, err)
-		defer res.Body.Close()
-		if res.IsError() {
-			var rsp map[string]interface{}
-			json.NewDecoder(res.Body).Decode(&rsp)
-			log.Printf("Response for IndicesCreateRequest (%s) : %+v", indexName, rsp)
-		}
-
-	}
-
-}
-
-// Just to display index settings at startup.
-func debugIndexSetting(esClient *v6.Client, indexName string) {
-	log.Debugf("Get settings for index <%s>", indexName)
-	req := esapi.IndicesGetSettingsRequest{
-		Index:  []string{indexName},
-		Pretty: true,
-	}
-	res, err := req.Do(context.Background(), esClient)
-	debugESResponse("IndicesGetSettingsRequest:"+indexName, res, err)
-	defer res.Body.Close()
-}
-
-// Debug the ES response.
-func debugESResponse(msg string, res *esapi.Response, err error) {
-	if err != nil {
-		log.Debugf("[%s] Error while requesting ES : %+v", msg, err)
-	} else if res.IsError() {
-		var rsp map[string]interface{}
-		json.NewDecoder(res.Body).Decode(&rsp)
-		log.Debugf("[%s] Response Error while requesting ES (%d): %+v", msg, res.StatusCode, rsp)
-	} else {
-		var rsp map[string]interface{}
-		json.NewDecoder(res.Body).Decode(&rsp)
-		log.Debugf("[%s] Success ES response (%d): %+v", msg, res.StatusCode, rsp)
-	}
 }
 
 // We need to append JSON directly into []byte to avoid useless and costly  marshaling / unmarshaling.
@@ -144,5 +75,78 @@ func getSortableStringFromUint64(nanoTimestamp uint64) string {
 		nanoTimestampStr = strings.Repeat("0", 19-len(nanoTimestampStr)) + nanoTimestampStr
 	}
 	return nanoTimestampStr
+}
+
+// The document is enriched by adding 'clusterId' and 'iid' properties.
+// This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
+func buildElasticDocument(k string, v interface{}) (string, []byte, error) {
+	// Extract indice name and timestamp by parsing the key
+	storeType, timestamp := extractStoreTypeAndTimestamp(k)
+	log.Debugf("storeType is: %s, timestamp: %s", storeType, timestamp)
+
+	// Convert timestamp to an int64
+	eventDate, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return storeType, nil, errors.Wrapf(err, "failed to parse timestamp %+v as time, error was: %+v", timestamp, err)
+	}
+	// Convert to UnixNano int64
+	iid := eventDate.UnixNano()
+
+	// This is the piece of 'JSON' we want to append
+	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + s.clusterID + `"`
+	// v is a json.RawMessage
+	raw := v.(json.RawMessage)
+	raw = appendJSONInBytes(raw, []byte(a))
+
+	return storeType, raw, nil
+}
+
+// An error is returned if :
+// - it's not valid (key or value nil)
+// - the size of the resulting bulk operation exceed the maximum authorized for a bulk request
+// The value is not added if it's size + the current body size exceed the maximum authorized for a bulk request.
+// Return a bool indicating if the value has been added to the bulk request body.
+func eventuallyAppendValueToBulkRequest(c elasticStoreConf, body []byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
+	if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
+		return false, err
+	}
+
+	storeType, document, err := buildElasticDocument(kv.Key, kv.Value)
+	if err != nil {
+		return false, err
+	}
+	log.Debugf("About to add a document of size %d bytes to bulk request", len(document))
+
+	// The bulk action
+	index := `{"index":{"_index":"` + getIndexName(c, storeType) + `","_type":"logs_or_event"}}`
+	// TODO: not able to make it work defining the slice length
+	// 2020/06/09 02:54:20 [FATAL] failed to migrate data from Consul for root path:"_yorc/logs" in store with name:"elastic": Error while sending bulk request, response code was <500> and response message was <[500 Internal Server Error] {"error":{"root_cause":[{"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"}],"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"},"status":500}>
+	// 2 = len("\n\n")
+	//bulkOperation := make([]byte, len(index) + len(document) + 2)
+	bulkOperation := make([]byte, 0)
+	bulkOperation = append(bulkOperation, index...)
+	bulkOperation = append(bulkOperation, "\n"...)
+	bulkOperation = append(bulkOperation, document...)
+	bulkOperation = append(bulkOperation, "\n"...)
+	log.Debugf("About to add a bulk operation of size %d bytes to bulk request, current size of bulk request body is %d bytes", len(bulkOperation), len(body))
+
+	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
+	estimatedBodySize := len(body) + len(bulkOperation) + 1
+	if len(bulkOperation)+1 > maxBulkSizeInBytes {
+		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
+	}
+	if estimatedBodySize > maxBulkSizeInBytes {
+		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
+		return false, nil
+	}
+	log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
+	// Append the bulk operation
+	body = append(body, bulkOperation...)
+	return true, nil
+}
+
+// The index name are prefixed to avoid index name collisions.
+func getIndexName(c elasticStoreConf, storeType string) string {
+	return c.indicePrefix + storeType
 }
 

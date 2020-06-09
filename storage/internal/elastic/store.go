@@ -24,7 +24,6 @@ import (
 	elasticsearch6 "github.com/elastic/go-elasticsearch/v6"
 	"github.com/elastic/go-elasticsearch/v6/esapi"
 	"github.com/pkg/errors"
-	"github.com/spf13/cast"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
@@ -32,133 +31,15 @@ import (
 	"github.com/ystia/yorc/v4/storage/utils"
 	"io/ioutil"
 	"math"
-	"reflect"
-	"strconv"
 	"strings"
 	"time"
 )
-
-// elasticStoreConf represents the elastic store configuration that can be set in store.properties configuration.
-type elasticStoreConf struct {
-	// The ES cluster urls (array or CSV)
-	esUrls []string `json:"es_urls"`
-	// The path to the CACert file when TLS is activated for ES
-	caCertPath string `json:"ca_cert_path"`
-	// All index used by yorc will be prefixed by this prefix
-	indicePrefix string `json:"index_prefix" default:"yorc_"`
-	// When querying logs and event, we wait this timeout before each request when it returns nothing
-	// (until something is returned or the waitTimeout is reached)
-	esQueryPeriod time.Duration `json:"es_query_period" default:"5s"`
-	// This timeout is used to wait for more than refresh_interval = 1s when querying logs and events indexes
-	esRefreshWaitTimeout time.Duration `json:"es_refresh_wait_timeout" default:"5s"`
-	// When querying ES, force refresh index before waiting for refresh
-	esForceRefresh bool `json:"es_force_refresh" default:"true"`
-	// This is the maximum size (in kB) of bulk request sent while migrating data
-	maxBulkSize int `json:"max_bulk_size" default:"4000"`
-	// This is the maximum size (in term of number of documents) of bulk request sent while migrating data
-	maxBulkCount int `json:"max_bulk_count" default:"1000"`
-}
-
-var pfalse = false
 
 type elasticStore struct {
 	codec     encoding.Codec
 	esClient  *elasticsearch6.Client
 	clusterID string
 	cfg       elasticStoreConf
-}
-
-// structs for lastIndexRequest response decoding.
-type lastIndexResponse struct {
-	hits         hits                  `json:"hits"`
-	aggregations logOrEventAggregation `json:"aggregations"`
-}
-type hits struct {
-	total int `json:"total"`
-}
-type logOrEventAggregation struct {
-	logsOrEvents lastIndexAggregation `json:"logs_or_events"`
-}
-type lastIndexAggregation struct {
-	lastIndex stringValue `json:"last_index"`
-}
-type stringValue struct {
-	value string `json:"value"`
-}
-
-// Get the tag for this field (for internal usage only: fatal if not found !).
-func getElasticStorageConfigPropertyTag(fn string, tn string) string {
-	t := reflect.TypeOf(elasticStoreConf{})
-	f, found := t.FieldByName(fn)
-	if !found {
-		log.Fatalf("Not able to get field %s on elasticStoreConf struct, there is an issue with this code !", fn)
-	}
-	tv := f.Tag.Get(tn)
-	if tv == "" {
-		log.Fatalf("Not able to get field %s's tag %s value on elasticStoreConf struct, there is an issue with this code !", fn, tn)
-	}
-	return tv
-}
-
-// The configuration of the elastic store is defined regarding default values and store 'properties' dynamic map.
-// Will fail if the required es_urls is not set in store 'properties'
-func getElasticStoreConfig(storeConfig config.Store) elasticStoreConf {
-	var cfg elasticStoreConf
-
-	storeProperties := storeConfig.Properties
-
-	// The ES urls is required
-	k := getElasticStorageConfigPropertyTag("esUrls", "json")
-	if storeProperties.IsSet(k) {
-		cfg.esUrls = storeProperties.GetStringSlice(k)
-		if cfg.esUrls == nil || len(cfg.esUrls) == 0 {
-			log.Fatalf("Not able to get ES configuration for elastic store, es_urls store property seems empty : %+v", storeProperties.Get(k))
-		}
-	} else {
-		log.Fatal("Not able to get ES configuration for elastic store, es_urls store property should be set !")
-	}
-
-	// Define store optional / default configuration
-	k = getElasticStorageConfigPropertyTag("caCertPath", "json")
-	if storeProperties.IsSet(k) {
-		cfg.caCertPath = storeProperties.GetString(k)
-	}
-	k = getElasticStorageConfigPropertyTag("esForceRefresh", "json")
-	if storeProperties.IsSet(k) {
-		cfg.esForceRefresh = storeProperties.GetBool(k)
-	} else {
-		cfg.esForceRefresh = cast.ToBool(getElasticStorageConfigPropertyTag("esForceRefresh", "default"))
-	}
-	k = getElasticStorageConfigPropertyTag("indicePrefix", "json")
-	if storeProperties.IsSet(k) {
-		cfg.indicePrefix = storeProperties.GetString(k)
-	} else {
-		cfg.indicePrefix = getElasticStorageConfigPropertyTag("indicePrefix", "default")
-	}
-	cfg.esQueryPeriod = getDurationFromSettingsOrDefaults("esQueryPeriod", storeProperties)
-	cfg.esRefreshWaitTimeout = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
-	cfg.maxBulkSize = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
-	cfg.maxBulkCount = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
-
-	return cfg
-}
-
-// Get the duration from store config properties, fallback to required default value defined in struc.
-func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) time.Duration {
-	k := getElasticStorageConfigPropertyTag(fn, "json")
-	if dm.IsSet(k) {
-		return dm.GetDuration(k)
-	}
-	return cast.ToDuration(getElasticStorageConfigPropertyTag(fn, "default"))
-}
-
-// Get the int from store config properties, fallback to required default value defined in struc.
-func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) int {
-	k := getElasticStorageConfigPropertyTag(fn, "json")
-	if dm.IsSet(k) {
-		return dm.GetInt(k)
-	}
-	return cast.ToInt(getElasticStorageConfigPropertyTag(fn, "default"))
 }
 
 // NewStore returns a new Elastic store.
@@ -218,42 +99,6 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 	return &elasticStore{encoding.JSON, esClient, clusterID, esCfg}
 }
 
-// Perform a refresh query on ES cluster for this particular index.
-func (s *elasticStore) refreshIndex(indexName string) {
-	req := esapi.IndicesRefreshRequest{
-		Index:           []string{indexName},
-		ExpandWildcards: "none",
-		AllowNoIndices:  &pfalse,
-	}
-	res, err := req.Do(context.Background(), s.esClient)
-	defer res.Body.Close()
-	debugESResponse("IndicesRefreshRequest:"+indexName, res, err)
-}
-
-// The document is enriched by adding 'clusterId' and 'iid' properties.
-// This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
-func (s *elasticStore) buildElasticDocument(k string, v interface{}) (string, []byte, error) {
-	// Extract indice name and timestamp by parsing the key
-	storeType, timestamp := extractStoreTypeAndTimestamp(k)
-	log.Debugf("storeType is: %s, timestamp: %s", storeType, timestamp)
-
-	// Convert timestamp to an int64
-	eventDate, err := time.Parse(time.RFC3339Nano, timestamp)
-	if err != nil {
-		return storeType, nil, errors.Wrapf(err, "failed to parse timestamp %+v as time, error was: %+v", timestamp, err)
-	}
-	// Convert to UnixNano int64
-	iid := eventDate.UnixNano()
-
-	// This is the piece of 'JSON' we want to append
-	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + s.clusterID + `"`
-	// v is a json.RawMessage
-	raw := v.(json.RawMessage)
-	raw = appendJSONInBytes(raw, []byte(a))
-
-	return storeType, raw, nil
-}
-
 // Set index a document (log or event) into ES.
 func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 	log.Debugf("Set called will key %s", k)
@@ -262,12 +107,12 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 		return err
 	}
 
-	storeType, body, err := s.buildElasticDocument(k, v)
+	storeType, body, err := buildElasticDocument(k, v)
 	if err != nil {
 		return err
 	}
 
-	indexName := s.getIndexName(storeType)
+	indexName := getIndexName(s.cfg, storeType)
 	if log.IsDebug() {
 		log.Debugf("About to index this document into ES index <%s> : %+v", indexName, string(body))
 	}
@@ -290,11 +135,6 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 	} else {
 		return nil
 	}
-}
-
-// The index name are prefixed to avoid index name collisions.
-func (s *elasticStore) getIndexName(storeType string) string {
-	return s.cfg.indicePrefix + storeType
 }
 
 // SetCollection index collections using ES bulk requests.
@@ -327,7 +167,7 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			if kvi == totalDocumentCount || bulkActionCount == s.cfg.maxBulkCount {
 				break
 			}
-			added, err := s.eventuallyAppendValueToBulkRequest(body, keyValues[kvi], maxBulkSizeInBytes)
+			added, err := eventuallyAppendValueToBulkRequest(s.cfg, body, keyValues[kvi], maxBulkSizeInBytes)
 			if err != nil {
 				return err
 			} else if !added {
@@ -375,81 +215,13 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 	return nil
 }
 
-// An error is returned if :
-// - it's not valid (key or value nil)
-// - the size of the resulting bulk operation exceed the maximum authorized for a bulk request
-// The value is not added if it's size + the current body size exceed the maximum authorized for a bulk request.
-// Return a bool indicating if the value has been added to the bulk request body.
-func (s *elasticStore) eventuallyAppendValueToBulkRequest(body []byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
-	if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
-		return false, err
-	}
-
-	storeType, document, err := s.buildElasticDocument(kv.Key, kv.Value)
-	if err != nil {
-		return false, err
-	}
-	log.Debugf("About to add a document of size %d bytes to bulk request", len(document))
-
-	// The bulk action
-	index := `{"index":{"_index":"` + s.getIndexName(storeType) + `","_type":"logs_or_event"}}`
-	// TODO: not able to make it work defining the slice length
-	// 2020/06/09 02:54:20 [FATAL] failed to migrate data from Consul for root path:"_yorc/logs" in store with name:"elastic": Error while sending bulk request, response code was <500> and response message was <[500 Internal Server Error] {"error":{"root_cause":[{"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"}],"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"},"status":500}>
-	// 2 = len("\n\n")
-	//bulkOperation := make([]byte, len(index) + len(document) + 2)
-	bulkOperation := make([]byte, 0)
-	bulkOperation = append(bulkOperation, index...)
-	bulkOperation = append(bulkOperation, "\n"...)
-	bulkOperation = append(bulkOperation, document...)
-	bulkOperation = append(bulkOperation, "\n"...)
-	log.Debugf("About to add a bulk operation of size %d bytes to bulk request, current size of bulk request body is %d bytes", len(bulkOperation), len(body))
-
-	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
-	estimatedBodySize := len(body) + len(bulkOperation) + 1
-	if len(bulkOperation)+1 > maxBulkSizeInBytes {
-		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
-	}
-	if estimatedBodySize > maxBulkSizeInBytes {
-		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
-		return false, nil
-	}
-	log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
-	// Append the bulk operation
-	body = append(body, bulkOperation...)
-	return true, nil
-}
-
-// Get is not used for logs nor events: fails in FATAL.
-func (s *elasticStore) Get(k string, v interface{}) (bool, error) {
-	if err := utils.CheckKeyAndValue(k, v); err != nil {
-		return false, err
-	}
-	log.Fatalf("Function Get(string, interface{}) not yet implemented for Elastic store !")
-	return false, errors.Errorf("Function Get(string, interface{}) not yet implemented for Elastic store !")
-}
-
-// Exist is not used for logs nor events: fails in FATAL.
-func (s *elasticStore) Exist(k string) (bool, error) {
-	if err := utils.CheckKey(k); err != nil {
-		return false, err
-	}
-	log.Fatalf("Function Exist(string) not yet implemented for Elastic store !")
-	return false, errors.Errorf("Function Exist(string) not yet implemented for Elastic store !")
-}
-
-// Keys is not used for logs nor events: fails in FATAL.
-func (s *elasticStore) Keys(k string) ([]string, error) {
-	log.Fatalf("Function Keys(string) not yet implemented for Elastic store !")
-	return nil, errors.Errorf("Function Keys(string) not yet implemented for Elastic store !")
-}
-
 // Delete removes ES documents using a deleteByRequest query.
 func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) error {
 	log.Debugf("Delete called k: %s, recursive: %t", k, recursive)
 
 	// Extract indice name and deploymentID by parsing the key
 	storeType, deploymentID := extractStoreTypeAndDeploymentID(k)
-	indexName := s.getIndexName(storeType)
+	indexName := getIndexName(s.cfg, storeType)
 	log.Debugf("storeType is: %s, indexName is %s, deploymentID is: %s", storeType, indexName, deploymentID)
 
 	query := `{"query" : { "bool" : { "must" : [{ "term": { "clusterId" : "` + s.clusterID + `" }}, { "term": { "deploymentId" : "` + deploymentID + `" }}]}}}`
@@ -469,19 +241,14 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 	return err
 }
 
+// GetLastModifyIndex return the last index which is found by querying ES using aggregation and a 0 size request.
 func (s *elasticStore) GetLastModifyIndex(k string) (uint64, error) {
 	log.Debugf("GetLastModifyIndex called k: %s", k)
 
 	// Extract indice name and deploymentID by parsing the key
-	indexName, deploymentID := extractStoreTypeAndDeploymentID(k)
-	log.Debugf("indexName is: %s, deploymentID is: %s", indexName, deploymentID)
-
-	return s.internalGetLastModifyIndex(s.getIndexName(indexName), deploymentID)
-
-}
-
-// The last index is found by querying ES using aggregation and a 0 size request.
-func (s *elasticStore) internalGetLastModifyIndex(indexName string, deploymentID string) (uint64, error) {
+	storeType, deploymentID := extractStoreTypeAndDeploymentID(k)
+	indexName := getIndexName(s.cfg, storeType)
+	log.Debugf("storeType is: %s, indexName is: %s, deploymentID is: %s", storeType, indexName, deploymentID)
 
 	// The lastIndex is query by using ES aggregation query ~= MAX(iid) HAVING deploymentId AND clusterId
 	query := buildLastModifiedIndexQuery(s.clusterID, deploymentID)
@@ -536,6 +303,7 @@ func (s *elasticStore) internalGetLastModifyIndex(indexName string, deploymentID
 	)
 
 	return lastIndex, nil
+
 }
 
 // List simulates long polling request by :
@@ -552,7 +320,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 
 	// Extract indice name by parsing the key
 	storeType, deploymentId := extractStoreTypeAndDeploymentID(k)
-	indexName := s.getIndexName(storeType)
+	indexName := getIndexName(s.cfg, storeType)
 	log.Debugf("storeType is: %s, indexName is: %s, deploymentId is: %s", storeType, indexName, deploymentId)
 
 	query := getListQuery(s.clusterID, deploymentId, waitIndex, 0)
@@ -583,11 +351,11 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		query := getListQuery(s.clusterID, deploymentId, waitIndex, lastIndex)
 		if s.cfg.esForceRefresh {
 			// force refresh for this index
-			s.refreshIndex(indexName)
+			refreshIndex(s.esClient, indexName)
 		}
 		time.Sleep(s.cfg.esRefreshWaitTimeout)
 		oldHits := hits
-		hits, values, lastIndex, err = s.doQueryEs(indexName, query, waitIndex, 10000, "asc")
+		hits, values, lastIndex, err = doQueryEs(s.esClient, indexName, query, waitIndex, 10000, "asc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh), error was: %+v", err)
 		}
@@ -599,74 +367,27 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	return values, lastIndex, err
 }
 
-// Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
-func (s *elasticStore) doQueryEs(index string, query string, waitIndex uint64, size int, order string) (int, []store.KeyValueOut, uint64, error) {
-	log.Debugf("Search ES %s using query: %s", index, query)
 
-	values := make([]store.KeyValueOut, 0)
-
-	res, err := s.esClient.Search(
-		s.esClient.Search.WithContext(context.Background()),
-		s.esClient.Search.WithIndex(index),
-		s.esClient.Search.WithSize(size),
-		s.esClient.Search.WithBody(strings.NewReader(query)),
-		// important sort on iid
-		s.esClient.Search.WithSort("iid:"+order),
-	)
-	if err != nil {
-		log.Printf("Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
-		return 0, values, waitIndex, errors.Wrapf(err, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
+// Get is not used for logs nor events: fails in FATAL.
+func (s *elasticStore) Get(k string, v interface{}) (bool, error) {
+	if err := utils.CheckKeyAndValue(k, v); err != nil {
+		return false, err
 	}
-	defer res.Body.Close()
+	log.Fatalf("Function Get(string, interface{}) not yet implemented for Elastic store !")
+	return false, errors.Errorf("Function Get(string, interface{}) not yet implemented for Elastic store !")
+}
 
-	if res.IsError() {
-		var e map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
-			log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
-			return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
-		}
-		log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
-		return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
+// Exist is not used for logs nor events: fails in FATAL.
+func (s *elasticStore) Exist(k string) (bool, error) {
+	if err := utils.CheckKey(k); err != nil {
+		return false, err
 	}
+	log.Fatalf("Function Exist(string) not yet implemented for Elastic store !")
+	return false, errors.Errorf("Function Exist(string) not yet implemented for Elastic store !")
+}
 
-	var r map[string]interface{}
-	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		log.Printf("Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)", index, query, res.StatusCode, res.Status())
-		return 0, values, waitIndex, errors.Wrapf(err, "Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)", index, query, res.StatusCode, res.Status())
-	}
-
-	hits := int(r["hits"].(map[string]interface{})["total"].(float64))
-	duration := int(r["took"].(float64))
-	log.Debugf("Search ES request on index %s took %dms, hits=%d, response code was %d (%s)", index, duration, hits, res.StatusCode, res.Status())
-
-	var lastIndex = waitIndex
-
-	// Print the ID and document source for each hit.
-	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
-		id := hit.(map[string]interface{})["_id"].(string)
-		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
-		iid := source["iid"]
-		iidInt64, err := parseInt64StringToUint64(iid.(string))
-		if err != nil {
-			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)
-		} else {
-			jsonString, err := json.Marshal(source)
-			if err != nil {
-				log.Printf("Not able to marshall document source, document id: %s, source: %+v, ignoring this document !", id, source)
-			} else {
-				// since the result is sorted on iid, we can use the last hit to define lastIndex
-				lastIndex = iidInt64
-				// append value to result
-				values = append(values, store.KeyValueOut{
-					Key:             id,
-					LastModifyIndex: iidInt64,
-					Value:           source,
-					RawValue:        jsonString,
-				})
-			}
-		}
-	}
-
-	log.Debugf("doQueryEs called result waitIndex: %d, LastIndex: %d, len(values): %d", waitIndex, lastIndex, len(values))
-	return hits, values, lastIndex, nil
+// Keys is not used for logs nor events: fails in FATAL.
+func (s *elasticStore) Keys(k string) ([]string, error) {
+	log.Fatalf("Function Keys(string) not yet implemented for Elastic store !")
+	return nil, errors.Errorf("Function Keys(string) not yet implemented for Elastic store !")
 }
