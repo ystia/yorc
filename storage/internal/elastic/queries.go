@@ -47,9 +47,9 @@ func buildInitStorageIndexQuery() string {
 }
 
 // This ES aggregation query is built using clusterId and eventually deploymentId.
-func buildLastModifiedIndexQuery(clusterID string, deploymentId string) string {
+func buildLastModifiedIndexQuery(clusterID string, deploymentID string) string {
 	var query string
-	if len(deploymentId) == 0 {
+	if len(deploymentID) == 0 {
 		query = `
 {
     "aggs" : {
@@ -71,7 +71,7 @@ func buildLastModifiedIndexQuery(clusterID string, deploymentId string) string {
             "filter" : {
                 "bool": {
                     "must": [
-                        { "term": { "deploymentId": "` + deploymentId + `" } },
+                        { "term": { "deploymentId": "` + deploymentID + `" } },
                         { "term": { "clusterId": "` + clusterID + `" } }
                      ]
                 }

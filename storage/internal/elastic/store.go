@@ -161,10 +161,12 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 		fmt.Printf("Bulk iteration %d", i)
 
 		maxBulkSizeInBytes := s.cfg.maxBulkSize * 1024
+		// Prepare a slice of max capacity
 		var body = make([]byte, 0, maxBulkSizeInBytes)
-		bulkActionCount := 0
+		// Number of operation in the bulk request
+		opeCount := 0
 		for {
-			if kvi == totalDocumentCount || bulkActionCount == s.cfg.maxBulkCount {
+			if kvi == totalDocumentCount || opeCount == s.cfg.maxBulkCount {
 				break
 			}
 			added, err := eventuallyAppendValueToBulkRequest(s.cfg, s.clusterID, &body, keyValues[kvi], maxBulkSizeInBytes)
@@ -174,44 +176,20 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 				break
 			} else {
 				kvi++
-				bulkActionCount++
+				opeCount++
 			}
 		}
-
 		// The bulk request must be terminated by a newline
 		body = append(body, "\n"...)
-
-		log.Printf("About to bulk request index using %d documents (%d bytes)", bulkActionCount, len(body))
-		if log.IsDebug() {
-			log.Debugf("About to send bulk request query to ES: %s", string(body))
-		}
-
-		// Prepare ES bulk request
-		req := esapi.BulkRequest{
-			Body: bytes.NewReader(body),
-		}
-		res, err := req.Do(context.Background(), s.esClient)
-
-		defer res.Body.Close()
-
+		// Send the request
+		err := sendBulkRequest(s.esClient, opeCount, &body)
 		if err != nil {
 			return err
-		} else if res.IsError() {
-			return errors.Errorf("Error while sending bulk request, response code was <%d> and response message was <%s>", res.StatusCode, res.String())
-		} else {
-			var rsp map[string]interface{}
-			json.NewDecoder(res.Body).Decode(&rsp)
-			if rsp["errors"].(bool) {
-				// The bulk request contains errors
-				return errors.Errorf("The bulk request succeeded, but the response contains errors : %+v", rsp)
-			}
-			log.Printf("Bulk request containing %d documents (%d bytes) has been accepted without errors", bulkActionCount, len(body))
 		}
-		// increment the number of iterations
+		// Increment the number of iterations
 		i++
 	}
 	log.Printf("A total of %d documents have been successfully indexed using %d bulk requests", kvi, i)
-
 	return nil
 }
 

@@ -15,6 +15,7 @@
 package elastic
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	elasticsearch6 "github.com/elastic/go-elasticsearch/v6"
@@ -193,4 +194,34 @@ func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex u
 
 	log.Debugf("doQueryEs called result waitIndex: %d, LastIndex: %d, len(values): %d", waitIndex, lastIndex, len(values))
 	return hits, values, lastIndex, nil
+}
+
+func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error {
+	log.Printf("About to bulk request containing %d operations (%d bytes)", opeCount, len(*body))
+	if log.IsDebug() {
+		log.Debugf("About to send bulk request query to ES: %s", string(*body))
+	}
+
+	// Prepare ES bulk request
+	req := esapi.BulkRequest{
+		Body: bytes.NewReader(*body),
+	}
+	res, err := req.Do(context.Background(), c)
+
+	defer res.Body.Close()
+
+	if err != nil {
+		return err
+	} else if res.IsError() {
+		return errors.Errorf("Error while sending bulk request, response code was <%d> and response message was <%s>", res.StatusCode, res.String())
+	} else {
+		var rsp map[string]interface{}
+		json.NewDecoder(res.Body).Decode(&rsp)
+		if rsp["errors"].(bool) {
+			// The bulk request contains errors
+			return errors.Errorf("The bulk request succeeded, but the response contains errors : %+v", rsp)
+		}
+	}
+	log.Printf("Bulk request containing %d operations (%d bytes) has been accepted without errors", opeCount, len(*body))
+	return nil
 }

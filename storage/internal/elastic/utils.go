@@ -133,10 +133,6 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, bo
 
 	// The bulk action
 	index := `{"index":{"_index":"` + getIndexName(c, storeType) + `","_type":"logs_or_event"}}`
-	// TODO: not able to make it work defining the slice length
-	// 2020/06/09 02:54:20 [FATAL] failed to migrate data from Consul for root path:"_yorc/logs" in store with name:"elastic": Error while sending bulk request, response code was <500> and response message was <[500 Internal Server Error] {"error":{"root_cause":[{"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"}],"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"},"status":500}>
-	// 2 = len("\n\n")
-	//bulkOperation := make([]byte, len(index) + len(document) + 2)
 	bulkOperation := make([]byte, 0)
 	bulkOperation = append(bulkOperation, index...)
 	bulkOperation = append(bulkOperation, "\n"...)
