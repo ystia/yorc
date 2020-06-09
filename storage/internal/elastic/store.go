@@ -104,18 +104,18 @@ func extractStoreTypeAndTimestamp(k string) (storeType string, timestamp string)
 var storeTypeAndDeploymentIDRegex = regexp.MustCompile(`(?m)\_yorc\/(\w+)\/?(.+)?\/?`)
 
 // Parse a key of form "_yorc/events/" or "_yorc/logs/MyApp" or "_yorc/logs/MyApp/" to get the store type (logs|events) and eventually the deploymentId.
-func extractStoreTypeAndDeploymentID(k string) (storeType string, deploymentId string) {
+func extractStoreTypeAndDeploymentID(k string) (storeType string, deploymentID string) {
 	res := storeTypeAndDeploymentIDRegex.FindAllStringSubmatch(k, -1)
 	for i := range res {
 		storeType = res[i][1]
 		if len(res[i]) == 3 {
-			deploymentId = res[i][2]
-			if strings.HasSuffix(deploymentId, "/") {
-				deploymentId = deploymentId[:len(deploymentId)-1]
+			deploymentID = res[i][2]
+			if strings.HasSuffix(deploymentID, "/") {
+				deploymentID = deploymentID[:len(deploymentID)-1]
 			}
 		}
 	}
-	return storeType, deploymentId
+	return storeType, deploymentID
 }
 
 // Get the JSON tag for this field (for internal usage only !).
@@ -238,16 +238,16 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 	log.Printf("Here is the ES cluster info")
 	log.Println(esClient.Info())
 	log.Printf("ClusterID: %s, ServerID: %s", cfg.ClusterID, cfg.ServerID)
-	var clusterId = cfg.ClusterID
-	if len(clusterId) == 0 {
-		clusterId = cfg.ServerID
+	var clusterID = cfg.ClusterID
+	if len(clusterID) == 0 {
+		clusterID = cfg.ServerID
 	}
 
 	initStorageIndex(esClient, esCfg.indicePrefix+"logs")
 	initStorageIndex(esClient, esCfg.indicePrefix+"events")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"logs")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"events")
-	return &elasticStore{encoding.JSON, esClient, clusterId, esCfg}
+	return &elasticStore{encoding.JSON, esClient, clusterID, esCfg}
 }
 
 // Return the query that is used to create indexes for event and log storage.
@@ -638,10 +638,10 @@ func parseInt64StringToUint64(value string) (uint64, error) {
 }
 
 // The last index is found by querying ES using aggregation and a 0 size request.
-func (s *elasticStore) internalGetLastModifyIndex(indexName string, deploymentId string) (uint64, error) {
+func (s *elasticStore) internalGetLastModifyIndex(indexName string, deploymentID string) (uint64, error) {
 
 	// The lastIndex is query by using ES aggregation query ~= MAX(iid) HAVING deploymentId AND clusterId
-	query := buildLastModifiedIndexQuery(s.clusterID, deploymentId)
+	query := buildLastModifiedIndexQuery(s.clusterID, deploymentID)
 	log.Debugf("buildLastModifiedIndexQuery is : %s", query)
 
 	res, err := s.esClient.Search(
