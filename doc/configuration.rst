@@ -1172,8 +1172,10 @@ Currently Yorc supports 3 store ``types``:
   * ``Log``
   * ``Event``
 
-Yorc supports 3 store ``implementations``:
+Yorc supports 5 store ``implementations``:
   * ``consul``
+  * ``file``
+  * ``cipherFile``
   * ``fileCache``
   * ``cipherFileCache``
 
@@ -1253,17 +1255,21 @@ Log
 
 Store that contains the applicative logs, also present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
 
-If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
+If you face some Consul memory usage issues, you can choose ``file`` or ``cipherFile`` as logs may contains private information.
+
+Cache is not useful for this kind of data as we use blocking queries and modification index to retrieve it.
 
 Event
 ^^^^^
 
 Store that contains the applicative events, also present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
+Same remarks as for Log as it's same kind of data and usage.
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
 
-Currently Yorc provide 3 implementations with the following names:
+Currently Yorc provide 5 implementations (in fact 2 real ones with combinations around file) described below but you're welcome to contribute and bring your own implementation, you just need to implement the Store interface
+See `Storage interface  <https://github.com/ystia/yorc/blob/develop/storage/store/store.go>`_.
 
 consul
 ^^^^^^
@@ -1271,37 +1277,31 @@ consul
 This is the Consul KV store used by Yorc for main internal storage stuff. For example, the configuration of the stores is kept in the Consul KV.
 As Consul is already configurable here: :ref:`Consul configuration<yorc_config_file_consul_section>`, no other configuration is provided in this section.
 
-fileCache
-^^^^^^^^^
+file
+^^^^
 
-This is a file store with a cache system.
+This is a file store without cache system. It can be used for logs and events as this data is retrieved via blocking queries and modification index which can be used with a cache system.
 
 Here are specific properties for this implementation:
 
-.. _storage_file_cache_props:
+.. _storage_file_props:
 
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                   |           Description                              | Data Type |   Required       | Default         |
 +=====================================+====================================================+===========+==================+=================+
 | ``root_dir``                        | Root directory used for file storage               | string    | no               |   work/store    |
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e5 (100 000) |
-+-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |   1e7 (10 M)    |
-+-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
-+-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``blocking_query_default_timeout``  | default timeout for blocking queries               | string    | no               |   5m (5 minutes)|
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``concurrency_limit``               | Limit for concurrent operations                    | integer   | no               |   1000          |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 
-For more information on cache properties, you can refer to `Ristretto README  <https://github.com/dgraph-io/ristretto>`_
+cipherFile
+^^^^^^^^^^
 
-cipherFileCache
-^^^^^^^^^^^^^^^
+This is a file store with file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
 
-This is a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
-
-Here are specific properties for this implementation in addition to ``fileCache`` properties:
+Here are specific properties for this implementation in addition to ``file`` properties:
 
 +----------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                |           Description                              | Data Type |   Required       | Default         |
@@ -1314,7 +1314,7 @@ Here are specific properties for this implementation in addition to ``fileCache`
 ``Passphrase`` can be set with ``Secret function`` and retrieved from Vault as explained in the Vault integration chapter.
 
 
-Here is a JSON example of stores configuration with a cipherFileStore implementation for logs.
+Here is a JSON example of stores configuration with a cipherFile store implementation for logs.
 
 .. code-block:: JSON
 
@@ -1324,7 +1324,7 @@ Here is a JSON example of stores configuration with a cipherFileStore implementa
     "stores": [
       {
         "name": "myCipherFileStore",
-        "implementation": "cipherFileCache",
+        "implementation": "cipherFile",
         "migrate_data_from_consul": true,
         "types":  ["Log"],
         "properties": {
@@ -1343,13 +1343,40 @@ The same sample in YAML
       reset: false
       stores:
       - name: myCipherFileStore
-        implementation: cipherFileCache
+        implementation: cipherFile
         migrate_data_from_consul: true
         types:
         - Log
         properties:
           root_dir: "/mypath/to/store"
           passphrase: "myverystrongpasswordo32bitlength"
+
+fileCache
+^^^^^^^^^
+
+This is a file store with a cache system.
+
+Here are specific properties for this implementation:
+
+.. _storage_file_cache_props:
+
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                   |           Description                              | Data Type |   Required       | Default         |
++=====================================+====================================================+===========+==================+=================+
+| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e5 (100 000) |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |   1e7 (10 M)    |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
+For more information on cache properties, you can refer to `Ristretto README  <https://github.com/dgraph-io/ristretto>`_
+
+cipherFileCache
+^^^^^^^^^^^^^^^
+
+This is a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
+
 
 .. _storage_reset_note:
 

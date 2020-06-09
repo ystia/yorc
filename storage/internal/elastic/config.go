@@ -15,6 +15,7 @@
 package elastic
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
@@ -44,76 +45,117 @@ type elasticStoreConf struct {
 }
 
 // Get the tag for this field (for internal usage only: fatal if not found !).
-func getElasticStorageConfigPropertyTag(fn string, tn string) string {
+func getElasticStorageConfigPropertyTag(fn string, tn string) (tagValue string, e error) {
 	t := reflect.TypeOf(elasticStoreConf{})
 	f, found := t.FieldByName(fn)
 	if !found {
-		log.Fatalf("Not able to get field %s on elasticStoreConf struct, there is an issue with this code !", fn)
+		e = errors.Errorf("Not able to get field %s on elasticStoreConf struct, there is an issue with this code !", fn)
+		return
 	}
-	tv := f.Tag.Get(tn)
-	if tv == "" {
-		log.Fatalf("Not able to get field %s's tag %s value on elasticStoreConf struct, there is an issue with this code !", fn, tn)
+	tagValue = f.Tag.Get(tn)
+	if tagValue == "" {
+		e = errors.Errorf("Not able to get field %s's tag %s value on elasticStoreConf struct, there is an issue with this code !\"", fn, tn)
+		return
 	}
-	return tv
+	return
 }
 
 // The configuration of the elastic store is defined regarding default values and store 'properties' dynamic map.
 // Will fail if the required es_urls is not set in store 'properties'
-func getElasticStoreConfig(storeConfig config.Store) elasticStoreConf {
-	var cfg elasticStoreConf
-
+func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e error) {
 	storeProperties := storeConfig.Properties
-
+	var t string
 	// The ES urls is required
-	k := getElasticStorageConfigPropertyTag("esUrls", "json")
-	if storeProperties.IsSet(k) {
-		cfg.esUrls = storeProperties.GetStringSlice(k)
+	t, e = getElasticStorageConfigPropertyTag("esUrls", "json")
+	if e != nil {
+		return
+	}
+	if storeProperties.IsSet(t) {
+		cfg.esUrls = storeProperties.GetStringSlice(t)
 		if cfg.esUrls == nil || len(cfg.esUrls) == 0 {
-			log.Fatalf("Not able to get ES configuration for elastic store, es_urls store property seems empty : %+v", storeProperties.Get(k))
+			e = errors.Errorf("Not able to get ES configuration for elastic store, es_urls store property seems empty : %+v", storeProperties.Get(t))
+			return
 		}
 	} else {
 		log.Fatal("Not able to get ES configuration for elastic store, es_urls store property should be set !")
 	}
 
 	// Define store optional / default configuration
-	k = getElasticStorageConfigPropertyTag("caCertPath", "json")
-	if storeProperties.IsSet(k) {
-		cfg.caCertPath = storeProperties.GetString(k)
+	t, e = getElasticStorageConfigPropertyTag("caCertPath", "json")
+	if storeProperties.IsSet(t) {
+		cfg.caCertPath = storeProperties.GetString(t)
 	}
-	k = getElasticStorageConfigPropertyTag("esForceRefresh", "json")
-	if storeProperties.IsSet(k) {
-		cfg.esForceRefresh = storeProperties.GetBool(k)
+	t, e = getElasticStorageConfigPropertyTag("esForceRefresh", "json")
+	if storeProperties.IsSet(t) {
+		cfg.esForceRefresh = storeProperties.GetBool(t)
 	} else {
-		cfg.esForceRefresh = cast.ToBool(getElasticStorageConfigPropertyTag("esForceRefresh", "default"))
+		cfg.esForceRefresh, e = getBoolFromSettingsOrDefaults("esForceRefresh", storeProperties)
 	}
-	k = getElasticStorageConfigPropertyTag("indicePrefix", "json")
-	if storeProperties.IsSet(k) {
-		cfg.indicePrefix = storeProperties.GetString(k)
+	t, e = getElasticStorageConfigPropertyTag("indicePrefix", "json")
+	if storeProperties.IsSet(t) {
+		cfg.indicePrefix = storeProperties.GetString(t)
 	} else {
-		cfg.indicePrefix = getElasticStorageConfigPropertyTag("indicePrefix", "default")
+		cfg.indicePrefix, e = getElasticStorageConfigPropertyTag("indicePrefix", "default")
 	}
-	cfg.esQueryPeriod = getDurationFromSettingsOrDefaults("esQueryPeriod", storeProperties)
-	cfg.esRefreshWaitTimeout = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
-	cfg.maxBulkSize = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
-	cfg.maxBulkCount = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
-
-	return cfg
+	cfg.esQueryPeriod, e = getDurationFromSettingsOrDefaults("esQueryPeriod", storeProperties)
+	cfg.esRefreshWaitTimeout, e = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
+	cfg.maxBulkSize, e = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
+	cfg.maxBulkCount, e = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
+	// If any error have been encountered, it will be returned
+	return
 }
 
 // Get the duration from store config properties, fallback to required default value defined in struc.
-func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) time.Duration {
-	k := getElasticStorageConfigPropertyTag(fn, "json")
-	if dm.IsSet(k) {
-		return dm.GetDuration(k)
+func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v time.Duration, e error) {
+	t, e := getElasticStorageConfigPropertyTag(fn, "json")
+	if e != nil {
+		return
 	}
-	return cast.ToDuration(getElasticStorageConfigPropertyTag(fn, "default"))
+	if dm.IsSet(t) {
+		v = dm.GetDuration(t)
+		return
+	}
+	t, e = getElasticStorageConfigPropertyTag(fn, "default")
+	if e != nil {
+		return
+	}
+	v = cast.ToDuration(t)
+	return
 }
 
 // Get the int from store config properties, fallback to required default value defined in struc.
-func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) int {
-	k := getElasticStorageConfigPropertyTag(fn, "json")
-	if dm.IsSet(k) {
-		return dm.GetInt(k)
+func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v int, e error) {
+	t, e := getElasticStorageConfigPropertyTag(fn, "json")
+	if e != nil {
+		return
 	}
-	return cast.ToInt(getElasticStorageConfigPropertyTag(fn, "default"))
+	if dm.IsSet(t) {
+		v = dm.GetInt(t)
+		return
+	}
+	t, e = getElasticStorageConfigPropertyTag(fn, "default")
+	if e != nil {
+		return
+	}
+	v = cast.ToInt(t)
+	return
+}
+
+
+// Get the bool from store config properties, fallback to required default value defined in struc.
+func getBoolFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v bool, e error) {
+	t, e := getElasticStorageConfigPropertyTag(fn, "json")
+	if e != nil {
+		return
+	}
+	if dm.IsSet(t) {
+		v = dm.GetBool(t)
+		return
+	}
+	t, e = getElasticStorageConfigPropertyTag(fn, "default")
+	if e != nil {
+		return
+	}
+	v = cast.ToBool(t)
+	return
 }

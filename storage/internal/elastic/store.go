@@ -45,17 +45,20 @@ type elasticStore struct {
 // NewStore returns a new Elastic store.
 // Since the elastic store can only manage logs or events, it will panic is it's configured for anything else.
 // At init stage, we display ES cluster info and initialise indexes if they are not found.
-func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
+func NewStore(cfg config.Configuration, storeConfig config.Store) (store.Store, error) {
 
 	// Just fail if this storage is used for anything different from logs or events
 	for _, t := range storeConfig.Types {
 		if t != "Log" && t != "Event" {
-			log.Panicf("Elastic store is not able to manage <%s>, just Log or Event, please change your config", t)
+			return nil, errors.Errorf("Elastic store is not able to manage <%s>, just Log or Event, please change your config", t)
 		}
 	}
 
 	// Get specific config from storage properties
-	esCfg := getElasticStoreConfig(storeConfig)
+	esCfg, e := getElasticStoreConfig(storeConfig)
+	if e != nil {
+		return nil, e
+	}
 
 	var esConfig elasticsearch6.Config
 	esConfig = elasticsearch6.Config{
@@ -66,7 +69,7 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 		log.Printf("Reading CACert file from %s", esCfg.caCertPath)
 		cert, err := ioutil.ReadFile(esCfg.caCertPath)
 		if err != nil {
-			log.Panicf("Not able to read Cert file from <%s>, error was %+v", esCfg.caCertPath, err)
+			return nil, errors.Wrapf(err, "Not able to read Cert file from <%s>", esCfg.caCertPath)
 		}
 		esConfig.CACert = cert
 	}
@@ -98,7 +101,7 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 	initStorageIndex(esClient, esCfg.indicePrefix+"events")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"logs")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"events")
-	return &elasticStore{encoding.JSON, esClient, clusterID, esCfg}
+	return &elasticStore{encoding.JSON, esClient, clusterID, esCfg}, nil
 }
 
 // Set index a document (log or event) into ES.

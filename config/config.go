@@ -290,6 +290,15 @@ func (dm DynamicMap) GetInt(name string) int {
 	return cast.ToInt(dm.Get(name))
 }
 
+// GetIntOrDefault returns the value of the given key casted into an int.
+// The given default value is returned if not found.
+func (dm DynamicMap) GetIntOrDefault(name string, defaultValue int) int {
+	if !dm.IsSet(name) {
+		return defaultValue
+	}
+	return cast.ToInt(dm.Get(name))
+}
+
 // GetInt64 returns the value of the given key casted into an int64.
 // 0 is returned if not found.
 func (dm DynamicMap) GetInt64(name string) int64 {
