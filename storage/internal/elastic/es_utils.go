@@ -125,12 +125,11 @@ func debugESResponse(msg string, res *esapi.Response, err error) {
 }
 
 // Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
-func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex uint64, size int, order string) (int, []store.KeyValueOut, uint64, error) {
+func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex uint64, size int, order string) (hits int, values []store.KeyValueOut, lastIndex uint64, err error) {
 	log.Debugf("Search ES %s using query: %s", index, query)
+	lastIndex = waitIndex
 
-	values := make([]store.KeyValueOut, 0)
-
-	res, err := c.Search(
+	res, e := c.Search(
 		c.Search.WithContext(context.Background()),
 		c.Search.WithIndex(index),
 		c.Search.WithSize(size),
@@ -138,9 +137,9 @@ func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex u
 		// important sort on iid
 		c.Search.WithSort("iid:"+order),
 	)
-	if err != nil {
-		log.Printf("Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
-		return 0, values, waitIndex, errors.Wrapf(err, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
+	if e != nil {
+		err = errors.Wrapf(err, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
+		return
 	}
 	defer res.Body.Close()
 
@@ -148,24 +147,32 @@ func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex u
 		var e map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
 			log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
-			return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
+			err = errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
+			return
 		}
 		log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
-		return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
+		err = errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
+		return
 	}
 
 	var r map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		log.Printf("Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)", index, query, res.StatusCode, res.Status())
-		return 0, values, waitIndex, errors.Wrapf(err, "Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)", index, query, res.StatusCode, res.Status())
+		err = errors.Wrapf(err, "Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)", index, query, res.StatusCode, res.Status())
+		return
 	}
 
-	hits := int(r["hits"].(map[string]interface{})["total"].(float64))
+	hits = int(r["hits"].(map[string]interface{})["total"].(float64))
 	duration := int(r["took"].(float64))
 	log.Debugf("Search ES request on index %s took %dms, hits=%d, response code was %d (%s)", index, duration, hits, res.StatusCode, res.Status())
 
-	var lastIndex = waitIndex
+	lastIndex = decodeEsQueryResponse(r, &values)
 
+	log.Debugf("doQueryEs called result waitIndex: %d, LastIndex: %d, len(values): %d", waitIndex, lastIndex, len(values))
+	return hits, values, lastIndex, nil
+}
+
+// Decode the response and define the last index
+func decodeEsQueryResponse(r map[string]interface{}, values *[]store.KeyValueOut) (lastIndex uint64) {
 	// Print the ID and document source for each hit.
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		id := hit.(map[string]interface{})["_id"].(string)
@@ -182,7 +189,7 @@ func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex u
 				// since the result is sorted on iid, we can use the last hit to define lastIndex
 				lastIndex = iidInt64
 				// append value to result
-				values = append(values, store.KeyValueOut{
+				*values = append(*values, store.KeyValueOut{
 					Key:             id,
 					LastModifyIndex: iidInt64,
 					Value:           source,
@@ -191,11 +198,10 @@ func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex u
 			}
 		}
 	}
-
-	log.Debugf("doQueryEs called result waitIndex: %d, LastIndex: %d, len(values): %d", waitIndex, lastIndex, len(values))
-	return hits, values, lastIndex, nil
+	return
 }
 
+// Send the bulk request to ES and ensure no error is returned.
 func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error {
 	log.Printf("About to bulk request containing %d operations (%d bytes)", opeCount, len(*body))
 	if log.IsDebug() {
