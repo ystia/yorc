@@ -31,10 +31,10 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/internal/consul"
+	"github.com/ystia/yorc/v4/storage/internal/elastic"
 	"github.com/ystia/yorc/v4/storage/internal/file"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/storage/internal/elastic"
 )
 
 const consulStoreImpl = "consul"

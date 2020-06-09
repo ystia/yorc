@@ -367,7 +367,6 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	return values, lastIndex, err
 }
 
-
 // Get is not used for logs nor events: fails in FATAL.
 func (s *elasticStore) Get(k string, v interface{}) (bool, error) {
 	if err := utils.CheckKeyAndValue(k, v); err != nil {
