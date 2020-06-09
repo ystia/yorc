@@ -34,9 +34,12 @@ import (
 	"github.com/ystia/yorc/v4/storage/internal/file"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/storage/internal/elastic"
 )
 
 const consulStoreImpl = "consul"
+
+const elasticStoreImpl = "elastic"
 
 const fileStoreWithCacheImpl = "fileCache"
 
@@ -349,6 +352,8 @@ func createStoreImpl(cfg config.Configuration, configStore config.Store, storeTy
 		}
 	case strings.ToLower(consulStoreImpl):
 		stores[storeType] = consul.NewStore()
+	case strings.ToLower(elasticStoreImpl):
+		stores[storeType] = elastic.NewStore(cfg, configStore)
 	default:
 		log.Printf("[WARNING] unknown store implementation:%q. This will be ignored.", storeType)
 	}

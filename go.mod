@@ -121,6 +121,7 @@ require (
 	k8s.io/client-go v8.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20190709113604-33be087ad058 // indirect
 	vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc
+	github.com/elastic/go-elasticsearch/v6 6.x
 )
 
 // Due to this capital letter thing we have troubles and we have to replace it explicitly
