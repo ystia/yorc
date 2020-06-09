@@ -478,45 +478,12 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			if kvi == totalDocumentCount || bulkActionCount == s.cfg.maxBulkCount {
 				break
 			}
-
-			kv := keyValues[kvi]
-			if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
-				return err
-			}
-
-			storeType, document, err := s.buildElasticDocument(kv.Key, kv.Value)
+			added, err := s.eventuallyAppendValueToBulkRequest(body, keyValues[kvi], maxBulkSizeInBytes)
 			if err != nil {
 				return err
-			}
-			log.Debugf("About to add a document of size %d bytes to bulk request", len(document))
-
-			// The bulk action
-			index := `{"index":{"_index":"` + s.getIndexName(storeType) + `","_type":"logs_or_event"}}`
-			// 2 = len("\n\n")
-			// FIXME: not able to make it work defining the slice length
-			// 2020/06/09 02:54:20 [FATAL] failed to migrate data from Consul for root path:"_yorc/logs" in store with name:"elastic": Error while sending bulk request, response code was <500> and response message was <[500 Internal Server Error] {"error":{"root_cause":[{"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"}],"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"},"status":500}>
-			//bulkOperation := make([]byte, len(index) + len(document) + 2)
-			bulkOperation := make([]byte, 0)
-			bulkOperation = append(bulkOperation, index...)
-			bulkOperation = append(bulkOperation, "\n"...)
-			bulkOperation = append(bulkOperation, document...)
-			bulkOperation = append(bulkOperation, "\n"...)
-			log.Debugf("About to add a bulk operation of size %d bytes to bulk request, current size of bulk request body is %d bytes", len(bulkOperation), len(body))
-
-			// 1 = len("\n") the last newline that will be appended to terminate the bulk request
-			estimatedBodySize := len(body) + len(bulkOperation) + 1
-			if len(bulkOperation) + 1 > maxBulkSizeInBytes {
-				return errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation) + 1, maxBulkSizeInBytes)
-			}
-			if estimatedBodySize > maxBulkSizeInBytes {
-				log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
+			} else if !added {
 				break
 			} else {
-				log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
-
-				// Append the bulk operation
-				body = append(body, bulkOperation...)
-
 				kvi++;
 				bulkActionCount++;
 			}
@@ -535,7 +502,6 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			Body: bytes.NewReader(body),
 		}
 		res, err := req.Do(context.Background(), s.esClient)
-		//debugESResponse("BulkRequest", res, err)
 
 		defer res.Body.Close()
 
@@ -559,6 +525,51 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 	log.Printf("A total of %d documents have been successfully indexed using %d bulk requests", kvi, i)
 
 	return nil
+}
+
+// An error is returned if :
+// - it's not valid (key or value nil)
+// - the size of the resulting bulk operation exceed the maximum authorized for a bulk request
+// The value is not added if it's size + the current body size exceed the maximum authorized for a bulk request.
+// Return a bool indicating if the value has been added to the bulk request body.
+func (s *elasticStore) eventuallyAppendValueToBulkRequest(body []byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
+	if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
+		return false, err
+	}
+
+	storeType, document, err := s.buildElasticDocument(kv.Key, kv.Value)
+	if err != nil {
+		return false, err
+	}
+	log.Debugf("About to add a document of size %d bytes to bulk request", len(document))
+
+	// The bulk action
+	index := `{"index":{"_index":"` + s.getIndexName(storeType) + `","_type":"logs_or_event"}}`
+	// 2 = len("\n\n")
+	// FIXME: not able to make it work defining the slice length
+	// 2020/06/09 02:54:20 [FATAL] failed to migrate data from Consul for root path:"_yorc/logs" in store with name:"elastic": Error while sending bulk request, response code was <500> and response message was <[500 Internal Server Error] {"error":{"root_cause":[{"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"}],"type":"char_conversion_exception","reason":"Invalid UTF-32 character 0x7b21696e (above 0x0010ffff) at char #84, byte #339)"},"status":500}>
+	//bulkOperation := make([]byte, len(index) + len(document) + 2)
+	bulkOperation := make([]byte, 0)
+	bulkOperation = append(bulkOperation, index...)
+	bulkOperation = append(bulkOperation, "\n"...)
+	bulkOperation = append(bulkOperation, document...)
+	bulkOperation = append(bulkOperation, "\n"...)
+	log.Debugf("About to add a bulk operation of size %d bytes to bulk request, current size of bulk request body is %d bytes", len(bulkOperation), len(body))
+
+	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
+	estimatedBodySize := len(body) + len(bulkOperation) + 1
+	if len(bulkOperation) + 1 > maxBulkSizeInBytes {
+		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation) + 1, maxBulkSizeInBytes)
+	}
+	if estimatedBodySize > maxBulkSizeInBytes {
+		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
+		return false, nil
+	} else {
+		log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
+		// Append the bulk operation
+		body = append(body, bulkOperation...)
+		return true, nil
+	}
 }
 
 // Get is not used for logs nor events: fails in FATAL.
