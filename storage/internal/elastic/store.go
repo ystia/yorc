@@ -253,30 +253,9 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 	return &elasticStore{encoding.JSON, esClient, clusterId, esCfg}
 }
 
-// Init ES index for logs or events storage: create it if not found.
-func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
 
-	log.Printf("Checking if index <%s> already exists", indexName)
-
-	// check if the sequences index exists
-	req := esapi.IndicesExistsRequest{
-		Index:           []string{indexName},
-		ExpandWildcards: "none",
-		AllowNoIndices:  &pfalse,
-	}
-	res, err := req.Do(context.Background(), esClient)
-	debugESResponse("IndicesExistsRequest:"+indexName, res, err)
-	defer res.Body.Close()
-	log.Printf("Status Code for IndicesExistsRequest (%s): %d", indexName, res.StatusCode)
-
-	if res.StatusCode == 200 {
-		log.Printf("Indice %s was found, nothing to do !", indexName)
-	}
-
-	if res.StatusCode == 404 {
-		log.Printf("Indice %s was not found, let's create it !", indexName)
-
-		requestBodyData := `
+func buildInitStorageIndiceQuery() string {
+	query := `
 {
      "settings": {
          "refresh_interval": "1s"
@@ -302,7 +281,33 @@ func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
          }
      }
 }`
+	return query
+}
 
+// Init ES index for logs or events storage: create it if not found.
+func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
+
+	log.Printf("Checking if index <%s> already exists", indexName)
+
+	// check if the sequences index exists
+	req := esapi.IndicesExistsRequest{
+		Index:           []string{indexName},
+		ExpandWildcards: "none",
+		AllowNoIndices:  &pfalse,
+	}
+	res, err := req.Do(context.Background(), esClient)
+	debugESResponse("IndicesExistsRequest:"+indexName, res, err)
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		log.Printf("Indice %s was found, nothing to do !", indexName)
+	}
+
+	if res.StatusCode == 404 {
+		log.Printf("Indice %s was not found, let's create it !", indexName)
+
+		requestBodyData := buildInitStorageIndiceQuery()
+		
 		// indice doest not exist, let's create it
 		req := esapi.IndicesCreateRequest{
 			Index: indexName,
@@ -311,7 +316,6 @@ func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
 		res, err := req.Do(context.Background(), esClient)
 		debugESResponse("IndicesCreateRequest:"+indexName, res, err)
 		defer res.Body.Close()
-		log.Printf("Status Code for IndicesCreateRequest (%s) : %d", indexName, res.StatusCode)
 		if res.IsError() {
 			var rsp_IndicesCreateRequest map[string]interface{}
 			json.NewDecoder(res.Body).Decode(&rsp_IndicesCreateRequest)
