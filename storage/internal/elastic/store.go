@@ -319,11 +319,11 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	}
 
 	// Extract indice name by parsing the key
-	storeType, deploymentId := extractStoreTypeAndDeploymentID(k)
+	storeType, deploymentID := extractStoreTypeAndDeploymentID(k)
 	indexName := getIndexName(s.cfg, storeType)
-	log.Debugf("storeType is: %s, indexName is: %s, deploymentId is: %s", storeType, indexName, deploymentId)
+	log.Debugf("storeType is: %s, indexName is: %s, deploymentID is: %s", storeType, indexName, deploymentID)
 
-	query := getListQuery(s.clusterID, deploymentId, waitIndex, 0)
+	query := getListQuery(s.clusterID, deploymentID, waitIndex, 0)
 
 	now := time.Now()
 	end := now.Add(timeout - s.cfg.esRefreshWaitTimeout)
@@ -348,7 +348,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	if hits > 0 {
 		// we do have something to retrieve, we will just wait esRefreshWaitTimeout to let any document that has just been stored to be indexed
 		// then we just retrieve this 'time window' (between waitIndex and lastIndex)
-		query := getListQuery(s.clusterID, deploymentId, waitIndex, lastIndex)
+		query := getListQuery(s.clusterID, deploymentID, waitIndex, lastIndex)
 		if s.cfg.esForceRefresh {
 			// force refresh for this index
 			refreshIndex(s.esClient, indexName)

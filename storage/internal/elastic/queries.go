@@ -47,7 +47,7 @@ func buildInitStorageIndexQuery() string {
 }
 
 // This ES aggregation query is built using clusterId and eventually deploymentId.
-func buildLastModifiedIndexQuery(clusterId string, deploymentId string) string {
+func buildLastModifiedIndexQuery(clusterID string, deploymentId string) string {
 	var query string
 	if len(deploymentId) == 0 {
 		query = `
@@ -55,7 +55,7 @@ func buildLastModifiedIndexQuery(clusterId string, deploymentId string) string {
     "aggs" : {
         "logs_or_events" : {
             "filter" : {
-				"term": { "clusterId": "` + clusterId + `" }
+				"term": { "clusterId": "` + clusterID + `" }
             },
             "aggs" : {
                 "last_index" : { "max" : { "field" : "iid" } }
@@ -72,7 +72,7 @@ func buildLastModifiedIndexQuery(clusterId string, deploymentId string) string {
                 "bool": {
                     "must": [
                         { "term": { "deploymentId": "` + deploymentId + `" } },
-                        { "term": { "clusterId": "` + clusterId + `" } }
+                        { "term": { "clusterId": "` + clusterID + `" } }
                      ]
                 }
             },
@@ -87,7 +87,7 @@ func buildLastModifiedIndexQuery(clusterId string, deploymentId string) string {
 }
 
 // This ES range query is built using 'waitIndex' and eventually 'maxIndex' and filtered using 'clusterId' and eventually 'deploymentId'.
-func getListQuery(clusterID string, deploymentId string, waitIndex uint64, maxIndex uint64) string {
+func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIndex uint64) string {
 
 	var rangeQuery, query string
 	if maxIndex > 0 {
@@ -110,7 +110,7 @@ func getListQuery(clusterID string, deploymentId string, waitIndex uint64, maxIn
                }
             }`
 	}
-	if len(deploymentId) == 0 {
+	if len(deploymentID) == 0 {
 		query = `
 {
    "query":{
@@ -138,7 +138,7 @@ func getListQuery(clusterID string, deploymentId string, waitIndex uint64, maxIn
             },
             {
                "term":{
-                  "deploymentId":"` + deploymentId + `"
+                  "deploymentId":"` + deploymentID + `"
                }
             },` + rangeQuery + `
          ]
