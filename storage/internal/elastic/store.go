@@ -325,11 +325,11 @@ func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
 // Just to display index settings at startup.
 func debugIndexSetting(esClient *elasticsearch6.Client, indexName string) {
 	log.Debugf("Get settings for index <%s>", indexName)
-	req_settings := esapi.IndicesGetSettingsRequest{
+	req := esapi.IndicesGetSettingsRequest{
 		Index:  []string{indexName},
 		Pretty: true,
 	}
-	res, err := req_settings.Do(context.Background(), esClient)
+	res, err := req.Do(context.Background(), esClient)
 	debugESResponse("IndicesGetSettingsRequest:"+indexName, res, err)
 	defer res.Body.Close()
 }
