@@ -107,7 +107,7 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 		return err
 	}
 
-	storeType, body, err := buildElasticDocument(k, v)
+	storeType, body, err := buildElasticDocument(s.clusterID, k, v)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			if kvi == totalDocumentCount || bulkActionCount == s.cfg.maxBulkCount {
 				break
 			}
-			added, err := eventuallyAppendValueToBulkRequest(s.cfg, body, keyValues[kvi], maxBulkSizeInBytes)
+			added, err := eventuallyAppendValueToBulkRequest(s.cfg, s.clusterID, body, keyValues[kvi], maxBulkSizeInBytes)
 			if err != nil {
 				return err
 			} else if !added {

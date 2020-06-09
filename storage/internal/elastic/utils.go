@@ -79,7 +79,7 @@ func getSortableStringFromUint64(nanoTimestamp uint64) string {
 
 // The document is enriched by adding 'clusterId' and 'iid' properties.
 // This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
-func buildElasticDocument(k string, v interface{}) (string, []byte, error) {
+func buildElasticDocument(clusterID string, k string, v interface{}) (string, []byte, error) {
 	// Extract indice name and timestamp by parsing the key
 	storeType, timestamp := extractStoreTypeAndTimestamp(k)
 	log.Debugf("storeType is: %s, timestamp: %s", storeType, timestamp)
@@ -93,7 +93,7 @@ func buildElasticDocument(k string, v interface{}) (string, []byte, error) {
 	iid := eventDate.UnixNano()
 
 	// This is the piece of 'JSON' we want to append
-	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + s.clusterID + `"`
+	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + clusterID + `"`
 	// v is a json.RawMessage
 	raw := v.(json.RawMessage)
 	raw = appendJSONInBytes(raw, []byte(a))
@@ -106,12 +106,12 @@ func buildElasticDocument(k string, v interface{}) (string, []byte, error) {
 // - the size of the resulting bulk operation exceed the maximum authorized for a bulk request
 // The value is not added if it's size + the current body size exceed the maximum authorized for a bulk request.
 // Return a bool indicating if the value has been added to the bulk request body.
-func eventuallyAppendValueToBulkRequest(c elasticStoreConf, body []byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
+func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, body []byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
 	if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
 		return false, err
 	}
 
-	storeType, document, err := buildElasticDocument(kv.Key, kv.Value)
+	storeType, document, err := buildElasticDocument(clusterID, kv.Key, kv.Value)
 	if err != nil {
 		return false, err
 	}
@@ -133,10 +133,10 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, body []byte, kv stor
 	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
 	estimatedBodySize := len(body) + len(bulkOperation) + 1
 	if len(bulkOperation)+1 > maxBulkSizeInBytes {
-		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
+		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, c.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
 	}
 	if estimatedBodySize > maxBulkSizeInBytes {
-		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
+		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", c.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
 		return false, nil
 	}
 	log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
