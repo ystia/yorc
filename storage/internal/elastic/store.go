@@ -118,7 +118,7 @@ func extractStoreTypeAndDeploymentID(k string) (storeType string, deploymentID s
 	return storeType, deploymentID
 }
 
-// Get the JSON tag for this field (for internal usage only !).
+// Get the tag for this field (for internal usage only: fatal if not found !).
 func getElasticStorageConfigPropertyTag(fn string, tn string) string {
 	t := reflect.TypeOf(elasticStoreConf{})
 	f, found := t.FieldByName(fn)
@@ -315,9 +315,9 @@ func initStorageIndex(esClient *elasticsearch6.Client, indexName string) {
 		debugESResponse("IndicesCreateRequest:"+indexName, res, err)
 		defer res.Body.Close()
 		if res.IsError() {
-			var rsp_IndicesCreateRequest map[string]interface{}
-			json.NewDecoder(res.Body).Decode(&rsp_IndicesCreateRequest)
-			log.Printf("Response for IndicesCreateRequest (%s) : %+v", indexName, rsp_IndicesCreateRequest)
+			var rsp map[string]interface{}
+			json.NewDecoder(res.Body).Decode(&rsp)
+			log.Printf("Response for IndicesCreateRequest (%s) : %+v", indexName, rsp)
 		}
 
 	}
@@ -353,12 +353,12 @@ func debugESResponse(msg string, res *esapi.Response, err error) {
 
 // Perform a refresh query on ES cluster for this particular index.
 func (s *elasticStore) refreshIndex(indexName string) {
-	req_get := esapi.IndicesRefreshRequest{
+	req := esapi.IndicesRefreshRequest{
 		Index:           []string{indexName},
 		ExpandWildcards: "none",
 		AllowNoIndices:  &pfalse,
 	}
-	res, err := req_get.Do(context.Background(), s.esClient)
+	res, err := req.Do(context.Background(), s.esClient)
 	defer res.Body.Close()
 	debugESResponse("IndicesRefreshRequest:"+indexName, res, err)
 }
@@ -511,9 +511,8 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			if rsp["errors"].(bool) {
 				// The bulk request contains errors
 				return errors.Errorf("The bulk request succeeded, but the response contains errors : %+v", rsp)
-			} else {
-				log.Printf("Bulk request containing %d documents (%d bytes) has been accepted without errors", bulkActionCount, len(body))
 			}
+			log.Printf("Bulk request containing %d documents (%d bytes) has been accepted without errors", bulkActionCount, len(body))
 		}
 		// increment the number of iterations
 		i++
