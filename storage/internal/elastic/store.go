@@ -260,13 +260,13 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		if err := json.NewDecoder(res.Body).Decode(&errResponse); err != nil {
 			e = errors.Wrapf(
 				err,
-				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %d, but the response cannot be decoded, query was: %s",
+				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %s, but the response cannot be decoded, query was: %s",
 				k, res.Status(), query,
 			)
 			return
 		} else {
 			e = errors.Wrapf(err,
-				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %d, query was: %s, response: %+v",
+				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %s, query was: %s, response: %+v",
 				k, res.Status(), query, errResponse)
 			return
 		}
@@ -276,7 +276,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
 		e = errors.Wrapf(
 			err,
-			"Not able to parse response body after LastModifiedIndexQuery was sent for key %s, status was %d, query was: %s",
+			"Not able to parse response body after LastModifiedIndexQuery was sent for key %s, status was %s, query was: %s",
 			k, res.Status(), query,
 		)
 		return
@@ -288,7 +288,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		if err != nil {
 			e = errors.Wrapf(
 				err,
-				"Not able to parse value after LastModifiedIndexQuery was sent for key %s, status was %d, query was: %s, decoded response was %+v",
+				"Not able to parse value after LastModifiedIndexQuery was sent for key %s, status was %s, query was: %s, decoded response was %+v",
 				k, res.Status(), query, r,
 			)
 			return
@@ -296,7 +296,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 	}
 
 	log.Debugf(
-		"Successfully executed LastModifiedIndexQuery request for key %s ! status: %d, hits: %d; lastIndex: %d",
+		"Successfully executed LastModifiedIndexQuery request for key %s ! status: %s, hits: %d; lastIndex: %d",
 		k, res.Status(), hits, lastIndex,
 	)
 
