@@ -88,7 +88,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, cfg config.Configurat
 	}
 
 	if !cfg.DisableSSHAgent {
-		sshAgent, err := sshutil.NewSSHAgent(ctx, "")
+		sshAgent, err := sshutil.NewSSHAgent(ctx)
 		if err != nil {
 			return err
 		}

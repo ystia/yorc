@@ -33,9 +33,6 @@ import (
 	"github.com/ystia/yorc/v4/log"
 )
 
-var nanoCPUs opts.NanoCPUs
-var memoryInBytes opts.MemBytes
-
 func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.DockerSandbox, deploymentID,
 	ansibleRecipePath, overlayPath, sshAgentSocket string, env []string) (string, error) {
 
@@ -172,9 +169,7 @@ func stopSandboxOnContextCancellation(ctx context.Context, cli *client.Client, d
 // getNanoCPUs converts user defined cpus string to nano cpus presentation
 // defaults cpu to 0.5 cpu if not set
 func getNanoCPUs(c string) (int64, error) {
-	if nanoCPUs != 0 {
-		return nanoCPUs.Value(), nil
-	}
+	var nanoCPUs opts.NanoCPUs
 	if c != "" {
 		if err := nanoCPUs.Set(c); err != nil {
 			return 0, err
@@ -188,9 +183,7 @@ func getNanoCPUs(c string) (int64, error) {
 // getMemoryInBytes converts user defined memory string to memory in bytes presentation
 // defaults memory to 256m if not set
 func getMemoryInBytes(m string) (int64, error) {
-	if memoryInBytes != 0 {
-		return memoryInBytes.Value(), nil
-	}
+	var memoryInBytes opts.MemBytes
 	if m != "" {
 		if err := memoryInBytes.Set(m); err != nil {
 			return 0, err

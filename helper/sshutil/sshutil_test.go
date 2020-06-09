@@ -41,7 +41,7 @@ func TestSSHAgent(t *testing.T) {
 	privateKeyContent := string(bArray)
 
 	// Create new ssh-agent
-	sshAg, err := NewSSHAgent(context.Background(), "")
+	sshAg, err := NewSSHAgent(context.Background())
 	require.Nil(t, err, "unexpected error while creating SSH-agent")
 	defer func() {
 		err = sshAg.Stop()
@@ -71,9 +71,9 @@ func TestSSHAgent(t *testing.T) {
 	require.Len(t, keys, 0, "no key expected")
 
 	// test create more than one agents in a specific socket directory
-	sshAg1, err := NewSSHAgent(context.Background(), "/tmp/ssh-agent")
+	sshAg1, err := NewSSHAgentWithSocket(context.Background(), "/tmp/ssh-agent")
 	require.Nil(t, err)
-	sshAg2, err := NewSSHAgent(context.Background(), "/tmp/ssh-agent")
+	sshAg2, err := NewSSHAgentWithSocket(context.Background(), "/tmp/ssh-agent")
 	require.Nil(t, err)
 	require.DirExists(t, "/tmp/ssh-agent")
 	assert.NotEqual(t, sshAg1.Socket, sshAg2.Socket)

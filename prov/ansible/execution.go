@@ -1303,7 +1303,7 @@ func (e *executionCommon) configureSSHAgent(ctx context.Context, socketDir strin
 		return nil, nil
 	}
 
-	agent, err := sshutil.NewSSHAgent(ctx, socketDir)
+	agent, err := sshutil.NewSSHAgentWithSocket(ctx, socketDir)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@
 
 FROM alpine:3.10
 
-ENV ANSIBLE_VERSION=2.9.9
+ENV ANSIBLE_VERSION=2.7.9
 
 RUN apk add --no-cache --progress bash python3 openssl ca-certificates openssh sshpass && \
     addgroup -g 1000 ansible && \
