@@ -17,26 +17,26 @@
 package elastic
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	elasticsearch6 "github.com/elastic/go-elasticsearch/v6"
+	"github.com/elastic/go-elasticsearch/v6/esapi"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/utils"
-	"time"
-	elasticsearch6 "github.com/elastic/go-elasticsearch/v6"
-	"github.com/ystia/yorc/v4/log"
-	"regexp"
-	"github.com/elastic/go-elasticsearch/v6/esapi"
-	"encoding/json"
-	"bytes"
-	"github.com/ystia/yorc/v4/config"
-	"strings"
-	"strconv"
-	"math"
-	"fmt"
-	"reflect"
-	"github.com/spf13/cast"
 	"io/ioutil"
+	"math"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // elasticStoreConf represents the elastic store configuration that can be set in store.properties configuration.
@@ -196,7 +196,6 @@ func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) int {
 	}
 }
 
-
 // NewStore returns a new Elastic store.
 // Since the elastic store can only manage logs or events, it will panic is it's configured for anything else.
 // At init stage, we display ES cluster info and initialise indexes if they are not found.
@@ -240,9 +239,9 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 	esClient, _ := elasticsearch6.NewClient(esConfig)
 
 	log.Printf("Here is the ES cluster info")
-	log.Println(esClient.Info());
+	log.Println(esClient.Info())
 	log.Printf("ClusterID: %s, ServerID: %s", cfg.ClusterID, cfg.ServerID)
-	var clusterId string = cfg.ClusterID
+	var clusterId = cfg.ClusterID
 	if len(clusterId) == 0 {
 		clusterId = cfg.ServerID
 	}
@@ -458,13 +457,13 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 		return nil
 	}
 
-	iterationCount := int(math.Ceil((float64(totalDocumentCount) / float64(s.cfg.maxBulkCount))))
+	iterationCount := int(math.Ceil(float64(totalDocumentCount) / float64(s.cfg.maxBulkCount)))
 	log.Printf("max_bulk_count is %d, so a minimum of %d iterations will be necessary to bulk index the %d documents", s.cfg.maxBulkCount, iterationCount, totalDocumentCount)
 
 	// The current index in []keyValues (also the number of documents indexed)
-	var kvi int = 0
+	var kvi = 0
 	// The number of iterations
-	var i int = 0
+	var i = 0
 	for {
 		if kvi == totalDocumentCount {
 			break
@@ -484,8 +483,8 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			} else if !added {
 				break
 			} else {
-				kvi++;
-				bulkActionCount++;
+				kvi++
+				bulkActionCount++
 			}
 		}
 
@@ -558,8 +557,8 @@ func (s *elasticStore) eventuallyAppendValueToBulkRequest(body []byte, kv store.
 
 	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
 	estimatedBodySize := len(body) + len(bulkOperation) + 1
-	if len(bulkOperation) + 1 > maxBulkSizeInBytes {
-		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation) + 1, maxBulkSizeInBytes)
+	if len(bulkOperation)+1 > maxBulkSizeInBytes {
+		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, s.cfg.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
 	}
 	if estimatedBodySize > maxBulkSizeInBytes {
 		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
@@ -728,7 +727,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	var err error
 	for {
 		// first just query to know if they is something to fetch, we just want the max iid (so order desc, size 1)
-		hits, values, lastIndex, err = s.doQueryEs(indexName, query, waitIndex, 1, "desc");
+		hits, values, lastIndex, err = s.doQueryEs(indexName, query, waitIndex, 1, "desc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events, error was: %+v", err)
 		}
@@ -745,11 +744,11 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		query := getListQuery(s.clusterId, deploymentId, waitIndex, lastIndex)
 		if s.cfg.esForceRefresh {
 			// force refresh for this index
-			s.refreshIndex(indexName);
+			s.refreshIndex(indexName)
 		}
 		time.Sleep(s.cfg.esRefreshWaitTimeout)
 		oldHits := hits
-		hits, values, lastIndex, err = s.doQueryEs(indexName, query, waitIndex, 10000, "asc");
+		hits, values, lastIndex, err = s.doQueryEs(indexName, query, waitIndex, 10000, "asc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh), error was: %+v", err)
 		}
@@ -925,11 +924,11 @@ func (s *elasticStore) doQueryEs(index string, query string, waitIndex uint64, s
 		iid := source["iid"]
 		iid_int64, err := parseInt64StringToUint64(iid.(string))
 		if err != nil {
-			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source);
+			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)
 		} else {
 			jsonString, err := json.Marshal(source)
 			if err != nil {
-				log.Printf("Not able to marshall document source, document id: %s, source: %+v, ignoring this document !", id, source);
+				log.Printf("Not able to marshall document source, document id: %s, source: %+v, ignoring this document !", id, source)
 			} else {
 				// since the result is sorted on iid, we can use the last hit to define lastIndex
 				lastIndex = iid_int64
