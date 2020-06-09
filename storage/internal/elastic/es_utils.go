@@ -99,6 +99,9 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 
 // Just to display index settings at startup.
 func debugIndexSetting(c *elasticsearch6.Client, indexName string) {
+	if !log.IsDebug() {
+		return
+	}
 	log.Debugf("Get settings for index <%s>", indexName)
 	req := esapi.IndicesGetSettingsRequest{
 		Index:  []string{indexName},
@@ -111,6 +114,9 @@ func debugIndexSetting(c *elasticsearch6.Client, indexName string) {
 
 // Debug the ES response.
 func debugESResponse(msg string, res *esapi.Response, err error) {
+	if !log.IsDebug() {
+		return
+	}
 	if err != nil {
 		log.Debugf("[%s] Error while requesting ES : %+v", msg, err)
 	} else if res.IsError() {
@@ -125,7 +131,14 @@ func debugESResponse(msg string, res *esapi.Response, err error) {
 }
 
 // Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
-func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex uint64, size int, order string) (hits int, values []store.KeyValueOut, lastIndex uint64, err error) {
+func doQueryEs(c *elasticsearch6.Client,
+	index string,
+	query string,
+	waitIndex uint64,
+	size int,
+	order string,
+) (hits int, values []store.KeyValueOut, lastIndex uint64, err error) {
+
 	log.Debugf("Search ES %s using query: %s", index, query)
 	lastIndex = waitIndex
 
@@ -146,18 +159,25 @@ func doQueryEs(c *elasticsearch6.Client, index string, query string, waitIndex u
 	if res.IsError() {
 		var responseErrorBody map[string]interface{}
 		if decodeErr := json.NewDecoder(res.Body).Decode(&responseErrorBody); decodeErr != nil {
-			log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
-			err = errors.Wrapf(decodeErr, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
+			err = errors.Wrapf(decodeErr,
+				"An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !",
+				index, query, res.StatusCode, res.Status(),
+			)
 			return
 		}
-		log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), responseErrorBody)
-		err = errors.Errorf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), responseErrorBody)
+		err = errors.Errorf(
+			"An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v",
+			index, query, res.StatusCode, res.Status(), responseErrorBody,
+		)
 		return
 	}
 
 	var r map[string]interface{}
 	if decodeErr := json.NewDecoder(res.Body).Decode(&r); decodeErr != nil {
-		err = errors.Wrapf(decodeErr, "Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)", index, query, res.StatusCode, res.Status())
+		err = errors.Wrapf(decodeErr,
+			"Not able to decode ES response while performing ES search on index %s, query was: <%s>, response code was %d (%s)",
+			index, query, res.StatusCode, res.Status(),
+		)
 		return
 	}
 
@@ -219,7 +239,10 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 	if err != nil {
 		return err
 	} else if res.IsError() {
-		return errors.Errorf("Error while sending bulk request, response code was <%d> and response message was <%s>", res.StatusCode, res.String())
+		return errors.Errorf(
+			"Error while sending bulk request, response code was <%d> and response message was <%s>",
+			res.StatusCode, res.String(),
+		)
 	} else {
 		var rsp map[string]interface{}
 		json.NewDecoder(res.Body).Decode(&rsp)

@@ -73,13 +73,15 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 
 	log.Printf("Elastic storage will run using this configuration: %+v", esCfg)
 	log.Printf("\t- Index prefix will be %s", esCfg.indicePrefix)
-	log.Printf("\t- Will query ES for logs or events every %v and will wait for index refresh during %v", esCfg.esQueryPeriod, esCfg.esRefreshWaitTimeout)
+	log.Printf("\t- Will query ES for logs or events every %v and will wait for index refresh during %v",
+		esCfg.esQueryPeriod, esCfg.esRefreshWaitTimeout)
 	willRefresh := ""
 	if !esCfg.esForceRefresh {
 		willRefresh = "not "
 	}
 	log.Printf("\t- Will %srefresh index before waiting for indexation", willRefresh)
-	log.Printf("\t- While migrating data, the max bulk request size will be %d documents and will never exceed %d kB", esCfg.maxBulkCount, esCfg.maxBulkSize)
+	log.Printf("\t- While migrating data, the max bulk request size will be %d documents and will never exceed %d kB",
+		esCfg.maxBulkCount, esCfg.maxBulkSize)
 	log.Printf("\t- Will use this ES client configuration: %+v", esConfig)
 
 	esClient, _ := elasticsearch6.NewClient(esConfig)
@@ -147,15 +149,21 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 		return nil
 	}
 
+	// Just estimate the iteration count
 	iterationCount := int(math.Ceil(float64(totalDocumentCount) / float64(s.cfg.maxBulkCount)))
-	log.Printf("max_bulk_count is %d, so a minimum of %d iterations will be necessary to bulk index the %d documents", s.cfg.maxBulkCount, iterationCount, totalDocumentCount)
+	log.Printf(
+		"max_bulk_count is %d, so a minimum of %d iterations will be necessary to bulk index the %d documents",
+		s.cfg.maxBulkCount, iterationCount, totalDocumentCount,
+	)
 
 	// The current index in []keyValues (also the number of documents indexed)
 	var kvi = 0
 	// The number of iterations
 	var i = 0
+	// Iterate over the []keyValues
 	for {
 		if kvi == totalDocumentCount {
+			// We have reached the end of []keyValues
 			break
 		}
 		fmt.Printf("Bulk iteration %d", i)
@@ -163,16 +171,19 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 		maxBulkSizeInBytes := s.cfg.maxBulkSize * 1024
 		// Prepare a slice of max capacity
 		var body = make([]byte, 0, maxBulkSizeInBytes)
-		// Number of operation in the bulk request
+		// Number of operation in the current bulk request
 		opeCount := 0
+		// Each iteration is a single bulk request
 		for {
 			if kvi == totalDocumentCount || opeCount == s.cfg.maxBulkCount {
+				// We have reached the end of []keyValues OR the max items allowed in a single bulk request (max_bulk_count)
 				break
 			}
 			added, err := eventuallyAppendValueToBulkRequest(s.cfg, s.clusterID, &body, keyValues[kvi], maxBulkSizeInBytes)
 			if err != nil {
 				return err
 			} else if !added {
+				// The document hasn't been added (too big), let's include it in next bulk
 				break
 			} else {
 				kvi++
@@ -197,7 +208,7 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) error {
 	log.Debugf("Delete called k: %s, recursive: %t", k, recursive)
 
-	// Extract indice name and deploymentID by parsing the key
+	// Extract index name and deploymentID by parsing the key
 	storeType, deploymentID := extractStoreTypeAndDeploymentID(k)
 	indexName := getIndexName(s.cfg, storeType)
 	log.Debugf("storeType is: %s, indexName is %s, deploymentID is: %s", storeType, indexName, deploymentID)
@@ -220,10 +231,10 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 }
 
 // GetLastModifyIndex return the last index which is found by querying ES using aggregation and a 0 size request.
-func (s *elasticStore) GetLastModifyIndex(k string) (uint64, error) {
+func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) {
 	log.Debugf("GetLastModifyIndex called k: %s", k)
 
-	// Extract indice name and deploymentID by parsing the key
+	// Extract index name and deploymentID by parsing the key
 	storeType, deploymentID := extractStoreTypeAndDeploymentID(k)
 	indexName := getIndexName(s.cfg, storeType)
 	log.Debugf("storeType is: %s, indexName is: %s, deploymentID is: %s", storeType, indexName, deploymentID)
@@ -238,46 +249,55 @@ func (s *elasticStore) GetLastModifyIndex(k string) (uint64, error) {
 		s.esClient.Search.WithSize(0),
 		s.esClient.Search.WithBody(strings.NewReader(query)),
 	)
-	if err != nil {
-		log.Printf("ERROR: %s", err)
-	}
 	defer res.Body.Close()
+	if err != nil {
+		e = errors.Wrapf(err, "Error while sending LastModifiedIndexQuery request to ES for k %s, query was: %s", k, query)
+		return
+	}
 
 	if res.IsError() {
-		var e map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
-			log.Printf("error parsing the response body: %s", err)
-		} else {
-			// Print the response status and error information.
-			log.Printf("[%s] %s: %s",
-				res.Status(),
-				e["error"].(map[string]interface{})["type"],
-				e["error"].(map[string]interface{})["reason"],
+		var errResponse map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&errResponse); err != nil {
+			e = errors.Wrapf(
+				err,
+				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %d, but the response cannot be decoded, query was: %s",
+				k, res.Status(), query,
 			)
+			return
+		} else {
+			e = errors.Wrapf(err,
+				"An error was returned by ES while sending LastModifiedIndexQuery for key %s, status was %d, query was: %s, response: %+v",
+				k, res.Status(), query, errResponse)
+			return
 		}
 	}
 
 	var r lastIndexResponse
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		log.Printf("Error parsing the response body: %s", err)
-		return 0, err
+		e = errors.Wrapf(
+			err,
+			"Not able to parse response body after LastModifiedIndexQuery was sent for key %s, status was %d, query was: %s",
+			k, res.Status(), query,
+		)
+		return
 	}
 
 	hits := r.hits.total
-	var lastIndex uint64 = 0
 	if hits > 0 {
-		lastIndex, err = parseInt64StringToUint64(r.aggregations.logsOrEvents.lastIndex.value)
+		lastIndex, e = parseInt64StringToUint64(r.aggregations.logsOrEvents.lastIndex.value)
 		if err != nil {
-			return lastIndex, err
+			e = errors.Wrapf(
+				err,
+				"Not able to parse value after LastModifiedIndexQuery was sent for key %s, status was %d, query was: %s, decoded response was %+v",
+				k, res.Status(), query, r,
+			)
+			return
 		}
 	}
 
-	// Print the response status, number of results, and request duration.
 	log.Debugf(
-		"[%s] %d hits; lastIndex: %d",
-		res.Status(),
-		hits,
-		lastIndex,
+		"Successfully executed LastModifiedIndexQuery request for key %s ! status: %d, hits: %d; lastIndex: %d",
+		k, res.Status(), hits, lastIndex,
 	)
 
 	return lastIndex, nil
@@ -338,10 +358,13 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh), error was: %+v", err)
 		}
 		if log.IsDebug() && hits > oldHits {
-			log.Debugf("%d > %d so sleeping %v to wait for ES refresh was usefull (index %s), %d documents has been fetched", hits, oldHits, s.cfg.esRefreshWaitTimeout, indexName, len(values))
+			log.Debugf("%d > %d so sleeping %v to wait for ES refresh was usefull (index %s), %d documents has been fetched",
+				hits, oldHits, s.cfg.esRefreshWaitTimeout, indexName, len(values),
+			)
 		}
 	}
-	log.Debugf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d", k, waitIndex, timeout, lastIndex, len(values))
+	log.Debugf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d",
+		k, waitIndex, timeout, lastIndex, len(values),)
 	return values, lastIndex, err
 }
 

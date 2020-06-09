@@ -143,10 +143,16 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, bo
 	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
 	estimatedBodySize := len(*body) + len(bulkOperation) + 1
 	if len(bulkOperation)+1 > maxBulkSizeInBytes {
-		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, c.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
+		return false, errors.Errorf(
+			"A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !",
+			kv.Key, c.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes,
+		)
 	}
 	if estimatedBodySize > maxBulkSizeInBytes {
-		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", c.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
+		log.Printf(
+			"The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request",
+			c.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes,
+		)
 		return false, nil
 	}
 	log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
