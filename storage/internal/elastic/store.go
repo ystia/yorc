@@ -156,23 +156,11 @@ func getElasticStoreConfig(storeConfig config.Store) elasticStoreConf {
 	if storeProperties.IsSet(k) {
 		cfg.caCertPath = storeProperties.GetString(k)
 	}
-	k = getElasticStorageConfigPropertyTag("esQueryPeriod", "json")
-	if storeProperties.IsSet(k) {
-		cfg.esQueryPeriod = storeProperties.GetDuration(k)
-	} else {
-		cfg.esQueryPeriod = cast.ToDuration(getElasticStorageConfigPropertyTag("esQueryPeriod", "default"))
-	}
 	k = getElasticStorageConfigPropertyTag("esForceRefresh", "json")
 	if storeProperties.IsSet(k) {
 		cfg.esForceRefresh = storeProperties.GetBool(k)
 	} else {
 		cfg.esForceRefresh = cast.ToBool(getElasticStorageConfigPropertyTag("esForceRefresh", "default"))
-	}
-	k = getElasticStorageConfigPropertyTag("esRefreshWaitTimeout", "json")
-	if storeProperties.IsSet(k) {
-		cfg.esRefreshWaitTimeout = storeProperties.GetDuration(k)
-	} else {
-		cfg.esRefreshWaitTimeout = cast.ToDuration(getElasticStorageConfigPropertyTag("esRefreshWaitTimeout", "default"))
 	}
 	k = getElasticStorageConfigPropertyTag("indicePrefix", "json")
 	if storeProperties.IsSet(k) {
@@ -180,21 +168,34 @@ func getElasticStoreConfig(storeConfig config.Store) elasticStoreConf {
 	} else {
 		cfg.indicePrefix = getElasticStorageConfigPropertyTag("indicePrefix", "default")
 	}
-	k = getElasticStorageConfigPropertyTag("maxBulkSize", "json")
-	if storeProperties.IsSet(k) {
-		cfg.maxBulkSize = storeProperties.GetInt(k)
-	} else {
-		cfg.maxBulkSize = cast.ToInt(getElasticStorageConfigPropertyTag("maxBulkSize", "default"))
-	}
-	k = getElasticStorageConfigPropertyTag("maxBulkCount", "json")
-	if storeProperties.IsSet(k) {
-		cfg.maxBulkCount = storeProperties.GetInt(k)
-	} else {
-		cfg.maxBulkCount = cast.ToInt(getElasticStorageConfigPropertyTag("maxBulkCount", "default"))
-	}
+	cfg.esQueryPeriod = getDurationFromSettingsOrDefaults("esQueryPeriod", storeProperties)
+	cfg.esRefreshWaitTimeout = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
+	cfg.maxBulkSize = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
+	cfg.maxBulkCount = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
 
 	return cfg
 }
+
+// Get the duration from store config properties, fallback to required default value defined in struc.
+func getDurationFromSettingsOrDefaults(fn string, dm storeConfig.Properties) time.Duration {
+	k := getElasticStorageConfigPropertyTag(fn, "json")
+	if dm.IsSet(k) {
+		return dm.GetDuration(k)
+	} else {
+		return cast.ToDuration(getElasticStorageConfigPropertyTag(fn, "default"))
+	}
+}
+
+// Get the int from store config properties, fallback to required default value defined in struc.
+func getIntFromSettingsOrDefaults(fn string, dm storeConfig.Properties) int {
+	k := getElasticStorageConfigPropertyTag(fn, "json")
+	if dm.IsSet(k) {
+		return dm.GetInt(k)
+	} else {
+		return cast.ToInt(getElasticStorageConfigPropertyTag(fn, "default"))
+	}
+}
+
 
 // NewStore returns a new Elastic store.
 // Since the elastic store can only manage logs or events, it will panic is it's configured for anything else.
@@ -253,7 +254,8 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 	return &elasticStore{encoding.JSON, esClient, clusterId, esCfg}
 }
 
-
+// Return the query that is used to create indexes for event and log storage.
+// We only index the needed fields to optimize ES indexing performance (no dynamic mapping).
 func buildInitStorageIndiceQuery() string {
 	query := `
 {
@@ -307,7 +309,7 @@ func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
 		log.Printf("Indice %s was not found, let's create it !", indexName)
 
 		requestBodyData := buildInitStorageIndiceQuery()
-		
+
 		// indice doest not exist, let's create it
 		req := esapi.IndicesCreateRequest{
 			Index: indexName,
