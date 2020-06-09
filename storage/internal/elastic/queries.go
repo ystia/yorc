@@ -16,8 +16,8 @@ package elastic
 
 // Return the query that is used to create indexes for event and log storage.
 // We only index the needed fields to optimize ES indexing performance (no dynamic mapping).
-func buildInitStorageIndexQuery() string {
-	query := `
+func buildInitStorageIndexQuery() (query string) {
+	query = `
 {
      "settings": {
          "refresh_interval": "1s"
@@ -43,12 +43,11 @@ func buildInitStorageIndexQuery() string {
          }
      }
 }`
-	return query
+	return
 }
 
 // This ES aggregation query is built using clusterId and eventually deploymentId.
-func buildLastModifiedIndexQuery(clusterID string, deploymentID string) string {
-	var query string
+func buildLastModifiedIndexQuery(clusterID string, deploymentID string) (query string) {
 	if len(deploymentID) == 0 {
 		query = `
 {
@@ -83,13 +82,10 @@ func buildLastModifiedIndexQuery(clusterID string, deploymentID string) string {
     }
 }`
 	}
-	return query
+	return
 }
 
-// This ES range query is built using 'waitIndex' and eventually 'maxIndex' and filtered using 'clusterId' and eventually 'deploymentId'.
-func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIndex uint64) string {
-
-	var rangeQuery, query string
+func getRangeQuery(waitIndex uint64, maxIndex uint64) (rangeQuery string) {
 	if maxIndex > 0 {
 		rangeQuery = `
             {
@@ -110,6 +106,12 @@ func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIn
                }
             }`
 	}
+	return
+}
+
+// This ES range query is built using 'waitIndex' and eventually 'maxIndex' and filtered using 'clusterId' and eventually 'deploymentId'.
+func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIndex uint64) (query string) {
+	rangeQuery := getRangeQuery(waitIndex, maxIndex)
 	if len(deploymentID) == 0 {
 		query = `
 {
@@ -146,5 +148,5 @@ func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIn
    }
 }`
 	}
-	return query
+	return
 }
