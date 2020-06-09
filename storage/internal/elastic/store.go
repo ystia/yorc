@@ -65,7 +65,7 @@ var pfalse = false
 type elasticStore struct {
 	codec     encoding.Codec
 	esClient  *elasticsearch6.Client
-	clusterId string
+	clusterID string
 	cfg       elasticStoreConf
 }
 
@@ -78,11 +78,10 @@ type hits struct {
 	total int `json:"total"`
 }
 type logOrEventAggregation struct {
-	logs_or_events lastIndexAggregation `json:"logs_or_events"`
+	logsOrEvents lastIndexAggregation `json:"logs_or_events"`
 }
 type lastIndexAggregation struct {
-	doc_count  int         `json:"doc_count"`
-	last_index stringValue `json:"last_index"`
+	lastIndex stringValue `json:"last_index"`
 }
 type stringValue struct {
 	value string `json:"value"`
@@ -102,11 +101,11 @@ func extractStoreTypeAndTimestamp(k string) (storeType string, timestamp string)
 }
 
 // Precompiled regex to extract storeType and deploymentId from a key of the form: "_yorc/events/" or "_yorc/logs/MyApp" or "_yorc/logs/MyApp/".
-var storeTypeAndDeploymentIdRegex = regexp.MustCompile(`(?m)\_yorc\/(\w+)\/?(.+)?\/?`)
+var storeTypeAndDeploymentIDRegex = regexp.MustCompile(`(?m)\_yorc\/(\w+)\/?(.+)?\/?`)
 
 // Parse a key of form "_yorc/events/" or "_yorc/logs/MyApp" or "_yorc/logs/MyApp/" to get the store type (logs|events) and eventually the deploymentId.
-func extractStoreTypeAndDeploymentId(k string) (storeType string, deploymentId string) {
-	res := storeTypeAndDeploymentIdRegex.FindAllStringSubmatch(k, -1)
+func extractStoreTypeAndDeploymentID(k string) (storeType string, deploymentId string) {
+	res := storeTypeAndDeploymentIDRegex.FindAllStringSubmatch(k, -1)
 	for i := range res {
 		storeType = res[i][1]
 		if len(res[i]) == 3 {
@@ -181,9 +180,8 @@ func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) time.Dur
 	k := getElasticStorageConfigPropertyTag(fn, "json")
 	if dm.IsSet(k) {
 		return dm.GetDuration(k)
-	} else {
-		return cast.ToDuration(getElasticStorageConfigPropertyTag(fn, "default"))
 	}
+	return cast.ToDuration(getElasticStorageConfigPropertyTag(fn, "default"))
 }
 
 // Get the int from store config properties, fallback to required default value defined in struc.
@@ -191,9 +189,8 @@ func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) int {
 	k := getElasticStorageConfigPropertyTag(fn, "json")
 	if dm.IsSet(k) {
 		return dm.GetInt(k)
-	} else {
-		return cast.ToInt(getElasticStorageConfigPropertyTag(fn, "default"))
 	}
+	return cast.ToInt(getElasticStorageConfigPropertyTag(fn, "default"))
 }
 
 // NewStore returns a new Elastic store.
@@ -246,8 +243,8 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 		clusterId = cfg.ServerID
 	}
 
-	initStorageIndices(esClient, esCfg.indicePrefix+"logs")
-	initStorageIndices(esClient, esCfg.indicePrefix+"events")
+	initStorageIndex(esClient, esCfg.indicePrefix+"logs")
+	initStorageIndex(esClient, esCfg.indicePrefix+"events")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"logs")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"events")
 	return &elasticStore{encoding.JSON, esClient, clusterId, esCfg}
@@ -255,7 +252,7 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) store.Store {
 
 // Return the query that is used to create indexes for event and log storage.
 // We only index the needed fields to optimize ES indexing performance (no dynamic mapping).
-func buildInitStorageIndiceQuery() string {
+func buildInitStorageIndexQuery() string {
 	query := `
 {
      "settings": {
@@ -286,7 +283,7 @@ func buildInitStorageIndiceQuery() string {
 }
 
 // Init ES index for logs or events storage: create it if not found.
-func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
+func initStorageIndex(esClient *elasticsearch6.Client, indexName string) {
 
 	log.Printf("Checking if index <%s> already exists", indexName)
 
@@ -307,7 +304,7 @@ func initStorageIndices(esClient *elasticsearch6.Client, indexName string) {
 	if res.StatusCode == 404 {
 		log.Printf("Indice %s was not found, let's create it !", indexName)
 
-		requestBodyData := buildInitStorageIndiceQuery()
+		requestBodyData := buildInitStorageIndexQuery()
 
 		// indice doest not exist, let's create it
 		req := esapi.IndicesCreateRequest{
@@ -367,7 +364,7 @@ func (s *elasticStore) refreshIndex(indexName string) {
 }
 
 // The document is enriched by adding 'clusterId' and 'iid' properties.
-// TODO: Can be optimized by directly adding the entries in byte array (rather than marshaling / unmarshaling twice)
+// This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
 func (s *elasticStore) buildElasticDocument(k string, v interface{}) (string, []byte, error) {
 	// Extract indice name and timestamp by parsing the key
 	storeType, timestamp := extractStoreTypeAndTimestamp(k)
@@ -382,16 +379,16 @@ func (s *elasticStore) buildElasticDocument(k string, v interface{}) (string, []
 	iid := eventDate.UnixNano()
 
 	// This is the piece of 'JSON' we want to append
-	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + s.clusterId + `"`
+	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + s.clusterID + `"`
 	// v is a json.RawMessage
 	raw := v.(json.RawMessage)
-	raw = appendJsonInBytes(raw, []byte(a))
+	raw = appendJSONInBytes(raw, []byte(a))
 
 	return storeType, raw, nil
 }
 
 // We need to append JSON directly into []byte to avoid useless and costly  marshaling / unmarshaling.
-func appendJsonInBytes(a []byte, v []byte) []byte {
+func appendJSONInBytes(a []byte, v []byte) []byte {
 	last := len(a) - 1
 	lastByte := a[last]
 	// just append v at the end
@@ -563,12 +560,11 @@ func (s *elasticStore) eventuallyAppendValueToBulkRequest(body []byte, kv store.
 	if estimatedBodySize > maxBulkSizeInBytes {
 		log.Printf("The limit of bulk size (%d kB) will be reached (%d > %d), the current document will be sent in the next bulk request", s.cfg.maxBulkSize, estimatedBodySize, maxBulkSizeInBytes)
 		return false, nil
-	} else {
-		log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
-		// Append the bulk operation
-		body = append(body, bulkOperation...)
-		return true, nil
 	}
+	log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
+	// Append the bulk operation
+	body = append(body, bulkOperation...)
+	return true, nil
 }
 
 // Get is not used for logs nor events: fails in FATAL.
@@ -599,12 +595,12 @@ func (s *elasticStore) Keys(k string) ([]string, error) {
 func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) error {
 	log.Debugf("Delete called k: %s, recursive: %t", k, recursive)
 
-	// Extract indice name and deploymentId by parsing the key
-	storeType, deploymentId := extractStoreTypeAndDeploymentId(k)
+	// Extract indice name and deploymentID by parsing the key
+	storeType, deploymentID := extractStoreTypeAndDeploymentID(k)
 	indexName := s.getIndexName(storeType)
-	log.Debugf("storeType is: %s, indexName is %s, deploymentId is: %s", storeType, indexName, deploymentId)
+	log.Debugf("storeType is: %s, indexName is %s, deploymentID is: %s", storeType, indexName, deploymentID)
 
-	query := `{"query" : { "bool" : { "must" : [{ "term": { "clusterId" : "` + s.clusterId + `" }}, { "term": { "deploymentId" : "` + deploymentId + `" }}]}}}`
+	query := `{"query" : { "bool" : { "must" : [{ "term": { "clusterId" : "` + s.clusterID + `" }}, { "term": { "deploymentId" : "` + deploymentID + `" }}]}}}`
 	log.Debugf("query is : %s", query)
 
 	var MaxInt = 1024000
@@ -624,11 +620,11 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 func (s *elasticStore) GetLastModifyIndex(k string) (uint64, error) {
 	log.Debugf("GetLastModifyIndex called k: %s", k)
 
-	// Extract indice name and deploymentId by parsing the key
-	indexName, deploymentId := extractStoreTypeAndDeploymentId(k)
-	log.Debugf("indexName is: %s, deploymentId is: %s", indexName, deploymentId)
+	// Extract indice name and deploymentID by parsing the key
+	indexName, deploymentID := extractStoreTypeAndDeploymentID(k)
+	log.Debugf("indexName is: %s, deploymentID is: %s", indexName, deploymentID)
 
-	return s.internalGetLastModifyIndex(s.getIndexName(indexName), deploymentId)
+	return s.internalGetLastModifyIndex(s.getIndexName(indexName), deploymentID)
 
 }
 
@@ -644,8 +640,8 @@ func parseInt64StringToUint64(value string) (uint64, error) {
 // The last index is found by querying ES using aggregation and a 0 size request.
 func (s *elasticStore) internalGetLastModifyIndex(indexName string, deploymentId string) (uint64, error) {
 
-	// The last_index is query by using ES aggregation query ~= MAX(iid) HAVING deploymentId AND clusterId
-	query := buildLastModifiedIndexQuery(s.clusterId, deploymentId)
+	// The lastIndex is query by using ES aggregation query ~= MAX(iid) HAVING deploymentId AND clusterId
+	query := buildLastModifiedIndexQuery(s.clusterID, deploymentId)
 	log.Debugf("buildLastModifiedIndexQuery is : %s", query)
 
 	res, err := s.esClient.Search(
@@ -680,23 +676,23 @@ func (s *elasticStore) internalGetLastModifyIndex(indexName string, deploymentId
 	}
 
 	hits := r.hits.total
-	var last_index uint64 = 0
+	var lastIndex uint64 = 0
 	if hits > 0 {
-		last_index, err = parseInt64StringToUint64(r.aggregations.logs_or_events.last_index.value)
+		lastIndex, err = parseInt64StringToUint64(r.aggregations.logsOrEvents.lastIndex.value)
 		if err != nil {
-			return last_index, err
+			return lastIndex, err
 		}
 	}
 
 	// Print the response status, number of results, and request duration.
 	log.Debugf(
-		"[%s] %d hits; last_index: %d",
+		"[%s] %d hits; lastIndex: %d",
 		res.Status(),
 		hits,
-		last_index,
+		lastIndex,
 	)
 
-	return last_index, nil
+	return lastIndex, nil
 }
 
 // List simulates long polling request by :
@@ -712,11 +708,11 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	}
 
 	// Extract indice name by parsing the key
-	storeType, deploymentId := extractStoreTypeAndDeploymentId(k)
+	storeType, deploymentId := extractStoreTypeAndDeploymentID(k)
 	indexName := s.getIndexName(storeType)
 	log.Debugf("storeType is: %s, indexName is: %s, deploymentId is: %s", storeType, indexName, deploymentId)
 
-	query := getListQuery(s.clusterId, deploymentId, waitIndex, 0)
+	query := getListQuery(s.clusterID, deploymentId, waitIndex, 0)
 
 	now := time.Now()
 	end := now.Add(timeout - s.cfg.esRefreshWaitTimeout)
@@ -741,7 +737,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	if hits > 0 {
 		// we do have something to retrieve, we will just wait esRefreshWaitTimeout to let any document that has just been stored to be indexed
 		// then we just retrieve this 'time window' (between waitIndex and lastIndex)
-		query := getListQuery(s.clusterId, deploymentId, waitIndex, lastIndex)
+		query := getListQuery(s.clusterID, deploymentId, waitIndex, lastIndex)
 		if s.cfg.esForceRefresh {
 			// force refresh for this index
 			s.refreshIndex(indexName)
@@ -812,7 +808,7 @@ func getSortableStringFromUint64(nanoTimestamp uint64) string {
 }
 
 // This ES range query is built using 'waitIndex' and eventually 'maxIndex' and filtered using 'clusterId' and eventually 'deploymentId'.
-func getListQuery(clusterId string, deploymentId string, waitIndex uint64, maxIndex uint64) string {
+func getListQuery(clusterID string, deploymentId string, waitIndex uint64, maxIndex uint64) string {
 
 	var rangeQuery, query string
 	if maxIndex > 0 {
@@ -843,7 +839,7 @@ func getListQuery(clusterId string, deploymentId string, waitIndex uint64, maxIn
          "must":[
             {
                "term":{
-                  "clusterId":"` + clusterId + `"
+                  "clusterId":"` + clusterID + `"
                }
             },` + rangeQuery + `
          ]
@@ -858,7 +854,7 @@ func getListQuery(clusterId string, deploymentId string, waitIndex uint64, maxIn
          "must":[
             {
                "term":{
-                  "clusterId":"` + clusterId + `"
+                  "clusterId":"` + clusterID + `"
                }
             },
             {
@@ -899,10 +895,9 @@ func (s *elasticStore) doQueryEs(index string, query string, waitIndex uint64, s
 		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
 			log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
 			return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Wasn't able to decode response body !", index, query, res.StatusCode, res.Status())
-		} else {
-			log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
-			return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
 		}
+		log.Printf("An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
+		return 0, values, waitIndex, errors.Wrapf(err, "An error occurred while performing ES search on index %s, query was: <%s>, response code was %d (%s). Response body was: %+v", index, query, res.StatusCode, res.Status(), e)
 	}
 
 	var r map[string]interface{}
@@ -922,7 +917,7 @@ func (s *elasticStore) doQueryEs(index string, query string, waitIndex uint64, s
 		id := hit.(map[string]interface{})["_id"].(string)
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		iid := source["iid"]
-		iid_int64, err := parseInt64StringToUint64(iid.(string))
+		iidInt64, err := parseInt64StringToUint64(iid.(string))
 		if err != nil {
 			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)
 		} else {
@@ -931,11 +926,11 @@ func (s *elasticStore) doQueryEs(index string, query string, waitIndex uint64, s
 				log.Printf("Not able to marshall document source, document id: %s, source: %+v, ignoring this document !", id, source)
 			} else {
 				// since the result is sorted on iid, we can use the last hit to define lastIndex
-				lastIndex = iid_int64
+				lastIndex = iidInt64
 				// append value to result
 				values = append(values, store.KeyValueOut{
 					Key:             id,
-					LastModifyIndex: iid_int64,
+					LastModifyIndex: iidInt64,
 					Value:           source,
 					RawValue:        jsonString,
 				})
