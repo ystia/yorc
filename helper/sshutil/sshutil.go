@@ -274,7 +274,7 @@ func NewSSHAgent(ctx context.Context) (*SSHAgent, error) {
 	return NewSSHAgentWithSocket(ctx, "")
 }
 
-// NewSSHAgent allows to return a new SSH Agent. If socketDir is specified, create the agent socket at /socketDir/<uuid>/agent
+// NewSSHAgentWithSocket allows to return a new SSH Agent. If socketDir is specified, create the agent socket at /socketDir/<uuid>/agent
 func NewSSHAgentWithSocket(ctx context.Context, socketDir string) (*SSHAgent, error) {
 	bin, err := exec.LookPath("ssh-agent")
 	if err != nil {
