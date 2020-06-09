@@ -167,7 +167,7 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 			if kvi == totalDocumentCount || bulkActionCount == s.cfg.maxBulkCount {
 				break
 			}
-			added, err := eventuallyAppendValueToBulkRequest(s.cfg, s.clusterID, body, keyValues[kvi], maxBulkSizeInBytes)
+			added, err := eventuallyAppendValueToBulkRequest(s.cfg, s.clusterID, &body, keyValues[kvi], maxBulkSizeInBytes)
 			if err != nil {
 				return err
 			} else if !added {

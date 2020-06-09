@@ -120,7 +120,7 @@ func buildElasticDocument(clusterID string, k string, v interface{}) (string, []
 // - the size of the resulting bulk operation exceed the maximum authorized for a bulk request
 // The value is not added if it's size + the current body size exceed the maximum authorized for a bulk request.
 // Return a bool indicating if the value has been added to the bulk request body.
-func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, body []byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
+func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, body *[]byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
 	if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
 		return false, err
 	}
@@ -142,10 +142,10 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, bo
 	bulkOperation = append(bulkOperation, "\n"...)
 	bulkOperation = append(bulkOperation, document...)
 	bulkOperation = append(bulkOperation, "\n"...)
-	log.Debugf("About to add a bulk operation of size %d bytes to bulk request, current size of bulk request body is %d bytes", len(bulkOperation), len(body))
+	log.Debugf("About to add a bulk operation of size %d bytes to bulk request, current size of bulk request body is %d bytes", len(bulkOperation), len(*body))
 
 	// 1 = len("\n") the last newline that will be appended to terminate the bulk request
-	estimatedBodySize := len(body) + len(bulkOperation) + 1
+	estimatedBodySize := len(*body) + len(bulkOperation) + 1
 	if len(bulkOperation)+1 > maxBulkSizeInBytes {
 		return false, errors.Errorf("A bulk operation size (order + document %s) is greater than the maximum bulk size authorized (%dkB) : %d > %d, this document can't be sent to ES, please adapt your configuration !", kv.Key, c.maxBulkSize, len(bulkOperation)+1, maxBulkSizeInBytes)
 	}
@@ -155,7 +155,7 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, bo
 	}
 	log.Debugf("Append document built from key %s to bulk request body, storeType was %s", kv.Key, storeType)
 	// Append the bulk operation
-	body = append(body, bulkOperation...)
+	*body = append(*body, bulkOperation...)
 	return true, nil
 }
 
