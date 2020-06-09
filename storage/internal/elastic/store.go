@@ -177,7 +177,7 @@ func getElasticStoreConfig(storeConfig config.Store) elasticStoreConf {
 }
 
 // Get the duration from store config properties, fallback to required default value defined in struc.
-func getDurationFromSettingsOrDefaults(fn string, dm storeConfig.Properties) time.Duration {
+func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) time.Duration {
 	k := getElasticStorageConfigPropertyTag(fn, "json")
 	if dm.IsSet(k) {
 		return dm.GetDuration(k)
@@ -187,7 +187,7 @@ func getDurationFromSettingsOrDefaults(fn string, dm storeConfig.Properties) tim
 }
 
 // Get the int from store config properties, fallback to required default value defined in struc.
-func getIntFromSettingsOrDefaults(fn string, dm storeConfig.Properties) int {
+func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) int {
 	k := getElasticStorageConfigPropertyTag(fn, "json")
 	if dm.IsSet(k) {
 		return dm.GetInt(k)
