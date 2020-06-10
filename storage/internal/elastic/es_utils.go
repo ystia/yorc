@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/store"
+	"io/ioutil"
 	"strings"
 )
 
@@ -44,6 +45,40 @@ type lastIndexAggregation struct {
 }
 type stringValue struct {
 	value string `json:"value"`
+}
+
+func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Client, error) {
+	var esConfig elasticsearch6.Config
+	esConfig = elasticsearch6.Config{
+		Addresses: elasticStoreConfig.esUrls,
+	}
+
+	if len(elasticStoreConfig.caCertPath) > 0 {
+		log.Printf("Reading CACert file from %s", elasticStoreConfig.caCertPath)
+		cert, err := ioutil.ReadFile(elasticStoreConfig.caCertPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Not able to read Cert file from <%s>", elasticStoreConfig.caCertPath)
+		}
+		esConfig.CACert = cert
+	}
+
+	log.Printf("Elastic storage will run using this configuration: %+v", elasticStoreConfig)
+	log.Printf("\t- Index prefix will be %s", elasticStoreConfig.indicePrefix)
+	log.Printf("\t- Will query ES for logs or events every %v and will wait for index refresh during %v",
+		elasticStoreConfig.esQueryPeriod, elasticStoreConfig.esRefreshWaitTimeout)
+	willRefresh := ""
+	if !elasticStoreConfig.esForceRefresh {
+		willRefresh = "not "
+	}
+	log.Printf("\t- Will %srefresh index before waiting for indexation", willRefresh)
+	log.Printf("\t- While migrating data, the max bulk request size will be %d documents and will never exceed %d kB",
+		elasticStoreConfig.maxBulkCount, elasticStoreConfig.maxBulkSize)
+	log.Printf("\t- Will use this ES client configuration: %+v", esConfig)
+
+	esClient, e := elasticsearch6.NewClient(esConfig)
+	log.Printf("Here is the ES cluster info")
+	log.Println(esClient.Info())
+	return esClient, e
 }
 
 // Init ES index for logs or events storage: create it if not found.

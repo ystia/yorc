@@ -29,7 +29,6 @@ import (
 	"github.com/ystia/yorc/v4/storage/encoding"
 	"github.com/ystia/yorc/v4/storage/store"
 	"github.com/ystia/yorc/v4/storage/utils"
-	"io/ioutil"
 	"math"
 	"strings"
 	"time"
@@ -55,61 +54,33 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) (store.Store, 
 	}
 
 	// Get specific config from storage properties
-	esCfg, e := getElasticStoreConfig(storeConfig)
-	if e != nil {
-		return nil, e
+	elasticStoreConfig, err := getElasticStoreConfig(storeConfig)
+	if err != nil {
+		return nil, err
 	}
 
-	var esConfig elasticsearch6.Config
-	esConfig = elasticsearch6.Config{
-		Addresses: esCfg.esUrls,
-	}
+	esClient, err := prepareEsClient(elasticStoreConfig)
 
-	if len(esCfg.caCertPath) > 0 {
-		log.Printf("Reading CACert file from %s", esCfg.caCertPath)
-		cert, err := ioutil.ReadFile(esCfg.caCertPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Not able to read Cert file from <%s>", esCfg.caCertPath)
-		}
-		esConfig.CACert = cert
-	}
-
-	log.Printf("Elastic storage will run using this configuration: %+v", esCfg)
-	log.Printf("\t- Index prefix will be %s", esCfg.indicePrefix)
-	log.Printf("\t- Will query ES for logs or events every %v and will wait for index refresh during %v",
-		esCfg.esQueryPeriod, esCfg.esRefreshWaitTimeout)
-	willRefresh := ""
-	if !esCfg.esForceRefresh {
-		willRefresh = "not "
-	}
-	log.Printf("\t- Will %srefresh index before waiting for indexation", willRefresh)
-	log.Printf("\t- While migrating data, the max bulk request size will be %d documents and will never exceed %d kB",
-		esCfg.maxBulkCount, esCfg.maxBulkSize)
-	log.Printf("\t- Will use this ES client configuration: %+v", esConfig)
-
-	esClient, _ := elasticsearch6.NewClient(esConfig)
-
-	log.Printf("Here is the ES cluster info")
-	log.Println(esClient.Info())
 	log.Printf("ClusterID: %s, ServerID: %s", cfg.ClusterID, cfg.ServerID)
 	var clusterID = cfg.ClusterID
 	if len(clusterID) == 0 {
 		clusterID = cfg.ServerID
 	}
 
-	indexName := esCfg.indicePrefix+"logs"
-	err := initStorageIndex(esClient, indexName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
-	}
-	indexName = esCfg.indicePrefix+"events"
+	indexName := getIndexName(elasticStoreConfig, "logs")
 	err = initStorageIndex(esClient, indexName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
 	}
-	debugIndexSetting(esClient, esCfg.indicePrefix+"logs")
-	debugIndexSetting(esClient, esCfg.indicePrefix+"events")
-	return &elasticStore{encoding.JSON, esClient, clusterID, esCfg}, nil
+	debugIndexSetting(esClient, indexName)
+	indexName = getIndexName(elasticStoreConfig, "events")
+	err = initStorageIndex(esClient, indexName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
+	}
+	debugIndexSetting(esClient, indexName)
+
+	return &elasticStore{encoding.JSON, esClient, clusterID, elasticStoreConfig}, nil
 }
 
 // Set index a document (log or event) into ES.
