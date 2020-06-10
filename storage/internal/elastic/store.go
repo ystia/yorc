@@ -60,6 +60,9 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) (store.Store, 
 	}
 
 	esClient, err := prepareEsClient(elasticStoreConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	log.Printf("ClusterID: %s, ServerID: %s", cfg.ClusterID, cfg.ServerID)
 	var clusterID = cfg.ClusterID
