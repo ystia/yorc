@@ -296,7 +296,6 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 			break
 		}
 		log.Debugf("hits is %d and timeout not reached, sleeping %v ...", hits, s.cfg.esQueryPeriod)
-		// TODO Use a ticker
 		time.Sleep(s.cfg.esQueryPeriod)
 	}
 	if hits > 0 {

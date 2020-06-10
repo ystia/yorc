@@ -65,7 +65,7 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	}
 	if log.IsDebug() {
 		// In debug mode we add a custom logger
-		esConfig.Logger = &DebugLogger{}
+		esConfig.Logger = &debugLogger{}
 	}
 
 	log.Printf("Elastic storage will run using this configuration: %+v", elasticStoreConfig)
@@ -133,22 +133,12 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 		AllowNoIndices:  &pfalse,
 	}
 	// TODO: handle refresh index ?
-	res, _ := req.Do(context.Background(), c)
+	res, err := req.Do(context.Background(), c)
+	err = handleESResponseError(res, "IndicesRefreshRequest:" + indexName, "", err)
+	if err != nil {
+		log.Println("AN error occured while refreshing index, due to : %+v", err)
+	}
 	defer closeResponseBody("IndicesRefreshRequest:"+indexName, res)
-}
-
-// Just to display index settings at startup.
-func debugIndexSetting(c *elasticsearch6.Client, indexName string) {
-	if !log.IsDebug() {
-		return
-	}
-	log.Debugf("Get settings for index <%s>", indexName)
-	req := esapi.IndicesGetSettingsRequest{
-		Index:  []string{indexName},
-		Pretty: true,
-	}
-	res, _ := req.Do(context.Background(), c)
-	defer closeResponseBody("IndicesGetSettingsRequest:"+indexName, res)
 }
 
 // Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
@@ -289,16 +279,16 @@ func closeResponseBody(requestDescription string, res *esapi.Response) {
 	}
 }
 
-type DebugLogger struct{}
+type debugLogger struct{}
 
 // RequestBodyEnabled makes the client pass request body to logger
-func (l *DebugLogger) RequestBodyEnabled() bool { return true }
+func (l *debugLogger) RequestBodyEnabled() bool { return true }
 
-// RequestBodyEnabled makes the client pass response body to logger
-func (l *DebugLogger) ResponseBodyEnabled() bool { return true }
+// ResponseBodyEnabled makes the client pass response body to logger
+func (l *debugLogger) ResponseBodyEnabled() bool { return true }
 
 // LogRoundTrip will use log to debug ES request and response (when debug is activated)
-func (l *DebugLogger) LogRoundTrip(
+func (l *debugLogger) LogRoundTrip(
 	req *http.Request,
 	res *http.Response,
 	err error,
