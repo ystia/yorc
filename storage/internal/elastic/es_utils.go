@@ -132,9 +132,8 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 		ExpandWildcards: "none",
 		AllowNoIndices:  &pfalse,
 	}
-	// TODO: handle refresh index ?
 	res, err := req.Do(context.Background(), c)
-	err = handleESResponseError(res, "IndicesRefreshRequest:" + indexName, "", err)
+	err = handleESResponseError(res, "IndicesRefreshRequest:"+indexName, "", err)
 	if err != nil {
 		log.Println("AN error occured while refreshing index, due to : %+v", err)
 	}
