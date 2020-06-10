@@ -94,10 +94,10 @@ func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (s
 	}
 	// Convert to UnixNano int64
 	iid := eventDate.UnixNano()
-	iid_str := strconv.FormatInt(iid, 10)
+	iidStr := strconv.FormatInt(iid, 10)
 
 	// This is the piece of 'JSON' we want to append
-	a := `,"iid":` + iid_str + `,"iid_str":"` + iid_str + `","clusterId":"` + clusterID + `"`
+	a := `,"iid":` + iidStr + `,"iid_str":"` + iidStr + `","clusterId":"` + clusterID + `"`
 	// v is a json.RawMessage
 	raw := rawMessage.(json.RawMessage)
 	raw = appendJSONInBytes(raw, []byte(a))

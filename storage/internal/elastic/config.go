@@ -141,7 +141,6 @@ func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v int, err e
 	return
 }
 
-
 // Get the bool from store config properties, fallback to required default value defined in struc.
 func getBoolFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v bool, e error) {
 	t, e := getElasticStorageConfigPropertyTag(fn, "json")

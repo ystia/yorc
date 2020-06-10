@@ -230,8 +230,8 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		s.esClient.Search.WithSize(0),
 		s.esClient.Search.WithBody(strings.NewReader(query)),
 	)
-	defer closeResponseBody("LastModifiedIndexQuery for " + k, res)
-	e = handleESResponseError(res, "LastModifiedIndexQuery for " + k, query, err)
+	defer closeResponseBody("LastModifiedIndexQuery for "+k, res)
+	e = handleESResponseError(res, "LastModifiedIndexQuery for "+k, query, err)
 	if e != nil {
 		return
 	}
@@ -320,7 +320,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		}
 	}
 	log.Debugf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d",
-		k, waitIndex, timeout, lastIndex, len(values),)
+		k, waitIndex, timeout, lastIndex, len(values))
 	return values, lastIndex, err
 }
 
