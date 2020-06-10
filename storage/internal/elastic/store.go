@@ -111,7 +111,6 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 		Body:         bytes.NewReader(body),
 	}
 	res, err := req.Do(context.Background(), s.esClient)
-	debugESResponse("IndexRequest:"+indexName, res, err)
 	defer closeResponseBody("IndexRequest:"+indexName, res)
 	if err != nil || res.IsError() {
 		err = handleESResponseError(res, "Index:"+indexName, string(body), err)
@@ -207,7 +206,6 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 		Body:  strings.NewReader(query),
 	}
 	res, err := req.Do(context.Background(), s.esClient)
-	debugESResponse("DeleteByQueryRequest:"+indexName, res, err)
 	defer closeResponseBody("DeleteByQueryRequest:"+indexName, res)
 	err = handleESResponseError(res, "DeleteByQueryRequest:"+indexName, query, err)
 	return err
@@ -232,7 +230,6 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		s.esClient.Search.WithSize(0),
 		s.esClient.Search.WithBody(strings.NewReader(query)),
 	)
-	debugESResponse("LastModifiedIndexQuery for " + k, res, err)
 	defer closeResponseBody("LastModifiedIndexQuery for " + k, res)
 	e = handleESResponseError(res, "LastModifiedIndexQuery for " + k, query, err)
 	if e != nil {
@@ -251,15 +248,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 
 	hits := r.hits.total
 	if hits > 0 {
-		lastIndex, e = parseInt64StringToUint64(r.aggregations.logsOrEvents.lastIndex.value)
-		if err != nil {
-			e = errors.Wrapf(
-				err,
-				"Not able to parse value after LastModifiedIndexQuery was sent for key %s, status was %s, query was: %s, decoded response was %+v",
-				k, res.Status(), query, r,
-			)
-			return
-		}
+		lastIndex = r.aggregations.logsOrEvents.lastIndex.value
 	}
 
 	log.Debugf(

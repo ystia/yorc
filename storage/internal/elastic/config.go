@@ -106,17 +106,17 @@ func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e er
 }
 
 // Get the duration from store config properties, fallback to required default value defined in struc.
-func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v time.Duration, e error) {
-	t, e := getElasticStorageConfigPropertyTag(fn, "json")
-	if e != nil {
+func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v time.Duration, er error) {
+	t, er := getElasticStorageConfigPropertyTag(fn, "json")
+	if er != nil {
 		return
 	}
 	if dm.IsSet(t) {
 		v = dm.GetDuration(t)
 		return
 	}
-	t, e = getElasticStorageConfigPropertyTag(fn, "default")
-	if e != nil {
+	t, er = getElasticStorageConfigPropertyTag(fn, "default")
+	if er != nil {
 		return
 	}
 	v = cast.ToDuration(t)
@@ -124,17 +124,17 @@ func getDurationFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v time.
 }
 
 // Get the int from store config properties, fallback to required default value defined in struc.
-func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v int, e error) {
-	t, e := getElasticStorageConfigPropertyTag(fn, "json")
-	if e != nil {
+func getIntFromSettingsOrDefaults(fn string, dm config.DynamicMap) (v int, err error) {
+	t, err := getElasticStorageConfigPropertyTag(fn, "json")
+	if err != nil {
 		return
 	}
 	if dm.IsSet(t) {
 		v = dm.GetInt(t)
 		return
 	}
-	t, e = getElasticStorageConfigPropertyTag(fn, "default")
-	if e != nil {
+	t, err = getElasticStorageConfigPropertyTag(fn, "default")
+	if err != nil {
 		return
 	}
 	v = cast.ToInt(t)

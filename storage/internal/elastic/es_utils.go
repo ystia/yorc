@@ -23,8 +23,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage/store"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"strings"
+	"time"
 )
 
 var pfalse = false
@@ -41,17 +44,16 @@ type logOrEventAggregation struct {
 	logsOrEvents lastIndexAggregation `json:"logs_or_events"`
 }
 type lastIndexAggregation struct {
-	lastIndex stringValue `json:"last_index"`
+	lastIndex uintValue `json:"last_index"`
 }
-type stringValue struct {
-	value string `json:"value"`
+type uintValue struct {
+	value uint64 `json:"value"`
 }
 
 func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Client, error) {
 	var esConfig elasticsearch6.Config
-	esConfig = elasticsearch6.Config{
-		Addresses: elasticStoreConfig.esUrls,
-	}
+
+	esConfig = elasticsearch6.Config{ Addresses: elasticStoreConfig.esUrls }
 
 	if len(elasticStoreConfig.caCertPath) > 0 {
 		log.Printf("Reading CACert file from %s", elasticStoreConfig.caCertPath)
@@ -60,6 +62,10 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 			return nil, errors.Wrapf(err, "Not able to read Cert file from <%s>", elasticStoreConfig.caCertPath)
 		}
 		esConfig.CACert = cert
+	}
+	if log.IsDebug() {
+		// In debug mode we add a custom logger
+		esConfig.Logger = &CustomLogger{}
 	}
 
 	log.Printf("Elastic storage will run using this configuration: %+v", elasticStoreConfig)
@@ -92,7 +98,6 @@ func initStorageIndex(c *elasticsearch6.Client, indexName string) error {
 		AllowNoIndices:  &pfalse,
 	}
 	res, err := req.Do(context.Background(), c)
-	debugESResponse("IndicesExistsRequest:"+indexName, res, err)
 	defer closeResponseBody("IndicesExistsRequest:"+indexName, res)
 
 	if err != nil {
@@ -127,9 +132,9 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 		ExpandWildcards: "none",
 		AllowNoIndices:  &pfalse,
 	}
-	res, err := req.Do(context.Background(), c)
+	// TODO: handle refresh index ?
+	res, _ := req.Do(context.Background(), c)
 	defer closeResponseBody("IndicesRefreshRequest:"+indexName, res)
-	debugESResponse("IndicesRefreshRequest:"+indexName, res, err)
 }
 
 // Just to display index settings at startup.
@@ -142,8 +147,7 @@ func debugIndexSetting(c *elasticsearch6.Client, indexName string) {
 		Index:  []string{indexName},
 		Pretty: true,
 	}
-	res, err := req.Do(context.Background(), c)
-	debugESResponse("IndicesGetSettingsRequest:"+indexName, res, err)
+	res, _ := req.Do(context.Background(), c)
 	defer closeResponseBody("IndicesGetSettingsRequest:"+indexName, res)
 }
 
@@ -172,7 +176,6 @@ func doQueryEs(c *elasticsearch6.Client,
 		return
 	}
 	defer closeResponseBody("Search:" + index, res)
-	debugESResponse("Search:" + index, res, err)
 
 	err = handleESResponseError(res, "Search:" + index, query, e)
 	if err != nil {
@@ -204,7 +207,7 @@ func decodeEsQueryResponse(r map[string]interface{}, values *[]store.KeyValueOut
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		id := hit.(map[string]interface{})["_id"].(string)
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
-		iid := source["iid"]
+		iid := source["iid_str"]
 		iidInt64, err := parseInt64StringToUint64(iid.(string))
 		if err != nil {
 			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)
@@ -240,7 +243,6 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 		Body: bytes.NewReader(*body),
 	}
 	res, err := req.Do(context.Background(), c)
-	debugESResponse("BulkRequest", res, err)
 	defer closeResponseBody("BulkRequest", res)
 
 	if err != nil {
@@ -279,25 +281,55 @@ func handleESResponseError(res *esapi.Response, requestDescription string, query
 	return nil
 }
 
-// Debug the ES response.
-func debugESResponse(msg string, res *esapi.Response, err error) {
-	if !log.IsDebug() {
-		return
-	}
-	if err != nil {
-		log.Debugf("[%s] Error while requesting ES : %+v", msg, err)
-	} else if res.IsError() {
-		log.Debugf("[%s] Response Error while requesting ES (%d): %+v", msg, res.StatusCode, res.String())
-	} else {
-		log.Debugf("[%s] Success ES response (%d): %+v", msg, res.StatusCode, res.String())
-	}
-}
-
 // Close response body, if an error occur, just print it
 func closeResponseBody(requestDescription string, res *esapi.Response) {
 	err := res.Body.Close()
 	if err != nil {
 		log.Printf("[%s] Was not able to close resource response body, error was: %+v", requestDescription, err)
 	}
+}
+
+type CustomLogger struct {
+
+}
+// RequestBodyEnabled makes the client pass request body to logger
+func (l *CustomLogger) RequestBodyEnabled() bool { return true }
+// RequestBodyEnabled makes the client pass response body to logger
+func (l *CustomLogger) ResponseBodyEnabled() bool { return true }
+func (l *CustomLogger) LogRoundTrip(
+	req *http.Request,
+	res *http.Response,
+	err error,
+	start time.Time,
+	dur time.Duration,
+) error {
+
+	var level string
+	switch {
+	case err != nil:
+		level = "Exception"
+	case res != nil && res.StatusCode > 0 && res.StatusCode < 300:
+		level = "Success"
+	case res != nil && res.StatusCode > 299 && res.StatusCode < 500:
+		level = "Warn"
+	case res != nil && res.StatusCode > 499:
+		level = "Error"
+	default:
+		level = "Unknown"
+	}
+
+	var reqBuffer, resBuffer bytes.Buffer
+	if req != nil && req.Body != nil && req.Body != http.NoBody {
+		_, _ = io.Copy(&reqBuffer, req.Body)
+	}
+	reqStr := reqBuffer.String()
+	if res != nil && res.Body != nil && res.Body != http.NoBody {
+		_, _ = io.Copy(&resBuffer, res.Body)
+	}
+	resStr := resBuffer.String()
+	log.Printf("ES Request [%s][%v][%s][%s][%d][%v] [%+v] : [%+v]",
+		level, start, req.Method, req.URL.String(), res.StatusCode, dur, reqStr, resStr)
+
+	return nil
 }
 

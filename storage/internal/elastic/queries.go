@@ -14,6 +14,8 @@
 
 package elastic
 
+import "strconv"
+
 // Return the query that is used to create indexes for event and log storage.
 // We only index the needed fields to optimize ES indexing performance (no dynamic mapping).
 func buildInitStorageIndexQuery() (query string) {
@@ -36,8 +38,12 @@ func buildInitStorageIndexQuery() (query string) {
                      "index": true
                  },
                  "iid": {
-                     "type": "keyword",
+                     "type": "long",
                      "index": true
+                 },
+                 "iid_str": {
+                     "type": "keyword",
+                     "index": false
                  }
              }
          }
@@ -91,8 +97,8 @@ func getRangeQuery(waitIndex uint64, maxIndex uint64) (rangeQuery string) {
             {
                "range":{
                   "iid":{
-                     "gt": "` + getSortableStringFromUint64(waitIndex) + `",
-					 "lte": "` + getSortableStringFromUint64(maxIndex) + `"
+                     "gt": ` + strconv.FormatUint(waitIndex, 10) + `,
+					 "lte": ` + strconv.FormatUint(maxIndex, 10) + `
                   }
                }
             }`
@@ -101,7 +107,7 @@ func getRangeQuery(waitIndex uint64, maxIndex uint64) (rangeQuery string) {
             {
                "range":{
                   "iid":{
-                     "gt": "` + getSortableStringFromUint64(waitIndex) + `"
+                     "gt": ` + strconv.FormatUint(waitIndex, 10) + `
                   }
                }
             }`
