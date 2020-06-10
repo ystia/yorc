@@ -97,8 +97,16 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) (store.Store, 
 		clusterID = cfg.ServerID
 	}
 
-	initStorageIndex(esClient, esCfg.indicePrefix+"logs")
-	initStorageIndex(esClient, esCfg.indicePrefix+"events")
+	indexName := esCfg.indicePrefix+"logs"
+	err := initStorageIndex(esClient, indexName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
+	}
+	indexName = esCfg.indicePrefix+"events"
+	err = initStorageIndex(esClient, indexName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
+	}
 	debugIndexSetting(esClient, esCfg.indicePrefix+"logs")
 	debugIndexSetting(esClient, esCfg.indicePrefix+"events")
 	return &elasticStore{encoding.JSON, esClient, clusterID, esCfg}, nil
@@ -130,8 +138,7 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 	}
 	res, err := req.Do(context.Background(), s.esClient)
 	debugESResponse("IndexRequest:"+indexName, res, err)
-
-	defer res.Body.Close()
+	defer closeResponseBody("IndexRequest:"+indexName, res)
 	if err != nil || res.IsError() {
 		err = handleESResponseError(res, "Index:"+indexName, string(body), err)
 		return err
@@ -144,6 +151,7 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyValueIn) error {
 	totalDocumentCount := len(keyValues)
 	log.Printf("SetCollection called with an array of size %d", totalDocumentCount)
+	start := time.Now()
 
 	if keyValues == nil || totalDocumentCount == 0 {
 		return nil
@@ -200,7 +208,8 @@ func (s *elasticStore) SetCollection(ctx context.Context, keyValues []store.KeyV
 		// Increment the number of iterations
 		i++
 	}
-	log.Printf("A total of %d documents have been successfully indexed using %d bulk requests", kvi, i)
+	elapsed := time.Since(start)
+	log.Printf("A total of %d documents have been successfully indexed using %d bulk requests, took %v", kvi, i, elapsed)
 	return nil
 }
 
@@ -224,8 +233,8 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 		Body:  strings.NewReader(query),
 	}
 	res, err := req.Do(context.Background(), s.esClient)
-	defer res.Body.Close()
 	debugESResponse("DeleteByQueryRequest:"+indexName, res, err)
+	defer closeResponseBody("DeleteByQueryRequest:"+indexName, res)
 	err = handleESResponseError(res, "DeleteByQueryRequest:"+indexName, query, err)
 	return err
 }
@@ -249,7 +258,8 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		s.esClient.Search.WithSize(0),
 		s.esClient.Search.WithBody(strings.NewReader(query)),
 	)
-	defer res.Body.Close()
+	debugESResponse("LastModifiedIndexQuery for " + k, res, err)
+	defer closeResponseBody("LastModifiedIndexQuery for " + k, res)
 	e = handleESResponseError(res, "LastModifiedIndexQuery for " + k, query, err)
 	if e != nil {
 		return
@@ -323,6 +333,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 			break
 		}
 		log.Debugf("hits is %d and timeout not reached, sleeping %v ...", hits, s.cfg.esQueryPeriod)
+		// TODO Use a ticker
 		time.Sleep(s.cfg.esQueryPeriod)
 	}
 	if hits > 0 {
@@ -337,10 +348,10 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		oldHits := hits
 		hits, values, lastIndex, err = doQueryEs(s.esClient, indexName, query, waitIndex, 10000, "asc")
 		if err != nil {
-			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh), error was: %+v", err)
+			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh)")
 		}
 		if log.IsDebug() && hits > oldHits {
-			log.Debugf("%d > %d so sleeping %v to wait for ES refresh was usefull (index %s), %d documents has been fetched",
+			log.Debugf("%d > %d so sleeping %v to wait for ES refresh was useful (index %s), %d documents has been fetched",
 				hits, oldHits, s.cfg.esRefreshWaitTimeout, indexName, len(values),
 			)
 		}

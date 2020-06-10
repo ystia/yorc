@@ -58,7 +58,7 @@ func initStorageIndex(c *elasticsearch6.Client, indexName string) error {
 	}
 	res, err := req.Do(context.Background(), c)
 	debugESResponse("IndicesExistsRequest:"+indexName, res, err)
-	defer res.Body.Close()
+	defer closeResponseBody("IndicesExistsRequest:"+indexName, res)
 
 	if err != nil {
 		return err
@@ -78,8 +78,7 @@ func initStorageIndex(c *elasticsearch6.Client, indexName string) error {
 			Body:  strings.NewReader(requestBodyData),
 		}
 		res, err := req.Do(context.Background(), c)
-		defer res.Body.Close()
-		debugESResponse("IndicesCreateRequest:"+indexName, res, err)
+		defer closeResponseBody("IndicesCreateRequest:"+indexName, res)
 		return handleESResponseError(res, "IndicesCreateRequest:"+indexName, requestBodyData, err)
 	} else {
 		return handleESResponseError(res, "IndicesExistsRequest:"+indexName, "", err)
@@ -94,7 +93,7 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 		AllowNoIndices:  &pfalse,
 	}
 	res, err := req.Do(context.Background(), c)
-	defer res.Body.Close()
+	defer closeResponseBody("IndicesRefreshRequest:"+indexName, res)
 	debugESResponse("IndicesRefreshRequest:"+indexName, res, err)
 }
 
@@ -110,25 +109,7 @@ func debugIndexSetting(c *elasticsearch6.Client, indexName string) {
 	}
 	res, err := req.Do(context.Background(), c)
 	debugESResponse("IndicesGetSettingsRequest:"+indexName, res, err)
-	defer res.Body.Close()
-}
-
-// Debug the ES response.
-func debugESResponse(msg string, res *esapi.Response, err error) {
-	if !log.IsDebug() {
-		return
-	}
-	if err != nil {
-		log.Debugf("[%s] Error while requesting ES : %+v", msg, err)
-	} else if res.IsError() {
-		var rsp map[string]interface{}
-		json.NewDecoder(res.Body).Decode(&rsp)
-		log.Debugf("[%s] Response Error while requesting ES (%d): %+v", msg, res.StatusCode, rsp)
-	} else {
-		var rsp map[string]interface{}
-		json.NewDecoder(res.Body).Decode(&rsp)
-		log.Debugf("[%s] Success ES response (%d): %+v", msg, res.StatusCode, rsp)
-	}
+	defer closeResponseBody("IndicesGetSettingsRequest:"+indexName, res)
 }
 
 // Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
@@ -155,7 +136,8 @@ func doQueryEs(c *elasticsearch6.Client,
 		err = errors.Wrapf(err, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
 		return
 	}
-	defer res.Body.Close()
+	defer closeResponseBody("Search:" + index, res)
+	debugESResponse("Search:" + index, res, err)
 
 	err = handleESResponseError(res, "Search:" + index, query, e)
 	if err != nil {
@@ -223,8 +205,8 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 		Body: bytes.NewReader(*body),
 	}
 	res, err := req.Do(context.Background(), c)
-
-	defer res.Body.Close()
+	debugESResponse("BulkRequest", res, err)
+	defer closeResponseBody("BulkRequest", res)
 
 	if err != nil {
 		return err
@@ -232,7 +214,14 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 		return handleESResponseError(res, "BulkRequest", string(*body), err)
 	} else {
 		var rsp map[string]interface{}
-		json.NewDecoder(res.Body).Decode(&rsp)
+		err = json.NewDecoder(res.Body).Decode(&rsp)
+		if err != nil {
+			// Don't know if the bulk request response contains error so fail by default
+			return errors.Errorf(
+				"The bulk request succeeded (%s), but not able to decode the response, so not able to determine if bulk operations are correctly handled",
+				res.Status(),
+			)
+		}
 		if rsp["errors"].(bool) {
 			// The bulk request contains errors
 			return errors.Errorf("The bulk request succeeded, but the response contains errors : %+v", rsp)
@@ -248,20 +237,32 @@ func handleESResponseError(res *esapi.Response, requestDescription string, query
 		return errors.Wrapf(requestError, "Error while sending %s, query was: %s", requestDescription, query)
 	}
 	if res.IsError() {
-		var errResponse map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&errResponse); err != nil {
-			e := errors.Wrapf(
-				err,
-				"An error was returned by ES while sending <%s>, status was %s, but the response cannot be decoded, query was: %s, response was: %s",
-				requestDescription, res.Status(), query, res.String(),
-			)
-			return e
-		}
-		e := errors.Errorf(
+		return errors.Errorf(
 			"An error was returned by ES while sending %s, status was %s, query was: %s, response: %+v",
-			requestDescription, res.Status(), query, errResponse)
-		return e
+			requestDescription, res.Status(), query, res.String())
 	}
 	return nil
+}
+
+// Debug the ES response.
+func debugESResponse(msg string, res *esapi.Response, err error) {
+	if !log.IsDebug() {
+		return
+	}
+	if err != nil {
+		log.Debugf("[%s] Error while requesting ES : %+v", msg, err)
+	} else if res.IsError() {
+		log.Debugf("[%s] Response Error while requesting ES (%d): %+v", msg, res.StatusCode, res.String())
+	} else {
+		log.Debugf("[%s] Success ES response (%d): %+v", msg, res.StatusCode, res.String())
+	}
+}
+
+// Close response body, if an error occur, just print it
+func closeResponseBody(requestDescription string, res *esapi.Response) {
+	err := res.Body.Close()
+	if err != nil {
+		log.Printf("[%s] Was not able to close resource response body, error was: %+v", requestDescription, err)
+	}
 }
 

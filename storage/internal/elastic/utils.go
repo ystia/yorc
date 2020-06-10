@@ -57,7 +57,7 @@ func extractStoreTypeAndDeploymentID(k string) (storeType string, deploymentID s
 	return storeType, deploymentID
 }
 
-// We need to append JSON directly into []byte to avoid useless and costly  marshaling / unmarshaling.
+// We need to append JSON directly into []byte to avoid useless and costly marshaling / unmarshaling.
 func appendJSONInBytes(a []byte, v []byte) []byte {
 	last := len(a) - 1
 	lastByte := a[last]
@@ -93,7 +93,7 @@ func getSortableStringFromUint64(nanoTimestamp uint64) string {
 
 // The document is enriched by adding 'clusterId' and 'iid' properties.
 // This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
-func buildElasticDocument(clusterID string, k string, v interface{}) (string, []byte, error) {
+func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (string, []byte, error) {
 	// Extract indice name and timestamp by parsing the key
 	storeType, timestamp := extractStoreTypeAndTimestamp(k)
 	log.Debugf("storeType is: %s, timestamp: %s", storeType, timestamp)
@@ -109,7 +109,7 @@ func buildElasticDocument(clusterID string, k string, v interface{}) (string, []
 	// This is the piece of 'JSON' we want to append
 	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + clusterID + `"`
 	// v is a json.RawMessage
-	raw := v.(json.RawMessage)
+	raw := rawMessage.(json.RawMessage)
 	raw = appendJSONInBytes(raw, []byte(a))
 
 	return storeType, raw, nil
