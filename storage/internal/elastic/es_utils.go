@@ -65,6 +65,7 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	}
 	if log.IsDebug() || elasticStoreConfig.traceRequest {
 		// In debug mode or when traceRequest option is activated, we add a custom logger that print requests & responses
+		log.Printf("!!!!!!!!! Tracing ES requests & response can be expensive and verbose !!!!!!!!!")
 		esConfig.Logger = &debugLogger{}
 	}
 
