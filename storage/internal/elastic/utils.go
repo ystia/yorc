@@ -71,6 +71,22 @@ func appendJSONInBytes(a []byte, v []byte) []byte {
 	return a
 }
 
+func _parseInt64StringToInt64(value string) int64 {
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		log.Print(strings.Repeat("#", 20))
+		log.Print(strings.Repeat("#", 20))
+		log.Print(strings.Repeat("#", 20))
+		log.Print(strings.Repeat("#", 20))
+		log.Printf("Fail parsing _parseInt64StringToInt64 %s", value)
+		log.Print(strings.Repeat("#", 20))
+		log.Print(strings.Repeat("#", 20))
+		log.Print(strings.Repeat("#", 20))
+		log.Print(strings.Repeat("#", 20))
+	}
+	return valueInt
+}
+
 func parseInt64StringToUint64(value string) (uint64, error) {
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
@@ -78,6 +94,12 @@ func parseInt64StringToUint64(value string) (uint64, error) {
 	}
 	result := uint64(valueInt)
 	return result, nil
+}
+
+func _getTimestampFromUint64(nanoTimestamp uint64) time.Time {
+	nanoTimestampStr := strconv.FormatUint(nanoTimestamp, 10)
+	ts := _parseInt64StringToInt64(nanoTimestampStr)
+	return time.Unix(0, ts)
 }
 
 // The max uint is 9223372036854775807 (19 cars), this is the maximum nano for a time (2262-04-12 00:47:16.854775807 +0100 CET).

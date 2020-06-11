@@ -46,6 +46,8 @@ type elasticStoreConf struct {
 	clusterID string `json:"cluster_id"`
 	// Set to true if you want to print ES requests (for debug only)
 	traceRequests bool `json:"trace_requests" default:"false"`
+	// Set to true if you want to trace events & logs when sent (for debug only)
+	traceEvents bool `json:"trace_events" default:"false"`
 }
 
 // Get the tag for this field (for internal usage only: fatal if not found !).
@@ -116,6 +118,7 @@ func getElasticStoreConfig(yorcConfig config.Configuration, storeConfig config.S
 	cfg.maxBulkSize, e = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
 	cfg.maxBulkCount, e = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
 	cfg.traceRequests, e = getBoolFromSettingsOrDefaults("traceRequests", storeProperties)
+	cfg.traceEvents, e = getBoolFromSettingsOrDefaults("traceEvents", storeProperties)
 	// If any error have been encountered, it will be returned
 	return
 }

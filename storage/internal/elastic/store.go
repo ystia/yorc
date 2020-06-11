@@ -213,24 +213,39 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 	query := buildLastModifiedIndexQuery(s.cfg.clusterID, deploymentID)
 	log.Debugf("buildLastModifiedIndexQuery is : %s", query)
 
-	res, err := s.esClient.Search(
+	// If don't have any document, do nothing
+	resCount, e := s.esClient.Count(s.esClient.Count.WithIndex(indexName), s.esClient.Count.WithDocumentType("logs_or_event"))
+	defer closeResponseBody("Count"+indexName, resCount)
+	e = handleESResponseError(resCount, "Count"+indexName, "", e)
+	if e != nil {
+		return
+	}
+	var respCount countResponse
+	if e = json.NewDecoder(resCount.Body).Decode(&respCount); e != nil {
+		return
+	}
+	if respCount.count == 0 {
+		return 0, nil
+	}
+
+	resSearch, err := s.esClient.Search(
 		s.esClient.Search.WithContext(context.Background()),
 		s.esClient.Search.WithIndex(indexName),
 		s.esClient.Search.WithSize(0),
 		s.esClient.Search.WithBody(strings.NewReader(query)),
 	)
-	defer closeResponseBody("LastModifiedIndexQuery for "+k, res)
-	e = handleESResponseError(res, "LastModifiedIndexQuery for "+k, query, err)
+	defer closeResponseBody("LastModifiedIndexQuery for "+k, resSearch)
+	e = handleESResponseError(resSearch, "LastModifiedIndexQuery for "+k, query, err)
 	if e != nil {
 		return
 	}
 
 	var r lastIndexResponse
-	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+	if err := json.NewDecoder(resSearch.Body).Decode(&r); err != nil {
 		e = errors.Wrapf(
 			err,
 			"Not able to parse response body after LastModifiedIndexQuery was sent for key %s, status was %s, query was: %s",
-			k, res.Status(), query,
+			k, resSearch.Status(), query,
 		)
 		return
 	}
@@ -242,7 +257,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 
 	log.Debugf(
 		"Successfully executed LastModifiedIndexQuery request for key %s ! status: %s, hits: %d; lastIndex: %d",
-		k, res.Status(), hits, lastIndex,
+		k, resSearch.Status(), hits, lastIndex,
 	)
 
 	return lastIndex, nil
@@ -255,8 +270,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 // 		- let Yorc eventually Set a document that has a less iid than the older known document in ES (concurrence issues)
 // - if no result if found after the the given 'timeout', return empty slice
 func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
-	waitIndex++
-	log.Debugf("List called k: %s, waitIndex: %d, timeout: %v", k, waitIndex, timeout)
+	log.Printf("List called k: %s, waitIndex: %d, timeout: %v", k, waitIndex, timeout)
 	if err := utils.CheckKey(k); err != nil {
 		return nil, 0, err
 	}
@@ -277,7 +291,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	var err error
 	for {
 		// first just query to know if they is something to fetch, we just want the max iid (so order desc, size 1)
-		hits, values, lastIndex, err = doQueryEs(s.esClient, indexName, query, waitIndex, 1, "desc")
+		hits, values, lastIndex, err = doQueryEs(s.esClient, s.cfg, indexName, query, waitIndex, 1, "desc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events, error was: %+v", err)
 		}
@@ -298,7 +312,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		}
 		time.Sleep(s.cfg.esRefreshWaitTimeout)
 		oldHits := hits
-		hits, values, lastIndex, err = doQueryEs(s.esClient, indexName, query, waitIndex, 10000, "asc")
+		hits, values, lastIndex, err = doQueryEs(s.esClient, s.cfg, indexName, query, waitIndex, 10000, "asc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh)")
 		}
@@ -308,7 +322,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 			)
 		}
 	}
-	log.Debugf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d",
+	log.Printf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d",
 		k, waitIndex, timeout, lastIndex, len(values))
 	return values, lastIndex, err
 }

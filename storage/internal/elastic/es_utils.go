@@ -51,6 +51,10 @@ type stringValue struct {
 	value string `json:"value"`
 }
 
+type countResponse struct {
+	count int `json:"count"`
+}
+
 func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Client, error) {
 	log.Printf("Elastic storage will run using this configuration: %+v", elasticStoreConfig)
 
@@ -124,10 +128,23 @@ func initStorageIndex(c *elasticsearch6.Client, elasticStoreConfig elasticStoreC
 		}
 		res, err := req.Do(context.Background(), c)
 		defer closeResponseBody("IndicesCreateRequest:"+indexName, res)
-		return handleESResponseError(res, "IndicesCreateRequest:"+indexName, requestBodyData, err)
+		if err = handleESResponseError(res, "IndicesCreateRequest:"+indexName, requestBodyData, err); err != nil {
+			return err
+		}
+		//// Initialize a first document
+		//initDoc := `{"clusterId":"` + elasticStoreConfig.clusterID + `","iid":"` + getSortableStringFromUint64(0) + `"}`
+		//reqDoc := esapi.IndexRequest{
+		//	Index:        indexName,
+		//	DocumentType: "logs_or_event",
+		//	Body:         strings.NewReader(initDoc),
+		//}
+		//res, err = reqDoc.Do(context.Background(), c)
+		//defer closeResponseBody("IndexRequest:"+indexName, res)
+		//return handleESResponseError(res, "IndexRequest:"+indexName, initDoc, err)
 	} else {
 		return handleESResponseError(res, "IndicesExistsRequest:"+indexName, "", err)
 	}
+	return nil
 }
 
 // Perform a refresh query on ES cluster for this particular index.
@@ -146,7 +163,7 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 }
 
 // Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
-func doQueryEs(c *elasticsearch6.Client,
+func doQueryEs(c *elasticsearch6.Client, conf elasticStoreConf,
 	index string,
 	query string,
 	waitIndex uint64,
@@ -189,20 +206,22 @@ func doQueryEs(c *elasticsearch6.Client,
 	duration := int(r["took"].(float64))
 	log.Debugf("Search ES request on index %s took %dms, hits=%d, response code was %d (%s)", index, duration, hits, res.StatusCode, res.Status())
 
-	lastIndex = decodeEsQueryResponse(r, &values)
+	lastIndex = decodeEsQueryResponse(conf, index, waitIndex, size, r, &values)
 
 	log.Debugf("doQueryEs called result waitIndex: %d, LastIndex: %d, len(values): %d", waitIndex, lastIndex, len(values))
 	return hits, values, lastIndex, nil
 }
 
 // Decode the response and define the last index
-func decodeEsQueryResponse(r map[string]interface{}, values *[]store.KeyValueOut) (lastIndex uint64) {
+func decodeEsQueryResponse(conf elasticStoreConf, index string, waitIndex uint64, size int, r map[string]interface{}, values *[]store.KeyValueOut) (lastIndex uint64) {
+	lastIndex = waitIndex
 	// Print the ID and document source for each hit.
+	i := 0
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		id := hit.(map[string]interface{})["_id"].(string)
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
 		iid := source["iid"]
-		iidInt64, err := parseInt64StringToUint64(iid.(string))
+		iidUInt64, err := parseInt64StringToUint64(iid.(string))
 		if err != nil {
 			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)
 		} else {
@@ -211,11 +230,19 @@ func decodeEsQueryResponse(r map[string]interface{}, values *[]store.KeyValueOut
 				log.Printf("Not able to marshall document source, document id: %s, source: %+v, ignoring this document !", id, source)
 			} else {
 				// since the result is sorted on iid, we can use the last hit to define lastIndex
-				lastIndex = iidInt64
+				lastIndex = iidUInt64
+				if conf.traceEvents {
+					i++
+					waitTimestamp := _getTimestampFromUint64(waitIndex)
+					iidInt64 := _parseInt64StringToInt64(iid.(string))
+					iidTimestamp := time.Unix(0, iidInt64)
+					log.Printf("ESList-%s;%d,%v,%d,%d,%s,%v,%d,%d",
+						index, waitIndex, waitTimestamp, size, i, iid, iidTimestamp, iidInt64, lastIndex)
+				}
 				// append value to result
 				*values = append(*values, store.KeyValueOut{
 					Key:             id,
-					LastModifyIndex: iidInt64,
+					LastModifyIndex: iidUInt64,
 					Value:           source,
 					RawValue:        jsonString,
 				})
