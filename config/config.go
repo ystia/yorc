@@ -106,7 +106,6 @@ type Configuration struct {
 	WfStepGracefulTerminationTimeout time.Duration `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
 	PurgedDeploymentsEvictionTimeout time.Duration `yaml:"purged_deployments_eviction_timeout,omitempty" mapstructure:"purged_deployments_eviction_timeout"`
 	ServerID                         string        `yaml:"server_id,omitempty" mapstructure:"server_id"`
-	ClusterID                        string        `yaml:"cluster_id,omitempty" mapstructure:"cluster_id"`
 	Terraform                        Terraform     `yaml:"terraform,omitempty" mapstructure:"terraform"`
 	DisableSSHAgent                  bool          `yaml:"disable_ssh_agent,omitempty" mapstructure:"disable_ssh_agent"`
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`

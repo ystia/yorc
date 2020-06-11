@@ -42,6 +42,8 @@ type elasticStoreConf struct {
 	maxBulkSize int `json:"max_bulk_size" default:"4000"`
 	// This is the maximum size (in term of number of documents) of bulk request sent while migrating data
 	maxBulkCount int `json:"max_bulk_count" default:"1000"`
+	// This optional ID will be used to distinguish logs & events in the indexes. If not set, we'll use the Consul.Datacenter
+	clusterID string `json:"cluster_id"`
 	// Set to true if you want to print ES requests (for debug only)
 	traceRequests bool `json:"trace_requests" default:"false"`
 }
@@ -64,7 +66,7 @@ func getElasticStorageConfigPropertyTag(fn string, tn string) (tagValue string, 
 
 // The configuration of the elastic store is defined regarding default values and store 'properties' dynamic map.
 // Will fail if the required es_urls is not set in store 'properties'
-func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e error) {
+func getElasticStoreConfig(yorcConfig config.Configuration, storeConfig config.Store) (cfg elasticStoreConf, e error) {
 	storeProperties := storeConfig.Properties
 	var t string
 	// The ES urls is required
@@ -81,7 +83,22 @@ func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e er
 	} else {
 		log.Fatal("Not able to get ES configuration for elastic store, es_urls store property should be set !")
 	}
-
+	// Define the clusterID
+	t, e = getElasticStorageConfigPropertyTag("clusterID", "json")
+	if e != nil {
+		return
+	}
+	if storeProperties.IsSet(t) {
+		cfg.clusterID = storeProperties.GetString(t)
+	}
+	if len(cfg.clusterID) == 0 {
+		cfg.clusterID = yorcConfig.Consul.Datacenter
+		log.Printf("clusterID not provided or empty, using consul datacenter (%s) as clusterID", yorcConfig.Consul.Datacenter)
+	}
+	if len(cfg.clusterID) == 0 {
+		e = errors.Errorf("Not able to define clusterID, please check configuration !")
+		return
+	}
 	// Define store optional / default configuration
 	t, e = getElasticStorageConfigPropertyTag("caCertPath", "json")
 	if storeProperties.IsSet(t) {

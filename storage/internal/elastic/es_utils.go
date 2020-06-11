@@ -44,10 +44,11 @@ type logOrEventAggregation struct {
 	logsOrEvents lastIndexAggregation `json:"logs_or_events"`
 }
 type lastIndexAggregation struct {
-	lastIndex uintValue `json:"last_index"`
+	lastIndex stringValue `json:"last_index"`
+	docCount  int         `json:"doc_count"`
 }
-type uintValue struct {
-	value uint64 `json:"value"`
+type stringValue struct {
+	value string `json:"value"`
 }
 
 func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Client, error) {
@@ -66,11 +67,12 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	}
 	if log.IsDebug() || elasticStoreConfig.traceRequests {
 		// In debug mode or when traceRequests option is activated, we add a custom logger that print requests & responses
-		log.Printf("!!!!!!!!! Tracing ES requests & response can be expensive and verbose !!!!!!!!!")
+		log.Printf("\t- Tracing ES requests & response can be expensive and verbose !")
 		esConfig.Logger = &debugLogger{}
 	}
 
 	log.Printf("\t- Index prefix will be %s", elasticStoreConfig.indicePrefix)
+	log.Printf("\t- Documents will be segregated by clusterId : %s", elasticStoreConfig.clusterID)
 	log.Printf("\t- Will query ES for logs or events every %v and will wait for index refresh during %v",
 		elasticStoreConfig.esQueryPeriod, elasticStoreConfig.esRefreshWaitTimeout)
 	willRefresh := ""
@@ -89,7 +91,9 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 }
 
 // Init ES index for logs or events storage: create it if not found.
-func initStorageIndex(c *elasticsearch6.Client, indexName string) error {
+func initStorageIndex(c *elasticsearch6.Client, elasticStoreConfig elasticStoreConf, storeType string) error {
+
+	indexName := getIndexName(elasticStoreConfig, storeType)
 	log.Printf("Checking if index <%s> already exists", indexName)
 
 	// check if the sequences index exists
@@ -136,7 +140,7 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 	res, err := req.Do(context.Background(), c)
 	err = handleESResponseError(res, "IndicesRefreshRequest:"+indexName, "", err)
 	if err != nil {
-		log.Println("AN error occured while refreshing index, due to : %+v", err)
+		log.Println("An error occurred while refreshing index, due to : %+v", err)
 	}
 	defer closeResponseBody("IndicesRefreshRequest:"+indexName, res)
 }
@@ -197,7 +201,7 @@ func decodeEsQueryResponse(r map[string]interface{}, values *[]store.KeyValueOut
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		id := hit.(map[string]interface{})["_id"].(string)
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
-		iid := source["iid_str"]
+		iid := source["iid"]
 		iidInt64, err := parseInt64StringToUint64(iid.(string))
 		if err != nil {
 			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)

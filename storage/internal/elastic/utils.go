@@ -80,6 +80,17 @@ func parseInt64StringToUint64(value string) (uint64, error) {
 	return result, nil
 }
 
+// The max uint is 9223372036854775807 (19 cars), this is the maximum nano for a time (2262-04-12 00:47:16.854775807 +0100 CET).
+// Since we use nanotimestamp as ID for events and logs, and since we store this ID as string in ES index, we must ensure that
+// the string will be comparable.
+func getSortableStringFromUint64(nanoTimestamp uint64) string {
+	nanoTimestampStr := strconv.FormatUint(nanoTimestamp, 10)
+	if len(nanoTimestampStr) < 19 {
+		nanoTimestampStr = strings.Repeat("0", 19-len(nanoTimestampStr)) + nanoTimestampStr
+	}
+	return nanoTimestampStr
+}
+
 // The document is enriched by adding 'clusterId' and 'iid' properties.
 // This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
 func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (string, []byte, error) {
@@ -94,10 +105,9 @@ func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (s
 	}
 	// Convert to UnixNano int64
 	iid := eventDate.UnixNano()
-	iidStr := strconv.FormatInt(iid, 10)
 
 	// This is the piece of 'JSON' we want to append
-	a := `,"iid":` + iidStr + `,"iid_str":"` + iidStr + `","clusterId":"` + clusterID + `"`
+	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + clusterID + `"`
 	// v is a json.RawMessage
 	raw := rawMessage.(json.RawMessage)
 	raw = appendJSONInBytes(raw, []byte(a))
