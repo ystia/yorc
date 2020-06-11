@@ -43,7 +43,7 @@ type elasticStoreConf struct {
 	// This is the maximum size (in term of number of documents) of bulk request sent while migrating data
 	maxBulkCount int `json:"max_bulk_count" default:"1000"`
 	// Set to true if you want to print ES requests (for debug only)
-	traceRequest bool `json:"trace_request" default:"false"`
+	traceRequests bool `json:"trace_requests" default:"false"`
 }
 
 // Get the tag for this field (for internal usage only: fatal if not found !).
@@ -98,7 +98,7 @@ func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e er
 	cfg.esRefreshWaitTimeout, e = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
 	cfg.maxBulkSize, e = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
 	cfg.maxBulkCount, e = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
-	cfg.traceRequest, e = getBoolFromSettingsOrDefaults("traceRequest", storeProperties)
+	cfg.traceRequests, e = getBoolFromSettingsOrDefaults("traceRequests", storeProperties)
 	// If any error have been encountered, it will be returned
 	return
 }

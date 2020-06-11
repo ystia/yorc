@@ -75,13 +75,11 @@ func NewStore(cfg config.Configuration, storeConfig config.Store) (store.Store, 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
 	}
-	debugIndexSetting(esClient, indexName)
 	indexName = getIndexName(elasticStoreConfig, "events")
 	err = initStorageIndex(esClient, indexName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Not able to init index <%s>", indexName)
 	}
-	debugIndexSetting(esClient, indexName)
 
 	return &elasticStore{encoding.JSON, esClient, clusterID, elasticStoreConfig}, nil
 }
