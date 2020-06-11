@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+var elasticStoreConfType = reflect.TypeOf(elasticStoreConf{})
+
 // elasticStoreConf represents the elastic store configuration that can be set in store.properties configuration.
 type elasticStoreConf struct {
 	// The ES cluster urls (array or CSV)
@@ -52,8 +54,7 @@ type elasticStoreConf struct {
 
 // Get the tag for this field (for internal usage only: fatal if not found !).
 func getElasticStorageConfigPropertyTag(fn string, tn string) (tagValue string, e error) {
-	t := reflect.TypeOf(elasticStoreConf{})
-	f, found := t.FieldByName(fn)
+	f, found := elasticStoreConfType.FieldByName(fn)
 	if !found {
 		e = errors.Errorf("Not able to get field %s on elasticStoreConf struct, there is an issue with this code !", fn)
 		return
