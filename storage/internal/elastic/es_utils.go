@@ -63,8 +63,8 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 		}
 		esConfig.CACert = cert
 	}
-	if log.IsDebug() {
-		// In debug mode we add a custom logger
+	if log.IsDebug() || elasticStoreConfig.traceRequest {
+		// In debug mode or when traceRequest option is activated, we add a custom logger that print requests & responses
 		esConfig.Logger = &debugLogger{}
 	}
 
@@ -320,7 +320,7 @@ func (l *debugLogger) LogRoundTrip(
 		_, _ = io.Copy(&resBuffer, res.Body)
 	}
 	resStr := resBuffer.String()
-	log.Debugf("ES Request [%s][%v][%s][%s][%d][%v] [%+v] : [%+v]",
+	log.Printf("ES Request [%s][%v][%s][%s][%d][%v] [%+v] : [%+v]",
 		level, start, req.Method, req.URL.String(), res.StatusCode, dur, reqStr, resStr)
 
 	return nil

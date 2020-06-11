@@ -42,6 +42,8 @@ type elasticStoreConf struct {
 	maxBulkSize int `json:"max_bulk_size" default:"4000"`
 	// This is the maximum size (in term of number of documents) of bulk request sent while migrating data
 	maxBulkCount int `json:"max_bulk_count" default:"1000"`
+	// Set to true if you want to print ES requests (for debug only)
+	traceRequest bool `json:"trace_request" default:"false"`
 }
 
 // Get the tag for this field (for internal usage only: fatal if not found !).
@@ -85,12 +87,7 @@ func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e er
 	if storeProperties.IsSet(t) {
 		cfg.caCertPath = storeProperties.GetString(t)
 	}
-	t, e = getElasticStorageConfigPropertyTag("esForceRefresh", "json")
-	if storeProperties.IsSet(t) {
-		cfg.esForceRefresh = storeProperties.GetBool(t)
-	} else {
-		cfg.esForceRefresh, e = getBoolFromSettingsOrDefaults("esForceRefresh", storeProperties)
-	}
+	cfg.esForceRefresh, e = getBoolFromSettingsOrDefaults("esForceRefresh", storeProperties)
 	t, e = getElasticStorageConfigPropertyTag("indicePrefix", "json")
 	if storeProperties.IsSet(t) {
 		cfg.indicePrefix = storeProperties.GetString(t)
@@ -101,6 +98,7 @@ func getElasticStoreConfig(storeConfig config.Store) (cfg elasticStoreConf, e er
 	cfg.esRefreshWaitTimeout, e = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
 	cfg.maxBulkSize, e = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
 	cfg.maxBulkCount, e = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
+	cfg.traceRequest, e = getBoolFromSettingsOrDefaults("traceRequest", storeProperties)
 	// If any error have been encountered, it will be returned
 	return
 }
