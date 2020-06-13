@@ -1409,12 +1409,12 @@ This store ables you to store ``Log``s and ``Event``s in elasticsearch.
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   5s            |
+| ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   4s            |
 |                             | before each request when it returns nothing (until |           |                  |                 |
 |                             | something is returned or the waitTimeout is        |           |                  |                 |
 |                             | reached)                                           |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``es_refresh_wait_timeout`` | used to wait for more than refresh_interval (1s)   | duration  | no               |   5s            |
+| ``es_refresh_wait_timeout`` | used to wait for more than refresh_interval (1s)   | duration  | no               |   2s            |
 |                             | (until something is returned or the waitTimeout is |           |                  |                 |
 |                             | is reached)                                        |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
