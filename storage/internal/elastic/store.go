@@ -96,7 +96,7 @@ func (s *elasticStore) Set(ctx context.Context, k string, v interface{}) error {
 	// Prepare ES request
 	req := esapi.IndexRequest{
 		Index:        indexName,
-		DocumentType: "logs_or_event",
+		DocumentType: "_doc",
 		Body:         bytes.NewReader(body),
 	}
 	res, err := req.Do(context.Background(), s.esClient)
@@ -213,21 +213,6 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 	query := buildLastModifiedIndexQuery(s.cfg.clusterID, deploymentID)
 	log.Debugf("buildLastModifiedIndexQuery is : %s", query)
 
-	// If don't have any document, do nothing
-	resCount, e := s.esClient.Count(s.esClient.Count.WithIndex(indexName), s.esClient.Count.WithDocumentType("logs_or_event"))
-	defer closeResponseBody("Count"+indexName, resCount)
-	e = handleESResponseError(resCount, "Count"+indexName, "", e)
-	if e != nil {
-		return
-	}
-	var respCount countResponse
-	if e = json.NewDecoder(resCount.Body).Decode(&respCount); e != nil {
-		return
-	}
-	if respCount.count == 0 {
-		return 0, nil
-	}
-
 	resSearch, err := s.esClient.Search(
 		s.esClient.Search.WithContext(context.Background()),
 		s.esClient.Search.WithIndex(indexName),
@@ -240,7 +225,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		return
 	}
 
-	var r lastIndexResponse
+	var r map[string]interface{}
 	if err := json.NewDecoder(resSearch.Body).Decode(&r); err != nil {
 		e = errors.Wrapf(
 			err,
@@ -250,17 +235,33 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 		return
 	}
 
-	hits := r.hits.total
-	if hits > 0 {
-		lastIndex, e = parseInt64StringToUint64(r.aggregations.logsOrEvents.lastIndex.value)
+	total := r["hits"].(map[string]interface{})["total"].(float64)
+	if total > 0 {
+		// ES returns aggregations as float, we have a precision loss of few ns
+		lastIndexR := r["aggregations"].(map[string]interface{})["max_iid"].(map[string]interface{})["last_index"].(map[string]interface{})["value"].(float64)
+		log.Debugf("Received lastIndexReceived: %v, lastIndex: %v", lastIndexR, lastIndex)
+		lastIndex = uint64(lastIndexR)
+		// The ES max result was a float, there is a risk that this is not really the lastIndex
+		// We need to verify
+		lastIndex = s.verifyLastIndex(indexName, deploymentID, lastIndex)
 	}
-
-	log.Debugf(
-		"Successfully executed LastModifiedIndexQuery request for key %s ! status: %s, hits: %d; lastIndex: %d",
-		k, resSearch.Status(), hits, lastIndex,
-	)
-
 	return lastIndex, nil
+}
+
+// We need to ensure the lastIndex returned by the aggregation query is really the last
+// Actually, when elasticsearch aggregates, it returns a float so we loss precession (few ns).
+// We request the docs with iid > waitIndex to ensure the returned lastIndex is REALLY the last.
+func (s *elasticStore) verifyLastIndex(indexName string, deploymentID string, estimatedLastIndex uint64) uint64 {
+	query := getListQuery(s.cfg.clusterID, deploymentID, estimatedLastIndex, 0)
+	// size = 1 no need for the documents
+	hits, _, lastIndex, err := doQueryEs(s.esClient, s.cfg, indexName, query, estimatedLastIndex, 1, "desc")
+	if err != nil {
+		log.Printf("An error occurred while verifying lastIndex, returning the initial value %d, error was : %+v",
+			estimatedLastIndex, err)
+	}
+	log.Printf("%d hits while searching %s (%s) using the estimated lastIndex %d, lastIndex is now %d",
+		hits, indexName, deploymentID, estimatedLastIndex, lastIndex)
+	return lastIndex
 }
 
 // List simulates long polling request by :

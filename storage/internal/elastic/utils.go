@@ -129,7 +129,7 @@ func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (s
 	iid := eventDate.UnixNano()
 
 	// This is the piece of 'JSON' we want to append
-	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + clusterID + `"`
+	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","iidStr":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + clusterID + `"`
 	// v is a json.RawMessage
 	raw := rawMessage.(json.RawMessage)
 	raw = appendJSONInBytes(raw, []byte(a))
@@ -154,7 +154,7 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, bo
 	log.Debugf("About to add a document of size %d bytes to bulk request", len(document))
 
 	// The bulk action
-	index := `{"index":{"_index":"` + getIndexName(c, storeType) + `","_type":"logs_or_event"}}`
+	index := `{"index":{"_index":"` + getIndexName(c, storeType) + `","_type":"_doc"}}`
 	bulkOperation := make([]byte, 0)
 	bulkOperation = append(bulkOperation, index...)
 	bulkOperation = append(bulkOperation, "\n"...)

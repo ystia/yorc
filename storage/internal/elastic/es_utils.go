@@ -32,29 +32,6 @@ import (
 
 var pfalse = false
 
-// structs for lastIndexRequest response decoding.
-type lastIndexResponse struct {
-	hits         hits                  `json:"hits"`
-	aggregations logOrEventAggregation `json:"aggregations"`
-}
-type hits struct {
-	total int `json:"total"`
-}
-type logOrEventAggregation struct {
-	logsOrEvents lastIndexAggregation `json:"logs_or_events"`
-}
-type lastIndexAggregation struct {
-	lastIndex stringValue `json:"last_index"`
-	docCount  int         `json:"doc_count"`
-}
-type stringValue struct {
-	value string `json:"value"`
-}
-
-type countResponse struct {
-	count int `json:"count"`
-}
-
 func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Client, error) {
 	log.Printf("Elastic storage will run using this configuration: %+v", elasticStoreConfig)
 
@@ -131,16 +108,6 @@ func initStorageIndex(c *elasticsearch6.Client, elasticStoreConfig elasticStoreC
 		if err = handleESResponseError(res, "IndicesCreateRequest:"+indexName, requestBodyData, err); err != nil {
 			return err
 		}
-		//// Initialize a first document
-		//initDoc := `{"clusterId":"` + elasticStoreConfig.clusterID + `","iid":"` + getSortableStringFromUint64(0) + `"}`
-		//reqDoc := esapi.IndexRequest{
-		//	Index:        indexName,
-		//	DocumentType: "logs_or_event",
-		//	Body:         strings.NewReader(initDoc),
-		//}
-		//res, err = reqDoc.Do(context.Background(), c)
-		//defer closeResponseBody("IndexRequest:"+indexName, res)
-		//return handleESResponseError(res, "IndexRequest:"+indexName, initDoc, err)
 	} else {
 		return handleESResponseError(res, "IndicesExistsRequest:"+indexName, "", err)
 	}
@@ -220,7 +187,7 @@ func decodeEsQueryResponse(conf elasticStoreConf, index string, waitIndex uint64
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		id := hit.(map[string]interface{})["_id"].(string)
 		source := hit.(map[string]interface{})["_source"].(map[string]interface{})
-		iid := source["iid"]
+		iid := source["iidStr"]
 		iidUInt64, err := parseInt64StringToUint64(iid.(string))
 		if err != nil {
 			log.Printf("Not able to parse iid_str property %s as uint64, document id: %s, source: %+v, ignoring this document !", iid, id, source)
@@ -285,7 +252,7 @@ func sendBulkRequest(c *elasticsearch6.Client, opeCount int, body *[]byte) error
 			return errors.Errorf("The bulk request succeeded, but the response contains errors : %+v", rsp)
 		}
 	}
-	log.Printf("Bulk request containing %d operations (%d bytes) has been accepted without errors", opeCount, len(*body))
+	log.Printf("Bulk request containing %d operations (%d bytes) has been accepted successfully", opeCount, len(*body))
 	return nil
 }
 
