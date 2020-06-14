@@ -174,6 +174,7 @@ type executionCommon struct {
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
 	isOrchestratorOperation  bool
+	isSandbox                bool
 	IsCustomCommand          bool
 	relationshipType         string
 	ansibleRunner            ansibleRunner
@@ -1057,6 +1058,8 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
+	checkSandboxExecution(e)
+
 	// Generating Ansible config
 	if err = e.generateAnsibleConfigurationFile(ansiblePath, ansibleRecipePath); err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
@@ -1215,7 +1218,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		if sshAgent != nil {
 			sshAgentSocket = sshAgent.Socket
 			log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
-			if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+			if e.isSandbox {
 				env = append(env, "SSH_AUTH_SOCK="+config.DefaultSandboxMountAgentSocket)
 			} else {
 				env = append(env, "SSH_AUTH_SOCK="+sshAgentSocket)
@@ -1233,7 +1236,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		}
 	}
 	var cmd *executil.Cmd
-	if e.cli != nil && e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+	if e.isSandbox {
 		log.Debugf("Start sandbox container with mount directories ansibleRecipePath: %s, overlayPath: %s", ansibleRecipePath, e.OverlayPath)
 		var err error
 		if e.containerID, err = createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID,
@@ -1415,7 +1418,7 @@ func (e *executionCommon) generateAnsibleConfigurationFile(
 	ansibleConfig := getAnsibleConfigFromDefault()
 
 	// Adding settings whose values are known at runtime, related to the deployment directory path
-	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+	if e.isSandbox {
 		ansibleConfig[ansibleConfigDefaultsHeader]["retry_files_save_path"] = config.DefaultSandboxWorkDir
 		// Specify where ansible can write its temp files in the sandbox container.
 		// (By default, ansible writes to ~/.ansible/tmp on host machine and may cause permission denied from inside the container)
@@ -1431,7 +1434,7 @@ func (e *executionCommon) generateAnsibleConfigurationFile(
 	}
 
 	if e.CacheFacts {
-		if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+		if e.isSandbox {
 			// location in sandbox to save ansible gathering facts
 			// each yorc task should have its own facts (i.e., do not share the gathering facts from different tasks
 			// even in the same deploymentID) so that one task do not overwrite the facts of the other ones unexpectedly
@@ -1485,4 +1488,21 @@ func getAnsibleConfigFromDefault() map[string]map[string]string {
 		ansibleConfig[k] = newVal
 	}
 	return ansibleConfig
+}
+
+// checkSandboxExecution check if the given execution requires sandboxing or not.
+// A whitelist of unsandbox scenarios are: when unsandbox hosted operation is allowed, when the execution script is not
+// a hosted operation, when it is an ansible execution but the sandbox configuration is not provided (for backward
+// compatibility)
+func checkSandboxExecution(e *executionCommon) {
+	if e.isOrchestratorOperation && e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
+		return
+	}
+	if _, isScript := e.ansibleRunner.(*executionScript); isScript && !e.isOrchestratorOperation {
+		return
+	}
+	if _, isAnsible := e.ansibleRunner.(*executionAnsible); isAnsible && e.cfg.Ansible.HostedOperations.DefaultSandbox == nil {
+		return
+	}
+	e.isSandbox = true
 }

@@ -71,9 +71,9 @@ func (e *executionAnsible) generateRunAnsible(ctx context.Context, currentInstan
 	outputHandler := &playbookOutputHandler{}
 	// for operation on host machine, set the ansible destination folder to the ansible recipe path on host machine
 	// for operation on sandbox, set the ansible destination folder and overlay to the default mount path inside the container
-	var overlayPathOnHost, destFolder string
-	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
-		overlayPathOnHost = e.OverlayPath
+	var destFolder string
+	if e.isSandbox {
+		overlayPathOnHost := e.OverlayPath
 		e.OverlayPath = config.DefaultSandboxOverlayDir
 		destFolder = config.DefaultSandboxWorkDir
 		defer func() {
@@ -210,9 +210,6 @@ func (e *executionAnsible) generateRunAnsible(ctx context.Context, currentInstan
 		err = errors.Wrap(err, "Failed to write playbook file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return outputHandler, err
-	}
-	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
-		e.OverlayPath = overlayPathOnHost
 	}
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 

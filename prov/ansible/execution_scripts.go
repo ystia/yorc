@@ -213,9 +213,9 @@ func (e *executionScript) generateRunAnsible(ctx context.Context, currentInstanc
 	outputHandler := &scriptOutputHandler{}
 	// for operation on host machine, set the ansible destination folder to the ansible recipe path on host machine
 	// for operation on sandbox, set the ansible destination folder and overlay to the default mount path inside the container
-	overlayPathOnHost := e.OverlayPath
 	wrapperLocationOnHost := filepath.Join(ansibleRecipePath, "wrapper")
-	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+	if e.isSandbox {
+		overlayPathOnHost := e.OverlayPath
 		e.OverlayPath = config.DefaultSandboxOverlayDir
 		e.DestFolder = config.DefaultSandboxWorkDir
 		defer func() {

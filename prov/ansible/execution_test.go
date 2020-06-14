@@ -744,9 +744,12 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 		len(resultMap[ansibleConfigDefaultsHeader]),
 		"Missing entries in ansible config file with fact caching, content: %q", content)
 
-	// Test enabling ansible sandbox, OpenSSH also adds ssh_connection control path
+	// Test enabling ansible sandbox also add local_tmp in the default section of the ansible config
+	// OpenSSH also adds control path in the ssh_connection section of the ansible config
 	execution.cfg.Ansible.UseOpenSSH = true
 	execution.cfg.Ansible.HostedOperations.DefaultSandbox = &config.DockerSandbox{}
+	execution.ansibleRunner = &executionAnsible{}
+	checkSandboxExecution(execution)
 	err = execution.generateAnsibleConfigurationFile("ansiblePath", yorcConfig.WorkingDirectory)
 	require.NoError(t, err, "Error generating ansible config file")
 	resultMap, content = readAnsibleConfigSettings(t, cfgPath)
