@@ -1178,6 +1178,7 @@ Yorc supports 5 store ``implementations``:
   * ``cipherFile``
   * ``fileCache``
   * ``cipherFileCache``
+  * ``elastic`` (experimental)
 
 By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
 
@@ -1388,6 +1389,54 @@ Stores configuration is saved once when Yorc server starts. If you want to re-in
 If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
 
 If any storage configuration is set with partial stores types, the missing store types will be added with default implementations.
+
+elastic
+^^^^^^^
+
+This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
+
+.. warning::
+    This storage is only suitable to store logs and events.
+
+ 1 index for logs, 1 index for events.
+
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name           |           Description                              | Data Type |   Required       | Default         |
++=============================+====================================================+===========+==================+=================+
+| ``es_urls``                 | the ES cluster urls                                | []string  | yes              |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``ca_cert_path``            | path to the CACert when TLS is activated for ES    | string    | no               |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   4s            |
+|                             | before each request when it returns nothing (until |           |                  |                 |
+|                             | something is returned or the waitTimeout is        |           |                  |                 |
+|                             | reached)                                           |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``es_refresh_wait_timeout`` | used to wait for more than refresh_interval (1s)   | duration  | no               |   2s            |
+|                             | (until something is returned or the waitTimeout is |           |                  |                 |
+|                             | is reached)                                        |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``es_force_refresh``        | when querying ES, force refresh index before when  | bool      | no               |   false         |
+|                             | waiting for refresh.                               |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``max_bulk_size``           | the maximum size (in kB) of bulk request sent when | int64     | no               |   4000          |
+|                             | while migrating data                               |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``max_bulk_count``          | maximum size (in term of number of documents) when | int64     | no               |   1000          |
+|                             | of bulk request sent while migrating data          |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cluster_id``              | used to distinguish logs & events in the indexes   | string    | no               |                 |
+|                             | if different yorc cluster are writting in the same |           |                  |                 |
+|                             | elastic cluster.                                   |           |                  |                 |
+|                             | If not set, the consul.datacenter will be used.    |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``trace_requests``          | to print ES requests (for debug only)              | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``trace_events``            | to trace events & logs when sent (for debug only)  | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
 
 Vault configuration
 -------------------
