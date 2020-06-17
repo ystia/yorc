@@ -193,6 +193,7 @@ func (s *elasticStore) Delete(ctx context.Context, k string, recursive bool) err
 		Index: []string{indexName},
 		Size:  &MaxInt,
 		Body:  strings.NewReader(query),
+		Conflicts: "proceed",
 	}
 	res, err := req.Do(context.Background(), s.esClient)
 	defer closeResponseBody("DeleteByQueryRequest:"+indexName, res)
