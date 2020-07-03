@@ -31,6 +31,10 @@ type elasticStoreConf struct {
 	esUrls []string `json:"es_urls"`
 	// The path to the CACert file when TLS is activated for ES
 	caCertPath string `json:"ca_cert_path"`
+	// The path to a PEM encoded certificate file when TLS is activated for ES
+	certPath string `json:"cert_path"`
+	// The path to a PEM encoded private key file when TLS is activated for ES
+	keyPath string `json:"key_path"`
 	// All index used by yorc will be prefixed by this prefix
 	indicePrefix string `json:"index_prefix" default:"yorc_"`
 	// When querying logs and event, we wait this timeout before each request when it returns nothing
@@ -106,6 +110,14 @@ func getElasticStoreConfig(yorcConfig config.Configuration, storeConfig config.S
 	t, e = getElasticStorageConfigPropertyTag("caCertPath", "json")
 	if storeProperties.IsSet(t) {
 		cfg.caCertPath = storeProperties.GetString(t)
+	}
+	t, e = getElasticStorageConfigPropertyTag("certPath", "json")
+	if storeProperties.IsSet(t) {
+		cfg.certPath = storeProperties.GetString(t)
+	}
+	t, e = getElasticStorageConfigPropertyTag("keyPath", "json")
+	if storeProperties.IsSet(t) {
+		cfg.keyPath = storeProperties.GetString(t)
 	}
 	cfg.esForceRefresh, e = getBoolFromSettingsOrDefaults("esForceRefresh", storeProperties)
 	t, e = getElasticStorageConfigPropertyTag("indicePrefix", "json")

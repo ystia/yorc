@@ -1398,14 +1398,21 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 .. warning::
     This storage is only suitable to store logs and events.
 
- 1 index for logs, 1 index for events.
+ Per Yorc cluster : 1 index for logs, 1 index for events.
 
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name           |           Description                              | Data Type |   Required       | Default         |
 +=============================+====================================================+===========+==================+=================+
 | ``es_urls``                 | the ES cluster urls                                | []string  | yes              |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``ca_cert_path``            | path to the CACert when TLS is activated for ES    | string    | no               |                 |
+| ``ca_cert_path``            | path to the PEM encoded CA's certificate file when | string    | no               |                 |
+|                             | TLS is activated for ES                            |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cert_path``               | path to a PEM encoded certificate file when TLS    | string    | no               |                 |
+|                             | is activated for ES                                |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``key_path``                | path to a PEM encoded private key file when TLS    | string    | no               |                 |
+|                             | is activated for ES                                |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
@@ -1428,7 +1435,7 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 |                             | of bulk request sent while migrating data          |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``cluster_id``              | used to distinguish logs & events in the indexes   | string    | no               |                 |
-|                             | if different yorc cluster are writting in the same |           |                  |                 |
+|                             | if different yorc cluster are writing in the same  |           |                  |                 |
 |                             | elastic cluster.                                   |           |                  |                 |
 |                             | If not set, the consul.datacenter will be used.    |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
