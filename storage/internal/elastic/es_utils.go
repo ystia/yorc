@@ -40,8 +40,6 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	var esConfig elasticsearch6.Config
 	esConfig = elasticsearch6.Config{Addresses: elasticStoreConfig.esUrls}
 
-	// TODO: https://gist.github.com/michaljemala/d6f4e01c4834bf47a9c4
-
 	if len(elasticStoreConfig.caCertPath) > 0 {
 		log.Printf("Reading CACert file from %s", elasticStoreConfig.caCertPath)
 		caCert, err := ioutil.ReadFile(elasticStoreConfig.caCertPath)
