@@ -88,8 +88,14 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	log.Printf("\t- Will use this ES client configuration: %+v", esConfig)
 
 	esClient, e := elasticsearch6.NewClient(esConfig)
-	log.Printf("Here is the ES cluster info")
-	log.Println(esClient.Info())
+	if e != nil {
+		return nil, errors.Wrapf(e, "Not able build ES client")
+	}
+	infoResponse, e := esClient.Info()
+	if e != nil {
+		return nil, errors.Wrapf(e, "The ES cluster info request failed")
+	}
+	log.Printf("Here is the ES cluster info: %+v", infoResponse)
 	return esClient, e
 }
 
