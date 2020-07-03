@@ -29,10 +29,6 @@ func buildInitStorageIndexQuery() (query string) {
              "_all": {"enabled": false},
              "dynamic": "false",
              "properties": {
-                 "clusterId": {
-                     "type": "keyword",
-                     "index": true
-                 },
                  "deploymentId": {
                      "type": "keyword",
                      "index": true
@@ -53,14 +49,14 @@ func buildInitStorageIndexQuery() (query string) {
 }
 
 // This ES aggregation query is built using clusterId and eventually deploymentId.
-func buildLastModifiedIndexQuery(clusterID string, deploymentID string) (query string) {
+func buildLastModifiedIndexQuery(deploymentID string) (query string) {
 	if len(deploymentID) == 0 {
 		query = `
 {
     "aggs" : {
         "max_iid" : {
             "filter" : {
-				"term": { "clusterId": "` + clusterID + `" }
+				"match_all": {}
             },
             "aggs" : {
                 "last_index" : { "max" : { "field" : "iid" } }
@@ -76,8 +72,7 @@ func buildLastModifiedIndexQuery(clusterID string, deploymentID string) (query s
             "filter" : {
                 "bool": {
                     "must": [
-                        { "term": { "deploymentId": "` + deploymentID + `" } },
-                        { "term": { "clusterId": "` + clusterID + `" } }
+                        { "term": { "deploymentId": "` + deploymentID + `" } }
                      ]
                 }
             },
@@ -116,22 +111,12 @@ func getRangeQuery(waitIndex uint64, maxIndex uint64) (rangeQuery string) {
 }
 
 // This ES range query is built using 'waitIndex' and eventually 'maxIndex' and filtered using 'clusterId' and eventually 'deploymentId'.
-func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIndex uint64) (query string) {
+func getListQuery(deploymentID string, waitIndex uint64, maxIndex uint64) (query string) {
 	rangeQuery := getRangeQuery(waitIndex, maxIndex)
 	if len(deploymentID) == 0 {
 		query = `
 {
-   "query":{
-      "bool":{
-         "must":[
-            {
-               "term":{
-                  "clusterId":"` + clusterID + `"
-               }
-            },` + rangeQuery + `
-         ]
-      }
-   }
+   "query":` + rangeQuery + `
 }`
 	} else {
 		query = `
@@ -139,11 +124,6 @@ func getListQuery(clusterID string, deploymentID string, waitIndex uint64, maxIn
    "query":{
       "bool":{
          "must":[
-            {
-               "term":{
-                  "clusterId":"` + clusterID + `"
-               }
-            },
             {
                "term":{
                   "deploymentId":"` + deploymentID + `"

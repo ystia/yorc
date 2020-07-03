@@ -17,6 +17,8 @@ package elastic
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	elasticsearch6 "github.com/elastic/go-elasticsearch/v6"
 	"github.com/elastic/go-elasticsearch/v6/esapi"
@@ -38,13 +40,34 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	var esConfig elasticsearch6.Config
 	esConfig = elasticsearch6.Config{Addresses: elasticStoreConfig.esUrls}
 
+	// TODO: https://gist.github.com/michaljemala/d6f4e01c4834bf47a9c4
+
 	if len(elasticStoreConfig.caCertPath) > 0 {
 		log.Printf("Reading CACert file from %s", elasticStoreConfig.caCertPath)
-		cert, err := ioutil.ReadFile(elasticStoreConfig.caCertPath)
+		caCert, err := ioutil.ReadFile(elasticStoreConfig.caCertPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Not able to read Cert file from <%s>", elasticStoreConfig.caCertPath)
 		}
-		esConfig.CACert = cert
+		esConfig.CACert = caCert
+
+		if len(elasticStoreConfig.certPath) > 0 && len(elasticStoreConfig.keyPath) > 0 {
+			cert, err := tls.LoadX509KeyPair(elasticStoreConfig.certPath, elasticStoreConfig.keyPath)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Not able to read cert and/or key file from <%s> and <%s>", elasticStoreConfig.certPath, elasticStoreConfig.keyPath)
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+
+			// Setup HTTPS client
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				RootCAs:      caCertPool,
+			}
+			tlsConfig.BuildNameToCertificate()
+			transport := &http.Transport{TLSClientConfig: tlsConfig}
+
+			esConfig.Transport = transport
+		}
 	}
 	if log.IsDebug() || elasticStoreConfig.traceRequests {
 		// In debug mode or when traceRequests option is activated, we add a custom logger that print requests & responses
@@ -52,8 +75,7 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 		esConfig.Logger = &debugLogger{}
 	}
 
-	log.Printf("\t- Index prefix will be %s", elasticStoreConfig.indicePrefix)
-	log.Printf("\t- Documents will be segregated by clusterId : %s", elasticStoreConfig.clusterID)
+	log.Printf("\t- Index prefix will be %s", elasticStoreConfig.indicePrefix+elasticStoreConfig.clusterID+"_")
 	log.Printf("\t- Will query ES for logs or events every %v and will wait for index refresh during %v",
 		elasticStoreConfig.esQueryPeriod, elasticStoreConfig.esRefreshWaitTimeout)
 	willRefresh := ""

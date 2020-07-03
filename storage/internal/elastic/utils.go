@@ -115,7 +115,7 @@ func getSortableStringFromUint64(nanoTimestamp uint64) string {
 
 // The document is enriched by adding 'clusterId' and 'iid' properties.
 // This addition is done by directly manipulating the []byte in order to avoid costly successive marshal / unmarshal operations.
-func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (string, []byte, error) {
+func buildElasticDocument(k string, rawMessage interface{}) (string, []byte, error) {
 	// Extract indice name and timestamp by parsing the key
 	storeType, timestamp := extractStoreTypeAndTimestamp(k)
 	log.Debugf("storeType is: %s, timestamp: %s", storeType, timestamp)
@@ -129,7 +129,7 @@ func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (s
 	iid := eventDate.UnixNano()
 
 	// This is the piece of 'JSON' we want to append
-	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","iidStr":"` + strconv.FormatInt(iid, 10) + `","clusterId":"` + clusterID + `"`
+	a := `,"iid":"` + strconv.FormatInt(iid, 10) + `","iidStr":"` + strconv.FormatInt(iid, 10) + `"`
 	// v is a json.RawMessage
 	raw := rawMessage.(json.RawMessage)
 	raw = appendJSONInBytes(raw, []byte(a))
@@ -142,12 +142,12 @@ func buildElasticDocument(clusterID string, k string, rawMessage interface{}) (s
 // - the size of the resulting bulk operation exceed the maximum authorized for a bulk request
 // The value is not added if it's size + the current body size exceed the maximum authorized for a bulk request.
 // Return a bool indicating if the value has been added to the bulk request body.
-func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, body *[]byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
+func eventuallyAppendValueToBulkRequest(c elasticStoreConf, body *[]byte, kv store.KeyValueIn, maxBulkSizeInBytes int) (bool, error) {
 	if err := utils.CheckKeyAndValue(kv.Key, kv.Value); err != nil {
 		return false, err
 	}
 
-	storeType, document, err := buildElasticDocument(clusterID, kv.Key, kv.Value)
+	storeType, document, err := buildElasticDocument(kv.Key, kv.Value)
 	if err != nil {
 		return false, err
 	}
@@ -185,5 +185,5 @@ func eventuallyAppendValueToBulkRequest(c elasticStoreConf, clusterID string, bo
 
 // The index name are prefixed to avoid index name collisions.
 func getIndexName(c elasticStoreConf, storeType string) string {
-	return c.indicePrefix + storeType
+	return c.indicePrefix + strings.ToLower(c.clusterID) + "_" + storeType
 }
