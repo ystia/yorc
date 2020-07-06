@@ -344,13 +344,22 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		return
 	}
 	defer func() {
-		l, err := acquireRunningExecLock(w.consulClient, action.AsyncOperation.TaskID)
+		log.Debugf("endAction %q, wasCancelled %s, actionErr %v", action.ID, wasCancelled, actionErr)
+		l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
 		if err != nil {
-
 			return
 		}
 		defer l.Unlock()
 		w.consulClient.KV().Delete(path.Join(consulutil.TasksPrefix, action.AsyncOperation.TaskID, ".runningExecutions", action.ID), nil)
+		if e <= 1 {
+			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
+			if err != nil {
+				err = errors.Wrapf(err, "failed to update task %q status according to workflow %s status for deployment %q", action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName, action.AsyncOperation.DeploymentID)
+				log.Printf("%v", err)
+				log.Debugf("%+v", err)
+			}
+		}
+
 	}()
 
 	// Rebuild the original workflow step
@@ -383,8 +392,6 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		time.Now(),
 		taskType,
 	))
-
-	defer updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx, w.consulClient, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
 
 	stepStatus := tasks.TaskStepStatusDONE
 	if wasCancelled {
