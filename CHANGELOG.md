@@ -8,6 +8,7 @@
 
 ### BUG FIXES
 
+* Concurrency issue in workflows execution may lead to a task never reaching a terminal status ([GH-659](https://github.com/ystia/yorc/issues/659))
 * Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
 
 ## 4.0.1 (May 14, 2020)
