@@ -133,22 +133,12 @@ func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consuluti
 		l.Unlock()
 		return nil, 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	log.Debugf("numberOfRunningExecutionsForTask %d", len(keys))
 	return l, len(keys), nil
 }
 
-func doIfNoMoreOtherExecutions(cc *api.Client, taskID string, f func() error) error {
-	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
-	if err != nil {
-		return err
-	}
-	defer l.Unlock()
-	if e <= 1 && f != nil {
-		return f()
-	}
-	return nil
-}
-
 func (t *taskExecution) notifyEnd() error {
+	log.Debugf("notifyEnd for taskExecution %q", t.id)
 	execPath := path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions")
 	l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
 	if err != nil {
