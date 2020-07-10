@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
+
 ### SECURITY FIXES
 
 * Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
