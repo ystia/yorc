@@ -37,6 +37,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/duosecurity/duo_api_golang v0.0.0-20200206192355-a9725220d6ca // indirect
 	github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4
+	github.com/elastic/go-elasticsearch/v6 v6.8.6-0.20200428134631-c5be8f8ee116
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
@@ -105,7 +106,7 @@ require (
 	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
 	github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 // indirect
 	github.com/ystia/tdt2go v0.3.0
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e

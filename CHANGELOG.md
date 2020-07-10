@@ -1,5 +1,24 @@
 # Yorc Changelog
 
+## 4.0.2 (July 10, 2020)
+
+### SECURITY FIXES
+
+* Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
+
+### FEATURES
+
+* Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
+
+### ENHANCEMENTS
+
+* Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
+
+### BUG FIXES
+
+* Concurrency issue in workflows execution may lead to a task never reaching a terminal status ([GH-659](https://github.com/ystia/yorc/issues/659))
+* Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
+
 ## 4.0.1 (May 14, 2020)
 
 ### ENHANCEMENTS

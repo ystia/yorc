@@ -255,9 +255,6 @@ func getLogsOrEvents(ctx context.Context, deploymentID string, waitIndex uint64,
 
 	log.Debugf("Found %d %s before accessing index[%q]", len(kvps), data, strconv.FormatUint(lastIndex, 10))
 	for _, kvp := range kvps {
-		if kvp.LastModifyIndex <= waitIndex {
-			continue
-		}
 		logsOrEvents = append(logsOrEvents, kvp.RawValue)
 	}
 	log.Debugf("Found %d %s after index", len(logsOrEvents), data)
