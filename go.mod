@@ -37,6 +37,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/duosecurity/duo_api_golang v0.0.0-20200206192355-a9725220d6ca // indirect
 	github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4
+	github.com/elastic/go-elasticsearch/v6 v6.8.6-0.20200428134631-c5be8f8ee116
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
