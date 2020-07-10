@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 4.0.2 (July 10, 2020)
 
 ### SECURITY FIXES
 
