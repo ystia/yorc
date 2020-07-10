@@ -2,13 +2,17 @@
 
 ## UNRELEASED
 
-### ENHANCEMENTS
-
-* Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
-
 ### SECURITY FIXES
 
 * Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
+
+### FEATURES
+
+* Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
+
+### ENHANCEMENTS
+
+* Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
 
 ### BUG FIXES
 
