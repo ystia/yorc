@@ -17,7 +17,6 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/events"
 	"path"
 	"strconv"
 	"time"
@@ -27,6 +26,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
@@ -114,7 +114,7 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 		return err
 	}
 
-	tasks.EmitTaskEventWithContextualLogs(nil, targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
+	tasks.EmitTaskEventWithContextualLogs(ctx, targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
 	return nil
 }
 
