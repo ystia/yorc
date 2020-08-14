@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
+
 ### BUG FIXES
 
 * Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
