@@ -80,6 +80,7 @@ spec:
   containers:
   - name: yorc-ci-builder
     image: golang:1-stretch
+    imagePullPolicy: Always
     command:
     - cat
     tty: true
