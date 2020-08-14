@@ -5,6 +5,7 @@
 ### FEATURES
 
 * Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
+* [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
 
 ### SECURITY FIXES
 

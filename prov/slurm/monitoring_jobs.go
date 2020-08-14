@@ -66,6 +66,23 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	return true, errors.Errorf("Unsupported actionType %q", action.ActionType)
 }
 
+func (o *actionOperator) updateJobAttributes(ctx context.Context, deploymentID, nodeName, instanceName string, jobInfo map[string]string) error {
+	for k, v := range jobInfo {
+		value, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, instanceName, k)
+		if err != nil {
+			return err
+		}
+		if value == nil || value.RawString() != v {
+			err = deployments.SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, k, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
 	var (
 		err        error
@@ -122,12 +139,21 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	}
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
+
+	// TODO(loicalbertin): This should be improved instance name should not be hard-coded
+	instanceName := "0"
+
 	if err != nil {
 		if isNoJobFoundError(err) {
 			// the job is not found in slurm database (should have been purged) : pass its status to "UNKNOWN"
-			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, "0", "UNKNOWN")
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName, "UNKNOWN")
 		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
+	}
+	err = o.updateJobAttributes(ctx, deploymentID, nodeName, instanceName, info)
+	if err != nil {
+		// TODO(loicalbertin) should we stop here?
+		return true, errors.Wrapf(err, "failed to update job attributes with jobID: %q", actionData.jobID)
 	}
 
 	var mess string
@@ -156,12 +182,12 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
-	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, "0")
+	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
 	}
 	if previousJobState != info["JobState"] {
-		deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, "0", info["JobState"])
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName, info["JobState"])
 	}
 
 	// See if monitoring must be continued and set job state if terminated
