@@ -17,14 +17,16 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"path"
+
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
-	"path"
 )
 
 type typeMissingError struct {
@@ -488,7 +490,7 @@ func getTypePropertyDefinition(ctx context.Context, deploymentID, typeName, prop
 }
 
 func getTypeAttributeDefinition(ctx context.Context, deploymentID, typeName, attributeName string) (*tosca.AttributeDefinition, error) {
-	mapAttrs, err := getTypeAttributeDefinitions(nil, deploymentID, typeName)
+	mapAttrs, err := getTypeAttributeDefinitions(ctx, deploymentID, typeName)
 	if err != nil {
 		return nil, err
 	}
