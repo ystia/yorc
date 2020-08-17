@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
+
 ## 4.0.2 (July 10, 2020)
 
 ### SECURITY FIXES
