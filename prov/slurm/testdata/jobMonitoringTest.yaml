@@ -1,0 +1,97 @@
+tosca_definitions_version: alien_dsl_1_4_0
+
+metadata:
+  template_name: SimpleCompute-Environment
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - path: <yorc-slurm-types.yml>
+
+topology_template:
+  node_templates:
+    Job:
+      metadata:
+        location: testSlurmLocation
+      type: yorc.nodes.slurm.Job
+      properties:
+        tasks: 1
+        nodes: 1
+        batch: false
+        exec_args:
+          - uptime
+  workflows:
+    install:
+      steps:
+        Job_initial:
+          target: Job
+          activities:
+            - set_state: started
+    uninstall:
+      steps:
+        Job_deleting:
+          target: Job
+          activities:
+            - set_state: deleting
+          on_success:
+            - Job_deleted
+        Job_deleted:
+          target: Job
+          activities:
+            - set_state: deleted
+    run:
+      steps:
+        Job_submitting:
+          target: Job
+          activities:
+            - set_state: submitting
+          on_success:
+            - Job_submit
+        Job_submitted:
+          target: Job
+          activities:
+            - set_state: submitted
+          on_success:
+            - Job_executing
+        Job_executing:
+          target: Job
+          activities:
+            - set_state: executing
+          on_success:
+            - Job_run
+        Job_executed:
+          target: Job
+          activities:
+            - set_state: executed
+        Job_submit:
+          target: Job
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.submit
+          on_success:
+            - Job_submitted
+        Job_run:
+          target: Job
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.run
+          on_success:
+            - Job_executed
+    cancel:
+      steps:
+        Job_cancelling:
+          target: Job
+          activities:
+            - set_state: cancelling
+          on_success:
+            - Job_cancel
+        Job_cancelled:
+          target: Job
+          activities:
+            - set_state: cancelled
+        Job_cancel:
+          target: Job
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.cancel
+          on_success:
+            - Job_cancelled
