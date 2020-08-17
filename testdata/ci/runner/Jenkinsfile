@@ -107,7 +107,7 @@ spec:
                     echo "Yorc version:"
                     ./yorc version | tee yorc_version.txt
                     echo -n "Runtime version:" | tee -a yorc_version.txt
-                    go version -v yorc | sed -e 's/^.*: \\(.*\\)$/\\1\\n/g' | tee -a yorc_version.txt
+                    go version -v yorc | sed -e 's/^.*: \\(.*\\)\$/\\1\\n/g' | tee -a yorc_version.txt
                     """
                 )
                 stash includes: 'yorc.tgz', name: 'yorc-bin'
