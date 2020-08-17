@@ -17,7 +17,6 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/log"
 	"io/ioutil"
 	"os"
 	"path"
@@ -31,6 +30,7 @@ import (
 	"github.com/ystia/yorc/v4/deployments/store"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage"
 	storageTypes "github.com/ystia/yorc/v4/storage/types"
 	"github.com/ystia/yorc/v4/tosca"
@@ -529,7 +529,7 @@ func storeOperationOutputVAOnType(ctx context.Context, deploymentID, typeName, i
 		return err
 	}
 
-	tType, typePath, err := getTypeFromName(nil, deploymentID, typeName)
+	tType, typePath, err := getTypeFromName(ctx, deploymentID, typeName)
 	if err != nil {
 		return err
 	}

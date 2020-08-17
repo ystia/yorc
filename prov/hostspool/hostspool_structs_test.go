@@ -75,7 +75,7 @@ func TestHostStatusJSONUnmarshalling(t *testing.T) {
 			}
 
 			if !tt.wantErr && r != tt.expectedResult {
-				t.Errorf("json.Unmarshal() result = %q, expected %q", string(r), tt.expectedResult)
+				t.Errorf("json.Unmarshal() result = %q, expected %q", r.String(), tt.expectedResult.String())
 			}
 		})
 	}

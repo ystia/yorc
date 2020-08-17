@@ -18,6 +18,7 @@
 
 ### BUG FIXES
 
+* Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
 * Concurrency issue in workflows execution may lead to a task never reaching a terminal status ([GH-659](https://github.com/ystia/yorc/issues/659))
 * Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
 * Kubernetes Client uses deprecated apis removed on recent versions of K8S (v1.17+) ([GH-645](https://github.com/ystia/yorc/issues/645))

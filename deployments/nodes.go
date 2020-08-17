@@ -813,13 +813,14 @@ func CreateNewNodeStackInstances(ctx context.Context, deploymentID, nodeName str
 
 // createNodeInstance creates required elements for a new node
 func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeName, instanceName string) {
+	ctx := context.Background()
 	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	toscaID := nodeName + "-" + instanceName
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), tosca.NodeStateInitial.String())
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), toscaID)
 	// Publish a status change event and attribute update
-	_, err := events.PublishAndLogInstanceStatusChange(nil, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
+	_, err := events.PublishAndLogInstanceStatusChange(ctx, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
 	if err != nil {
 		log.Printf("%+v", err)
 	}
@@ -829,7 +830,7 @@ func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeNa
 	attrs["state"] = tosca.NodeStateInitial.String()
 	attrs["tosca_name"] = nodeName
 	attrs["tosca_id"] = toscaID
-	err = events.PublishAndLogMapAttributeValueChange(nil, deploymentID, nodeName, instanceName, attrs, "updated")
+	err = events.PublishAndLogMapAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attrs, "updated")
 	if err != nil {
 		log.Printf("%+v", err)
 	}
