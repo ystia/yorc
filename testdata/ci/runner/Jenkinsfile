@@ -79,7 +79,7 @@ kind: Pod
 spec:
   containers:
   - name: yorc-ci-builder
-    image: golang:1-stretch
+    image: golang:1
     imagePullPolicy: Always
     command:
     - cat
@@ -106,6 +106,8 @@ spec:
                     tar czvf yorc.tgz yorc
                     echo "Yorc version:"
                     ./yorc version | tee yorc_version.txt
+                    echo -ne "\\nRuntime version: " | tee -a yorc_version.txt
+                    go version -v yorc | sed -e 's/^.*: \\(.*\\)\$/\\1/g' | tee -a yorc_version.txt
                     """
                 )
                 stash includes: 'yorc.tgz', name: 'yorc-bin'
