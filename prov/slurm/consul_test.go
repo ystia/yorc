@@ -15,9 +15,10 @@
 package slurm
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/locations"
@@ -75,6 +76,9 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 		})
 		t.Run("ExecutionCommonPrepareAndSubmitJob", func(t *testing.T) {
 			testExecutionCommonPrepareAndSubmitJob(t)
+		})
+		t.Run("ActionOperatorAnalyzeJob", func(t *testing.T) {
+			testActionOperatorAnalyzeJob(t, srv, cfg)
 		})
 	})
 }

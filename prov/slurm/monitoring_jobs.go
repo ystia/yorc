@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -83,13 +84,12 @@ func (o *actionOperator) updateJobAttributes(ctx context.Context, deploymentID, 
 	return nil
 }
 
-func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
+func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClient sshutil.Client, deploymentID, nodeName string, action *prov.Action, keepArtifacts bool) (bool, error) {
 	var (
 		err        error
 		deregister bool
 		ok         bool
 	)
-
 	actionData := &actionData{}
 	// Check jobID
 	actionData.jobID, ok = action.Data["jobID"]
@@ -115,27 +115,6 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	artifactsStr, ok := action.Data["artifacts"]
 	if ok {
 		actionData.artifacts = strings.Split(artifactsStr, ",")
-	}
-
-	nodeName := action.Data["nodeName"]
-
-	var locationProps config.DynamicMap
-	locationMgr, err := locations.GetManager(cfg)
-	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
-	}
-	if err != nil {
-		return true, err
-	}
-
-	credentials, err := getUserCredentials(ctx, locationProps, deploymentID, nodeName, "")
-	if err != nil {
-		return true, err
-	}
-	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
-	sshClient, err := getSSHClient(cfg, credentials, locationProps)
-	if err != nil {
-		return true, err
 	}
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
@@ -167,19 +146,19 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	stdOut, existStdOut := info["StdOut"]
 	stdErr, existStdErr := info["StdErr"]
 	if existStdOut && existStdErr && stdOut == stdErr {
-		o.logFile(ctx, cfg, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
+		o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
 	} else {
 		if existStdOut {
-			o.logFile(ctx, cfg, action, deploymentID, stdOut, "StdOut", sshClient)
+			o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut", sshClient)
 		}
 		if existStdErr {
-			o.logFile(ctx, cfg, action, deploymentID, stdErr, "StdErr", sshClient)
+			o.logFile(ctx, cc, action, deploymentID, stdErr, "StdErr", sshClient)
 		}
 	}
 
 	// See default output if nothing is specified here
 	if !existStdOut && !existStdErr {
-		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
+		o.logFile(ctx, cc, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
 	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, instanceName)
@@ -208,14 +187,50 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	// cleanup except if error occurred or explicitly specified in config
 	if deregister && err == nil {
-		if !locationProps.GetBool("keep_job_remote_artifacts") {
+		if !keepArtifacts {
 			o.removeArtifacts(actionData, sshClient)
 		}
 	}
 	return deregister, err
 }
 
-func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshutil.SSHClient) {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
+	var (
+		err error
+	)
+
+	nodeName := action.Data["nodeName"]
+
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return true, err
+	}
+
+	credentials, err := getUserCredentials(ctx, locationProps, deploymentID, nodeName, "")
+	if err != nil {
+		return true, err
+	}
+	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
+	sshClient, err := getSSHClient(cfg, credentials, locationProps)
+	if err != nil {
+		return true, err
+	}
+
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		log.Debugf("fail to retrieve consul client due to error:%+v:", err)
+		return true, err
+	}
+
+	return o.analyzeJob(ctx, cc, sshClient, deploymentID, nodeName, action, locationProps.GetBool("keep_job_remote_artifacts"))
+
+}
+
+func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient sshutil.Client) {
 	for _, art := range actionData.artifacts {
 		if art != "" {
 			p := path.Join(actionData.workingDir, art)
@@ -229,7 +244,7 @@ func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshu
 	}
 }
 
-func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, action *prov.Action, deploymentID, filePath, fileType string, sshClient *sshutil.SSHClient) {
+func (o *actionOperator) logFile(ctx context.Context, cc *api.Client, action *prov.Action, deploymentID, filePath, fileType string, sshClient sshutil.Client) {
 	fileTypeKey := fmt.Sprintf("lastIndex%s", strings.Replace(fileType, "/", "", -1))
 	// Get the log last index
 	lastInd, err := o.getLogLastIndex(action, fileTypeKey)
@@ -251,12 +266,6 @@ func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, 
 	}
 
 	// Update the last index
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		log.Debugf("fail to retrieve consul client due to error:%+v:", err)
-		return
-	}
-
 	newInd := strconv.Itoa(lastInd + strings.Count(output, "\n"))
 	err = scheduling.UpdateActionData(cc, action.ID, fileTypeKey, newInd)
 	if err != nil {
