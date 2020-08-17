@@ -84,37 +84,49 @@ func (o *actionOperator) updateJobAttributes(ctx context.Context, deploymentID, 
 	return nil
 }
 
-func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClient sshutil.Client, deploymentID, nodeName string, action *prov.Action, keepArtifacts bool) (bool, error) {
-	var (
-		err        error
-		deregister bool
-		ok         bool
-	)
+func getMonitoringJobActionData(action *prov.Action) (*actionData, error) {
+	var ok bool
+
 	actionData := &actionData{}
 	// Check jobID
 	actionData.jobID, ok = action.Data["jobID"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information jobID for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information jobID for actionType:%q", action.ActionType)
 	}
 	// Check stepName
 	actionData.stepName, ok = action.Data["stepName"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information stepName for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information stepName for actionType:%q", action.ActionType)
 	}
 	// Check workingDir
 	actionData.workingDir, ok = action.Data["workingDir"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information workingDir for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information workingDir for actionType:%q", action.ActionType)
 	}
 	// Check taskID
 	actionData.taskID, ok = action.Data["taskID"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information taskID for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information taskID for actionType:%q", action.ActionType)
 	}
 	// Check artifacts (optional)
 	artifactsStr, ok := action.Data["artifacts"]
 	if ok {
 		actionData.artifacts = strings.Split(artifactsStr, ",")
+	}
+
+	return actionData, nil
+
+}
+
+func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClient sshutil.Client, deploymentID, nodeName string, action *prov.Action, keepArtifacts bool) (bool, error) {
+	var (
+		err        error
+		deregister bool
+	)
+
+	actionData, err := getMonitoringJobActionData(action)
+	if err != nil {
+		return true, err
 	}
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
@@ -131,7 +143,6 @@ func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClie
 	}
 	err = o.updateJobAttributes(ctx, deploymentID, nodeName, instanceName, info)
 	if err != nil {
-		// TODO(loicalbertin) should we stop here?
 		return true, errors.Wrapf(err, "failed to update job attributes with jobID: %q", actionData.jobID)
 	}
 

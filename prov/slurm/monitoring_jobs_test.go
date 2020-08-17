@@ -18,16 +18,16 @@ import (
 	"context"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	ctu "github.com/hashicorp/consul/testutil"
-	"gotest.tools/v3/assert"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/testutil"
+	"gotest.tools/v3/assert"
 )
 
 /*
@@ -110,6 +110,64 @@ func testActionOperatorAnalyzeJob(t *testing.T, srv *ctu.TestServer, cfg config.
 			}
 			if got != tt.want {
 				t.Errorf("actionOperator.analyzeJob() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getMonitoringJobActionData(t *testing.T) {
+	type args struct {
+		action *prov.Action
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *actionData
+		wantErr bool
+	}{
+		{"MissingJobID", args{&prov.Action{Data: map[string]string{
+			"stepName":   "s1",
+			"workingDir": "~",
+			"taskID":     "t1",
+		}}}, nil, true},
+		{"MissingStepName", args{&prov.Action{Data: map[string]string{
+			"jobID":      "1",
+			"workingDir": "~",
+			"taskID":     "t1",
+		}}}, nil, true},
+		{"MissingWorkingDir", args{&prov.Action{Data: map[string]string{
+			"jobID":    "1",
+			"stepName": "s1",
+			"taskID":   "t1",
+		}}}, nil, true},
+		{"MissingTaskID", args{&prov.Action{Data: map[string]string{
+			"jobID":      "1",
+			"stepName":   "s1",
+			"workingDir": "~",
+		}}}, nil, true},
+		{"NothingMissing", args{&prov.Action{Data: map[string]string{
+			"jobID":      "1",
+			"stepName":   "s1",
+			"workingDir": "~",
+			"taskID":     "t1",
+		}}}, &actionData{jobID: "1", stepName: "s1", workingDir: "~", taskID: "t1"}, false},
+		{"WithArtifacts", args{&prov.Action{Data: map[string]string{
+			"jobID":      "1",
+			"stepName":   "s1",
+			"workingDir": "~",
+			"taskID":     "t1",
+			"artifacts":  "b1,a2",
+		}}}, &actionData{jobID: "1", stepName: "s1", workingDir: "~", taskID: "t1", artifacts: []string{"b1", "a2"}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getMonitoringJobActionData(tt.args.action)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getMonitoringJobActionData() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getMonitoringJobActionData() = %v, want %v", got, tt.want)
 			}
 		})
 	}
