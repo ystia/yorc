@@ -18,6 +18,7 @@
 
 ### BUG FIXES
 
+* Yorc is getting slow when there is a lot of tasks ([GH-671](https://github.com/ystia/yorc/issues/671))
 * Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
 * Concurrency issue in workflows execution may lead to a task never reaching a terminal status ([GH-659](https://github.com/ystia/yorc/issues/659))
 * Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
