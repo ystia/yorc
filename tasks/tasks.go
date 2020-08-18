@@ -105,6 +105,8 @@ func IsTaskNotFoundError(err error) bool {
 }
 
 // GetTasksIdsForTarget returns IDs of tasks related to a given targetID
+//
+// Deprecated: Prefer deployments.GetDeploymentTaskList() instead if possible
 func GetTasksIdsForTarget(targetID string) ([]string, error) {
 	tasksKeys, err := consulutil.GetKeys(consulutil.TasksPrefix + "/")
 	if err != nil {
@@ -318,13 +320,20 @@ func DeleteTask(taskID string) error {
 // TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
 //
 // The last argument specifies tasks types which should be ignored.
+//
+// Deprecated: Prefer HasLivingTasks() instead
 func TargetHasLivingTasks(targetID string, tasksTypesToIgnore []TaskType) (bool, string, string, error) {
-
 	taskIDs, err := GetTasksIdsForTarget(targetID)
 	if err != nil {
 		return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	return HasLivingTasks(taskIDs, tasksTypesToIgnore)
+}
 
+// HasLivingTasks checks if the tasks list contains tasks in status INITIAL or RUNNING and returns the id and status of the first one found
+//
+// The last argument specifies tasks types which should be ignored.
+func HasLivingTasks(taskIDs []string, tasksTypesToIgnore []TaskType) (bool, string, string, error) {
 	for _, taskID := range taskIDs {
 
 		tStatus, err := GetTaskStatus(taskID)

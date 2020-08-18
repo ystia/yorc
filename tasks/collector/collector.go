@@ -120,7 +120,7 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 
 func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
 	// First check if other tasks are running for this target before creating a new one except for Action tasks
-	if tasks.TaskTypeAction != taskType {
+	if tasks.IsDeploymentRelatedTask(taskType) {
 
 		tasksTypesToIgnore := []tasks.TaskType{
 			tasks.TaskTypeQuery, tasks.TaskTypeAction,
@@ -137,11 +137,16 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 				tasks.TaskTypeCustomWorkflow)
 		}
 
-		hasLivingTask, livingTaskID, livingTaskStatus, err :=
-			tasks.TargetHasLivingTasks(targetID, tasksTypesToIgnore)
+		taskList, err := deployments.GetDeploymentTaskList(context.Background(), targetID)
 		if err != nil {
 			return "", err
-		} else if hasLivingTask {
+		}
+		hasLivingTask, livingTaskID, livingTaskStatus, err :=
+			tasks.HasLivingTasks(taskList, tasksTypesToIgnore)
+		if err != nil {
+			return "", err
+		}
+		if hasLivingTask {
 			return "", tasks.NewAnotherLivingTaskAlreadyExistsError(livingTaskID, targetID, livingTaskStatus)
 		}
 	}
@@ -174,6 +179,16 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 			Key:   path.Join(taskPath, "creationDate"),
 			Value: creationDate,
 		},
+	}
+
+	if tasks.IsDeploymentRelatedTask(taskType) {
+		// We store tasks references under deployment to speedup access to task of a given deployment
+		// see https://github.com/ystia/yorc/issues/671
+		taskOps = append(taskOps, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(consulutil.DeploymentKVPrefix, targetID, "tasks", taskID),
+			Flags: 1,
+		})
 	}
 
 	if data != nil {

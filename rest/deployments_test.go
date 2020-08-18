@@ -397,7 +397,10 @@ func testNewDeployments(t *testing.T, client *api.Client, cfg config.Configurati
 				require.NoError(t, err)
 				require.NotNil(t, url)
 
-				has, _, status, err := tasks.TargetHasLivingTasks(depID, nil)
+				taskList, err := deployments.GetDeploymentTaskList(req.Context(), depID)
+				require.NoError(t, err)
+
+				has, _, status, err := tasks.HasLivingTasks(taskList, nil)
 				require.True(t, has, "%s should have a registered task", depID)
 				require.Equal(t, tasks.TaskStatusINITIAL.String(), status)
 			}
