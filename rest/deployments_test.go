@@ -19,10 +19,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/ziputil"
 	"io"
 	"io/ioutil"
+	stdlog "log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -36,10 +35,15 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/ziputil"
+	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/collector"
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
 
@@ -67,7 +71,7 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, cfg config.Configu
 	os.RemoveAll("./testdata/work")
 }
 
-func loadTestYaml(t *testing.T, deploymentID string) {
+func loadTestYaml(t testing.TB, deploymentID string) {
 	yamlName := "testdata/testSimpleTopology.yaml"
 	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
@@ -404,4 +408,111 @@ func testNewDeployments(t *testing.T, client *api.Client, cfg config.Configurati
 			cleanTest(depID, "")
 		})
 	}
+}
+
+func BenchmarkGetDeployment(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+	stdlog.SetOutput(ioutil.Discard)
+	cfg := ytestutil.SetupTestConfig(b)
+	srv, client := ytestutil.NewTestConsulInstanceWithConfigAndStore(b, func(c *testutil.TestServerConfig) {
+		c.LogLevel = "ERR"
+		c.Stdout = ioutil.Discard
+		c.Stderr = ioutil.Discard
+	}, &cfg)
+	defer func() {
+		srv.Stop()
+		os.RemoveAll(cfg.WorkingDirectory)
+	}()
+
+	deploymentID := ytestutil.BuildDeploymentID(b)
+	loadTestYaml(b, deploymentID)
+
+	benches := []struct {
+		existingTasksNb int
+	}{
+		{1},
+		{10},
+		{100},
+		{1000},
+		{10000},
+	}
+
+	collector := collector.NewCollector(client)
+	for _, bb := range benches {
+		b.Run(fmt.Sprintf("BenchmarkGetDeployment-%d", bb.existingTasksNb), func(b *testing.B) {
+			taskID, err := collector.RegisterTask(deploymentID, tasks.TaskTypeCustomCommand)
+			assert.NilError(b, err, "failed to register task")
+
+			for i := 0; i < bb.existingTasksNb; i++ {
+				taskPath := path.Join(consulutil.TasksPrefix, fmt.Sprintf("000-task-%08d", i))
+				ok, _, _, err := client.KV().Txn(api.KVTxnOps{
+					&api.KVTxnOp{
+						Verb:  api.KVSet,
+						Key:   path.Join(taskPath, "targetId"),
+						Value: []byte(fmt.Sprintf("dep-%08d", i)),
+					},
+					&api.KVTxnOp{
+						Verb:  api.KVSet,
+						Key:   path.Join(taskPath, "status"),
+						Value: []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
+					},
+					&api.KVTxnOp{
+						Verb:  api.KVSet,
+						Key:   path.Join(taskPath, "type"),
+						Value: []byte(strconv.Itoa(int(tasks.TaskTypeDeploy))),
+					},
+				}, nil)
+				require.True(b, ok)
+				require.NoError(b, err)
+			}
+			defer client.KV().DeleteTree(consulutil.TasksPrefix, nil)
+
+			req := httptest.NewRequest("GET", "/deployments/"+deploymentID, nil)
+			req.Header.Set("Accept", mimeTypeApplicationJSON)
+			var resp *http.Response
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				resp = newTestHTTPRouter(client, cfg, req)
+			}
+
+			// stop here as we have delete tree in deferred function
+			b.StopTimer()
+
+			// Sanity checks
+			assert.Assert(b, resp != nil, "unexpected nil response")
+			assert.Equal(b, 200, resp.StatusCode, "unexpected status code")
+
+			body, err := ioutil.ReadAll(resp.Body)
+			assert.NilError(b, err, "unexpected error reading body response")
+
+			depFound := new(Deployment)
+			err = json.Unmarshal(body, depFound)
+			assert.NilError(b, err, "unexpected error unmarshalling json body")
+			expectedDeployment := &Deployment{
+				ID:     "BenchmarkGetDeployment",
+				Status: "INITIAL",
+				Links: []AtomLink{
+					{
+						Rel:      "self",
+						Href:     "/deployments/BenchmarkGetDeployment",
+						LinkType: "application/json",
+					},
+					{
+						Rel:      "node",
+						Href:     "/deployments/BenchmarkGetDeployment/nodes/Compute",
+						LinkType: "application/json",
+					},
+					{
+						Rel:      "task",
+						Href:     "/deployments/BenchmarkGetDeployment/tasks/" + taskID,
+						LinkType: "application/json",
+					},
+				},
+			}
+			assert.DeepEqual(b, depFound, expectedDeployment)
+
+		})
+
+	}
+
 }
