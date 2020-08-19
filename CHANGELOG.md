@@ -8,6 +8,7 @@
 
 ### BUG FIXES
 
+* Yorc is getting slow when there is a lot of tasks ([GH-671](https://github.com/ystia/yorc/issues/671))
 * Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
 
 ## 4.0.2 (July 10, 2020)
