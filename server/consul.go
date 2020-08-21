@@ -15,10 +15,11 @@
 package server
 
 import (
-	"github.com/ystia/yorc/v4/config"
 	"io"
 	"os"
 	"strconv"
+
+	"github.com/ystia/yorc/v4/config"
 
 	"github.com/blang/semver"
 	"github.com/hashicorp/consul/api"
@@ -36,6 +37,7 @@ var upgradeToMap = map[string]func(config.Configuration, *api.KV, <-chan struct{
 	"1.1.2": upgradeschema.UpgradeTo112,
 	"1.2.0": upgradeschema.UpgradeTo120,
 	"1.3.0": upgradeschema.UpgradeTo130,
+	"1.3.1": upgradeschema.UpgradeTo131,
 }
 
 var orderedUpgradesVersions []semver.Version

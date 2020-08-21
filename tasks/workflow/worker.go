@@ -637,7 +637,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	}
 	kv := w.consulClient.KV()
 	// Remove from KV all tasks from the current target deployment, except this purge task
-	tasksList, err := tasks.GetTasksIdsForTarget(t.targetID)
+	tasksList, err := deployments.GetDeploymentTaskList(ctx, t.targetID)
 	if err != nil {
 		return err
 	}

@@ -19,8 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/ziputil"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -37,8 +35,10 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/helper/ziputil"
 	"github.com/ystia/yorc/v4/tasks"
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
@@ -67,7 +67,7 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, cfg config.Configu
 	os.RemoveAll("./testdata/work")
 }
 
-func loadTestYaml(t *testing.T, deploymentID string) {
+func loadTestYaml(t testing.TB, deploymentID string) {
 	yamlName := "testdata/testSimpleTopology.yaml"
 	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
 	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
@@ -397,7 +397,10 @@ func testNewDeployments(t *testing.T, client *api.Client, cfg config.Configurati
 				require.NoError(t, err)
 				require.NotNil(t, url)
 
-				has, _, status, err := tasks.TargetHasLivingTasks(depID, nil)
+				taskList, err := deployments.GetDeploymentTaskList(req.Context(), depID)
+				require.NoError(t, err)
+
+				has, _, status, err := tasks.HasLivingTasks(taskList, nil)
 				require.True(t, has, "%s should have a registered task", depID)
 				require.Equal(t, tasks.TaskStatusINITIAL.String(), status)
 			}

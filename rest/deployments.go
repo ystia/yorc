@@ -351,7 +351,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		links = append(links, newAtomLink(LinkRelNode, path.Join(r.URL.Path, "nodes", node)))
 	}
 
-	tasksList, err := tasks.GetTasksIdsForTarget(id)
+	tasksList, err := deployments.GetDeploymentTaskList(ctx, id)
 	if err != nil {
 		log.Panic(err)
 	}

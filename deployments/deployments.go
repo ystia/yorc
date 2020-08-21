@@ -17,11 +17,12 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 
 	"github.com/ystia/yorc/v4/helper/collections"
 
@@ -278,4 +279,16 @@ func DeleteDeployment(ctx context.Context, deploymentID string) error {
 	}
 	// Remove from KV
 	return consulutil.Delete(deploymentKeyPath, true)
+}
+
+// GetDeploymentTaskList returns the list of tasks ids associated with the given deployment
+func GetDeploymentTaskList(ctx context.Context, deploymentID string) ([]string, error) {
+	keys, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "tasks"))
+	if err != nil {
+		return keys, err
+	}
+	for i := range keys {
+		keys[i] = path.Base(keys[i])
+	}
+	return keys, err
 }
