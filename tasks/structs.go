@@ -40,3 +40,10 @@ type TaskType int
 // CANCELED
 // )
 type TaskStatus int
+
+// IsDeploymentRelatedTask returns true if the task is related to a deployment
+//
+// Typically query and action tasks are not necessary related to a deployment.
+func IsDeploymentRelatedTask(tt TaskType) bool {
+	return !(tt == TaskTypeQuery || tt == TaskTypeAction)
+}
