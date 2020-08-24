@@ -380,7 +380,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			if deployments.IsDeploymentNotFoundError(err) {
 				// Deployment is not found : we force rapport error and ignore it
-				log.Printf("[WARNING] deployment %q is inconsistent, igoring it from deployments list. You please investigate and retport this issue.", deploymentID)
+				log.Printf("[WARNING] deployment %q is inconsistent, ignoring it from deployments list. Please investigate and report this issue.", deploymentID)
 				continue
 			}
 			log.Panic(err)
