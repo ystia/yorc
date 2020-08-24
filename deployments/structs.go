@@ -19,23 +19,26 @@ import (
 	"strconv"
 )
 
-//go:generate go-enum --noprefix -f=structs.go
+//go:generate go-enum --noprefix --nocamel -f=structs.go
 
-// DeploymentStatus x ENUM(
-// INITIAL,
-// DEPLOYMENT_IN_PROGRESS,
-// DEPLOYED,
-// UNDEPLOYMENT_IN_PROGRESS,
-// PURGE_IN_PROGRESS,
-// UNDEPLOYED,
-// DEPLOYMENT_FAILED,
-// UNDEPLOYMENT_FAILED,
-// SCALING_IN_PROGRESS,
-// UPDATE_IN_PROGRESS,
-// UPDATED,
-// UPDATE_FAILURE,
-// PURGED
-// )
+// DeploymentStatus is an enumerated type for deployments statuses
+/*
+ENUM(
+INITIAL
+DEPLOYMENT_IN_PROGRESS
+DEPLOYED
+UNDEPLOYMENT_IN_PROGRESS
+PURGE_IN_PROGRESS
+UNDEPLOYED
+DEPLOYMENT_FAILED
+UNDEPLOYMENT_FAILED
+SCALING_IN_PROGRESS
+UPDATE_IN_PROGRESS
+UPDATED
+UPDATE_FAILURE
+PURGED
+)
+*/
 type DeploymentStatus int
 
 // A TOSCAValue is the result of a resolved property or attribute

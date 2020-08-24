@@ -16,9 +16,12 @@ package types
 
 //go:generate go-enum -f=structs.go  --names
 
-// StoreType x ENUM(
-// Deployment,
-// Log,
-// Event
-// )
+// StoreType is an enumerated type for stores
+/*
+ENUM(
+Deployment
+Log
+Event
+)
+*/
 type StoreType int

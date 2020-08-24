@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/v4/helper/stringutil"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v4/helper/stringutil"
 )
 
 const (
@@ -36,11 +37,13 @@ const (
 	genericResourceNoConsumeProperty = "no_consume"
 )
 
-// HostStatus x ENUM(
-// free,
-// allocated,
-// error
-// )
+// HostStatus is an enumerated type for hosts statuses
+/* ENUM(
+free
+allocated
+error
+)
+*/
 type HostStatus int
 
 // MarshalJSON is used to represent this enumeration as a string instead of an int
