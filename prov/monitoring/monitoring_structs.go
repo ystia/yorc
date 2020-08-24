@@ -22,18 +22,24 @@ import (
 
 //go:generate go-enum -f=monitoring_structs.go --lower
 
-// CheckStatus x ENUM(
-// INITIAL,
-// PASSING,
-// CRITICAL
-// WARNING
-// )
+// CheckStatus is an enumerated type for checks statuses
+/*
+ENUM(
+INITIAL
+PASSING
+CRITICAL
+WARNING
+)
+*/
 type CheckStatus int
 
-// CheckType x ENUM(
-// TCP,
-// HTTP
-// )
+// CheckType is an enumerated type for checks
+/*
+ENUM(
+TCP
+HTTP
+)
+*/
 type CheckType int
 
 // Check represents a registered check

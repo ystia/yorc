@@ -47,11 +47,12 @@ var _TypeBaseMap = map[TypeBase]string{
 	5: _TypeBaseName[40:44],
 }
 
-func (i TypeBase) String() string {
-	if str, ok := _TypeBaseMap[i]; ok {
+// String implements the Stringer interface.
+func (x TypeBase) String() string {
+	if str, ok := _TypeBaseMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("TypeBase(%d)", i)
+	return fmt.Sprintf("TypeBase(%d)", x)
 }
 
 var _TypeBaseValue = map[string]TypeBase{
@@ -66,7 +67,7 @@ var _TypeBaseValue = map[string]TypeBase{
 // ParseTypeBase attempts to convert a string to a TypeBase
 func ParseTypeBase(name string) (TypeBase, error) {
 	if x, ok := _TypeBaseValue[name]; ok {
-		return TypeBase(x), nil
+		return x, nil
 	}
 	return TypeBase(0), fmt.Errorf("%s is not a valid TypeBase", name)
 }

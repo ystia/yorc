@@ -21,17 +21,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-
-	"github.com/ystia/yorc/v4/helper/collections"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 )
 
 const purgedDeploymentsLock = consulutil.PurgedDeploymentKVPrefix + ".lock"
@@ -291,4 +289,20 @@ func GetDeploymentTaskList(ctx context.Context, deploymentID string) ([]string, 
 		keys[i] = path.Base(keys[i])
 	}
 	return keys, err
+}
+
+// GetDeploymentsIDs returns the list of deployments IDs
+func GetDeploymentsIDs(ctx context.Context) ([]string, error) {
+
+	depPaths, err := consulutil.GetKeys(consulutil.DeploymentKVPrefix)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	deps := make([]string, 0)
+	for _, depPath := range depPaths {
+		deploymentID := path.Base(depPath)
+		deps = append(deps, deploymentID)
+	}
+	return deps, nil
 }
