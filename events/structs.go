@@ -31,16 +31,19 @@ import (
 
 //go:generate go-enum -f=structs.go --lower
 
-// StatusChangeType x ENUM(
-// Instance,
-// Deployment,
-// CustomCommand,
-// Scaling,
-// Workflow,
-// WorkflowStep
-// AlienTask,
-// AttributeValue
-// )
+// StatusChangeType is an enumerated type for statuses changes
+/*
+ENUM(
+Instance
+Deployment
+CustomCommand
+Scaling
+Workflow
+WorkflowStep
+AlienTask
+AttributeValue
+)
+*/
 type StatusChangeType int
 
 // Info allows to provide custom/specific additional information for event

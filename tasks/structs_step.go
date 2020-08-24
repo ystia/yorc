@@ -16,13 +16,16 @@ package tasks
 
 //go:generate go-enum -f=structs_step.go --lower
 
-// TaskStepStatus x ENUM(
-// INITIAL,
-// RUNNING,
-// DONE,
-// ERROR,
-// CANCELED
-// )
+// TaskStepStatus is an enumerated type for tasks steps statuses
+/*
+ENUM(
+INITIAL
+RUNNING
+DONE
+ERROR
+CANCELED
+)
+*/
 type TaskStepStatus int
 
 // TaskStep represents a step related to a workflow
