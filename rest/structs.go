@@ -222,10 +222,12 @@ type Workflow struct {
 }
 
 // MapEntryOperation is an enumeration of valid values for a MapEntry.Op field
-// ENUM(
-// Add,
-// Remove
-// )
+/*
+ENUM(
+Add
+Remove
+)
+*/
 type MapEntryOperation int
 
 // MarshalJSON is used to represent this enumeration as a string instead of an int

@@ -42,11 +42,12 @@ var _CheckStatusMap = map[CheckStatus]string{
 	3: _CheckStatusName[22:29],
 }
 
-func (i CheckStatus) String() string {
-	if str, ok := _CheckStatusMap[i]; ok {
+// String implements the Stringer interface.
+func (x CheckStatus) String() string {
+	if str, ok := _CheckStatusMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("CheckStatus(%d)", i)
+	return fmt.Sprintf("CheckStatus(%d)", x)
 }
 
 var _CheckStatusValue = map[string]CheckStatus{
@@ -63,7 +64,7 @@ var _CheckStatusValue = map[string]CheckStatus{
 // ParseCheckStatus attempts to convert a string to a CheckStatus
 func ParseCheckStatus(name string) (CheckStatus, error) {
 	if x, ok := _CheckStatusValue[name]; ok {
-		return CheckStatus(x), nil
+		return x, nil
 	}
 	return CheckStatus(0), fmt.Errorf("%s is not a valid CheckStatus", name)
 }
@@ -82,11 +83,12 @@ var _CheckTypeMap = map[CheckType]string{
 	1: _CheckTypeName[3:7],
 }
 
-func (i CheckType) String() string {
-	if str, ok := _CheckTypeMap[i]; ok {
+// String implements the Stringer interface.
+func (x CheckType) String() string {
+	if str, ok := _CheckTypeMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("CheckType(%d)", i)
+	return fmt.Sprintf("CheckType(%d)", x)
 }
 
 var _CheckTypeValue = map[string]CheckType{
@@ -99,7 +101,7 @@ var _CheckTypeValue = map[string]CheckType{
 // ParseCheckType attempts to convert a string to a CheckType
 func ParseCheckType(name string) (CheckType, error) {
 	if x, ok := _CheckTypeValue[name]; ok {
-		return CheckType(x), nil
+		return x, nil
 	}
 	return CheckType(0), fmt.Errorf("%s is not a valid CheckType", name)
 }

@@ -20,13 +20,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"time"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 )
 
 // LogEntry is the log entry representation
@@ -105,12 +105,15 @@ func (ft FieldType) String() string {
 // We approximate all data except the content value to be equal to 1Kb
 const contentMaxAllowedValueSize int = 511 * 1000
 
-// LogLevel x ENUM(
-// INFO,
-// DEBUG,
-// WARN,
-// ERROR
-// )
+// LogLevel is an enumerated type for log levels
+/*
+ENUM(
+INFO
+DEBUG
+WARN
+ERROR
+)
+*/
 type LogLevel int
 
 // SimpleLogEntry allows to return a LogEntry instance with log level and deploymentID

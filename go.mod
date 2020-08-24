@@ -4,20 +4,14 @@ module github.com/ystia/yorc/v4
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Bowery/prompt v0.0.0-20190419144237-972d0ceb96f5 // indirect
-	github.com/Masterminds/goutils v1.1.0 // indirect
-	github.com/Masterminds/semver v1.4.2 // indirect
-	github.com/Masterminds/sprig v2.20.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Netflix/go-expect v0.0.0-20190729225929-0e00d9168667
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/PuerkitoBio/goquery v1.5.1 // indirect
 	github.com/SAP/go-hdb v0.14.1 // indirect
 	github.com/SermoDigital/jose v0.9.1 // indirect
 	github.com/Sirupsen/logrus v0.1.0 // indirect
-	github.com/abice/go-enum v0.1.4
+	github.com/abice/go-enum v0.2.3
 	github.com/alecthomas/participle v0.3.0
-	github.com/alien4cloud/alien4cloud-go-client/v2 v2.2.0-M5 // indirect
 	github.com/armon/go-metrics v0.3.0
 	github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 // indirect
 	github.com/blang/semver v3.5.1+incompatible
@@ -25,8 +19,6 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cheggaaa/pb/v3 v3.0.3
-	github.com/chromedp/cdproto v0.0.0-20200209033844-7e00b02ea7d2 // indirect
-	github.com/chromedp/chromedp v0.5.3 // indirect
 	github.com/containerd/continuity v0.0.0-20200228182428-0f16d7a0959c // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20200206145737-bbfc9a55622e // indirect
 	github.com/dgraph-io/ristretto v0.0.1
@@ -62,8 +54,6 @@ require (
 	github.com/hashicorp/serf v0.8.3 // indirect
 	github.com/hashicorp/vault v0.9.0
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c
-	github.com/huandu/xstrings v1.2.0 // indirect
-	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/justinas/alice v0.0.0-20160512134231-052b8b6c18ed
@@ -71,18 +61,13 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4 // indirect
 	github.com/kr/pty v1.1.8 // indirect
-	github.com/labstack/gommon v0.2.9 // indirect
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mgutz/logxi v0.0.0-20161027140823-aebf8a7d67ab // indirect
-	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.1.2
-	github.com/mitchellh/reflectwalk v1.0.1 // indirect
-	github.com/mkideal/cli v0.0.3 // indirect
-	github.com/mkideal/pkg v0.0.0-20170503154153-3e188c9e7ecc // indirect
 	github.com/moby/moby v0.0.0-20170504205632-89658bed64c2
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/opencontainers/runc v0.1.1 // indirect
@@ -114,7 +99,7 @@ require (
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/ory-am/dockertest.v3 v3.3.5 // indirect
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.7
 	gotest.tools v2.2.0+incompatible // indirect
 	gotest.tools/v3 v3.0.0
 	k8s.io/api v0.0.0-20180628040859-072894a440bd

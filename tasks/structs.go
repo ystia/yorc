@@ -16,29 +16,35 @@ package tasks
 
 //go:generate go-enum -f=structs.go
 
-// TaskType x ENUM(
-// Deploy,
-// UnDeploy,
-// ScaleOut,
-// ScaleIn,
-// Purge,
-// CustomCommand,
-// CustomWorkflow,
-// Query,
-// Action
-// ForcePurge
-// AddNodes
-// RemoveNodes
-// )
+// TaskType is an enumerated type for tasks
+/*
+ENUM(
+Deploy
+UnDeploy
+ScaleOut
+ScaleIn
+Purge
+CustomCommand
+CustomWorkflow
+Query
+Action
+ForcePurge // ForcePurge is deprecated and should not be used anymore this stay here to prevent task renumbering colision
+AddNodes
+RemoveNodes
+)
+*/
 type TaskType int
 
-// TaskStatus x ENUM(
-// INITIAL,
-// RUNNING,
-// DONE,
-// FAILED,
-// CANCELED
-// )
+// TaskStatus is an enumerated type for tasks statuses
+/*
+ENUM(
+INITIAL
+RUNNING
+DONE
+FAILED
+CANCELED
+)
+*/
 type TaskStatus int
 
 // IsDeploymentRelatedTask returns true if the task is related to a deployment
