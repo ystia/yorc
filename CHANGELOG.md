@@ -1,5 +1,18 @@
 # Yorc Changelog
 
+## 4.0.3 (August 27, 2020)
+
+### FEATURES
+
+* [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
+
+### BUG FIXES
+
+* Asynchronous execution termination detection error ([GH-677](https://github.com/ystia/yorc/issues/677))
+* Yorc generates forcePurge tasks on list deployments API endpoint ([GH-674](https://github.com/ystia/yorc/issues/674))
+* Yorc is getting slow when there is a lot of tasks ([GH-671](https://github.com/ystia/yorc/issues/671))
+* Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
+
 ## 4.0.2 (July 10, 2020)
 
 ### SECURITY FIXES

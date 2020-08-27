@@ -49,14 +49,17 @@ func IsPrimitiveType(typeName string) bool {
 
 //go:generate go-enum -f=types.go
 
-// TypeBase x ENUM(
-// NODE,
-// RELATIONSHIP,
-// CAPABILITY,
-// POLICY,
-// ARTIFACT,
-// DATA,
-// )
+// TypeBase is an enumerated type for TOSCA base types
+/*
+ENUM(
+NODE
+RELATIONSHIP
+CAPABILITY
+POLICY
+ARTIFACT
+DATA
+)
+*/
 type TypeBase int
 
 // Type is the base type for all TOSCA types (like node types, relationship types, ...)
