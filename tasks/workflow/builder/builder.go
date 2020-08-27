@@ -222,6 +222,7 @@ func BuildInitExecutionOperations(ctx context.Context, deploymentID, taskID, wor
 					Value: []byte(""),
 				},
 			}
+			log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 			ops = append(ops, stepOps...)
 		}
 	}

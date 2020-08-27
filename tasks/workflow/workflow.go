@@ -72,6 +72,7 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 			},
 		}
 		ops = append(ops, stepOps...)
+		log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 	}
 	return ops
 }
