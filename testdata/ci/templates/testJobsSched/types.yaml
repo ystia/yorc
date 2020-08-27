@@ -1,0 +1,62 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: org.ystia.ci.tests.test_job_sched
+  template_version: 1.0.0-SNAPSHOT
+  template_author: test
+
+description: ""
+
+imports:
+  - org.ystia.samples.job.mock:1.0.0-SNAPSHOT
+  - tosca-normative-types:1.0.0-ALIEN20
+
+topology_template:
+  node_templates:
+    DelayJob1:
+      type: org.ystia.samples.job.mocks.DelayJob
+      properties:
+        run_delay: 1
+        random_status: false
+        failure: false
+    DelayJob21:
+      type: org.ystia.samples.job.mocks.DelayJob
+      properties:
+        run_delay: 1
+        random_status: false
+        failure: false
+      requirements:
+        - dependsOnDelayJob1Feature:
+            type_requirement: dependency
+            node: DelayJob1
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.DependsOn
+    DelayJob22:
+      type: org.ystia.samples.job.mocks.DelayJob
+      properties:
+        run_delay: 5
+        random_status: false
+        failure: false
+      requirements:
+        - dependsOnDelayJob1Feature:
+            type_requirement: dependency
+            node: DelayJob1
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.DependsOn
+    DelayJob3:
+      type: org.ystia.samples.job.mocks.DelayJob
+      properties:
+        run_delay: 1
+        random_status: false
+        failure: false
+      requirements:
+        - dependsOnDelayJob21Feature:
+            type_requirement: dependency
+            node: DelayJob21
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.DependsOn
+        - dependsOnDelayJob22Feature:
+            type_requirement: dependency
+            node: DelayJob22
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.DependsOn
