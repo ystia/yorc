@@ -344,14 +344,17 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		return
 	}
 	defer func() {
-		log.Debugf("endAction %q, wasCancelled %s, actionErr %v", action.ID, wasCancelled, actionErr)
-		l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
+		log.Debugf("endAction %q, wasCancelled %t, actionErr %v", action.ID, wasCancelled, actionErr)
+		// here we should take care of checking taskID of the async op not the one from the action itself
+		l, e, err := numberOfRunningExecutionsForTask(t.cc, action.AsyncOperation.TaskID)
 		if err != nil {
 			return
 		}
 		defer l.Unlock()
+		log.Debugf("Deleting runningExecutions with id %q for task %q", action.ID, action.AsyncOperation.TaskID)
 		w.consulClient.KV().Delete(path.Join(consulutil.TasksPrefix, action.AsyncOperation.TaskID, ".runningExecutions", action.ID), nil)
 		if e <= 1 {
+			log.Debugf("endAction %q, updating task %q status", action.ID, action.AsyncOperation.TaskID)
 			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
 			if err != nil {
 				err = errors.Wrapf(err, "failed to update task %q status according to workflow %s status for deployment %q", action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName, action.AsyncOperation.DeploymentID)
