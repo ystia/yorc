@@ -3,6 +3,7 @@ pipeline {
     options {
         skipDefaultCheckout true
         lock('yorc-ci-hostspool')
+        ansiColor('xterm')
     }
     parameters {
         choice(name: 'INFRA_FILTER', choices: ['all', 'openstack', 'gcp', 'hp'], description: 'Run on specific infrastructure (all by default)')
