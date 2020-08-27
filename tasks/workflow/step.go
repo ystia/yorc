@@ -349,7 +349,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 				// Register scheduled action for asynchronous execution
 				id, err := scheduling.RegisterAction(w.consulClient, deploymentID, timeInterval, action)
 				action.ID = id
-				log.Debugf("Scheduled action with ID: %q has been registered with timeInterval: %s", action.ID, timeInterval.String(), id)
+				log.Debugf("Scheduled action with ID: %q has been registered with timeInterval: %s", action.ID, timeInterval.String())
 				if err != nil {
 					return err
 				}
