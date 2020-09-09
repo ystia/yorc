@@ -125,11 +125,6 @@ func (g *awsGenerator) generateInstances(ctx context.Context, cfg config.Configu
 
 		switch nodeType {
 		case "yorc.nodes.aws.Compute":
-			*instances, err = deployments.GetNodeInstancesIds(ctx, nodeParams.deploymentID, nodeParams.nodeName)
-			if err != nil {
-				return err
-			}
-
 			err = g.generateAWSInstance(ctx, cfg, nodeParams.deploymentID, nodeParams.nodeName, instanceName, nodeParams.infrastructure, outputs, cmdEnv)
 			if err != nil {
 				return err
