@@ -141,20 +141,20 @@ func buildStepFromWFStep(deploymentID, wfName, stepName string, wfSteps map[stri
 func buildStepActivities(s *Step, wfStep *tosca.Step) (bool, error) {
 	var targetIsMandatory bool
 	for i, wfActivity := range wfStep.Activities {
-		if wfActivity.Delegate != "" {
+		if wfActivity.Delegate != nil {
 			targetIsMandatory = true
-			s.Activities = append(s.Activities, delegateActivity{delegate: wfActivity.Delegate})
-		} else if wfActivity.CallOperation != "" {
+			s.Activities = append(s.Activities, delegateActivity{wfActivity.Delegate.Workflow, wfActivity.Delegate.Inputs})
+		} else if wfActivity.CallOperation != nil {
 			targetIsMandatory = true
-			s.Activities = append(s.Activities, callOperationActivity{operation: wfActivity.CallOperation})
-			if isAsyncOperation(wfActivity.CallOperation) {
+			s.Activities = append(s.Activities, callOperationActivity{wfActivity.CallOperation.Operation, wfActivity.CallOperation.Inputs})
+			if isAsyncOperation(wfActivity.CallOperation.Operation) {
 				s.Async = true
 			}
 		} else if wfActivity.SetState != "" {
 			targetIsMandatory = true
 			s.Activities = append(s.Activities, setStateActivity{state: wfActivity.SetState})
-		} else if wfActivity.Inline != "" {
-			s.Activities = append(s.Activities, inlineActivity{inline: wfActivity.Inline})
+		} else if wfActivity.Inline != nil {
+			s.Activities = append(s.Activities, inlineActivity{wfActivity.Inline.Workflow, wfActivity.Inline.Inputs})
 		} else {
 			return false, errors.Errorf("Unsupported activity type for step: %q, activity nb: %d, activity: %+v", s.Name, i, wfActivity)
 		}
@@ -222,6 +222,7 @@ func BuildInitExecutionOperations(ctx context.Context, deploymentID, taskID, wor
 					Value: []byte(""),
 				},
 			}
+			log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 			ops = append(ops, stepOps...)
 		}
 	}

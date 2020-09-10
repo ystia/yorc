@@ -24,10 +24,13 @@ import (
 	"github.com/ystia/yorc/v4/helper/stringutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it
-func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
+func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, requirementName, operationHost string,
+	inputs map[string]tosca.ParameterDefinition) (prov.Operation, error) {
+
 	var (
 		implementingType, implementingNode, requirementIndex, targetNodeName string
 		err                                                                  error
@@ -35,33 +38,17 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 	)
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
-	if requirementName != "" {
-		requirementIndex, err = deployments.GetRequirementIndexByNameForNode(ctx, deploymentID, nodeName, requirementName)
-		if err != nil || requirementIndex == "" {
-			return prov.Operation{}, errors.Wrapf(err, "Unable to found requirement key for requirement name:%q", requirementName)
-		}
-	}
 	if isRelationshipOp {
-		implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName, requirementIndex)
-		if err != nil {
-			return prov.Operation{}, err
-		}
-		targetNodeName, err = deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+		requirementIndex, implementingType, targetNodeName, err =
+			getRelationshipOperationInfo(ctx, deploymentID, nodeName, operationName, requirementName)
 		if err != nil {
 			return prov.Operation{}, err
 		}
 	} else {
-		isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
+		isNodeImplOpe, implementingNode, implementingType, err =
+			getNodeOperationInfo(ctx, deploymentID, nodeName, operationName)
 		if err != nil {
 			return prov.Operation{}, err
-		}
-		if isNodeImplOpe {
-			implementingNode = nodeName
-		} else {
-			implementingType, err = deployments.GetNodeTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName)
-			if err != nil {
-				return prov.Operation{}, err
-			}
 		}
 	}
 	implArt, err := deployments.GetImplementationArtifactForOperation(ctx, deploymentID, nodeName, operationName, isNodeImplOpe, isRelationshipOp, requirementIndex)
@@ -89,9 +76,44 @@ func GetOperation(ctx context.Context, deploymentID, nodeName, operationName, re
 			TargetRelationship:      requirementName,
 		},
 		OperationHost: operationHost,
+		Inputs:        inputs,
 	}
 	log.Debugf("operation:%+v", op)
 	return op, nil
+}
+
+func getRelationshipOperationInfo(ctx context.Context, deploymentID, nodeName,
+	operationName, requirementName string) (requirementIndex, implementingType, targetNodeName string, err error) {
+
+	requirementIndex, err = deployments.GetRequirementIndexByNameForNode(ctx, deploymentID, nodeName, requirementName)
+	if err != nil || requirementIndex == "" {
+		err = errors.Wrapf(err, "Unable to find requirement key for requirement name:%q", requirementName)
+		return
+	}
+	implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName, requirementIndex)
+	if err != nil {
+		return
+	}
+	targetNodeName, err = deployments.GetTargetNodeForRequirement(ctx, deploymentID, nodeName, requirementIndex)
+	return
+}
+
+func getNodeOperationInfo(ctx context.Context, deploymentID, nodeName,
+	operationName string) (isNodeImplOpe bool, implementingNode string, implementingType string, err error) {
+
+	isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(ctx, deploymentID, nodeName, operationName)
+	if err != nil {
+		return
+	}
+	if isNodeImplOpe {
+		implementingNode = nodeName
+	} else {
+		implementingType, err = deployments.GetNodeTypeImplementingAnOperation(ctx, deploymentID, nodeName, operationName)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 // IsRelationshipOperation checks if an operation is part of a relationship

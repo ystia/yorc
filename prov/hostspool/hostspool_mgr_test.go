@@ -16,6 +16,7 @@ package hostspool
 
 import (
 	"fmt"
+	"github.com/ystia/yorc/v4/config"
 	"path"
 	"strconv"
 	"sync"
@@ -81,10 +82,10 @@ func cleanupHostsPool(t *testing.T, cc *api.Client) {
 	}
 }
 
-func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
+func testConsulManagerAddLabels(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 	err := cm.Add(location, "host_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1":         "val1",
 		"label/&special": "val/&special",
@@ -161,10 +162,10 @@ func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
 	require.NoError(t, err)
 	assert.Len(t, labels, 1, `Expecting only one label for host "host_no_labels_update", something updated those labels`)
 }
-func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
+func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 	err := cm.Add(location, "host_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1":         "val1",
 		"label/&special": "val/&special",
@@ -231,7 +232,7 @@ func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
 	require.NoError(t, err)
 	assert.Len(t, labels, 1, `Expecting only one label for host "host_no_labels_remove", something updated those labels`)
 }
-func testConsulManagerAdd(t *testing.T, cc *api.Client) {
+func testConsulManagerAdd(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
 	type args struct {
@@ -276,7 +277,7 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+			cm := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 			var err error
 			if err = cm.Add(location, tt.args.hostname, tt.args.conn, tt.args.labels); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
@@ -303,10 +304,10 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 	}
 }
 
-func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client) {
+func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 	originalConn := Connection{User: "u1", Password: "test", Host: "h1", Port: 24, PrivateKey: dummySSHkey}
 	cm.Add(location, "hostUpdateConn1", originalConn, nil)
 	type args struct {
@@ -394,10 +395,10 @@ func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client) {
 	}
 }
 
-func testConsulManagerRemove(t *testing.T, cc *api.Client) {
+func testConsulManagerRemove(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 	cm.Add(location, "host1", Connection{PrivateKey: dummySSHkey}, nil)
 	cm.Add(location, "host2", Connection{PrivateKey: dummySSHkey}, nil)
 	_, err := cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, location, "host2", "status"), Value: []byte(HostStatusAllocated.String())}, nil)
@@ -431,10 +432,10 @@ func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 // testConsulManagerRemoveHostWithSamePrefix checks removing a given host in
 // the Pool won't remove other hosts having as hostname a name which has as prefix
 // the hostname of the delete host
-func testConsulManagerRemoveHostWithSamePrefix(t *testing.T, cc *api.Client) {
+func testConsulManagerRemoveHostWithSamePrefix(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm := NewManagerWithSSHFactory(cc, cfg, mockSSHClientFactory)
 	cm.Add(location, "myHost", Connection{PrivateKey: dummySSHkey}, nil)
 	cm.Add(location, "myHost2", Connection{PrivateKey: dummySSHkey}, nil)
 
@@ -447,10 +448,10 @@ func testConsulManagerRemoveHostWithSamePrefix(t *testing.T, cc *api.Client) {
 	assert.Equal(t, "myHost2", host.Name)
 }
 
-func testConsulManagerList(t *testing.T, cc *api.Client) {
+func testConsulManagerList(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 	err := cm.Add(location, "list_host1", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -501,10 +502,10 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 	assert.Len(t, locations, 0)
 }
 
-func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
+func testConsulManagerGetHost(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 	labelList := map[string]string{
 		"label1": "v1",
 		"label2": "v2",
@@ -529,10 +530,10 @@ func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 
 }
 
-func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
+func testConsulManagerConcurrency(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 	err := cm.Add(location, "concurrent_host1", Connection{PrivateKey: dummySSHkey}, nil)
 	require.NoError(t, err)
 	l, err := cc.LockKey(kvLockKey)
@@ -601,10 +602,10 @@ func createHostsWithLabels(hostsNumber int, labels map[string]string) []Host {
 	return hostpool
 }
 
-func testConsulManagerApply(t *testing.T, cc *api.Client) {
+func testConsulManagerApply(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -734,10 +735,10 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 		"Unexpected status for an allocated host after Pool redefinition")
 }
 
-func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB", "host.resource.gpu": "gpu0,gpu1,gpu2", "host.resource.cpu": "cpu0,cpu1,cpu2", "myLabel": "myValue"}
 
 	var hostpool = createHostsWithLabels(1, resources)
@@ -879,10 +880,10 @@ func testConsulManagerApplyWithAllocation(t *testing.T, cc *api.Client) {
 	}
 }
 
-func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -915,10 +916,10 @@ func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
 	assert.NotContains(t, hosts, "newName")
 }
 
-func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -949,10 +950,10 @@ func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
 	assert.Equal(t, ckpt1, ckpt2, "Expected no checkpoint change after duplicate error")
 }
 
-func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -993,10 +994,10 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	assert.Equal(t, checkpoint, ckpt2, "Expected no checkpoint change after deletion error")
 }
 
-func testConsulManagerApplyErrorOutdatedCheckpoint(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyErrorOutdatedCheckpoint(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -1012,10 +1013,10 @@ func testConsulManagerApplyErrorOutdatedCheckpoint(t *testing.T, cc *api.Client)
 	assert.Error(t, err, "Expected an error doing an apply with outdated checkpoint")
 }
 
-func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -1071,10 +1072,10 @@ func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
 
 }
 
-func testConsulManagerApplyBadConnectionAndRestoreHostStatus(t *testing.T, cc *api.Client) {
+func testConsulManagerApplyBadConnectionAndRestoreHostStatus(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(3)
 
@@ -1123,10 +1124,10 @@ func testConsulManagerApplyBadConnectionAndRestoreHostStatus(t *testing.T, cc *a
 
 }
 
-func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
+func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(1)
 
@@ -1202,10 +1203,10 @@ func testConsulManagerAllocateShareableCompute(t *testing.T, cc *api.Client) {
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }
 
-func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.Client) {
+func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 	noFilters := make([]labelsutil.Filter, 0)
 	var hostpool = createHosts(2)
 
@@ -1274,10 +1275,10 @@ func testConsulManagerAllocateWithWeightBalancedPlacement(t *testing.T, cc *api.
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }
 
-func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testing.T, cc *api.Client) {
+func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	var hostpool = createHosts(1)
 
@@ -1353,10 +1354,10 @@ func testConsulManagerAllocateShareableComputeWithSameAllocationPrefix(t *testin
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }
 
-func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
+func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 
 	numberOfHosts := 50
 
@@ -1425,10 +1426,10 @@ func routineAllocate(
 
 }
 
-func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
+func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client, cfg config.Configuration) {
 	location := "myLocation1"
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+	cm := &consulManager{cc, cfg, mockSSHClientFactory}
 	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB"}
 
 	var hostpool = createHostsWithLabels(1, resources)

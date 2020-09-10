@@ -18,8 +18,8 @@ Feature: Deploy a TestResourceApp application using Alien4Cloud with host generi
     When I deploy the application named "TestResourceApp"
 
     Then The attribute "gpu" of the instance "0" of the node named "ComputeA" is equal to "gpu2"
-    Then The attribute "hostname" of the instance "0" of the node named "ComputeA" is equal to "hostspool-ci-0"
+    Then The attribute "hostname" of the instance "0" of the node named "ComputeA" is equal to "yorc-ci-hostspool-1"
 
     Then The attribute "gpu" of the instance "0" of the node named "ComputeB" is equal to "gpu0,gpu1"
-    Then The attribute "hostname" of the instance "0" of the node named "ComputeB" is equal to "hostspool-ci-1"
+    Then The attribute "hostname" of the instance "0" of the node named "ComputeB" is equal to "yorc-ci-hostspool-2"
 

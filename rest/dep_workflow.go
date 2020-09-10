@@ -109,6 +109,30 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 			instances := strings.Join(nodeInstances.Instances, ",")
 			data["nodes/"+nodeName] = instances
 		}
+
+		// Adding workflow inputs in task data
+		for inputName, inputValue := range wfRequest.Inputs {
+			data[path.Join("inputs", inputName)] = fmt.Sprintf("%v", inputValue)
+		}
+
+		// Check all workflow required input parameters have a value
+		wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		for inputName, def := range wf.Inputs {
+			// A property is considered as required by default, unless def.Required
+			// is set to false
+			if (def.Required == nil || *def.Required) && def.Default == nil {
+				_, found := wfRequest.Inputs[inputName]
+				if !found {
+					writeError(w, r, newBadRequestParameter("inputs", errors.Errorf("Missing value for required workflow input parameter %s", inputName)))
+					return
+				}
+			}
+		}
+
 	}
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)

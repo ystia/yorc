@@ -36,10 +36,11 @@ import (
 
 // AnsibleConfiguration provides Ansible user-defined settings
 type AnsibleConfiguration struct {
-	Version              string
-	PackageRepositoryURL string              `yaml:"extra_package_repository_url" mapstructure:"extra_package_repository_url"`
-	UseOpenSSH           bool                `yaml:"use_openssh,omitempty" mapstructure:"use_openssh" json:"use_open_ssh,omitempty"`
-	Inventory            map[string][]string `yaml:"inventory,omitempty" mapstructure:"inventory"`
+	Version               string
+	PackageRepositoryURL  string              `yaml:"extra_package_repository_url" mapstructure:"extra_package_repository_url"`
+	UseOpenSSH            bool                `yaml:"use_openssh,omitempty" mapstructure:"use_openssh" json:"use_open_ssh,omitempty"`
+	Inventory             map[string][]string `yaml:"inventory,omitempty" mapstructure:"inventory"`
+	HostOperationsAllowed bool                `yaml:"host_operations_allowed" mapstructure:"host_operations_allowed"`
 }
 
 const (

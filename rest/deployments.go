@@ -26,14 +26,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
 )
@@ -351,7 +349,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		links = append(links, newAtomLink(LinkRelNode, path.Join(r.URL.Path, "nodes", node)))
 	}
 
-	tasksList, err := tasks.GetTasksIdsForTarget(id)
+	tasksList, err := deployments.GetDeploymentTaskList(ctx, id)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -366,35 +364,26 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
-	kv := s.consulClient.KV()
 	ctx := r.Context()
-	depPaths, _, err := kv.Keys(consulutil.DeploymentKVPrefix+"/", "/", nil)
+	deploymentsIDs, err := deployments.GetDeploymentsIDs(ctx)
 	if err != nil {
 		log.Panic(err)
 	}
-	if len(depPaths) == 0 {
+	if len(deploymentsIDs) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	deps := make([]Deployment, 0)
-	depPrefix := consulutil.DeploymentKVPrefix + "/"
-	for _, depPath := range depPaths {
-		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, depPrefix), "/ ")
+	for _, deploymentID := range deploymentsIDs {
 		status, err := deployments.GetDeploymentStatus(ctx, deploymentID)
 		if err != nil {
 			if deployments.IsDeploymentNotFoundError(err) {
-				// Deployment is not found : we force deletion and ignore it
-				go func() {
-					log.Debugf("Force purge inconsistent deployment with ID:%q", deploymentID)
-					if _, err := s.tasksCollector.RegisterTask(deploymentID, tasks.TaskTypeForcePurge); err != nil {
-						log.Printf("Failed to force purge deployment with ID:%q due to error:%+v", deploymentID, err)
-					}
-				}()
+				// Deployment is not found : we force rapport error and ignore it
+				log.Printf("[WARNING] deployment %q is inconsistent, ignoring it from deployments list. Please investigate and report this issue.", deploymentID)
 				continue
-			} else {
-				log.Panic(err)
 			}
+			log.Panic(err)
 		}
 		deps = append(deps, Deployment{
 			ID:     deploymentID,

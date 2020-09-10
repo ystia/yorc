@@ -128,6 +128,11 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testDeleteRelationshipInstance", func(t *testing.T) {
 			testDeleteRelationshipInstance(t)
 		})
+
+		t.Run("testResolveAttributeMapping", func(t *testing.T) {
+			testResolveAttributeMapping(t)
+		})
+
 	})
 
 	t.Run("CommonsTestsOn_test_topology.yml", func(t *testing.T) {

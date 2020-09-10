@@ -81,6 +81,9 @@ const DefaultTasksDispatcherLockWaitTime = 50 * time.Millisecond
 // DefaultUpgradesConcurrencyLimit is the default limit of concurrency used in Upgrade processes
 const DefaultUpgradesConcurrencyLimit = 1000
 
+// DefaultSSHConnectionTimeout is the default timeout for SSH connections
+const DefaultSSHConnectionTimeout = 10 * time.Second
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
@@ -108,6 +111,7 @@ type Configuration struct {
 	Tasks                            Tasks         `yaml:"tasks,omitempty" mapstructure:"tasks"`
 	Storage                          Storage       `yaml:"storage,omitempty" mapstructure:"storage"`
 	UpgradeConcurrencyLimit          int           `yaml:"concurrency_limit_for_upgrades,omitempty" mapstructure:"concurrency_limit_for_upgrades"`
+	SSHConnectionTimeout             time.Duration `yaml:"ssh_connection_timeout,omitempty" mapstructure:"ssh_connection_timeout"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -282,6 +286,15 @@ func (dm DynamicMap) GetStringSlice(name string) []string {
 // GetInt returns the value of the given key casted into an int.
 // 0 is returned if not found.
 func (dm DynamicMap) GetInt(name string) int {
+	return cast.ToInt(dm.Get(name))
+}
+
+// GetIntOrDefault returns the value of the given key casted into an int.
+// The given default value is returned if not found.
+func (dm DynamicMap) GetIntOrDefault(name string, defaultValue int) int {
+	if !dm.IsSet(name) {
+		return defaultValue
+	}
 	return cast.ToInt(dm.Get(name))
 }
 

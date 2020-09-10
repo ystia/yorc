@@ -36,10 +36,13 @@ The bootstrap was validated on:
 
   * CentOS 7,
   * Red Hat Enterprise Linux 7.5,
-  * Ubuntu 19.04 (which is installing python3 by default, see 
+  * Ubuntu 19.04 (which is installing python3 by default, see
     :ref:`bootstrap configuration file <yorc_google_example_ubuntu_section>`
-    example below for specific Ansible configuration settings needed for remote 
+    example below for specific Ansible configuration settings needed for remote
     hosts using python3).
+
+
+.. warning:: For Centos and RHEL an access to an EPEL repository is required in order to install pip.
 
 Packages
 ~~~~~~~~
@@ -190,7 +193,7 @@ Bootstrapping the setup using command line options
 
 The following ``yorc bootstrap`` option are available:
 
-  * ``--alien4cloud_download_url`` Alien4Cloud download URL (defaults to the Alien4Cloud version compatible with this Yorc, under https://fastconnect.org/maven/content/repositories/opensource/alien4cloud/alien4cloud-dist/)
+  * ``--alien4cloud_download_url`` Alien4Cloud download URL (defaults to the Alien4Cloud version compatible with this Yorc, under https://www.portaildulibre.fr/nexus/repository/opensource-releases/alien4cloud/alien4cloud-premium-dist/)
   * ``--alien4cloud_password`` Alien4Cloud password (default, admin)
   * ``--alien4cloud_port`` Alien4Cloud port (default 8088)
   * ``--alien4cloud_user`` Alien4Cloud user (default, admin)
@@ -272,7 +275,7 @@ for example :
       type: openstack
       properties:
         auth_url: http://10.197.135.201:5000/v2.0
- 
+
 
 The bootstrap configuration file can be also be used to define Ansible Inventory
 configuration parameters.
@@ -345,8 +348,8 @@ Example of a Google Cloud deployment configuration with Ubuntu 19.04 on-demand c
 
 In this example, on-demand compute instances run Ubuntu 19.04 on which python3
 is installed by default (and not python).
-In this case, a specific Ansible behavioral inventory parameter 
-``ansible_python_interpreter`` must be defined so that Ansible is able to find 
+In this case, a specific Ansible behavioral inventory parameter
+``ansible_python_interpreter`` must be defined so that Ansible is able to find
 this python interpreter on the remote hosts.
 
 .. code-block:: YAML
@@ -376,7 +379,7 @@ this python interpreter on the remote hosts.
       # Defining here the Ansible behavioral inventory parameter ansible_python_interpreter
       # pointing to python3.
       # This is required or Ansible will attempt to use python on the remote host
-      # which will fail as python is not installed by default. 
+      # which will fail as python is not installed by default.
       "target_hosts:vars":
       - ansible_python_interpreter=/usr/bin/python3
   address:

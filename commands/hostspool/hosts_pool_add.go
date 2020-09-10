@@ -111,6 +111,9 @@ func addHost(client httputil.HTTPClient, args []string, location, jsonParam, pri
 	defer response.Body.Close()
 
 	httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusCreated)
+	if response.Header.Get("Warning") != "" {
+		fmt.Println("Warning :", response.Header.Get("Warning"))
+	}
 	fmt.Println("Command submitted. path :", response.Header.Get("Location"))
 	return nil
 }

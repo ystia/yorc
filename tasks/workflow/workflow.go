@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -71,6 +72,7 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 			},
 		}
 		ops = append(ops, stepOps...)
+		log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 	}
 	return ops
 }
@@ -85,21 +87,8 @@ func getCallOperationsFromStep(s *step) []string {
 	return ops
 }
 
-func updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx context.Context, cc *api.Client, deploymentID, taskID, workflowName string) error {
-	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
-	if err != nil {
-		return err
-	}
-	defer l.Unlock()
-	if e <= 1 {
-		// we are the latest
-		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, deploymentID, taskID, workflowName)
-		return err
-	}
-	return nil
-}
-
 func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, deploymentID, taskID, workflowName string) (tasks.TaskStatus, error) {
+	log.Debugf("Updating task status according to workflow status. Deployment %q, taskID %q, workflow %q", deploymentID, taskID, workflowName)
 	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(taskID)
 	if err != nil {
 		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
@@ -117,9 +106,10 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, deploymentID
 		status = tasks.TaskStatusFAILED
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended in error", workflowName)
 	} else {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended successfully", workflowName)
 	}
-	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, deploymentID, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
+	// Assume that step in error has stored the error reason on task
+	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, deploymentID, taskID, status, nil), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }
 
 // Get the parent workflow of an inline workflow, returns an empty string if there
@@ -224,4 +214,20 @@ func checkByPassErrors(t *taskExecution, wfName string) (bool, error) {
 		return false, errors.Wrapf(err, "failed to parse \"continueOnError\" flag for workflow:%q", wfName)
 	}
 	return bypassErrors, nil
+}
+
+func storeWorkflowOutputs(ctx context.Context, deploymentID, taskID, workflowName string) error {
+	outputs, err := deployments.ResolveWorkflowOutputs(ctx, deploymentID, workflowName)
+	if err != nil {
+		return err
+	}
+
+	for outputName, outputValue := range outputs {
+		err = tasks.SetTaskData(taskID, path.Join("outputs", outputName), outputValue.RawString())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

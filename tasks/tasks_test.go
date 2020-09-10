@@ -18,16 +18,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
+	"net/url"
 	"path"
 	"reflect"
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
@@ -705,6 +707,64 @@ func testIsStepRegistrationInProgress(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("%s = %v, want %v", tt.name, got, tt.want)
 			}
+		})
+	}
+}
+
+func testCheckAndSetTaskErrorMessage(t *testing.T) {
+	type setupFn func(t *testing.T, taskID string)
+	type args struct {
+		errorMessage      string
+		overwriteExisting bool
+	}
+	tests := []struct {
+		name                 string
+		args                 args
+		setupFn              setupFn
+		wantErr              bool
+		expectedErrorMessage string
+	}{
+		{"TaskExistsErrorMessageDoesNotExistNoOverwrite", args{"MyMessage", false}, func(t *testing.T, taskID string) {
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "targetId"), "id")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "status"), "1")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "type"), "1")
+		}, false, "MyMessage"},
+		{"TaskExistsErrorMessageDoesNotExistOverwrite", args{"MyMessage", true}, func(t *testing.T, taskID string) {
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "targetId"), "id")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "status"), "1")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "type"), "1")
+		}, false, "MyMessage"},
+		{"TaskExistsErrorMessageExistNoOverwrite", args{"MyMessage", false}, func(t *testing.T, taskID string) {
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "targetId"), "id")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "status"), "1")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "type"), "1")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"), "PreviousErrorMessage")
+		}, false, "PreviousErrorMessage"},
+		{"TaskExistsErrorMessageExistOverwrite", args{"MyMessage", true}, func(t *testing.T, taskID string) {
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "targetId"), "id")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "status"), "1")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "type"), "1")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "errorMessage"), "PreviousErrorMessage")
+		}, false, "MyMessage"},
+		{"TaskDoesNotExistNoOverwrite", args{"MyMessage", false}, nil, false, "MyMessage"},
+		{"TaskDoesNotExistOverwrite", args{"MyMessage", true}, nil, false, "MyMessage"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			taskID := url.PathEscape(t.Name())
+			defer consulutil.Delete(path.Join(consulutil.TasksPrefix, taskID), true)
+			if tt.setupFn != nil {
+				tt.setupFn(t, taskID)
+			}
+			if err := CheckAndSetTaskErrorMessage(taskID, tt.args.errorMessage, tt.args.overwriteExisting); (err != nil) != tt.wantErr {
+				t.Errorf("CheckAndSetTaskErrorMessage() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			actualErrorMessage, err := GetTaskErrorMessage(taskID)
+			require.NoError(t, err)
+			if actualErrorMessage != tt.expectedErrorMessage {
+				t.Errorf("CheckAndSetTaskErrorMessage() actualErrorMessage = %v, expectedErrorMessage %v", actualErrorMessage, tt.expectedErrorMessage)
+			}
+
 		})
 	}
 }

@@ -15,9 +15,9 @@
 package bootstrap
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -114,6 +114,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 			KeepGeneratedRecipes: true,
 			UseOpenSSH:           inputValues.Ansible.UseOpenSSH,
 			Inventory:            inputValues.Ansible.Inventory,
+			HostedOperations:     config.HostedOperations{UnsandboxedOperationsAllowed: inputValues.Ansible.HostOperationsAllowed},
 		},
 	}
 
@@ -360,14 +361,18 @@ func startConsul(workingDirectoryPath string) (*exec.Cmd, error) {
 		fmt.Println("Consul is already running")
 		return nil, nil
 	}
-
-	fmt.Println("Starting Consul...")
+	consulLogPath := filepath.Join(workingDirectoryPath, "consul.log")
+	consulLogFile, err := os.OpenFile(consulLogPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Starting Consul (logs: %s)", consulLogPath)
 	// Consul startup options
 	// Specifying a bind address or it would fail on a setup with multiple
 	// IPv4 addresses configured
 	cmdArgs := "agent -server -bootstrap-expect 1 -bind 127.0.0.1 -data-dir " + dataDir
 	cmd = exec.Command(executable, strings.Split(cmdArgs, " ")...)
-	output, _ := cmd.StdoutPipe()
+	cmd.Stdout = consulLogFile
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -375,36 +380,37 @@ func startConsul(workingDirectoryPath string) (*exec.Cmd, error) {
 
 	// Wait for a new leader to be elected, else Yorc could try to access Consul
 	// when it is not yet ready
-	err = waitForOutput(output, "New leader elected", 60*time.Second)
-	if err != nil {
-		cleanBootstrapSetup(workingDirectoryPath)
-		return nil, err
-	}
-
-	fmt.Println("...Consul started")
+	waitForConsulReadiness("http://127.0.0.1:8500")
+	fmt.Println(" Consul started!")
 	return cmd, err
 }
 
-func waitForOutput(output io.ReadCloser, expected string, timeout time.Duration) error {
-
-	reader := bufio.NewReader(output)
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+func waitForConsulReadiness(consulHTTPEndpoint string) {
 	for {
-		select {
-		case <-timer.C:
-			return fmt.Errorf("Timeout waiting for %s", expected)
-		default:
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-			if strings.Contains(line, expected) {
-				return nil
-			}
+		fmt.Print(".")
+		leader, _ := getConsulLeader(consulHTTPEndpoint)
+		if leader != "" {
+			return
 		}
+		<-time.After(2 * time.Second)
 	}
+}
 
+func getConsulLeader(consulHTTPEndpoint string) (string, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/v1/status/leader", consulHTTPEndpoint))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New(resp.Status)
+	}
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	matches := regexp.MustCompile(`"(.*)"`).FindStringSubmatch(string(bodyBytes))
+	if len(matches) < 2 {
+		return "", nil
+	}
+	return matches[1], nil
 }
 
 // downloadDependencies downloads Yorc Server dependencies
@@ -481,16 +487,15 @@ func download(url, fileName, destinationPath string, overwrite bool) (string, er
 		defer outputFile.Close()
 
 		response, err := http.Get(url)
-
-		//bar
-		bar := pb.Full.Start(int(response.ContentLength))
-		barReader := bar.NewProxyReader(response.Body)
-
 		if err != nil {
 			outputFile.Close()
 			return filePath, err
 		}
 		defer response.Body.Close()
+
+		//bar
+		bar := pb.Full.Start(int(response.ContentLength))
+		barReader := bar.NewProxyReader(response.Body)
 
 		_, err = io.Copy(outputFile, barReader)
 		outputFile.Close()

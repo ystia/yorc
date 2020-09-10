@@ -319,3 +319,51 @@ update_replicas:
 	require.Equal(t, "An int", ifDef.Inputs["Global3"].PropDef.Description)
 
 }
+
+func TestInterfaceExpressionOperationOutputs(t *testing.T) {
+	t.Parallel()
+	var inputYaml = `
+start:
+  outputs:
+    ip1: [ SELF, " private_address " ]
+    ip2: [ SELF, endpoint, public_address ]
+  implementation: scripts/start_server.sh`
+	ifDef := InterfaceDefinition{}
+
+	err := yaml.Unmarshal([]byte(inputYaml), &ifDef)
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with expression outputs")
+	require.Len(t, ifDef.Operations, 1, "Expecting one interface")
+	require.Contains(t, ifDef.Operations, "start")
+	opDef := ifDef.Operations["start"]
+	require.Len(t, opDef.Outputs, 2, "Expecting 2 outputs")
+	require.Equal(t, opDef.Outputs["ip1"].AttributeMapping.Parameters, []string{"SELF", "private_address"})
+	require.Equal(t, opDef.Outputs["ip2"].AttributeMapping.Parameters, []string{"SELF", "endpoint", "public_address"})
+
+	require.Equal(t, "scripts/start_server.sh", opDef.Implementation.Primary)
+}
+
+func TestInterfaceExpressionOperationOutputsWithMissingKeyword(t *testing.T) {
+	t.Parallel()
+	var inputYaml = `
+start:
+  outputs:
+    ip1: [ something, " private_address " ]
+  implementation: scripts/start_server.sh`
+	ifDef := InterfaceDefinition{}
+
+	err := yaml.Unmarshal([]byte(inputYaml), &ifDef)
+	require.NotNil(t, err, "Expecting an error when unmarshaling Interface with expression outputs and missing keyword")
+}
+
+func TestInterfaceExpressionOperationOutputsWithLessThan2Parameters(t *testing.T) {
+	t.Parallel()
+	var inputYaml = `
+start:
+  outputs:
+    ip1: [ something ]
+  implementation: scripts/start_server.sh`
+	ifDef := InterfaceDefinition{}
+
+	err := yaml.Unmarshal([]byte(inputYaml), &ifDef)
+	require.NotNil(t, err, "Expecting an error when unmarshaling Interface with expression outputs and less than 2 parameters")
+}

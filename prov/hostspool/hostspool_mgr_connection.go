@@ -28,6 +28,8 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
+const hostConnectionErrorMessage = "failed to connect to host"
+
 func (cm *consulManager) UpdateConnection(locationName, hostname string, conn Connection) error {
 	return cm.updateConnectionWait(locationName, hostname, conn, maxWaitTimeSeconds*time.Second)
 }
@@ -126,9 +128,9 @@ func (cm *consulManager) updateConnectionWait(locationName, hostname string, con
 	if err != nil {
 		if status != HostStatusError {
 			cm.backupHostStatus(locationName, hostname)
-			cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, "failed to connect to host")
+			cm.setHostStatusWithMessage(locationName, hostname, HostStatusError, hostConnectionErrorMessage)
 		}
-		return err
+		return errors.WithStack(hostConnectionError{message: err.Error()})
 	}
 	if status == HostStatusError {
 		cm.restoreHostStatus(locationName, hostname)
@@ -211,12 +213,11 @@ func (cm *consulManager) GetHostConnection(locationName, hostname string) (Conne
 
 // Check if we can log into an host given a connection
 func (cm *consulManager) checkConnection(locationName, hostname string) error {
-
 	conn, err := cm.GetHostConnection(locationName, hostname)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
-	conf, err := getSSHConfig(conn)
+	conf, err := getSSHConfig(cm.cfg, conn)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
@@ -239,7 +240,7 @@ func (cm *consulManager) updateConnectionStatus(locationName, name string, waitG
 	if err != nil {
 		if status != HostStatusError {
 			cm.backupHostStatus(locationName, name)
-			cm.setHostStatusWithMessage(locationName, name, HostStatusError, "failed to connect to host")
+			cm.setHostStatusWithMessage(locationName, name, HostStatusError, hostConnectionErrorMessage)
 		}
 		return
 	}

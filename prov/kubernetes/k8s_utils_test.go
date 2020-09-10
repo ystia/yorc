@@ -19,9 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	appsv1 "k8s.io/api/apps/v1beta1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -122,9 +121,9 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 Currently support only : StatefulSet, PVC, Service and Deployment */
 func mockSupportedResources() map[string]runtime.Object {
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
-	dep := &v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploymentTest", Namespace: "test-ns"}}
-	sts := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "statefulSetTest", Namespace: "test-ns"},
-		Spec: appsv1.StatefulSetSpec{}}
+	dep := &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploymentTest", Namespace: "test-ns"}}
+	sts := &v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "statefulSetTest", Namespace: "test-ns"},
+		Spec: v1.StatefulSetSpec{}}
 	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "serviceTest", Namespace: "test-ns"}}
 	supportedRes := make(map[string]runtime.Object)
 	supportedRes["persistentvolumeclaims"] = pvc
@@ -302,7 +301,7 @@ func Test_podControllersInNamespace(t *testing.T) {
 			"Test one deployment left",
 			func() kubernetes.Interface {
 				k8s := newTestSimpleK8s()
-				k8s.clientset.ExtensionsV1beta1().Deployments(nsName).Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
+				k8s.clientset.AppsV1().Deployments(nsName).Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
 				return k8s.clientset
 			},
 			args{namespace: nsName},
@@ -312,9 +311,9 @@ func Test_podControllersInNamespace(t *testing.T) {
 			"Test one deployment & 2 statefulSets left",
 			func() kubernetes.Interface {
 				k8s := newTestSimpleK8s()
-				k8s.clientset.AppsV1beta1().StatefulSets(nsName).Create(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-1", Namespace: nsName}})
-				k8s.clientset.AppsV1beta1().StatefulSets(nsName).Create(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-2", Namespace: nsName}})
-				k8s.clientset.ExtensionsV1beta1().Deployments(nsName).Create(&v1beta1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
+				k8s.clientset.AppsV1().StatefulSets(nsName).Create(&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-1", Namespace: nsName}})
+				k8s.clientset.AppsV1().StatefulSets(nsName).Create(&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-2", Namespace: nsName}})
+				k8s.clientset.AppsV1().Deployments(nsName).Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
 				return k8s.clientset
 			},
 			args{namespace: nsName},

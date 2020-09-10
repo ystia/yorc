@@ -157,11 +157,13 @@ type OutputsCollection struct {
 
 // Task is the representation of a Yorc' task
 type Task struct {
-	ID        string          `json:"id"`
-	TargetID  string          `json:"target_id"`
-	Type      string          `json:"type"`
-	Status    string          `json:"status"`
-	ResultSet json.RawMessage `json:"result_set,omitempty"`
+	ID           string            `json:"id"`
+	TargetID     string            `json:"target_id"`
+	Type         string            `json:"type"`
+	Status       string            `json:"status"`
+	ErrorMessage string            `json:"error_message,omitempty"`
+	ResultSet    json.RawMessage   `json:"result_set,omitempty"`
+	Outputs      map[string]string `json:"outputs,omitempty"`
 }
 
 // TasksCollection is the collection of task's links
@@ -202,7 +204,8 @@ type NodeInstances struct {
 
 // WorkflowRequest allows to provide instances selection for nodes in a workflow
 type WorkflowRequest struct {
-	NodesInstances []NodeInstances `json:"nodesinstances"`
+	NodesInstances []NodeInstances        `json:"nodesinstances"`
+	Inputs         map[string]interface{} `json:"inputs"`
 }
 
 // WorkflowsCollection is a collection of workflows links
@@ -219,10 +222,12 @@ type Workflow struct {
 }
 
 // MapEntryOperation is an enumeration of valid values for a MapEntry.Op field
-// ENUM(
-// Add,
-// Remove
-// )
+/*
+ENUM(
+Add
+Remove
+)
+*/
 type MapEntryOperation int
 
 // MarshalJSON is used to represent this enumeration as a string instead of an int

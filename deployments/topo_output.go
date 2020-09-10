@@ -36,6 +36,24 @@ func getParameterDefinition(ctx context.Context, deploymentID, parameterName, pa
 	return exist, parameterDef, nil
 }
 
+// GetTopologyInputParameter returns the definition of a topology input parameter
+func GetTopologyInputParameter(ctx context.Context, deploymentID, parameterName string) (bool, *tosca.ParameterDefinition, error) {
+
+	return getParameterDefinition(ctx, deploymentID, parameterName, "inputs")
+}
+
+// GetTopologyInputsNames returns the list of inputs for the deployment
+func GetTopologyInputsNames(ctx context.Context, deploymentID string) ([]string, error) {
+	optPaths, err := storage.GetStore(types.StoreTypeDeployment).Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "/topology/inputs"))
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for i := range optPaths {
+		optPaths[i] = path.Base(optPaths[i])
+	}
+	return optPaths, nil
+}
+
 // GetTopologyOutputValue returns the value of a given topology output
 func GetTopologyOutputValue(ctx context.Context, deploymentID, outputName string, nestedKeys ...string) (*TOSCAValue, error) {
 	dataType, err := GetTopologyOutputType(ctx, deploymentID, outputName)

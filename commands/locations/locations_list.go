@@ -17,14 +17,13 @@ package locations
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-
 	"github.com/spf13/cobra"
 	"github.com/ystia/yorc/v4/commands/httputil"
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/tabutil"
-	"github.com/ystia/yorc/v4/locations/adapter"
 	"github.com/ystia/yorc/v4/rest"
+	"io/ioutil"
+	"net/http"
 )
 
 func init() {
@@ -40,36 +39,83 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			httputil.ErrExit(err)
 		}
-		return listLocations(client, args)
+		return listLocations(client)
 	},
 }
 
-func listLocations(client httputil.HTTPClient, args []string) error {
+func listLocations(client httputil.HTTPClient) error {
 	// Get locations definitions
 	locsConfig, err := getLocationsConfig(client, true)
 	if err != nil {
 		httputil.ErrExit(err)
 	}
 	// Print out locations definitions in a table
-	locsTable := tabutil.NewTable()
-	locsTable.AddHeaders("Name", "Type", "Properties")
+	locationsTable := tabutil.NewTable()
+	locationsTable.AddHeaders("Name", "Type", "Properties")
 	for _, locConfig := range locsConfig.Locations {
-		locProps := locConfig.Properties
-		propKeys := locProps.Keys()
-		for i := 0; i < len(propKeys); i++ {
-			propValue := locProps.Get(propKeys[i])
-			value := fmt.Sprintf("%v", propValue)
-			prop := propKeys[i] + ": " + value
-			if i == 0 {
-				locsTable.AddRow(locConfig.Name, locConfig.Type, prop)
-			} else {
-				locsTable.AddRow("", "", prop)
-			}
-		}
+		displayLocationInfo(locationsTable, locConfig.Name, locConfig.Type, locConfig.Properties, false, 0)
 	}
 	fmt.Println("Locations:")
-	fmt.Println(locsTable.Render())
+	fmt.Println(locationsTable.Render())
 	return nil
+}
+
+func displayLocationInfo(table tabutil.Table, locationName, locationType string, properties config.DynamicMap, colorize bool, operation int) {
+	propKeys := properties.Keys()
+	if len(propKeys) > 0 {
+		for i := 0; i < len(propKeys); i++ {
+			propValue := properties.Get(propKeys[i])
+			displayProperties(table, locationName, locationType, i, propKeys[i], propValue, 0, colorize, operation)
+		}
+	} else {
+		displayRow(table, locationName, locationType, 0, "", "", 0, false, 0)
+	}
+}
+
+func displayRow(table tabutil.Table, locationName, locationType string, index int, propKey string, propValue interface{}, nbTabs int, colorize bool, operation int) {
+	value := fmt.Sprintf("%v", propValue)
+	var str string
+
+	// Add tabulations
+	for i := 0; i <= nbTabs; i++ {
+		str += "  "
+	}
+
+	if propKey != "" {
+		str += propKey + ": " + value
+	} else {
+		str += value
+	}
+
+	if index == 0 {
+		table.AddRow(getColoredText(colorize, locationName, operation), getColoredText(colorize, locationType, operation), getColoredText(colorize, str, operation))
+	} else {
+		table.AddRow("", "", getColoredText(colorize, str, operation))
+	}
+}
+
+func displayProperties(table tabutil.Table, locationName, locationType string, index int, propKey string, propValue interface{}, nbTabs int, colorize bool, operation int) {
+	switch v := propValue.(type) {
+	case []interface{}:
+		displayRow(table, locationName, locationType, index, propKey, "", nbTabs, colorize, operation)
+		index++
+		nbTabs++
+		for i := 0; i < len(v); i++ {
+			displayProperties(table, locationName, locationType, index, "", v[i], nbTabs, colorize, operation)
+		}
+	case map[string]interface{}:
+		if propKey != "" {
+			displayRow(table, locationName, locationType, index, propKey, "", nbTabs, colorize, operation)
+			nbTabs++
+		}
+		index++
+
+		for k, val := range v {
+			displayProperties(table, locationName, locationType, index, k, val, nbTabs, colorize, operation)
+		}
+	default:
+		displayRow(table, locationName, locationType, index, propKey, propValue, nbTabs, colorize, operation)
+	}
 }
 
 // getLocationsConfig uses the HTTP client to make a request to locations API.
@@ -115,9 +161,7 @@ func getLocationsConfig(client httputil.HTTPClient, retOnError bool) (*rest.Loca
 		if err != nil {
 			return nil, err
 		}
-		if locConfig.Type != adapter.AdaptedLocationType {
-			locs.Locations = append(locs.Locations, locConfig)
-		}
+		locs.Locations = append(locs.Locations, locConfig)
 	}
 
 	return &locs, nil

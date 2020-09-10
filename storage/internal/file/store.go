@@ -40,6 +40,8 @@ import (
 
 const indexFileNotExist = uint64(1)
 
+const defaultConcurrencyLimit = 1000
+
 type fileStore struct {
 	id         string
 	properties config.DynamicMap
@@ -55,6 +57,7 @@ type fileStore struct {
 	cache             *ristretto.Cache
 	withEncryption    bool
 	encryptor         *encryption.Encryptor
+	concurrencyLimit  int
 }
 
 // NewStore returns a new File store
@@ -75,6 +78,7 @@ func NewStore(cfg config.Configuration, storeID string, properties config.Dynami
 		fileLocks:         make(map[string]*sync.RWMutex),
 		withCache:         withCache,
 		withEncryption:    withEncryption,
+		concurrencyLimit:  properties.GetIntOrDefault("concurrency_limit", defaultConcurrencyLimit),
 	}
 
 	// Instantiate cache if necessary
@@ -208,9 +212,14 @@ func (s *fileStore) SetCollection(ctx context.Context, keyValues []store.KeyValu
 		return nil
 	}
 	errGroup, ctx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, s.concurrencyLimit)
 	for _, kv := range keyValues {
+		sem <- struct{}{}
 		kvItem := kv
 		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
 			return s.Set(ctx, kvItem.Key, kvItem.Value)
 		})
 	}
@@ -404,7 +413,11 @@ func (s *fileStore) GetLastModifyIndex(k string) (uint64, error) {
 
 func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
 	if waitIndex == 0 {
-		return s.list(k)
+		index, err := s.GetLastModifyIndex(k)
+		if err != nil {
+			return nil, index, err
+		}
+		return s.list(ctx, k, waitIndex, index)
 	}
 
 	// Default timeout to 5 minutes if not set as param or as config property
@@ -438,10 +451,36 @@ func (s *fileStore) List(ctx context.Context, k string, waitIndex uint64, timeou
 		}
 	}
 
-	return s.list(k)
+	return s.list(ctx, k, waitIndex, index)
 }
 
-func (s *fileStore) list(k string) ([]store.KeyValueOut, uint64, error) {
+func (s *fileStore) listFirstLevelTree(rootPath string, waitIndex, lastIndex uint64) ([]string, []store.KeyValueOut, error) {
+	// Retrieve all sub-directories to list keys in concurrency at first level
+	var subPaths []string
+	infos, err := ioutil.ReadDir(rootPath)
+	if err != nil {
+		return subPaths, nil, err
+	}
+
+	kvs := make([]store.KeyValueOut, 0)
+	for _, info := range infos {
+		pathFile := path.Join(rootPath, info.Name())
+		if info.IsDir() {
+			subPaths = append(subPaths, pathFile)
+		} else {
+			kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
+			if err != nil {
+				return subPaths, nil, err
+			}
+			if kv != nil {
+				kvs = append(kvs, *kv)
+			}
+		}
+	}
+	return subPaths, kvs, err
+}
+
+func (s *fileStore) list(ctx context.Context, k string, waitIndex, lastIndex uint64) ([]store.KeyValueOut, uint64, error) {
 	rootPath := s.buildFilePath(k, false)
 	fInfo, err := os.Stat(rootPath)
 	if err != nil {
@@ -454,39 +493,75 @@ func (s *fileStore) list(k string) ([]store.KeyValueOut, uint64, error) {
 	if !fInfo.IsDir() {
 		return nil, 0, nil
 	}
-	var index, lastIndex uint64
-	// Fill kv collection recursively for the related directory
-	kvs := make([]store.KeyValueOut, 0)
 
-	err = filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
+	// List first-level tree directories in order to walk them concurrently
+	subPaths, kvs, err := s.listFirstLevelTree(rootPath, waitIndex, lastIndex)
+
+	errGroup, ctx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, s.concurrencyLimit)
+
+	// Use a channel to provide kvs concurrently safe
+	c := make(chan store.KeyValueOut)
+	for _, subPath := range subPaths {
+		pathItem := subPath
+		sem <- struct{}{}
+		errGroup.Go(func() error {
+			defer func() {
+				<-sem
+			}()
+			return s.walk(c, pathItem, k, waitIndex, lastIndex)
+		})
+	}
+
+	go func() {
+		errGroup.Wait()
+		close(c)
+	}()
+
+	// Fill the kvs from channel once all goroutines are finished
+	for r := range c {
+		kvs = append(kvs, r)
+	}
+
+	return kvs, lastIndex, errGroup.Wait()
+}
+
+func (s *fileStore) walk(c chan store.KeyValueOut, pathItem, k string, waitIndex, lastIndex uint64) error {
+	err := filepath.Walk(pathItem, func(pathFile string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		// Add kv for a file
-		// determine lastIndex for a directory
 		if !info.IsDir() {
-			var raw []byte
-			var value map[string]interface{}
-			_, raw, err = s.getValueFromFile(pathFile, &value)
+			kv, err := s.addKeyValueToList(info, pathFile, waitIndex, lastIndex)
 			if err != nil {
 				return err
 			}
-
-			kv := store.KeyValueOut{
-				Key:             s.extractKeyFromFilePath(pathFile, true),
-				LastModifyIndex: uint64(info.ModTime().UnixNano()),
-				Value:           value,
-				RawValue:        raw,
-			}
-			kvs = append(kvs, kv)
-		} else {
-			index = uint64(info.ModTime().UnixNano())
-			if index > lastIndex {
-				lastIndex = index
+			if kv != nil {
+				c <- *kv
 			}
 		}
 		return nil
 	})
+	return err
+}
 
-	return kvs, lastIndex, err
+func (s *fileStore) addKeyValueToList(info os.FileInfo, pathFile string, waitIndex, lastIndex uint64) (*store.KeyValueOut, error) {
+	index := uint64(info.ModTime().UnixNano())
+	// Retrieve only files before last modification Index
+	if index > waitIndex && (lastIndex == 0 || index <= lastIndex) {
+		var value map[string]interface{}
+		_, raw, err := s.getValueFromFile(pathFile, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		return &store.KeyValueOut{
+			Key:             s.extractKeyFromFilePath(pathFile, true),
+			LastModifyIndex: index,
+			Value:           value,
+			RawValue:        raw,
+		}, nil
+	}
+	return nil, nil
 }

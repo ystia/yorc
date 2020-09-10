@@ -122,7 +122,16 @@ html_theme = 'alabaster'
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {
+    'page_width':  '95%',
+    'logo': 'logo/YorcLogoTextSmall.png',
+    'logo_text_align': 'center',
+    'logo_name': False,
+    'github_user': 'ystia',
+    'github_repo': 'yorc',
+    'github_button': False,
+    'github_banner': True,
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -136,7 +145,7 @@ html_theme = 'alabaster'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+#html_logo = '_static/logo/YorcLogo.png'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -239,7 +248,7 @@ latex_documents = [
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-#latex_logo = None
+latex_logo = '_static/logo/YorcLogo.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
@@ -313,6 +322,3 @@ if os.path.exists('../versions.yaml'):
 # print release
 # print version
 
-html_theme_options = {
-    'page_width':  '95%',
-}

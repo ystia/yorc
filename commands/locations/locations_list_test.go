@@ -40,7 +40,10 @@ func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
 
 	if req.URL.Path == "/locations" {
-		locations := &rest.LocationCollection{Locations: []rest.AtomLink{{Rel: "location", Href: "/locations/locationOne", LinkType: rest.LinkRelHost}}}
+		locations := &rest.LocationCollection{Locations: []rest.AtomLink{
+			{Rel: "location", Href: "/locations/locationOne", LinkType: rest.LinkRelHost},
+			{Rel: "location", Href: "/locations/locationTwo", LinkType: rest.LinkRelHost},
+		}}
 		b, err := json.Marshal(locations)
 		if err != nil {
 			return nil, errors.New("Failed to build MockList http client response")
@@ -52,7 +55,39 @@ func (c *httpClientMockList) Do(req *http.Request) (*http.Response, error) {
 		locationConfigProps := make(map[string]interface{})
 		locationConfigProps["region"] = "us-east-2"
 		locationConfigProps["regionbis"] = "us-east-3"
+
+		locationConfigProps["security_groups"] = []string{"sg1", "sg2"}
+
+		locationConfigProps["hosts"] = []map[string]interface{}{
+			{
+				"name": "host1",
+				"connection": map[string]interface{}{
+					"user": "john",
+					"key":  "mykey.pem",
+					"host": "1.2.3.4",
+					"port": 22,
+				},
+			},
+			{
+				"name": "host2",
+				"connection": map[string]interface{}{
+					"user": "john",
+					"key":  "mykey.pem",
+					"host": "1.2.3.4",
+					"port": 22,
+				},
+			},
+		}
 		locationConfig := &rest.LocationConfiguration{Name: "location3", Type: "aws", Properties: locationConfigProps}
+		b, err := json.Marshal(locationConfig)
+		if err != nil {
+			return nil, errors.New("Failed to build Mock http client response")
+		}
+		w.Write(b)
+	}
+
+	if req.URL.Path == "/locations/locationTwo" {
+		locationConfig := &rest.LocationConfiguration{Name: "location3", Type: "slurm"}
 		b, err := json.Marshal(locationConfig)
 		if err != nil {
 			return nil, errors.New("Failed to build Mock http client response")
@@ -80,6 +115,6 @@ func (c *httpClientMockList) PostForm(path string, data url.Values) (*http.Respo
 }
 
 func TestListLocations(t *testing.T) {
-	err := listLocations(&httpClientMockList{}, nil)
+	err := listLocations(&httpClientMockList{})
 	require.NoError(t, err, "Failed to get locations")
 }

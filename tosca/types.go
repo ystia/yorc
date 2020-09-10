@@ -19,38 +19,47 @@ import (
 )
 
 // IsBuiltinType checks if a given type name corresponds to a TOSCA builtin type.
-//
-// Known builtin types:
+// It means either list, map or primitive type
+func IsBuiltinType(typeName string) bool {
+	// type representation for map and list could be map:<EntrySchema> or list:<EntrySchema> (ex: list:integer)
+	return strings.HasPrefix(typeName, "list") || strings.HasPrefix(typeName, "map") || IsPrimitiveType(typeName)
+}
+
+// IsPrimitiveType checks if a given type name corresponds to a primitive type
+// It means a data type that can'be broken down into a more simple data type.
+// Known primitive types:
 // 	- string
 //	- integer
 //	- float
 //	- boolean
 //	- timestamp
 //	- null
-//	- list
-//	- map
 //	- version
 //	- range
 //	- scalar-unit.size
 //	- scalar-unit.time
-func IsBuiltinType(typeName string) bool {
-	// type representation for map and list could be map:<EntrySchema> or list:<EntrySchema> (ex: list:integer)
-	return strings.HasPrefix(typeName, "list") || strings.HasPrefix(typeName, "map") ||
-		typeName == "string" || typeName == "integer" || typeName == "float" || typeName == "boolean" ||
+//	- scalar-unit.frequency
+//	- scalar-unit.bitrate
+func IsPrimitiveType(typeName string) bool {
+	return typeName == "string" || typeName == "integer" || typeName == "float" || typeName == "boolean" ||
 		typeName == "timestamp" || typeName == "null" || typeName == "version" || typeName == "range" ||
-		typeName == "scalar-unit.size" || typeName == "scalar-unit.time"
+		typeName == "scalar-unit.size" || typeName == "scalar-unit.time" ||
+		typeName == "scalar-unit.frequency" || typeName == "scalar-unit.bitrate"
 }
 
 //go:generate go-enum -f=types.go
 
-// TypeBase x ENUM(
-// NODE,
-// RELATIONSHIP,
-// CAPABILITY,
-// POLICY,
-// ARTIFACT,
-// DATA,
-// )
+// TypeBase is an enumerated type for TOSCA base types
+/*
+ENUM(
+NODE
+RELATIONSHIP
+CAPABILITY
+POLICY
+ARTIFACT
+DATA
+)
+*/
 type TypeBase int
 
 // Type is the base type for all TOSCA types (like node types, relationship types, ...)

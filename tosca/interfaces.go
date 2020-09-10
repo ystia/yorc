@@ -42,9 +42,10 @@ func (i *OperationDefinition) UnmarshalYAML(unmarshal func(interface{}) error) e
 		return nil
 	}
 	var str struct {
-		Inputs         map[string]Input `yaml:"inputs,omitempty"`
-		Description    string           `yaml:"description,omitempty"`
-		Implementation Implementation   `yaml:"implementation,omitempty"`
+		Inputs         map[string]Input    `yaml:"inputs,omitempty"`
+		Description    string              `yaml:"description,omitempty"`
+		Implementation Implementation      `yaml:"implementation,omitempty"`
+		Outputs        map[string][]string `yaml:"outputs,omitempty"`
 	}
 	if err := unmarshal(&str); err != nil {
 		return err
@@ -52,5 +53,16 @@ func (i *OperationDefinition) UnmarshalYAML(unmarshal func(interface{}) error) e
 	i.Inputs = str.Inputs
 	i.Implementation = str.Implementation
 	i.Description = str.Description
+
+	if str.Outputs != nil {
+		i.Outputs = make(map[string]Output)
+		for outputName, outputAttributeMapping := range str.Outputs {
+			attributeMapping, err := parseAttributeMapping(outputAttributeMapping)
+			if err != nil {
+				return err
+			}
+			i.Outputs[outputName] = Output{AttributeMapping: attributeMapping}
+		}
+	}
 	return nil
 }

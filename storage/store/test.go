@@ -71,7 +71,8 @@ func SetupTestConfig(t testing.TB) config.Configuration {
 	assert.Nil(t, err)
 
 	return config.Configuration{
-		WorkingDirectory: workingDir,
+		WorkingDirectory:        workingDir,
+		UpgradeConcurrencyLimit: config.DefaultUpgradesConcurrencyLimit,
 	}
 }
 
@@ -269,7 +270,7 @@ func CommonStoreTest(t *testing.T, store Store) {
 			Value: val1,
 		},
 		{
-			Key:   "rootList/testlist/two",
+			Key:   "rootList/testlist2/two",
 			Value: val2,
 		},
 	}
@@ -292,7 +293,7 @@ func CommonStoreTest(t *testing.T, store Store) {
 			if !reflect.DeepEqual(value, val1) {
 				t.Errorf("List() = %v, want %v", value, val1)
 			}
-		case "rootList/testlist/two":
+		case "rootList/testlist2/two":
 			if !reflect.DeepEqual(value, val2) {
 				t.Errorf("List() = %v, want %v", value, val2)
 			}
@@ -307,16 +308,15 @@ func CommonStoreTest(t *testing.T, store Store) {
 	require.NoError(t, err)
 	require.NotZero(t, nextLastIndex)
 	require.NotNil(t, kvs)
-	require.Equal(t, 2, len(kvs))
+	require.Equal(t, 0, len(kvs))
 	require.True(t, nextLastIndex == index)
-
 	// List with blocking query and new key so index is changed
 	go func() {
 		kvs, nextLastIndex, err = store.List(ctx, "rootList", index, 1*time.Second)
 		require.NoError(t, err)
 		require.NotZero(t, nextLastIndex)
 		require.NotNil(t, kvs)
-		require.Equal(t, 3, len(kvs))
+		require.Equal(t, 1, len(kvs))
 		require.True(t, nextLastIndex >= lastIndex)
 	}()
 	err = store.Set(ctx, "rootList/testlist/three", val1)

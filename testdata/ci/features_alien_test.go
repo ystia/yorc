@@ -209,6 +209,70 @@ func (c *suiteContext) iRunTheWorkflowNamed(workflowName string) error {
 	return nil
 }
 
+func (c *suiteContext) iRunAsyncTheWorkflowNamed(workflowName string) error {
+	if c.applicationID == "" || c.environmentID == "" {
+		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+
+	go func() {
+		c.a4cClient.DeploymentService().RunWorkflow(c.ctx, c.applicationID, c.environmentID, workflowName, 10*time.Minute)
+	}()
+	return nil
+}
+
+func (c *suiteContext) iCancelTheLastRunWorkflow() error {
+	if c.applicationID == "" || c.environmentID == "" {
+		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+
+	wfExec, err := c.a4cClient.DeploymentService().GetLastWorkflowExecution(c.ctx, c.applicationID, c.environmentID)
+	if err != nil {
+		return err
+	}
+
+	if wfExec == nil || wfExec.ID == "" {
+		return fmt.Errorf("failed to get last workflow executionID for applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+	return c.a4cClient.DeploymentService().CancelExecution(c.ctx, c.environmentID, wfExec.ID )
+}
+
+func (c *suiteContext) theStatusOfTheWorkflowIsFinally(expectedStatus string, wait string) error {
+	timeout, err := time.ParseDuration(strings.TrimSpace(wait) + "s")
+	if err != nil {
+		return fmt.Errorf("invalid argument %q for theStatusOfTheWorkflowIsFinally step: %w", wait, err)
+	}
+
+	if c.applicationID == "" || c.environmentID == "" {
+		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+	}
+
+	timeAfter := time.After(timeout)
+
+	var status string
+	for status != expectedStatus {
+		wfExec, err := c.a4cClient.DeploymentService().GetLastWorkflowExecution(c.ctx, c.applicationID, c.environmentID)
+		if err != nil {
+			return err
+		}
+
+		if wfExec == nil || wfExec.Status == "" {
+			return fmt.Errorf("failed to get last workflow status for applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
+		}
+
+		status = wfExec.Status
+
+		select {
+		case <-timeAfter:
+			return fmt.Errorf("unexpected workflow status %q instead of %q after timeout:%s", status, expectedStatus, timeout.String())
+		default:
+		}
+	}
+
+	return nil
+}
+
+
+
 func (c *suiteContext) theStatusOfTheInstanceOfTheNodeNamedIs(instanceName, nodeName, expectedStatus string) error {
 	if c.applicationID == "" || c.environmentID == "" {
 		return fmt.Errorf("Missing mandatory context parameter applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)

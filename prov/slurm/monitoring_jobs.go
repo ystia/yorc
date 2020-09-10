@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
@@ -66,33 +67,46 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	return true, errors.Errorf("Unsupported actionType %q", action.ActionType)
 }
 
-func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
-	var (
-		err        error
-		deregister bool
-		ok         bool
-	)
+func (o *actionOperator) updateJobAttributes(ctx context.Context, deploymentID, nodeName, instanceName string, jobInfo map[string]string) error {
+	for k, v := range jobInfo {
+		value, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, instanceName, k)
+		if err != nil {
+			return err
+		}
+		if value == nil || value.RawString() != v {
+			err = deployments.SetInstanceAttributeComplex(ctx, deploymentID, nodeName, instanceName, k, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func getMonitoringJobActionData(action *prov.Action) (*actionData, error) {
+	var ok bool
 
 	actionData := &actionData{}
 	// Check jobID
 	actionData.jobID, ok = action.Data["jobID"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information jobID for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information jobID for actionType:%q", action.ActionType)
 	}
 	// Check stepName
 	actionData.stepName, ok = action.Data["stepName"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information stepName for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information stepName for actionType:%q", action.ActionType)
 	}
 	// Check workingDir
 	actionData.workingDir, ok = action.Data["workingDir"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information workingDir for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information workingDir for actionType:%q", action.ActionType)
 	}
 	// Check taskID
 	actionData.taskID, ok = action.Data["taskID"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information taskID for actionType:%q", action.ActionType)
+		return nil, errors.Errorf("Missing mandatory information taskID for actionType:%q", action.ActionType)
 	}
 	// Check artifacts (optional)
 	artifactsStr, ok := action.Data["artifacts"]
@@ -100,34 +114,36 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		actionData.artifacts = strings.Split(artifactsStr, ",")
 	}
 
-	nodeName := action.Data["nodeName"]
+	return actionData, nil
 
-	var locationProps config.DynamicMap
-	locationMgr, err := locations.GetManager(cfg)
-	if err == nil {
-		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
-	}
-	if err != nil {
-		return true, err
-	}
+}
 
-	credentials, err := getUserCredentials(ctx, locationProps, deploymentID, nodeName, "")
-	if err != nil {
-		return true, err
-	}
-	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
-	sshClient, err := getSSHClient(credentials, locationProps)
+func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClient sshutil.Client, deploymentID, nodeName string, action *prov.Action, keepArtifacts bool) (bool, error) {
+	var (
+		err        error
+		deregister bool
+	)
+
+	actionData, err := getMonitoringJobActionData(action)
 	if err != nil {
 		return true, err
 	}
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
+
+	// TODO(loicalbertin): This should be improved instance name should not be hard-coded (https://github.com/ystia/yorc/issues/670)
+	instanceName := "0"
+
 	if err != nil {
 		if isNoJobFoundError(err) {
 			// the job is not found in slurm database (should have been purged) : pass its status to "UNKNOWN"
-			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, "0", "UNKNOWN")
+			deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName, "UNKNOWN")
 		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
+	}
+	err = o.updateJobAttributes(ctx, deploymentID, nodeName, instanceName, info)
+	if err != nil {
+		return true, errors.Wrapf(err, "failed to update job attributes with jobID: %q", actionData.jobID)
 	}
 
 	var mess string
@@ -141,27 +157,27 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	stdOut, existStdOut := info["StdOut"]
 	stdErr, existStdErr := info["StdErr"]
 	if existStdOut && existStdErr && stdOut == stdErr {
-		o.logFile(ctx, cfg, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
+		o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
 	} else {
 		if existStdOut {
-			o.logFile(ctx, cfg, action, deploymentID, stdOut, "StdOut", sshClient)
+			o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut", sshClient)
 		}
 		if existStdErr {
-			o.logFile(ctx, cfg, action, deploymentID, stdErr, "StdErr", sshClient)
+			o.logFile(ctx, cc, action, deploymentID, stdErr, "StdErr", sshClient)
 		}
 	}
 
 	// See default output if nothing is specified here
 	if !existStdOut && !existStdErr {
-		o.logFile(ctx, cfg, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
+		o.logFile(ctx, cc, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
-	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, "0")
+	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return true, errors.Wrapf(err, "failed to get instance state for job %q", actionData.jobID)
 	}
 	if previousJobState != info["JobState"] {
-		deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, "0", info["JobState"])
+		deployments.SetInstanceStateStringWithContextualLogs(ctx, deploymentID, nodeName, instanceName, info["JobState"])
 	}
 
 	// See if monitoring must be continued and set job state if terminated
@@ -182,14 +198,50 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 	// cleanup except if error occurred or explicitly specified in config
 	if deregister && err == nil {
-		if !locationProps.GetBool("keep_job_remote_artifacts") {
+		if !keepArtifacts {
 			o.removeArtifacts(actionData, sshClient)
 		}
 	}
 	return deregister, err
 }
 
-func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshutil.SSHClient) {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
+	var (
+		err error
+	)
+
+	nodeName := action.Data["nodeName"]
+
+	var locationProps config.DynamicMap
+	locationMgr, err := locations.GetManager(cfg)
+	if err == nil {
+		locationProps, err = locationMgr.GetLocationPropertiesForNode(ctx, deploymentID, nodeName, infrastructureType)
+	}
+	if err != nil {
+		return true, err
+	}
+
+	credentials, err := getUserCredentials(ctx, locationProps, deploymentID, nodeName, "")
+	if err != nil {
+		return true, err
+	}
+	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
+	sshClient, err := getSSHClient(cfg, credentials, locationProps)
+	if err != nil {
+		return true, err
+	}
+
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		log.Debugf("fail to retrieve consul client due to error:%+v:", err)
+		return true, err
+	}
+
+	return o.analyzeJob(ctx, cc, sshClient, deploymentID, nodeName, action, locationProps.GetBool("keep_job_remote_artifacts"))
+
+}
+
+func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient sshutil.Client) {
 	for _, art := range actionData.artifacts {
 		if art != "" {
 			p := path.Join(actionData.workingDir, art)
@@ -203,7 +255,7 @@ func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshu
 	}
 }
 
-func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, action *prov.Action, deploymentID, filePath, fileType string, sshClient *sshutil.SSHClient) {
+func (o *actionOperator) logFile(ctx context.Context, cc *api.Client, action *prov.Action, deploymentID, filePath, fileType string, sshClient sshutil.Client) {
 	fileTypeKey := fmt.Sprintf("lastIndex%s", strings.Replace(fileType, "/", "", -1))
 	// Get the log last index
 	lastInd, err := o.getLogLastIndex(action, fileTypeKey)
@@ -220,17 +272,10 @@ func (o *actionOperator) logFile(ctx context.Context, cfg config.Configuration, 
 	}
 	if strings.TrimSpace(output) != "" {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("%s %s:", fileType, filePath))
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("\n" + output)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("%s %s:\n%s", fileType, filePath, output))
 	}
 
 	// Update the last index
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		log.Debugf("fail to retrieve consul client due to error:%+v:", err)
-		return
-	}
-
 	newInd := strconv.Itoa(lastInd + strings.Count(output, "\n"))
 	err = scheduling.UpdateActionData(cc, action.ID, fileTypeKey, newInd)
 	if err != nil {

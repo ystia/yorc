@@ -127,7 +127,7 @@ func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploym
 		return nil, err
 	}
 	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
-	execCommon.client, err = getSSHClient(creds, locationProps)
+	execCommon.client, err = getSSHClient(cfg, creds, locationProps)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +217,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			if !tasks.IsTaskDataNotFoundError(err) {
 				return err
 			}
+			// TODO(loicalbertin) for now we consider only instance 0 (https://github.com/ystia/yorc/issues/670)
 			// Not cancelling within the same task try to get jobID from attribute
 			id, err := deployments.GetInstanceAttributeValue(ctx, e.deploymentID, e.NodeName, "0", "job_id")
 			if err != nil {

@@ -2,6 +2,54 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
+* [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
+
+### SECURITY FIXES
+
+* Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
+
+### ENHANCEMENTS
+
+* Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
+* Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
+
+### BUG FIXES
+
+* Yorc generates forcePurge tasks on list deployments API endpoint ([GH-674](https://github.com/ystia/yorc/issues/674))
+* Yorc is getting slow when there is a lot of tasks ([GH-671](https://github.com/ystia/yorc/issues/671))
+* Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
+* Concurrency issue in workflows execution may lead to a task never reaching a terminal status ([GH-659](https://github.com/ystia/yorc/issues/659))
+* Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
+* Kubernetes Client uses deprecated apis removed on recent versions of K8S (v1.17+) ([GH-645](https://github.com/ystia/yorc/issues/645))
+* Bootstrap may failed with a nil pointer error if download of a component fails ([GH-634](https://github.com/ystia/yorc/issues/634))
+* Missing concurrency limit during data migration for logs and events file storage ([GH-640](https://github.com/ystia/yorc/issues/640))
+* Unable to undeploy a deployment in progress from Alien4Cloud ([GH-630](https://github.com/ystia/yorc/issues/630))
+
+## 4.0.0 (April 17, 2020)
+
+### BUG FIXES
+
+* Location is not listed if its properties are missing ([GH-625](https://github.com/ystia/yorc/issues/625))
+* Sometimes Yorc bootstrap fails to start local Yorc instance because Consul is not properly started ([GH-623](https://github.com/ystia/yorc/issues/623))
+
+## 4.0.0-rc.1 (March 30, 2020)
+
+### FEATURES
+
+* Support TOSCA 1.3 inputs/outputs for workflows ([GH-556](https://github.com/ystia/yorc/issues/556))
+
+### ENHANCEMENTS
+
+* Yorc Tasks should have an error message when appropriate ([GH-613](https://github.com/ystia/yorc/issues/613))
+
+### BUG FIXES
+
+* CLI yorc locations list doesn't return HostsPool information ([GH-615](https://github.com/ystia/yorc/issues/615))
+* Check for location type mismatch ([GH-550](https://github.com/ystia/yorc/issues/550))
+
 ## 4.0.0-M10 (March 10, 2020)
 
 ### FEATURES
