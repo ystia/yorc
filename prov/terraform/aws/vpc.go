@@ -17,8 +17,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -327,20 +325,10 @@ func (g *awsGenerator) generateVPCSecurityGroups(ctx context.Context, nodeParams
 }
 
 func (g *awsGenerator) generateDefaultSecurityGroup(ctx context.Context, nodeParams nodeParams, vpcName string, nodeKey string, outputs map[string]string) error {
-	url := "https://api.ipify.org"
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	ip, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
+	// Only allow connection SSH connection (port 22 and TCP)
 	securityGroup := &SecurityGroups{}
-	securityGroup.Egress = SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}
-	securityGroup.Ingress = SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}
+	securityGroup.Egress = SecurityRule{"22", "22", "TCP", []string{"0.0.0.0/0"}}
+	securityGroup.Ingress = SecurityRule{"22", "22", "TCP", []string{"0.0.0.0/0"}}
 	securityGroup.Name = "Default " + vpcName
 	securityGroup.VPCId = fmt.Sprintf("${aws_vpc.%s.id}", vpcName)
 

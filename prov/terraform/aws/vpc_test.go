@@ -17,8 +17,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strings"
 	"testing"
 
@@ -84,13 +82,8 @@ func testVPC(t *testing.T, cfg config.Configuration) {
 
 	securityGroup, ok := instancesMap[defaultSecurityGroupName].(*SecurityGroups)
 	require.True(t, ok, "%s is not a Subnet", defaultSubnetName)
-	url := "https://api.ipify.org"
-	resp, err := http.Get(url)
-	require.NoError(t, err, "Error GET with api.ipify", deploymentID)
-	defer resp.Body.Close()
-	ip, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err, "Can't read IP on ipify response", deploymentID)
-	assert.Equal(t, SecurityRule{"0", "0", "-1", []string{string(ip) + "/32"}}, securityGroup.Egress)
+	assert.Equal(t, SecurityRule{"22", "22", "TCP", []string{"0.0.0.0/0"}}, securityGroup.Egress)
 }
 
 func testVPCWithNestedSubnetAndSG(t *testing.T, srv1 *testutil.TestServer, cfg config.Configuration) {
