@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fvbommel/sortorder"
 	"github.com/pkg/errors"
-	"vbom.ml/util/sortorder"
 
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
