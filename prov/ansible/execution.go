@@ -895,15 +895,16 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
-	ansibleRecipePath := filepath.Join(ansiblePath, stringutil.UniqueTimestampedName(e.taskID+"_", ""), e.NodeName)
+	ansibleExecutionRootDir := filepath.Join(ansiblePath, stringutil.UniqueTimestampedName(e.taskID+"_", ""))
+	ansibleRecipePath := filepath.Join(ansibleExecutionRootDir, e.NodeName)
 	if e.operation.RelOp.IsRelationshipOperation {
 		ansibleRecipePath = filepath.Join(ansibleRecipePath, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
 	} else {
 		ansibleRecipePath = filepath.Join(ansibleRecipePath, e.operation.Name, currentInstance)
 	}
 
-	if err = os.RemoveAll(ansibleRecipePath); err != nil {
-		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
+	if err = os.RemoveAll(ansibleExecutionRootDir); err != nil {
+		err = errors.Wrapf(err, "Failed to remove ansible execution directory %q for node %q operation %q", ansibleExecutionRootDir, e.NodeName, e.operation.Name)
 		log.Debugf("%+v", err)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -911,9 +912,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 	defer func() {
 		if !e.cfg.Ansible.KeepGeneratedRecipes {
-			err := os.RemoveAll(ansibleRecipePath)
+			err := os.RemoveAll(ansibleExecutionRootDir)
 			if err != nil {
-				err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
+				err = errors.Wrapf(err, "Failed to remove ansible execution directory %q for node %q operation %q", ansibleExecutionRootDir, e.NodeName, e.operation.Name)
 				log.Debugf("%+v", err)
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			}
@@ -1085,7 +1086,10 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	// Build archives for artifacts
 	for artifactName, artifactPath := range e.Artifacts {
 		tarPath := filepath.Join(ansibleRecipePath, artifactName+".tar")
-		buildArchive(e.OverlayPath, artifactPath, tarPath)
+		err := buildArchive(e.OverlayPath, artifactPath, tarPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
@@ -1167,7 +1171,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 						}
 					}
 				} else {
-					tasks.SetTaskData(e.taskID, e.NodeName+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
+					err := tasks.SetTaskData(e.taskID, e.NodeName+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
+					if err != nil {
+						return err
+					}
+
 				}
 			}
 		}
