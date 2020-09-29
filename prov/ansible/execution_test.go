@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -108,7 +109,6 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 
 		path.Join(consulutil.TasksPrefix, "taskIDNotUsedForNow", "type"): []byte("0"),
 	})
-
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {
 		testExecutionResolveInputsOnNode(t, deploymentID, nodeAName, "yorc.types.A", "standard.create")
 	})
@@ -121,7 +121,9 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer) {
 	t.Run("testConcurrentExecutionGenerateAnsibleConfig", func(t *testing.T) {
 		testConcurrentExecutionGenerateAnsibleConfig(t)
 	})
-
+	t.Run("testExecutionCleanup", func(t *testing.T) {
+		testExecutionCleanup(t)
+	})
 	var operationTestCases = []string{
 		"configure.pre_configure_source",
 	}
@@ -773,6 +775,48 @@ func testExecutionGenerateAnsibleConfig(t *testing.T) {
 
 	assert.Equal(t, newSettingValue, resultMap[ansibleConfigDefaultsHeader][newSettingName], "Wrong ansible config value for %s", newSettingName)
 	assert.Equal(t, overridenSettingValue, resultMap[ansibleConfigDefaultsHeader][overridenSettingName], "Wrong ansible config value for %s", overridenSettingName)
+
+}
+
+type ansibleRunnerTest struct{}
+
+func (a *ansibleRunnerTest) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
+	return nil
+}
+
+func testExecutionCleanup(t *testing.T) {
+
+	// Create a temporary directory where to create the ansible config file
+	tempdir, err := ioutil.TempDir("", path.Base(t.Name()))
+	require.NoError(t, err, "Failed to create temporary directory")
+	defer os.RemoveAll(tempdir)
+
+	// First test with no ansible config settings in Yorc server configuration
+	yorcConfig := config.Configuration{
+		WorkingDirectory: tempdir,
+	}
+
+	e := &executionCommon{
+		cfg:           yorcConfig,
+		ansibleRunner: &ansibleRunnerTest{},
+		deploymentID:  "testDeployment",
+		taskID:        "testTaskID",
+		NodeName:      "testNodeName",
+		operation:     prov.Operation{Name: "standard.start"},
+	}
+
+	err = e.executeWithCurrentInstance(context.Background(), false, "0")
+	require.NoError(t, err, "executeWithCurrentInstance failed")
+	ansiblePath := filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible")
+	var files []string
+	err = filepath.Walk(ansiblePath, func(path string, info os.FileInfo, err error) error {
+		if path != ansiblePath {
+			files = append(files, path)
+		}
+		return nil
+	})
+	require.NoError(t, err, "Failed to check working directory content")
+	require.Empty(t, files, "Expected ansible directory to be empty, found %v", files)
 
 }
 
