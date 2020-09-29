@@ -903,13 +903,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		ansibleRecipePath = filepath.Join(ansibleRecipePath, e.operation.Name, currentInstance)
 	}
 
-	if err = os.RemoveAll(ansibleExecutionRootDir); err != nil {
-		err = errors.Wrapf(err, "Failed to remove ansible execution directory %q for node %q operation %q", ansibleExecutionRootDir, e.NodeName, e.operation.Name)
-		log.Debugf("%+v", err)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-		return err
-	}
-
 	defer func() {
 		if !e.cfg.Ansible.KeepGeneratedRecipes {
 			err := os.RemoveAll(ansibleExecutionRootDir)
