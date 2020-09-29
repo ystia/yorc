@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
+
 ## 4.0.3 (August 27, 2020)
 
 ### FEATURES
