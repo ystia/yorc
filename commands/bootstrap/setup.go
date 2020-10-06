@@ -422,6 +422,11 @@ func installDependencies(workingDirectoryPath string) error {
 		return err
 	}
 
+	// Install paramiko
+	if err := installParamiko(); err != nil {
+		return err
+	}
+
 	// Download Consul
 	overwrite := (previousBootstrapVersion.Consul != consulVersion)
 	if err := downloadUnzip(inputValues.Consul.DownloadURL, "consul.zip", workingDirectoryPath, overwrite); err != nil {
@@ -540,6 +545,22 @@ func installAnsible(version string) error {
 
 	// Installing ansible
 	cmd := exec.Command(pipCmd, "install", "--upgrade", "ansible=="+version)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	return err
+}
+
+// installParamiko installs Paramiko needed when openSSH is not used
+// Install using pip3 if available else using pip
+func installParamiko() error {
+	pipCmd, err := getPipCmd()
+	if err != nil {
+		return err
+	}
+
+	// Installing ansible
+	cmd := exec.Command(pipCmd, "install", "--upgrade", "paramiko")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
