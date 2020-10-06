@@ -64,7 +64,6 @@ const ansibleConfigDefaultsHeader = "defaults"
 const ansibleInventoryHostsHeader = "target_hosts"
 const ansibleInventoryHostedHeader = "hosted_operations"
 const ansibleInventoryHostsVarsHeader = ansibleInventoryHostsHeader + ":vars"
-const ansibleInventoryHostedVarsHeader = ansibleInventoryHostedHeader + ":vars"
 
 var ansibleDefaultConfig = map[string]map[string]string{
 	ansibleConfigDefaultsHeader: map[string]string{
@@ -83,9 +82,7 @@ var ansibleFactCaching = map[string]string{
 var ansibleInventoryConfig = map[string][]string{
 	ansibleInventoryHostsVarsHeader: []string{
 		"ansible_ssh_common_args=\"-o ConnectionAttempts=20\"",
-	},
-	ansibleInventoryHostedVarsHeader: []string{
-		"ansible_python_interpreter=/usr/bin/env python",
+		"ansible_python_interpreter=\"auto_silent\"",
 	},
 }
 
