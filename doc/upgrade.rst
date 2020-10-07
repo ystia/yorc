@@ -34,6 +34,22 @@ feature requires to have the ``management`` ACL. It is possible to disable this 
 
 .. note:: A rolling upgrade without interruption feature is planned for future versions.
 
+.. _yorc_upgrades_410_section:
+
+Upgrading to Yorc 4.1.0
+-----------------------
+
+Ansible
+~~~~~~~
+
+Upgrade Ansible to version 2.10.0:
+
+.. code-block:: bash
+
+    sudo pip uninstall ansible
+    sudo pip install ansible==2.10.0
+    sudo pip install paramiko
+
 .. _yorc_upgrades_320_section:
 
 Upgrading to Yorc 3.2.0
