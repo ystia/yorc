@@ -16,12 +16,13 @@ package openstack
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,9 @@ func testSimpleOSInstance(t *testing.T) {
 	require.Len(t, compute.SecurityGroups, 2)
 	require.Contains(t, compute.SecurityGroups, "default")
 	require.Contains(t, compute.SecurityGroups, "openbar")
+	require.Len(t, compute.Metadata, 2)
+	require.Equal(t, "firstValue", compute.Metadata["firstKey"])
+	require.Equal(t, "secondValue", compute.Metadata["secondKey"])
 
 	require.Len(t, compute.Provisioners, 0)
 	require.Contains(t, infrastructure.Resource, "null_resource")

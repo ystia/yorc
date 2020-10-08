@@ -18,6 +18,9 @@ topology_template:
         availability_zone: nova
         key_pair: yorc
         security_groups: openbar,default
+        metadata:
+          firstKey: firstValue
+          secondKey: secondValue
       capabilities:
         endpoint:
           properties:
