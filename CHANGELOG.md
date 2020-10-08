@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
+
 ### FEATURES
 
 * Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
@@ -13,6 +17,7 @@
 
 ### ENHANCEMENTS
 
+* Upgrade Ansible version from 2.7.9 to 2.10.0 ([GH-648](https://github.com/ystia/yorc/issues/648))
 * Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
 * Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
 

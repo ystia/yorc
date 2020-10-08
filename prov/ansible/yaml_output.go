@@ -166,7 +166,7 @@ func endTaskSectionAndLogTaskResult(ansibleTask *ansibleTaskContext) {
 			// internal implementation doesn't have to appear in Consul logs.
 			// Logs for this script will be added in Consul.
 			// Logs of other internal tasks are skipped.
-			if ansibleTask.taskName == "command" {
+			if ansibleTask.taskName == "command" || ansibleTask.taskName == "shell" {
 				logScriptTaskResult(ansibleTask)
 			}
 		}
