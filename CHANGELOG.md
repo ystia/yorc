@@ -17,7 +17,7 @@
 
 ### ENHANCEMENTS
 
-* Upgrade Ansible version from 2.7.9 ([GH-648](https://github.com/ystia/yorc/issues/648))
+* Upgrade Ansible version from 2.7.9 to 2.10.0 ([GH-648](https://github.com/ystia/yorc/issues/648))
 * Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
 * Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
 
