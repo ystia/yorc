@@ -194,7 +194,7 @@ spec:
                             dir('testdata/ci/components') {
                                 sh """#!/usr/bin/env bash
                                     source /usr/local/lib/yorc-ci-utils.sh
-                                    forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/develop" 'all-types-3.*?.zip')"
+                                    forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/develop" 'all-types-[0-9].*?.zip')"
                                     echo "Downloading Forge components from \${forgeCompsURL}"
                                     curl -L "\${forgeCompsURL}" -o all-types.zip
                                     unzip all-types.zip
