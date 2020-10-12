@@ -16,9 +16,6 @@ pipeline {
         K8S_CLOUD_NAME="${ENV_YORC_CI_K8S}"
         GCP_CREDS_ID="${ENV_YORC_CI_GCP_CREDS_ID}"
         GCP_BUCKET_NAME="${ENV_YORC_CI_GCP_BUCKET_NAME}"
-        // Stick on forge v2.2.x until we move bootstrap to alien 3.0
-        // then we should move back to develop
-        FORGE_COMPS_BRANCH="release/2.2"
     }
 
     stages {
@@ -197,7 +194,7 @@ spec:
                             dir('testdata/ci/components') {
                                 sh """#!/usr/bin/env bash
                                     source /usr/local/lib/yorc-ci-utils.sh
-                                    forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/${FORGE_COMPS_BRANCH}" 'all-types-[0-9].*?.zip')"
+                                    forgeCompsURL="\$(getURLFromPart "https://ystia.jfrog.io/ystia/binaries/ystia/forge/dist/develop" 'all-types-[0-9].*?.zip')"
                                     echo "Downloading Forge components from \${forgeCompsURL}"
                                     curl -L "\${forgeCompsURL}" -o all-types.zip
                                     unzip all-types.zip
