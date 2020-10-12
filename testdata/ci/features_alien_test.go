@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alien4cloud/alien4cloud-go-client/v2/alien4cloud"
+	"github.com/alien4cloud/alien4cloud-go-client/v3/alien4cloud"
 )
 
 const componentsDir = "components"
