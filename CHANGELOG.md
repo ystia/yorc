@@ -4,6 +4,7 @@
 
 ### BUG FIXES
 
+* Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
 * Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
 
 ## 4.0.3 (August 27, 2020)
