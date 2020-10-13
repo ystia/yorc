@@ -16,11 +16,12 @@ package deployments
 
 import (
 	"context"
+	"path"
+	"strings"
+
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/storage"
 	"github.com/ystia/yorc/v4/storage/types"
-	"path"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -125,6 +126,10 @@ func ResolveWorkflowOutputs(ctx context.Context, deploymentID, workflowName stri
 	wf, err := GetWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		return nil, err
+	}
+
+	if wf == nil {
+		return nil, errors.Errorf("Can't resolve outputs of workflow %q in deployment %q, workflow definition not found", workflowName, deploymentID)
 	}
 
 	outputs := make(map[string]*TOSCAValue)
