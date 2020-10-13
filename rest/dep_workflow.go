@@ -120,7 +120,9 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Panic(err)
 		}
-
+		if wf == nil {
+			log.Panic(errors.Errorf("Can't check inputs of workflow %q in deployment %q, workflow definition not found", workflowName, deploymentID))
+		}
 		for inputName, def := range wf.Inputs {
 			// A property is considered as required by default, unless def.Required
 			// is set to false
@@ -204,6 +206,9 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		log.Panic(err)
+	}
+	if wf == nil {
+		log.Panic(errors.Errorf("Can't retrieve workflow %q in deployment %q, workflow definition not found", workflowName, deploymentID))
 	}
 	encodeJSONResponse(w, r, Workflow{Name: workflowName, Workflow: *wf})
 }
