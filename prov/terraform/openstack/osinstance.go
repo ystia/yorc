@@ -16,11 +16,13 @@ package openstack
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -160,6 +162,18 @@ func generateComputeInstance(ctx context.Context, opts osInstanceOptions) (Compu
 		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups), ",") {
 			secGroup = strings.TrimSpace(secGroup)
 			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
+		}
+	}
+
+	toscaVal, err := deployments.GetNodePropertyValue(ctx, opts.deploymentID, opts.nodeName, "metadata")
+	if err != nil {
+		return instance, err
+	}
+	if toscaVal != nil && toscaVal.RawString() != "" {
+		err = json.Unmarshal([]byte(toscaVal.RawString()), &instance.Metadata)
+		if err != nil {
+			err = errors.Wrapf(err, "Expected a map of strings for the metadata value of node %s instance %s, got: %s",
+				opts.nodeName, opts.instanceName, toscaVal.RawString())
 		}
 	}
 
