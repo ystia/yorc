@@ -405,6 +405,10 @@ func (s *step) getActivityInputParameters(ctx context.Context, activity builder.
 		return nil, err
 	}
 
+	if wf == nil {
+		return nil, errors.Errorf("Can't retrieve inputs for an activity of workflow %q in deployment %q, workflow definition not found", workflowName, deploymentID)
+	}
+
 	for inputName, propDef := range wf.Inputs {
 
 		if _, ok := result[inputName]; ok {
