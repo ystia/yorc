@@ -37,6 +37,10 @@ func BuildWorkFlow(ctx context.Context, deploymentID, wfName string) (map[string
 		return nil, err
 	}
 
+	if wf == nil {
+		return nil, errors.Errorf("Can't build workflow %q in deployment %q, workflow definition not found", wfName, deploymentID)
+	}
+
 	if wf.Steps == nil || len(wf.Steps) == 0 {
 		return nil, deployments.NewInconsistentDeploymentError(deploymentID)
 	}
