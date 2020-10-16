@@ -1150,15 +1150,15 @@ Slurm location type is ``slurm`` in lower case.
 +----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 | ``keep_job_remote_artifacts``    | If true, job artifacts are not deleted at the end of the job.                   | boolean   | no                                                | false   |
 +----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``ssh_connection_timeout``       | Allow to superseded                                                             | Duration  | no                                                | false   |
+| ``ssh_connection_timeout``       | Allow to supersede                                                              | Duration  | no                                                | false   |
 |                                  | :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>`             |           |                                                   |         |
 |                                  | global server option for this specific location.                                |           |                                                   |         |
 +----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``ssh_connection_retry_backoff`` | Allow to superseded                                                             | Duration  | no                                                | false   |
+| ``ssh_connection_retry_backoff`` | Allow to supersede                                                              | Duration  | no                                                | false   |
 |                                  | :ref:`--ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` |           |                                                   |         |
 |                                  | global server option for this specific location.                                |           |                                                   |         |
 +----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``ssh_connection_max_retries``   | Allow to superseded                                                             | uint64    | no                                                | false   |
+| ``ssh_connection_max_retries``   | Allow to supersede                                                              | uint64    | no                                                | false   |
 |                                  | :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>`     |           |                                                   |         |
 |                                  | global server option for this specific location.                                |           |                                                   |         |
 +----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
