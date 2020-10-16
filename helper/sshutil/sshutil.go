@@ -115,6 +115,8 @@ func (client *SSHClient) makeRetryFunc(f func(ctx context.Context) error) func()
 			}
 			return f(ctx)
 		})
+		// Unwrap error as we don't want to see retry.retryableError
+		// not my preference but will work (see https://github.com/sethvargo/go-retry/pull/2)
 		return goerr.Unwrap(err)
 	}
 }
