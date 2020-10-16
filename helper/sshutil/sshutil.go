@@ -98,27 +98,40 @@ type SSHAgent struct {
 // Sessions Pool used to provide reusable sessions for each sshClient
 var sessionsPool = &pool{}
 
-// GetSessionWrapper allows to return a session wrapper in order to handle stdout/stderr for running long synchronous commands
-func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
-	var ps = &SSHSessionWrapper{}
-	var err error
+// Utility function that make function to execute code under retry and connection timeout
+func (client *SSHClient) makeRetryFunc(f func(ctx context.Context) error) func() error {
 	backoffDuration := client.RetryBackoff
 	if backoffDuration <= 0 {
 		backoffDuration = 1
 	}
-	b, err := retry.NewConstant(backoffDuration)
+	b, _ := retry.NewConstant(backoffDuration)
 	b = retry.WithMaxRetries(client.MaxRetries, b)
-	err = retry.Do(context.Background(), b, func(ctx context.Context) error {
-		if client.Config != nil && client.Config.Timeout > 0 {
-			var cf context.CancelFunc
-			ctx, cf = context.WithTimeout(ctx, client.Config.Timeout)
-			defer cf()
-		}
+	return func() error {
+		err := retry.Do(context.Background(), b, func(ctx context.Context) error {
+			if client.Config != nil && client.Config.Timeout > 0 {
+				var cf context.CancelFunc
+				ctx, cf = context.WithTimeout(ctx, client.Config.Timeout)
+				defer cf()
+			}
+			return f(ctx)
+		})
+		return goerr.Unwrap(err)
+	}
+}
+
+// GetSessionWrapper allows to return a session wrapper in order to handle stdout/stderr for running long synchronous commands
+func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
+	var ps = &SSHSessionWrapper{}
+	var err error
+
+	retryOpenSession := client.makeRetryFunc(func(ctx context.Context) error {
 		ps.session, err = client.newSession(ctx)
 		return retry.RetryableError(errors.Wrap(err, "Unable to prepare SSH command"))
 	})
+
+	err = retryOpenSession()
 	if err != nil {
-		return nil, goerr.Unwrap(err)
+		return nil, errors.WithStack(err)
 	}
 
 	log.Debug("[SSHSession] Add Stderr/Stdout pipelines")
@@ -139,19 +152,8 @@ func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 func (client *SSHClient) RunCommand(cmd string) (string, error) {
 
 	var res string
-	backoffDuration := client.RetryBackoff
-	if backoffDuration <= 0 {
-		backoffDuration = 1
-	}
-	b, err := retry.NewConstant(backoffDuration)
-	b = retry.WithMaxRetries(client.MaxRetries, b)
 
-	err = retry.Do(context.Background(), b, func(ctx context.Context) error {
-		if client.Config != nil && client.Config.Timeout > 0 {
-			var cf context.CancelFunc
-			ctx, cf = context.WithTimeout(ctx, client.Config.Timeout)
-			defer cf()
-		}
+	retryRunCommand := client.makeRetryFunc(func(ctx context.Context) error {
 		var rerr error
 		res, rerr = client.runCommand(ctx, cmd)
 		if rerr == nil {
@@ -163,7 +165,8 @@ func (client *SSHClient) RunCommand(cmd string) (string, error) {
 		}
 		return retry.RetryableError(rerr)
 	})
-	return res, errors.WithStack(goerr.Unwrap(err))
+	err := retryRunCommand()
+	return res, errors.WithStack(err)
 }
 
 func (client *SSHClient) runCommand(ctx context.Context, cmd string) (string, error) {
@@ -239,13 +242,13 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissio
 
 	errCh := make(chan error, 2)
 
-	ctx := context.Background()
-	if client.Config != nil && client.Config.Timeout > 0 {
-		var cf context.CancelFunc
-		ctx, cf = context.WithTimeout(ctx, client.Config.Timeout)
-		defer cf()
-	}
-	session, err := client.newSession(ctx)
+	var session *sshSession
+	retryOpenSession := client.makeRetryFunc(func(ctx context.Context) error {
+		var err error
+		session, err = client.newSession(ctx)
+		return retry.RetryableError(err)
+	})
+	err = retryOpenSession()
 	if err != nil {
 		return err
 	}
