@@ -18,6 +18,7 @@
 ### ENHANCEMENTS
 
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
+* Should be able to specify edcsa or rsa ssh keys in gcloud compute instances metadata ([GH-697](https://github.com/ystia/yorc/issues/697))
 * Add the ability to define OpenStack Compute Instance metadata ([GH-687](https://github.com/ystia/yorc/issues/687))
 * Support Alien4Cloud 3.0 ([GH-689](https://github.com/ystia/yorc/issues/689))
 * Upgrade Ansible version from 2.7.9 to 2.10.0 ([GH-648](https://github.com/ystia/yorc/issues/648))
@@ -26,6 +27,7 @@
 
 ### BUG FIXES
 
+* Bootstrap fails on hosts where a version of ansible < 2.10.0 is installed ([GH-695](https://github.com/ystia/yorc/issues/695))
 * Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
 * Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
 * Yorc generates forcePurge tasks on list deployments API endpoint ([GH-674](https://github.com/ystia/yorc/issues/674))
