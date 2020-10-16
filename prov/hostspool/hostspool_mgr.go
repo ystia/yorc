@@ -17,7 +17,6 @@ package hostspool
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/config"
 	"path"
 	"reflect"
 	"strconv"
@@ -29,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/labelsutil"
 	"github.com/ystia/yorc/v4/helper/sshutil"
@@ -77,9 +77,11 @@ type SSHClientFactory func(config *ssh.ClientConfig, conn Connection) sshutil.Cl
 func NewManager(cc *api.Client, cfg config.Configuration) Manager {
 	return NewManagerWithSSHFactory(cc, cfg, func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
 		return &sshutil.SSHClient{
-			Config: config,
-			Host:   conn.Host,
-			Port:   int(conn.Port),
+			Config:       config,
+			Host:         conn.Host,
+			Port:         int(conn.Port),
+			MaxRetries:   cfg.SSHConnectionMaxRetries,
+			RetryBackoff: cfg.SSHConnectionRetryBackoff,
 		}
 	})
 }
