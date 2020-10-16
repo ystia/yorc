@@ -214,6 +214,14 @@ Globals Command-line options
 
   * ``--ssh_connection_timeout``: Timeout to establish SSH connection from Yorc SSH client, especially used for Slurm and HostsPool locations. If not set the default value of `10 s` will be used.
 
+.. _option_ssh_connection_retry_backoff_cmd:
+
+  * ``--ssh_connection_retry_backoff``: Backoff duration before retrying an ssh connection. This may be superseded by a location attribute if supported. (default 1s)
+
+.. _option_ssh_connection_max_retries_cmd:
+
+  * ``--ssh_connection_max_retries``: Maximum number of retries (attempts are retries + 1) before giving-up to connect. This may be superseded by a location attribute if supported. (default 3)
+
 
 .. _yorc_config_file_section:
 
@@ -316,6 +324,14 @@ Below is an example of configuration file with TLS enabled.
 .. _option_ssh_connection_timeout_cfg:
 
   * ``ssh_connection_timeout``: Equivalent to :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>` command-line flag.
+
+.. _option_ssh_connection_retry_backoff_cfg:
+
+  * ``ssh_ssh_connection_retry_backoff``: Equivalent to :ref:`--ssh_ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` command-line flag.
+
+.. _option_ssh_connection_max_retries_cfg:
+
+  * ``ssh_connection_max_retries``: Equivalent to :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -875,6 +891,14 @@ Environment variables
 
   * ``YORC_SSH_CONNECTION_TIMEOUT``: Equivalent to :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>` command-line flag.
 
+.. _option_ssh_connection_retry_backoff_env:
+
+  * ``YORC_SSH_CONNECTION_RETRY_BACKOFF``: Equivalent to :ref:`--ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` command-line flag.
+
+.. _option_ssh_connection_max_retries_env:
+
+  * ``YORC_SSH_CONNECTION_MAX_RETRIES``: Equivalent to :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>` command-line flag.
+
 .. _option_log_env:
 
   * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
@@ -1109,28 +1133,40 @@ Slurm
 
 Slurm location type is ``slurm`` in lower case.
 
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-|     Property Name                |                          Description                             | Data Type |                     Required                      | Default |
-|                                  |                                                                  |           |                                                   |         |
-+==================================+==================================================================+===========+===================================================+=========+
-| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes (see below for alternatives)                  |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``password``                     | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``private_key``                  | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``url``                          | IP address of the Slurm Client's node                            | string    | yes                                               |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``port``                         | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``default_job_name``             | Default name for the job allocation.                             | string    | no                                                |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                | string    | no                                                |   5s    |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``enforce_accounting``           | If true, account properties are mandatory for jobs and computes  | boolean   | no                                                |  false  |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``keep_job_remote_artifacts``    | If true, job artifacts are not deleted at the end of the job.    | boolean   | no                                                |  false  |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+|          Property Name           |                                   Description                                   | Data Type |                     Required                      | Default |
+|                                  |                                                                                 |           |                                                   |         |
++==================================+=================================================================================+===========+===================================================+=========+
+| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node                   | string    | yes (see below for alternatives)                  |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``password``                     | SSH Password to be used to connect to the Slurm Client's node                   | string    | Either this or ``private_key`` should be provided |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``private_key``                  | SSH Private key to be used to connect to the Slurm Client's node                | string    | Either this or ``password`` should be provided    |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``url``                          | IP address of the Slurm Client's node                                           | string    | yes                                               |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``port``                         | SSH Port to be used to connect to the Slurm Client's node                       | string    | yes                                               |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``default_job_name``             | Default name for the job allocation.                                            | string    | no                                                |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                               | string    | no                                                | 5s      |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``enforce_accounting``           | If true, account properties are mandatory for jobs and computes                 | boolean   | no                                                | false   |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``keep_job_remote_artifacts``    | If true, job artifacts are not deleted at the end of the job.                   | boolean   | no                                                | false   |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``ssh_connection_timeout``       | Allow to superseded                                                             | Duration  | no                                                | false   |
+|                                  | :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>`             |           |                                                   |         |
+|                                  | global server option for this specific location.                                |           |                                                   |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``ssh_connection_retry_backoff`` | Allow to superseded                                                             | Duration  | no                                                | false   |
+|                                  | :ref:`--ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` |           |                                                   |         |
+|                                  | global server option for this specific location.                                |           |                                                   |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``ssh_connection_max_retries``   | Allow to superseded                                                             | uint64    | no                                                | false   |
+|                                  | :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>`     |           |                                                   |         |
+|                                  | global server option for this specific location.                                |           |                                                   |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 An alternative way to specify user credentials for SSH connection to the Slurm Client's node (user_name, password or private_key), is to provide them as application properties.
 In this case, Yorc gives priority to the application provided properties.
@@ -1144,7 +1180,7 @@ Storage configuration
 
 Different artifacts (topologies, logs, events, tasks...) are stored by Yorc during an application deployment.
 
-Previously, everything was stored in Consul KV. 
+Previously, everything was stored in Consul KV.
 Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
 Yorc can now store the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
 
@@ -1235,7 +1271,7 @@ A store configuration is defined with:
 | ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
-``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation. 
+``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation.
 This is useful when a new store is configured (different from consul...) for logs or events.
 
 
