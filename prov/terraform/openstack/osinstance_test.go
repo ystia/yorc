@@ -145,7 +145,9 @@ func testOSInstanceWithBootVolume(t *testing.T) {
 	assert.Equal(t, 10, compute.BootVolume.Size,
 		"Wrong boot volume size value")
 	assert.Equal(t, true, compute.BootVolume.DeleteOnTermination,
-		"Wrong boot volume deleta on termination value")
+		"Wrong boot volume delete on termination value")
+	assert.Equal(t, "BurstBuffer", compute.BootVolume.VolumeType,
+		"Wrong boot volume type  value")
 
 	assert.Equal(t, "yorc", compute.KeyPair)
 	assert.Equal(t, "2", compute.FlavorID)

@@ -21,6 +21,7 @@ topology_template:
           source: image
           destination: volume
           size: 10 GB
+          volume_type: BurstBuffer
           delete_on_termination: true
       capabilities:
         endpoint:
