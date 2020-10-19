@@ -17,6 +17,7 @@
 
 ### ENHANCEMENTS
 
+* Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
 * Should be able to specify edcsa or rsa ssh keys in gcloud compute instances metadata ([GH-697](https://github.com/ystia/yorc/issues/697))
 * Add the ability to define OpenStack Compute Instance metadata ([GH-687](https://github.com/ystia/yorc/issues/687))
 * Support Alien4Cloud 3.0 ([GH-689](https://github.com/ystia/yorc/issues/689))

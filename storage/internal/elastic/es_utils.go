@@ -83,7 +83,9 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 	log.Printf("\t- Will %srefresh index before waiting for indexation", willRefresh)
 	log.Printf("\t- While migrating data, the max bulk request size will be %d documents and will never exceed %d kB",
 		elasticStoreConfig.maxBulkCount, elasticStoreConfig.maxBulkSize)
-	log.Printf("\t- Will use this ES client configuration: %+v", esConfig)
+	if log.IsDebug() {
+		log.Printf("\t- Will use this ES client configuration: %+v", esConfig)
+	}
 
 	esClient, e := elasticsearch6.NewClient(esConfig)
 	if e != nil {
