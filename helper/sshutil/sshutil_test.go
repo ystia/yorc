@@ -20,6 +20,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -67,6 +69,25 @@ func TestSSHAgent(t *testing.T) {
 	keys, err = sshAg.agent.List()
 	require.Nil(t, err)
 	require.Len(t, keys, 0, "no key expected")
+
+	// test create more than one agents in a specific socket directory
+	sshAg1, err := NewSSHAgentWithSocket(context.Background(), "/tmp/ssh-agent")
+	require.Nil(t, err)
+	sshAg2, err := NewSSHAgentWithSocket(context.Background(), "/tmp/ssh-agent")
+	require.Nil(t, err)
+	require.DirExists(t, "/tmp/ssh-agent")
+	assert.NotEqual(t, sshAg1.Socket, sshAg2.Socket)
+	// stop one ssh-agent does not remove the parent socket directory but the given agent socket only
+	err = sshAg1.Stop()
+	require.Nil(t, err)
+	require.DirExists(t, "/tmp/ssh-agent", "stop one ssh-agent removed the parent socket directory")
+	if _, err := os.Stat(sshAg1.Socket); err == nil {
+		t.Errorf("failed to remove agent socket when stopping ssh-agent %v", err)
+	}
+	require.FileExists(t, sshAg2.Socket, "stop one ssh-agent but removed another agent socket")
+	err = sshAg2.Stop()
+	err = os.RemoveAll("/tmp/ssh-agent")
+	require.Nil(t, err, "failed to clean up /tmp/ssh-agent after test")
 }
 
 // BER SSH key is not handled by crypto/ssh

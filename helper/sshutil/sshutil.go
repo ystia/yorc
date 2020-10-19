@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/net/context"
@@ -268,14 +269,28 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissio
 	return nil
 }
 
-// NewSSHAgent allows to return a new SSH Agent
+// NewSSHAgent allows to return a new SSH Agent. The agent socket is created at /tmp/ssh-XXXXXXXXXX/agent.<ppid> by default
 func NewSSHAgent(ctx context.Context) (*SSHAgent, error) {
+	return NewSSHAgentWithSocket(ctx, "")
+}
+
+// NewSSHAgentWithSocket allows to return a new SSH Agent. If socketDir is specified, create the agent socket at /socketDir/<uuid>/agent
+func NewSSHAgentWithSocket(ctx context.Context, socketDir string) (*SSHAgent, error) {
 	bin, err := exec.LookPath("ssh-agent")
 	if err != nil {
 		return nil, errors.Wrap(err, "could not find ssh-agent")
 	}
 
 	cmd := executil.Command(ctx, bin)
+	if socketDir != "" {
+		tempDir := filepath.Join(socketDir, uuid.NewV4().String())
+		if err = os.MkdirAll(tempDir, 0770); err != nil {
+			return nil, errors.Wrapf(err, "could not create socket directory for ssh-agent at %q", tempDir)
+		}
+		bindAddress := filepath.Join(tempDir, "agent")
+		log.Debugf("Set ssh-agent bind-address to %q", bindAddress)
+		cmd.Args = append(cmd.Args, "-a", bindAddress)
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to run ssh-agent")

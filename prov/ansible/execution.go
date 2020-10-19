@@ -61,6 +61,7 @@ print(os.environ['VAULT_PASSWORD'])
 `
 
 const ansibleConfigDefaultsHeader = "defaults"
+const ansibleConfigSSHConnection = "ssh_connection"
 const ansibleInventoryHostsHeader = "target_hosts"
 const ansibleInventoryHostedHeader = "hosted_operations"
 const ansibleInventoryHostsVarsHeader = ansibleInventoryHostsHeader + ":vars"
@@ -72,6 +73,7 @@ var ansibleDefaultConfig = map[string]map[string]string{
 		"stdout_callback":   "yaml",
 		"nocows":            "1",
 	},
+	ansibleConfigSSHConnection: map[string]string{},
 }
 
 var ansibleFactCaching = map[string]string{
@@ -136,7 +138,7 @@ type execution interface {
 }
 
 type ansibleRunner interface {
-	runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error
+	generateRunAnsible(ctx context.Context, currentInstance, ansibleRecipePath string) (handler outputHandler, err error)
 }
 
 type executionCommon struct {
@@ -169,6 +171,7 @@ type executionCommon struct {
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
 	isOrchestratorOperation  bool
+	isSandbox                bool
 	IsCustomCommand          bool
 	relationshipType         string
 	ansibleRunner            ansibleRunner
@@ -785,26 +788,13 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 }
 
 func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
-	if e.cli != nil && e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
-		var err error
-		e.containerID, err = createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
-		if err != nil {
-			return err
-		}
-		buffer.WriteString(" ansible_connection=docker ansible_host=")
-		buffer.WriteString(e.containerID)
-	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
-		buffer.WriteString(" ansible_connection=local")
-	} else {
-		actualRootCause := "there is no sandbox configured to handle it"
-		if e.cli == nil {
-			actualRootCause = "connection to docker failed (see logs)"
-		}
-
-		err := errors.Errorf("Ansible provisioning: you are trying to execute an operation on the orchestrator host but %s and execution on the actual orchestrator host is disallowed by configuration", actualRootCause)
+	if e.cfg.Ansible.HostedOperations.DefaultSandbox == nil && !e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
+		err := errors.Errorf("Ansible provisioning: you are trying to execute an operation on the orchestrator host " +
+			"but there is no sandbox configured to handle it and execution on the actual orchestrator host is disallowed by configuration")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).Registerf("%v", err)
 		return err
 	}
+	buffer.WriteString(" ansible_connection=local")
 	return nil
 }
 
@@ -926,7 +916,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 
 	vaultPassScript := fmt.Sprintf(vaultPassScriptFormat, pythonInterpreter)
-	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, ".vault_pass"), []byte(vaultPassScript), 0764); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, ".vault_pass"), []byte(vaultPassScript), 0750); err != nil {
 		err = errors.Wrap(err, "Failed to write .vault_pass file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -1059,6 +1049,8 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
+	checkSandboxExecution(e)
+
 	// Generating Ansible config
 	if err = e.generateAnsibleConfigurationFile(ansiblePath, ansibleRecipePath); err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
@@ -1081,9 +1073,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			return err
 		}
 	}
-
-	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
+	outputHandler, err := e.ansibleRunner.generateRunAnsible(ctx, currentInstance, ansibleRecipePath)
 	if err != nil {
+		return err
+	}
+	if err = e.executePlaybook(ctx, retry, ansibleRecipePath, outputHandler); err != nil {
 		return err
 	}
 	if e.HaveOutput {
@@ -1206,9 +1200,55 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 
 func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	ansibleRecipePath string, handler outputHandler) error {
-	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
 	env := os.Environ()
 	env = append(env, "VAULT_PASSWORD="+e.vaultToken)
+	var sshAgentSocket string
+	if !e.cfg.DisableSSHAgent {
+		socketDir, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "ssh-agent"))
+		if err != nil {
+			return err
+		}
+		// Check if SSHAgent is needed
+		sshAgent, err := e.configureSSHAgent(ctx, socketDir)
+		if err != nil {
+			return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
+		}
+		if sshAgent != nil {
+			sshAgentSocket = sshAgent.Socket
+			log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
+			if e.isSandbox {
+				env = append(env, "SSH_AUTH_SOCK="+config.DefaultSandboxMountAgentSocket)
+			} else {
+				env = append(env, "SSH_AUTH_SOCK="+sshAgentSocket)
+			}
+			defer func() {
+				err = sshAgent.RemoveAllKeys()
+				if err != nil {
+					log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+				}
+				err = sshAgent.Stop()
+				if err != nil {
+					log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+				}
+			}()
+		}
+	}
+	var cmd *executil.Cmd
+	if e.isSandbox {
+		log.Debugf("Start sandbox container with mount directories ansibleRecipePath: %s, overlayPath: %s", ansibleRecipePath, e.OverlayPath)
+		var err error
+		if e.containerID, err = createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID,
+			ansibleRecipePath, e.OverlayPath, sshAgentSocket, env); err != nil {
+			return err
+		}
+		log.Debugf("Execute ansible-playbook in sandbox container: %s", e.containerID)
+		cmd = executil.Command(ctx, "docker", "exec", "--workdir", config.DefaultSandboxWorkDir, e.containerID, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", ".vault_pass")
+	} else {
+		log.Debugf("Execute ansible-playbook on localhost")
+		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
+		cmd.Env = env
+	}
+
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
@@ -1226,31 +1266,8 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		} else {
 			cmd.Args = append(cmd.Args, "-c", "paramiko")
 		}
-
-		if !e.cfg.DisableSSHAgent {
-			// Check if SSHAgent is needed
-			sshAgent, err := e.configureSSHAgent(ctx)
-			if err != nil {
-				return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
-			}
-			if sshAgent != nil {
-				log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
-				env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
-				defer func() {
-					err = sshAgent.RemoveAllKeys()
-					if err != nil {
-						log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
-					}
-					err = sshAgent.Stop()
-					if err != nil {
-						log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
-					}
-				}()
-			}
-		}
 	}
 	cmd.Dir = ansibleRecipePath
-	cmd.Env = env
 	errbuf := events.NewBufferedLogEntryWriter()
 	cmd.Stderr = errbuf
 
@@ -1275,7 +1292,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	return nil
 }
 
-func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAgent, error) {
+func (e *executionCommon) configureSSHAgent(ctx context.Context, socketDir string) (*sshutil.SSHAgent, error) {
 	var addSSHAgent bool
 	for _, host := range e.hosts {
 		if len(host.privateKeys) > 0 {
@@ -1287,7 +1304,7 @@ func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAg
 		return nil, nil
 	}
 
-	agent, err := sshutil.NewSSHAgent(ctx)
+	agent, err := sshutil.NewSSHAgentWithSocket(ctx, socketDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1398,12 +1415,32 @@ func (e *executionCommon) generateAnsibleConfigurationFile(
 
 	ansibleConfig := getAnsibleConfigFromDefault()
 
-	// Adding settings whose values are known at runtime, related to the deployment
-	// directory path
-	ansibleConfig[ansibleConfigDefaultsHeader]["retry_files_save_path"] = ansibleRecipePath
-	if e.CacheFacts {
-		ansibleFactCaching["fact_caching_connection"] = path.Join(ansiblePath, "facts_cache")
+	// Adding settings whose values are known at runtime, related to the deployment directory path
+	if e.isSandbox {
+		ansibleConfig[ansibleConfigDefaultsHeader]["retry_files_save_path"] = config.DefaultSandboxWorkDir
+		// Specify where ansible can write its temp files in the sandbox container.
+		// (By default, ansible writes to ~/.ansible/tmp on host machine and may cause permission denied from inside the container)
+		ansibleConfig[ansibleConfigDefaultsHeader]["local_tmp"] = path.Join(config.DefaultSandboxWorkDir, "tmp")
+		// Specify where ansible writes SSH control path sockets in the sandbox container for SSH multiplexing.
+		// (By default, ansible writes to ~/.ansible/cp on host machine and may cause permission denied from inside the container)
+		// Each sandbox container should have its own control path
+		if e.cfg.Ansible.UseOpenSSH {
+			ansibleConfig[ansibleConfigSSHConnection]["control_path_dir"] = path.Join(config.DefaultSandboxWorkDir, "cp")
+		}
+	} else {
+		ansibleConfig[ansibleConfigDefaultsHeader]["retry_files_save_path"] = ansibleRecipePath
+	}
 
+	if e.CacheFacts {
+		if e.isSandbox {
+			// location in sandbox to save ansible gathering facts
+			// each yorc task should have its own facts (i.e., do not share the gathering facts from different tasks
+			// even in the same deploymentID) so that one task do not overwrite the facts of the other ones unexpectedly
+			// (e.g., if share facts, set "become: true" in one task overwrites the USER fact from ubuntu to root).
+			ansibleFactCaching["fact_caching_connection"] = path.Join(config.DefaultSandboxWorkDir, "facts_cache")
+		} else {
+			ansibleFactCaching["fact_caching_connection"] = path.Join(ansibleRecipePath, "facts_cache")
+		}
 		for k, v := range ansibleFactCaching {
 			ansibleConfig[ansibleConfigDefaultsHeader][k] = v
 		}
@@ -1449,4 +1486,21 @@ func getAnsibleConfigFromDefault() map[string]map[string]string {
 		ansibleConfig[k] = newVal
 	}
 	return ansibleConfig
+}
+
+// checkSandboxExecution check if the given execution requires sandboxing or not.
+// A whitelist of unsandbox scenarios are: when unsandbox hosted operation is allowed, when the execution script is not
+// a hosted operation, when it is an ansible execution but the sandbox configuration is not provided (for backward
+// compatibility)
+func checkSandboxExecution(e *executionCommon) {
+	if e.isOrchestratorOperation && e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
+		return
+	}
+	if _, isScript := e.ansibleRunner.(*executionScript); isScript && !e.isOrchestratorOperation {
+		return
+	}
+	if _, isAnsible := e.ansibleRunner.(*executionAnsible); isAnsible && e.cfg.Ansible.HostedOperations.DefaultSandbox == nil {
+		return
+	}
+	e.isSandbox = true
 }

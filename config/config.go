@@ -84,6 +84,15 @@ const DefaultUpgradesConcurrencyLimit = 1000
 // DefaultSSHConnectionTimeout is the default timeout for SSH connections
 const DefaultSSHConnectionTimeout = 10 * time.Second
 
+// DefaultSandboxWorkDir is the default workdir in the sandbox container where we mount the ansible recipes
+const DefaultSandboxWorkDir = "/work/ansible"
+
+// DefaultSandboxOverlayDir is the default directory in the sandbox container where we mount the overlay
+const DefaultSandboxOverlayDir = "/work/overlay"
+
+// DefaultSandboxMountAgentSocket is the default location in the sandbox container where we mount the ssh agent socket
+const DefaultSandboxMountAgentSocket = "/work/ssh-agent"
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
@@ -120,6 +129,9 @@ type DockerSandbox struct {
 	Command    []string `mapstructure:"command"`
 	Entrypoint []string `mapstructure:"entrypoint"`
 	Env        []string `mapstructure:"env"`
+	User       string   `mapstructure:"user"`
+	Cpus       string   `mapstructure:"cpus"`
+	Memory     string   `mapstructure:"memory"`
 }
 
 // HostedOperations holds the configuration for operations executed on the orechestrator host (eg. with an operation_host equals to ORECHESTRATOR)

@@ -15,6 +15,7 @@ require (
 	github.com/armon/go-metrics v0.3.0
 	github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 // indirect
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
 	github.com/bradleyjkemp/cupaloy v2.3.0+incompatible // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
@@ -95,6 +96,7 @@ require (
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	golang.org/x/tools v0.0.0-20200302225559-9b52d559c609
 	gopkg.in/AlecAivazis/survey.v1 v1.6.3
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
