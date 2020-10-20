@@ -17,6 +17,8 @@ package commons
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -116,6 +118,10 @@ type Connection struct {
 	BastionUser       string `json:"bastion_user,omitempty"`
 	BastionPassword   string `json:"bastion_password,omitempty"`
 	BastionPrivateKey string `json:"bastion_private_key,omitempty"`
+
+	// The following values are only supported by winrm
+	Https    string `json:"https,omitempty"`
+	Insecure string `json:"insecure,omitempty"`
 }
 
 // An Output allows to define a terraform output value
@@ -155,8 +161,9 @@ func AddOutput(infrastructure *Infrastructure, outputName string, output *Output
 	infrastructure.Output[outputName] = output
 }
 
-// GetConnInfoFromEndpointCredentials allow to retrieve user and private key path for connection needs from endpoint credentials
+// GetConnInfoFromEndpointCredentials allow to retrieve user and private key path for SSH connection needs from endpoint credentials
 func GetConnInfoFromEndpointCredentials(ctx context.Context, deploymentID, nodeName string) (string, *sshutil.PrivateKey, error) {
+
 	user, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "credentials", "user")
 	if err != nil {
 		return "", nil, err
@@ -190,20 +197,158 @@ func GetConnInfoFromEndpointCredentials(ctx context.Context, deploymentID, nodeN
 	return user.RawString(), pk, nil
 }
 
+// GetConnectionFromEndpointCredentials allows to retrieve connection details from endpoint credentials
+func GetConnectionFromEndpointCredentials(ctx context.Context, deploymentID, nodeName string) (Connection, error) {
+
+	var conn Connection
+	protocol, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "protocol")
+	if err != nil {
+		return conn, err
+	}
+
+	if protocol != nil && strings.ToLower(protocol.RawString()) == "winrm" {
+		conn, err = getWinrmConnectionFromEndpointCredentials(ctx, deploymentID, nodeName)
+	} else {
+		conn, err = getSshConnectionFromEndpointCredentials(ctx, deploymentID, nodeName)
+	}
+
+	return conn, err
+}
+
+func getWinrmConnectionFromEndpointCredentials(ctx context.Context, deploymentID, nodeName string) (Connection, error) {
+	var conn Connection
+	toscaVal, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "credentials", "user")
+	if err != nil {
+		return conn, err
+	} else if toscaVal == nil || toscaVal.RawString() == "" {
+		return conn, errors.Errorf("Missing mandatory parameter 'user' in credentials for node %s", nodeName)
+	}
+	user := toscaVal.RawString()
+	var token_type, password, protocol string
+	toscaVal, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "credentials", "token_type")
+	if err != nil {
+		return conn, err
+	} else if toscaVal != nil {
+		token_type = toscaVal.RawString()
+	}
+	if token_type == "password" {
+		toscaVal, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "credentials", "token")
+		if err != nil {
+			return conn, err
+		} else if toscaVal != nil {
+			password = toscaVal.RawString()
+		}
+	}
+
+	toscaVal, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "credentials", "protocol")
+	if err != nil {
+		return conn, err
+	} else if toscaVal != nil {
+		protocol = strings.ToLower(toscaVal.RawString())
+	}
+
+	secure := false
+	toscaVal, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "secure")
+	if err != nil {
+		return conn, err
+	} else if toscaVal != nil {
+		secure, err = strconv.ParseBool(toscaVal.RawString())
+		if err != nil {
+			return conn, err
+		}
+	}
+
+	var portStrval string
+	toscaVal, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "port")
+	if err != nil {
+		return conn, err
+	} else if toscaVal != nil {
+		portStrval = toscaVal.RawString()
+	}
+
+	conn = Connection{
+		ConnType: "winrm",
+		User:     user,
+		Password: password,
+		Port:     portStrval,
+		Https:    strconv.FormatBool(protocol == "https"),
+		Insecure: strconv.FormatBool(!secure),
+	}
+
+	return conn, err
+}
+
+func getSshConnectionFromEndpointCredentials(ctx context.Context, deploymentID, nodeName string) (Connection, error) {
+	var conn Connection
+	user, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "endpoint", "credentials", "user")
+	if err != nil {
+		return conn, err
+	} else if user == nil || user.RawString() == "" {
+		return conn, errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
+	}
+	keys, err := sshutil.GetKeysFromCredentialsAttribute(ctx, deploymentID, nodeName, "0", "endpoint")
+	if err != nil {
+		return conn, err
+	}
+
+	var pk *sshutil.PrivateKey
+	if len(keys) == 0 {
+		pk, err = sshutil.GetDefaultKey()
+		if err != nil {
+			return conn, err
+		}
+		keys["default"] = pk
+	} else {
+		pk = sshutil.SelectPrivateKeyOnName(keys, false)
+
+	}
+
+	keysList := make([]*sshutil.PrivateKey, 0, len(keys))
+	for _, k := range keys {
+		keysList = append(keysList, k)
+	}
+
+	addKeysToContextualSSHAgent(ctx, keysList)
+
+	conn = Connection{
+		User:       user.RawString(),
+		PrivateKey: string(pk.Content),
+	}
+	return conn, err
+
+}
+
 // AddConnectionCheckResource builds a null specific resource to check SSH connection with SSH key passed via env variable
+// Deprecated: Prefer AddConnectionCheck() instead
 func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName string, infrastructure *Infrastructure,
 	user string, privateKey *sshutil.PrivateKey, accessIP, resourceName string, env *[]string) error {
+
+	conn := Connection{
+		User:       user,
+		PrivateKey: string(privateKey.Content),
+	}
+
+	return AddConnectionCheck(ctx, deploymentID, nodeName, infrastructure, conn,
+		accessIP, resourceName, env)
+}
+
+// AddConnectionCheck builds a null specific resource to check SSH connection with SSH key passed via env variable
+func AddConnectionCheck(ctx context.Context, deploymentID, nodeName string, infrastructure *Infrastructure,
+	conn Connection, accessIP, resourceName string, env *[]string) error {
 	// Define private_key variable
 	infrastructure.Variable = make(map[string]interface{})
 	infrastructure.Variable["private_key"] = struct{}{}
 
 	// Add env TF variable for private key
-	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(privateKey.Content)))
+	conn_private_key := conn.PrivateKey
+	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", conn_private_key))
+	conn.PrivateKey = "${var.private_key}"
+	conn.Host = accessIP
 
-	conn := &Connection{
-		User:       user,
-		Host:       accessIP,
-		PrivateKey: "${var.private_key}",
+	// Add env TF variable for pasword if any
+	if conn.Password != "" {
+		*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_password", conn.Password))
+		conn.Password = "${var.password}"
 	}
 
 	bast, err := provutil.GetInstanceBastionHost(ctx, deploymentID, nodeName)
@@ -217,18 +362,18 @@ func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName stri
 		conn.BastionUser = bast.User
 		conn.BastionPassword = bast.Password
 
-		var bastPk *sshutil.PrivateKey
-		if bast != nil {
-			bastPk = sshutil.SelectPrivateKeyOnName(bast.PrivateKeys, false)
-			if bastPk == nil {
-				// If no key is explicitly defined, use the same as for the instance.
-				bastPk = privateKey
-			}
+		var bastPkContent string
+		bastPk := sshutil.SelectPrivateKeyOnName(bast.PrivateKeys, false)
+		if bastPk != nil {
+			bastPkContent = string(bastPk.Content)
+		} else {
+			// If no key is explicitly defined, use the same as for the instance.
+			bastPkContent = conn_private_key
 		}
 
-		if bastPk != nil {
+		if bastPkContent != "" {
 			infrastructure.Variable["bastion_private_key"] = struct{}{}
-			*env = append(*env, fmt.Sprintf("TF_VAR_bastion_private_key=%s", string(bastPk.Content)))
+			*env = append(*env, fmt.Sprintf("TF_VAR_bastion_private_key=%s", bastPkContent))
 			conn.BastionPrivateKey = "${var.bastion_private_key}"
 		} else if bast.Password == "" {
 			return errors.New("bastion host configuration is missing credentials")
@@ -237,7 +382,7 @@ func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName stri
 
 	// Build null Resource
 	nullResource := Resource{}
-	re := RemoteExec{Inline: []string{`echo "connected"`}, Connection: conn}
+	re := RemoteExec{Inline: []string{`echo "connected"`}, Connection: &conn}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re

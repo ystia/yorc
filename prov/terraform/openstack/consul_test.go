@@ -53,6 +53,9 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("fipOSInstanceNotAllowed", func(t *testing.T) {
 			testFipOSInstanceNotAllowed(t, srv)
 		})
+		t.Run("fipWinrmOSInstance", func(t *testing.T) {
+			testFipWinrmOSInstance(t, srv)
+		})
 		t.Run("TestGenerateOSBSVolumeSizeConvert", func(t *testing.T) {
 			testGenerateOSBSVolumeSizeConvert(t, srv)
 		})

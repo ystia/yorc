@@ -89,8 +89,8 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 		instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
 	}
 
-	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, deploymentID, nodeName)
+	// Get connection info (user, private key...)
+	conn, err := commons.GetConnectionFromEndpointCredentials(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = accessIPKey
 
 	// Add Connection check
-	if err = commons.AddConnectionCheckResource(ctx, deploymentID, nodeName, infrastructure, user, privateKey, accessIP, instance.Tags.Name, env); err != nil {
+	if err = commons.AddConnectionCheck(ctx, deploymentID, nodeName, infrastructure, conn, accessIP, instance.Tags.Name, env); err != nil {
 		return err
 	}
 

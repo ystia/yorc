@@ -237,6 +237,87 @@ func testFipOSInstance(t *testing.T, srv *testutil.TestServer) {
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 
 }
+func testFipWinrmOSInstance(t *testing.T, srv *testutil.TestServer) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t)
+
+	srv.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
+	})
+
+	locationProps := config.DynamicMap{
+		"provisioning_over_fip_allowed": true,
+		"private_network_name":          "test",
+	}
+	var cfg config.Configuration
+
+	g := osGenerator{}
+	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
+	outputs := make(map[string]string, 0)
+	resourceTypes := getOpenstackResourceTypes(locationProps)
+	err := g.generateOSInstance(
+		context.Background(),
+		osInstanceOptions{
+			cfg:            cfg,
+			infrastructure: &infrastructure,
+			locationProps:  locationProps,
+			deploymentID:   deploymentID,
+			nodeName:       "Compute",
+			instanceName:   "0",
+			resourceTypes:  resourceTypes,
+		},
+		outputs, &env)
+	require.Nil(t, err)
+
+	require.Len(t, infrastructure.Resource["openstack_compute_instance_v2"], 1)
+	instancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "Compute-0")
+
+	compute, ok := instancesMap["Compute-0"].(*ComputeInstance)
+	require.True(t, ok, "Compute-0 is not a ComputeInstance")
+	require.Equal(t, "yorc", compute.KeyPair)
+	require.Equal(t, "4bde6002-649d-4868-a5cb-fcd36d5ffa63", compute.ImageID)
+	require.Equal(t, "nova", compute.AvailabilityZone)
+	require.Equal(t, "2", compute.FlavorID)
+	require.Equal(t, "Region3", compute.Region)
+	require.Len(t, compute.SecurityGroups, 2)
+	require.Contains(t, compute.SecurityGroups, "default")
+	require.Contains(t, compute.SecurityGroups, "openbar")
+
+	require.Len(t, compute.Provisioners, 0)
+	require.Contains(t, infrastructure.Resource, "null_resource")
+	require.Len(t, infrastructure.Resource["null_resource"], 1)
+	nullResources := infrastructure.Resource["null_resource"].(map[string]interface{})
+
+	require.Contains(t, nullResources, "Compute-0-ConnectionCheck")
+	require.Contains(t, nullResources, "Compute-0-ConnectionCheck")
+	nullRes, ok := nullResources["Compute-0-ConnectionCheck"].(*commons.Resource)
+	require.True(t, ok)
+	require.Len(t, nullRes.Provisioners, 1)
+	mapProv := nullRes.Provisioners[0]
+	require.Contains(t, mapProv, "remote-exec")
+	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
+	require.True(t, ok)
+	require.True(t, ok, "expecting remote-exec to be a RemoteExec")
+	require.Equal(t, "cloud-user", rex.Connection.User)
+	require.Equal(t, "true", rex.Connection.Https)
+	require.Equal(t, "1234", rex.Connection.Port)
+	require.Equal(t, "false", rex.Connection.Insecure)
+	require.Equal(t, "${var.password}", rex.Connection.Password)
+	require.Len(t, env, 2)
+	assert.Equal(t, "TF_VAR_password=a-password", env[1], "env var for password expected")
+	require.Equal(t, `${openstack_compute_floatingip_associate_v2.FIPCompute-0.floating_ip}`, rex.Connection.Host)
+
+	require.Len(t, outputs, 5, "5 outputs are expected")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "attributes/public_address"), "expected public_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "attributes/public_ip_address"), "expected public_ip_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "attributes/ip_address"), "expected ip_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "attributes/private_address"), "expected private_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "Compute", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
+
+}
 
 func testFipMissingOSInstance(t *testing.T, srv *testutil.TestServer) {
 	t.Parallel()

@@ -377,13 +377,13 @@ func addResources(ctx context.Context, opts osInstanceOptions, fipAssociateName,
 		"/attributes/private_address")] = privateIPKey
 
 	// Get connection info (user, private key)
-	user, pk, err := commons.GetConnInfoFromEndpointCredentials(ctx, opts.deploymentID, opts.nodeName)
+	conn, err := commons.GetConnectionFromEndpointCredentials(ctx, opts.deploymentID, opts.nodeName)
 	if err != nil {
 		return err
 	}
 
-	return commons.AddConnectionCheckResource(ctx, opts.deploymentID, opts.nodeName, opts.infrastructure, user,
-		pk, accessIP, instance.Name, env)
+	return commons.AddConnectionCheck(ctx, opts.deploymentID, opts.nodeName, opts.infrastructure,
+		conn, accessIP, instance.Name, env)
 
 }
 
