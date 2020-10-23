@@ -59,7 +59,7 @@ func getSSHClient(cfg config.Configuration, credentials *types.Credential, locat
 	SSHConfig := &ssh.ClientConfig{
 		User:            credentials.User,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         cfg.SSHConnectionTimeout,
+		Timeout:         locationProps.GetDurationOrDefault("ssh_connection_timeout", cfg.SSHConnectionTimeout),
 	}
 
 	// Set an authentication method. At least one authentication method
@@ -86,9 +86,11 @@ func getSSHClient(cfg config.Configuration, credentials *types.Credential, locat
 	}
 
 	return &sshutil.SSHClient{
-		Config: SSHConfig,
-		Host:   locationProps.GetString("url"),
-		Port:   port,
+		Config:       SSHConfig,
+		Host:         locationProps.GetString("url"),
+		Port:         port,
+		MaxRetries:   locationProps.GetUint64OrDefault("ssh_connection_max_retries", cfg.SSHConnectionMaxRetries),
+		RetryBackoff: locationProps.GetDurationOrDefault("ssh_connection_retry_backoff", cfg.SSHConnectionRetryBackoff),
 	}, nil
 }
 
