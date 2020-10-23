@@ -272,7 +272,7 @@ func (s *elasticStore) verifyLastIndex(indexName string, deploymentID string, es
 // 		- let Yorc eventually Set a document that has a less iid than the older known document in ES (concurrence issues)
 // - if no result if found after the the given 'timeout', return empty slice
 func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
-	log.Printf("List called k: %s, waitIndex: %d, timeout: %v", k, waitIndex, timeout)
+	log.Debugf("List called k: %s, waitIndex: %d, timeout: %v", k, waitIndex, timeout)
 	if err := utils.CheckKey(k); err != nil {
 		return nil, 0, err
 	}
@@ -324,7 +324,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 			)
 		}
 	}
-	log.Printf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d",
+	log.Debugf("List called result k: %s, waitIndex: %d, timeout: %v, LastIndex: %d, len(values): %d",
 		k, waitIndex, timeout, lastIndex, len(values))
 	return values, lastIndex, err
 }

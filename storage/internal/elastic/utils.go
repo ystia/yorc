@@ -74,15 +74,7 @@ func appendJSONInBytes(a []byte, v []byte) []byte {
 func _parseInt64StringToInt64(value string) int64 {
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		log.Print(strings.Repeat("#", 20))
-		log.Print(strings.Repeat("#", 20))
-		log.Print(strings.Repeat("#", 20))
-		log.Print(strings.Repeat("#", 20))
 		log.Printf("Fail parsing _parseInt64StringToInt64 %s", value)
-		log.Print(strings.Repeat("#", 20))
-		log.Print(strings.Repeat("#", 20))
-		log.Print(strings.Repeat("#", 20))
-		log.Print(strings.Repeat("#", 20))
 	}
 	return valueInt
 }
