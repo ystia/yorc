@@ -15,6 +15,7 @@
 package sshutil
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -40,7 +41,7 @@ const sshConnectionsPool = "ssh-connections-pool"
 // an existing connection if possible. If no connection exists,
 // or if opening the session fails, openSession attempts to dial a new
 // connection. If dialing fails, openSession returns the error from Dial.
-func (p *pool) openSession(client *SSHClient) (*sshSession, error) {
+func (p *pool) openSession(ctx context.Context, client *SSHClient) (*sshSession, error) {
 	addr := fmt.Sprintf("%s:%d", client.Host, client.Port)
 	k := getUserKey(addr, client.Config)
 	for {
@@ -48,7 +49,7 @@ func (p *pool) openSession(client *SSHClient) (*sshSession, error) {
 		// Then if we open a session. Sometimes open fails due to too many sessions open
 		// in this case we remove the connection from cache and teardown it (wait for other sessions
 		// to be closed and finally close the underlying connection) on next try a new connection is created.
-		c := p.getConn(k, addr, client.Config)
+		c := p.getConn(ctx, k, addr, client.Config)
 		if c.err != nil {
 			// Can't open connection stop here
 			p.removeConn(k, c)
@@ -137,7 +138,7 @@ func (c *conn) newSession() (*sshSession, error) {
 
 // getConn gets an ssh connection from the pool for key.
 // If none is available, it dials anew.
-func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
+func (p *pool) getConn(ctx context.Context, k, addr string, config *ssh.ClientConfig) *conn {
 	p.mu.Lock()
 	if p.tab == nil {
 		p.tab = make(map[string]*conn)
@@ -151,7 +152,7 @@ func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
 	c = &conn{ok: make(chan bool)}
 	p.tab[k] = c
 	p.mu.Unlock()
-	c.netC, c.c, c.err = p.dial("tcp", addr, config)
+	c.netC, c.c, c.err = p.dial(ctx, "tcp", addr, config)
 	// Add context to the error if any
 	c.err = errors.Wrapf(c.err, "failed to open connection on %s", addr)
 	if c.err == nil {
@@ -177,10 +178,9 @@ func (p *pool) removeConn(k string, c1 *conn) {
 	}
 }
 
-func (p *pool) dial(network, addr string, config *ssh.ClientConfig) (net.Conn, *ssh.Client, error) {
+func (p *pool) dial(ctx context.Context, network, addr string, config *ssh.ClientConfig) (net.Conn, *ssh.Client, error) {
 	dialer := net.Dialer{}
-	dial := dialer.Dial
-	netC, err := dial(network, addr)
+	netC, err := dialer.DialContext(ctx, network, addr)
 	if err != nil {
 		return nil, nil, err
 	}

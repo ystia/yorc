@@ -16,6 +16,7 @@ package sshutil
 
 import (
 	"bytes"
+	goerr "errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,6 +31,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-retry"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/net/context"
@@ -78,9 +80,11 @@ func (sw *SSHSessionWrapper) Start(cmd string) error {
 
 // SSHClient is a client SSH
 type SSHClient struct {
-	Config *ssh.ClientConfig
-	Host   string
-	Port   int
+	Config       *ssh.ClientConfig
+	Host         string
+	Port         int
+	RetryBackoff time.Duration
+	MaxRetries   uint64
 }
 
 // SSHAgent is an SSH agent
@@ -94,13 +98,42 @@ type SSHAgent struct {
 // Sessions Pool used to provide reusable sessions for each sshClient
 var sessionsPool = &pool{}
 
+// Utility function that make function to execute code under retry and connection timeout
+func (client *SSHClient) makeRetryFunc(f func(ctx context.Context) error) func() error {
+	backoffDuration := client.RetryBackoff
+	if backoffDuration <= 0 {
+		backoffDuration = 1
+	}
+	b, _ := retry.NewConstant(backoffDuration)
+	b = retry.WithMaxRetries(client.MaxRetries, b)
+	return func() error {
+		err := retry.Do(context.Background(), b, func(ctx context.Context) error {
+			if client.Config != nil && client.Config.Timeout > 0 {
+				var cf context.CancelFunc
+				ctx, cf = context.WithTimeout(ctx, client.Config.Timeout)
+				defer cf()
+			}
+			return f(ctx)
+		})
+		// Unwrap error as we don't want to see retry.retryableError
+		// not my preference but will work (see https://github.com/sethvargo/go-retry/pull/2)
+		return goerr.Unwrap(err)
+	}
+}
+
 // GetSessionWrapper allows to return a session wrapper in order to handle stdout/stderr for running long synchronous commands
 func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 	var ps = &SSHSessionWrapper{}
 	var err error
-	ps.session, err = client.newSession()
+
+	retryOpenSession := client.makeRetryFunc(func(ctx context.Context) error {
+		ps.session, err = client.newSession(ctx)
+		return retry.RetryableError(errors.Wrap(err, "Unable to prepare SSH command"))
+	})
+
+	err = retryOpenSession()
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to prepare SSH command")
+		return nil, errors.WithStack(err)
 	}
 
 	log.Debug("[SSHSession] Add Stderr/Stdout pipelines")
@@ -119,30 +152,27 @@ func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 
 // RunCommand allows to run a specified command
 func (client *SSHClient) RunCommand(cmd string) (string, error) {
-	// without timeout
-	if client.Config == nil || client.Config.Timeout == 0 {
-		return client.runCommand(cmd)
-	}
 
-	// with timeout
 	var res string
-	var err error
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
 
-		res, err = client.runCommand(cmd)
-	}()
-	select {
-	case <-c:
-		return res, err
-	case <-time.After(client.Config.Timeout):
-		return "", errors.Errorf("timeout exceeded to connect to host: %q, port: %d", client.Host, client.Port)
-	}
+	retryRunCommand := client.makeRetryFunc(func(ctx context.Context) error {
+		var rerr error
+		res, rerr = client.runCommand(ctx, cmd)
+		if rerr == nil {
+			return nil
+		}
+		var eerr *ssh.ExitError
+		if goerr.As(rerr, &eerr) {
+			return rerr
+		}
+		return retry.RetryableError(rerr)
+	})
+	err := retryRunCommand()
+	return res, errors.WithStack(err)
 }
 
-func (client *SSHClient) runCommand(cmd string) (string, error) {
-	session, err := client.newSession()
+func (client *SSHClient) runCommand(ctx context.Context, cmd string) (string, error) {
+	session, err := client.newSession(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to create new session")
 	}
@@ -155,8 +185,8 @@ func (client *SSHClient) runCommand(cmd string) (string, error) {
 	return stdOutErrStr, errors.WithStack(err)
 }
 
-func (client *SSHClient) newSession() (*sshSession, error) {
-	session, err := sessionsPool.openSession(client)
+func (client *SSHClient) newSession(ctx context.Context) (*sshSession, error) {
+	session, err := sessionsPool.openSession(ctx, client)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create session")
 	}
@@ -214,7 +244,13 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath string, permissio
 
 	errCh := make(chan error, 2)
 
-	session, err := client.newSession()
+	var session *sshSession
+	retryOpenSession := client.makeRetryFunc(func(ctx context.Context) error {
+		var err error
+		session, err = client.newSession(ctx)
+		return retry.RetryableError(err)
+	})
+	err = retryOpenSession()
 	if err != nil {
 		return err
 	}
