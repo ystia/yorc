@@ -81,6 +81,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/satori/go.uuid v1.0.0
 	github.com/sethgrid/pester v0.0.0-20190127155807-68a33a018ad0 // indirect
+	github.com/sethvargo/go-retry v0.1.0
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.6
