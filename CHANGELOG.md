@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
+
 ### BUG FIXES
 
 * Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
