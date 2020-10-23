@@ -4,6 +4,7 @@
 
 ### ENHANCEMENTS
 
+* Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
 * Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
 
 ### BUG FIXES
