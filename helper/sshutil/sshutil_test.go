@@ -20,10 +20,16 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
+	"io/ioutil"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
+	"gotest.tools/v3/assert"
 
 	"github.com/ystia/yorc/v4/log"
 )
@@ -74,4 +80,308 @@ func TestSSHAgent(t *testing.T) {
 func TestReadPrivateKey(t *testing.T) {
 	_, err := ReadPrivateKey("./testdata/ber_test.pem")
 	require.NotNil(t, err)
+}
+
+func TestSSHClient_RunCommand(t *testing.T) {
+	// generate a testing private key
+	private, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		log.Fatal("Failed to generate private key: ", err)
+	}
+
+	privateSigner, err := ssh.NewSignerFromKey(private)
+	if err != nil {
+		log.Fatal("Failed to parse private key: ", err)
+	}
+
+	var trackAttempts int
+	type fields struct {
+		clientConfig *ssh.ClientConfig
+		RetryBackoff time.Duration
+		MaxRetries   uint64
+	}
+	type testServerConfig struct {
+		enableAuth bool
+		ech        execCommandHandler
+
+		pkc func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error)
+	}
+	type args struct {
+		cmd string
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		serverConfig     testServerConfig
+		args             args
+		want             string
+		wantErr          bool
+		expectedAttempts int
+	}{
+
+		{"SimpleAllOK", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			},
+			MaxRetries: 10,
+		}, testServerConfig{
+			ech: func(s string) (string, uint32) {
+				trackAttempts++
+				return s, 0
+			},
+		}, args{"echo toto"}, "echo toto", false, 1},
+
+		{"SimpleWithExecErrorNotRetried", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			},
+			MaxRetries: 3,
+		}, testServerConfig{
+			ech: func(s string) (string, uint32) {
+				trackAttempts++
+				return "Error!", 1
+			},
+		}, args{"echo toto"}, "Error!", true, 1},
+
+		{"SimpleWithLoginError", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				Auth: []ssh.AuthMethod{
+					ssh.PublicKeys(privateSigner),
+				},
+			},
+			MaxRetries: 2,
+		}, testServerConfig{
+			enableAuth: true,
+			pkc: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+				trackAttempts++
+				return nil, errors.New("Unauthorized")
+			},
+		}, args{"echo toto"}, "", true, 3},
+
+		{"SimpleLoginErrorRetriedThenOK", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				Auth: []ssh.AuthMethod{
+					ssh.PublicKeys(privateSigner),
+				},
+			},
+			MaxRetries: 10,
+		}, testServerConfig{
+			enableAuth: true,
+			pkc: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+				trackAttempts++
+				if trackAttempts == 1 {
+					return nil, errors.New("Unauthorized")
+				}
+				return &ssh.Permissions{}, nil
+			},
+		}, args{"echo toto"}, "echo toto", false, 2},
+
+		{"Timeout", fields{clientConfig: &ssh.ClientConfig{
+			Timeout:         1 * time.Nanosecond,
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}}, testServerConfig{}, args{"echo toto"}, "", true, 0},
+
+		{"TimeoutNotReached", fields{clientConfig: &ssh.ClientConfig{
+			Timeout:         2 * time.Second,
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}}, testServerConfig{}, args{"echo toto"}, "echo toto", false, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			trackAttempts = 0
+			ctx, cf := context.WithCancel(context.Background())
+			defer cf()
+			addr := newServer(ctx, func(s *serverConfig) {
+				s.NoClientAuth = !tt.serverConfig.enableAuth
+				if tt.serverConfig.ech != nil {
+					s.execCommandHandler = tt.serverConfig.ech
+				}
+				if tt.serverConfig.pkc != nil {
+					s.PublicKeyCallback = tt.serverConfig.pkc
+				}
+			})
+			hostPort := strings.Split(addr.String(), ":")
+			port, err := strconv.Atoi(hostPort[1])
+			assert.NilError(t, err)
+			client := &SSHClient{
+				Config:       tt.fields.clientConfig,
+				Host:         hostPort[0],
+				Port:         port,
+				MaxRetries:   tt.fields.MaxRetries,
+				RetryBackoff: tt.fields.RetryBackoff,
+			}
+			got, err := client.RunCommand(tt.args.cmd)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SSHClient.RunCommand() error = %+v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("SSHClient.RunCommand() = %v, want %v", got, tt.want)
+			}
+			assert.Equal(t, trackAttempts, tt.expectedAttempts)
+		})
+	}
+}
+
+func TestSSHSessionWrapper_RunCommand(t *testing.T) {
+	// generate a testing private key
+	private, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		log.Fatal("Failed to generate private key: ", err)
+	}
+
+	privateSigner, err := ssh.NewSignerFromKey(private)
+	if err != nil {
+		log.Fatal("Failed to parse private key: ", err)
+	}
+
+	var trackAttempts int
+	type fields struct {
+		clientConfig *ssh.ClientConfig
+		RetryBackoff time.Duration
+		MaxRetries   uint64
+	}
+	type testServerConfig struct {
+		enableAuth bool
+		ech        execCommandHandler
+
+		pkc func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error)
+	}
+	type args struct {
+		cmd string
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		serverConfig     testServerConfig
+		args             args
+		want             string
+		wantConnErr      bool
+		wantErr          bool
+		expectedAttempts int
+	}{
+
+		{"SimpleAllOK", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			},
+			MaxRetries: 10,
+		}, testServerConfig{
+			ech: func(s string) (string, uint32) {
+				trackAttempts++
+				return s, 0
+			},
+		}, args{"echo toto"}, "echo toto", false, false, 1},
+
+		{"SimpleWithExecErrorNotRetried", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			},
+			MaxRetries: 3,
+		}, testServerConfig{
+			ech: func(s string) (string, uint32) {
+				trackAttempts++
+				return "Error!", 1
+			},
+		}, args{"echo toto"}, "Error!", false, true, 1},
+
+		{"SimpleWithLoginError", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				Auth: []ssh.AuthMethod{
+					ssh.PublicKeys(privateSigner),
+				},
+			},
+			MaxRetries: 2,
+		}, testServerConfig{
+			enableAuth: true,
+			pkc: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+				trackAttempts++
+				return nil, errors.New("Unauthorized")
+			},
+		}, args{"echo toto"}, "", true, true, 3},
+
+		{"SimpleLoginErrorRetriedThenOK", fields{
+			clientConfig: &ssh.ClientConfig{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				Auth: []ssh.AuthMethod{
+					ssh.PublicKeys(privateSigner),
+				},
+			},
+			MaxRetries: 10,
+		}, testServerConfig{
+			enableAuth: true,
+			pkc: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+				trackAttempts++
+				if trackAttempts == 1 {
+					return nil, errors.New("Unauthorized")
+				}
+				return &ssh.Permissions{}, nil
+			},
+		}, args{"echo toto"}, "echo toto", false, false, 2},
+
+		{"Timeout", fields{clientConfig: &ssh.ClientConfig{
+			Timeout:         1 * time.Nanosecond,
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}}, testServerConfig{}, args{"echo toto"}, "", true, false, 0},
+
+		{"TimeoutNotReached", fields{clientConfig: &ssh.ClientConfig{
+			Timeout:         2 * time.Second,
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}}, testServerConfig{}, args{"echo toto"}, "echo toto", false, false, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			trackAttempts = 0
+			ctx, cf := context.WithCancel(context.Background())
+			defer cf()
+			addr := newServer(ctx, func(s *serverConfig) {
+				s.NoClientAuth = !tt.serverConfig.enableAuth
+				if tt.serverConfig.ech != nil {
+					s.execCommandHandler = tt.serverConfig.ech
+				}
+				if tt.serverConfig.pkc != nil {
+					s.PublicKeyCallback = tt.serverConfig.pkc
+				}
+			})
+			hostPort := strings.Split(addr.String(), ":")
+			port, err := strconv.Atoi(hostPort[1])
+			assert.NilError(t, err)
+			client := &SSHClient{
+				Config:       tt.fields.clientConfig,
+				Host:         hostPort[0],
+				Port:         port,
+				MaxRetries:   tt.fields.MaxRetries,
+				RetryBackoff: tt.fields.RetryBackoff,
+			}
+
+			session, err := client.GetSessionWrapper()
+			if (err != nil) != tt.wantConnErr {
+				t.Errorf("SSHSessionWrapper.RunCommand() error = %+v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err != nil {
+				assert.Equal(t, trackAttempts, tt.expectedAttempts)
+				return
+			}
+
+			err = session.RunCommand(context.Background(), tt.args.cmd)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SSHSessionWrapper.RunCommand() error = %+v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			b, err := ioutil.ReadAll(session.Stdout)
+			assert.NilError(t, err)
+			got := string(b)
+
+			if got != tt.want {
+				t.Errorf("SSHSessionWrapperRunCommand() = %v, want %v", got, tt.want)
+			}
+
+			assert.Equal(t, trackAttempts, tt.expectedAttempts)
+		})
+	}
 }

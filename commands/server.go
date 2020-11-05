@@ -256,6 +256,8 @@ func setConfig() {
 	serverCmd.PersistentFlags().String("locations_file_path", "", "File path to locations configuration. This configuration is taken in account for the first time the server starts.")
 	serverCmd.PersistentFlags().Int("concurrency_limit_for_upgrades", config.DefaultUpgradesConcurrencyLimit, "Limit of concurrency used in Upgrade processes. If not set the default value will be used")
 	serverCmd.PersistentFlags().Duration("ssh_connection_timeout", config.DefaultSSHConnectionTimeout, "Timeout to establish SSH connection from Yorc SSH client. If not set the default value will be used")
+	serverCmd.PersistentFlags().Duration("ssh_connection_retry_backoff", config.DefaultSSHConnectionRetryBackoff, "Backoff duration before retrying an ssh connection. This may be superseded by a location attribute if supported.")
+	serverCmd.PersistentFlags().Uint64("ssh_connection_max_retries", config.DefaultSSHConnectionMaxRetries, "Maximum number of retries (attempts are retries + 1) before giving-up to connect. This may be superseded by a location attribute if supported.")
 
 	serverCmd.PersistentFlags().Duration("tasks_dispatcher_long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime, "Wait time when long polling for executions tasks to dispatch to workers")
 	serverCmd.PersistentFlags().Duration("tasks_dispatcher_lock_wait_time", config.DefaultTasksDispatcherLockWaitTime, "Wait time for acquiring a lock for an execution task")
@@ -321,6 +323,8 @@ func setConfig() {
 	viper.BindPFlag("locations_file_path", serverCmd.PersistentFlags().Lookup("locations_file_path"))
 	viper.BindPFlag("concurrency_limit_for_upgrades", serverCmd.PersistentFlags().Lookup("concurrency_limit_for_upgrades"))
 	viper.BindPFlag("ssh_connection_timeout", serverCmd.PersistentFlags().Lookup("ssh_connection_timeout"))
+	viper.BindPFlag("ssh_connection_retry_backoff", serverCmd.PersistentFlags().Lookup("ssh_connection_retry_backoff"))
+	viper.BindPFlag("ssh_connection_max_retries", serverCmd.PersistentFlags().Lookup("ssh_connection_max_retries"))
 
 	viper.BindPFlag("tasks.dispatcher.long_poll_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_long_poll_wait_time"))
 	viper.BindPFlag("tasks.dispatcher.lock_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_lock_wait_time"))
@@ -364,6 +368,8 @@ func setConfig() {
 	viper.BindEnv("locations_file_path")
 	viper.BindEnv("concurrency_limit_for_upgrades")
 	viper.BindEnv("ssh_connection_timeout")
+	viper.BindEnv("ssh_connection_retry_backoff")
+	viper.BindEnv("ssh_connection_max_retries")
 
 	//Bind Consul environment variables flags
 	for key := range consulConfiguration {
@@ -399,6 +405,8 @@ func setConfig() {
 	viper.SetDefault("disable_ssh_agent", false)
 	viper.SetDefault("concurrency_limit_for_upgrades", config.DefaultUpgradesConcurrencyLimit)
 	viper.SetDefault("ssh_connection_timeout", config.DefaultSSHConnectionTimeout)
+	viper.SetDefault("ssh_connection_retry_backoff", config.DefaultSSHConnectionRetryBackoff)
+	viper.SetDefault("ssh_connection_max_retries", config.DefaultSSHConnectionMaxRetries)
 
 	viper.SetDefault("tasks.dispatcher.long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime)
 	viper.SetDefault("tasks.dispatcher.lock_wait_time", config.DefaultTasksDispatcherLockWaitTime)
