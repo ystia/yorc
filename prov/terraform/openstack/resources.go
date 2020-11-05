@@ -26,6 +26,7 @@ const (
 	sourceTOSCAKey              = "source"
 	destinationTOSCAKey         = "destination"
 	sizeTOSCAKey                = "size"
+	volumeTypeTOSCAKey          = "volume_type"
 	deleteOnTerminationTOSCAKey = "delete_on_termination"
 )
 
@@ -54,6 +55,7 @@ type BootVolume struct {
 	Source              string `json:"source_type"`
 	Destination         string `json:"destination_type,omitempty"`
 	Size                int    `json:"volume_size,omitempty"`
+	VolumeType          string `json:"volume_type,omitempty"`
 	DeleteOnTermination bool   `json:"delete_on_termination,omitempty"`
 }
 

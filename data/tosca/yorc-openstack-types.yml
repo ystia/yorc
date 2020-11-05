@@ -36,6 +36,10 @@ data_types:
           source=blank and destination=local, or source=blank and destination=volume
         constraints:
           - greater_or_equal: 1 GB
+      volume_type:
+        type: string
+        required: false
+        description: Volume type
       delete_on_termination:
         type: boolean
         required: false

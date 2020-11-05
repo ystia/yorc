@@ -5,6 +5,8 @@
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
+* The orchestrator requires now at least Terraform OpenStack Provider version 1.32.0 (upgrade from 1.9.0 introduced in [GH-703](https://github.com/ystia/yorc/issues/703))
+
 
 ### FEATURES
 
@@ -17,6 +19,7 @@
 
 ### ENHANCEMENTS
 
+* Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
 * Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
 * Should be able to specify edcsa or rsa ssh keys in gcloud compute instances metadata ([GH-697](https://github.com/ystia/yorc/issues/697))
