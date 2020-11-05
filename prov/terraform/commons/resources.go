@@ -338,6 +338,7 @@ func AddConnectionCheck(ctx context.Context, deploymentID, nodeName string, infr
 	// Define private_key variable
 	infrastructure.Variable = make(map[string]interface{})
 	infrastructure.Variable["private_key"] = struct{}{}
+	infrastructure.Variable["password"] = struct{}{}
 
 	// Add env TF variable for private key
 	conn_private_key := conn.PrivateKey
@@ -347,7 +348,7 @@ func AddConnectionCheck(ctx context.Context, deploymentID, nodeName string, infr
 
 	// Add env TF variable for pasword if any
 	if conn.Password != "" {
-		*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_password", conn.Password))
+		*env = append(*env, fmt.Sprintf("TF_VAR_password=%s", conn.Password))
 		conn.Password = "${var.password}"
 	}
 
