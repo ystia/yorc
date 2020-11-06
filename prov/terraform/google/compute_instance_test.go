@@ -103,7 +103,7 @@ func testSimpleComputeInstance(t *testing.T, cfg config.Configuration) {
 	require.True(t, ok)
 	assert.Equal(t, "centos", rex.Connection.User)
 	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
-	require.Len(t, env, 1)
+	require.Len(t, env, 2)
 	assert.Equal(t, "TF_VAR_private_key="+string(privateKey), env[0], "env var for private key expected")
 
 	require.Len(t, compute.ScratchDisks, 2, "Expected 2 scratch disks")

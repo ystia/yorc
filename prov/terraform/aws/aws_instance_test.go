@@ -122,7 +122,7 @@ func testSimpleAWSInstance(t *testing.T, cfg config.Configuration) {
 
 	require.Nil(t, err)
 	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
-	require.Len(t, env, 1)
+	require.Len(t, env, 2)
 	assert.Equal(t, "TF_VAR_private_key="+expectedPrivateKey, env[0], "env var for private key expected")
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
@@ -164,7 +164,7 @@ func testSimpleAWSInstanceWithPrivateKey(t *testing.T, cfg config.Configuration)
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
 	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
-	require.Len(t, env, 1)
+	require.Len(t, env, 2)
 	assert.Equal(t, "TF_VAR_private_key="+expectedPrivateKey, env[0], "env var for private key expected")
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")

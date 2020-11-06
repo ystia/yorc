@@ -115,7 +115,7 @@ func testSimpleOSInstance(t *testing.T) {
 	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
 	require.Nil(t, err)
 	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
-	require.Len(t, env, 1)
+	require.Len(t, env, 2)
 	assert.Equal(t, "TF_VAR_private_key="+string(yorcPem), env[0], "env var for private key expected")
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 
@@ -225,7 +225,7 @@ func testFipOSInstance(t *testing.T, srv *testutil.TestServer) {
 	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
 	require.Nil(t, err)
 	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
-	require.Len(t, env, 1)
+	require.Len(t, env, 2)
 	assert.Equal(t, "TF_VAR_private_key="+string(yorcPem), env[0], "env var for private key expected")
 	require.Equal(t, `${openstack_compute_floatingip_associate_v2.FIPCompute-0.floating_ip}`, rex.Connection.Host)
 
@@ -424,7 +424,7 @@ func testFipOSInstanceNotAllowed(t *testing.T, srv *testutil.TestServer) {
 	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
 	require.Nil(t, err)
 	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
-	require.Len(t, env, 1)
+	require.Len(t, env, 2)
 	assert.Equal(t, "TF_VAR_private_key="+string(yorcPem), env[0], "env var for private key expected")
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }

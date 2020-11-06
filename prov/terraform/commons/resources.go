@@ -347,10 +347,8 @@ func AddConnectionCheck(ctx context.Context, deploymentID, nodeName string, infr
 	conn.Host = accessIP
 
 	// Add env TF variable for pasword if any
-	if conn.Password != "" {
-		*env = append(*env, fmt.Sprintf("TF_VAR_password=%s", conn.Password))
-		conn.Password = "${var.password}"
-	}
+	*env = append(*env, fmt.Sprintf("TF_VAR_password=%s", conn.Password))
+	conn.Password = "${var.password}"
 
 	bast, err := provutil.GetInstanceBastionHost(ctx, deploymentID, nodeName)
 	if err != nil {

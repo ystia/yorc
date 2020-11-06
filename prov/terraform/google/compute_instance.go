@@ -188,9 +188,16 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg confi
 	}
 
 	// Get connection info (user, private key)
-	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(ctx, deploymentID, nodeName)
+	conn, err := commons.GetConnectionFromEndpointCredentials(ctx, deploymentID, nodeName)
 	if err != nil {
 		return err
+	}
+	var privateKey *sshutil.PrivateKey
+	if conn.ConnType != "winrm" {
+		_, privateKey, err = commons.GetConnInfoFromEndpointCredentials(ctx, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Add additional Scratch disks
@@ -261,13 +268,13 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, cfg confi
 	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
 
 	// Add Connection check
-	if err = commons.AddConnectionCheckResource(ctx, deploymentID, nodeName, infrastructure, user, privateKey, accessIP, instance.Name, env); err != nil {
+	if err = commons.AddConnectionCheck(ctx, deploymentID, nodeName, infrastructure, conn, accessIP, instance.Name, env); err != nil {
 		return err
 	}
 
 	// Retrieve devices
 	if len(devices) > 0 {
-		if err = handleDeviceAttributes(ctx, cfg, infrastructure, &instance, devices, user, privateKey, accessIP); err != nil {
+		if err = handleDeviceAttributes(ctx, cfg, infrastructure, &instance, devices, conn.User, privateKey, accessIP); err != nil {
 			return err
 		}
 	}
