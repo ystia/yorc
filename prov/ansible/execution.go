@@ -122,6 +122,7 @@ type hostConnection struct {
 	privateKeys map[string]*sshutil.PrivateKey
 	password    string
 	bastion     *sshutil.BastionHostConfig
+	osType      string
 }
 
 type sshCredentials struct {
@@ -380,6 +381,14 @@ func (e *executionCommon) setHostConnection(ctx context.Context, host, instanceI
 			if err != nil {
 				return errors.Wrapf(err, "Failed to convert port value:%q to int", port)
 			}
+		}
+		// Need to get the os type as Windows target hosts need specific ansible settings
+		osType, err := deployments.GetInstanceCapabilityAttributeValue(ctx, e.deploymentID, host, instanceID, "os", "type")
+		if err != nil {
+			return err
+		}
+		if osType != nil {
+			conn.osType = strings.ToLower(osType.RawString())
 		}
 	}
 	return nil
@@ -875,6 +884,10 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		// Specify SSH port when different than default 22
 		if host.port != 0 && host.port != 22 {
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
+		}
+		// Specific ansible connection settings are needed on windows targets
+		if strings.Contains(host.osType, "windows") {
+			buffer.WriteString(" ansible_connection=ssh ansible_shell_type=cmd")
 		}
 	}
 	buffer.WriteString("\n")
