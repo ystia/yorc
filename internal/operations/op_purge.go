@@ -43,38 +43,27 @@ func purgePreChecks(ctx context.Context, deploymentID string) error {
 
 func purgeTasks(ctx context.Context, deploymentID string, force bool, ignoreTasks ...string) error {
 	var finalError *multierror.Error
-	kv := consulutil.GetKV()
 	// Remove from KV all tasks from the current target deployment, except ignoredTasks tasks (generally the purge task when done asynchronously)
 	tasksList, err := deployments.GetDeploymentTaskList(ctx, deploymentID)
 	if err != nil {
 		finalError = multierror.Append(finalError, err)
-		if !force {
-			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-			return finalError
-		}
 	}
 	for _, tid := range tasksList {
 
-		if !collections.ContainsString(ignoreTasks, tid) {
-			err = tasks.DeleteTask(tid)
-			if err != nil {
-				finalError = multierror.Append(finalError, err)
-				if !force {
-					deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-					return finalError
-				}
-			}
+		if collections.ContainsString(ignoreTasks, tid) {
+			continue
 		}
-		_, err = kv.DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid)+"/", nil)
+
+		err = tasks.DeleteTask(tid)
 		if err != nil {
 			finalError = multierror.Append(finalError, err)
-			if !force {
-				deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-				return finalError
-			}
+		}
+		err = consulutil.Delete(path.Join(consulutil.WorkflowsPrefix, tid)+"/", true)
+		if err != nil {
+			finalError = multierror.Append(finalError, err)
 		}
 	}
-	return nil
+	return finalError.ErrorOrNil()
 }
 
 // PurgeDeployment allows to completely remove references of a deployment within yorc
