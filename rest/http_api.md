@@ -143,7 +143,7 @@ Content-Type: application/json
 }
 ```
 
-`errors` field is a list as force mode may encounter several errors bellow is an example:
+`errors` field is a list as force mode may encounter several errors below is an example:
 
 ```json
 {
