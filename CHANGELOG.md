@@ -19,6 +19,7 @@
 
 ### ENHANCEMENTS
 
+* Add a new synchronous purge API endpoint ([GH-707](https://github.com/ystia/yorc/issues/707))
 * Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
 * Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))

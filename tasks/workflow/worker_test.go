@@ -126,6 +126,7 @@ func testRunPurgeFails(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	deploymentID := "TestEnv2"
 
 	srv.PopulateKV(t, testData(deploymentID))
+	deployments.SetDeploymentStatus(context.Background(), deploymentID, deployments.DEPLOYED)
 	var myTaskExecution taskExecution
 	myTaskExecution.cc = client
 	// This execution corresponds to the purge task
@@ -182,7 +183,7 @@ func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.
 func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
 		// Add Test deployment
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deployments.INITIAL.String()),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deployments.UNDEPLOYED.String()),
 		// deploy task
 		consulutil.TasksPrefix + "/t1/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t1/type":     []byte("0"),

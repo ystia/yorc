@@ -97,7 +97,7 @@ func GetDeploymentStatus(ctx context.Context, deploymentID string) (DeploymentSt
 		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if !exist || value == "" {
-		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
+		return INITIAL, errors.WithStack(deploymentNotFound{deploymentID: deploymentID})
 	}
 	return DeploymentStatusFromString(value, true)
 }
