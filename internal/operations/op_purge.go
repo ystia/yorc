@@ -54,16 +54,20 @@ func purgeTasks(ctx context.Context, deploymentID string, force bool, ignoreTask
 			continue
 		}
 
-		err = tasks.DeleteTask(tid)
-		if err != nil {
-			finalError = multierror.Append(finalError, err)
-		}
-		err = consulutil.Delete(path.Join(consulutil.WorkflowsPrefix, tid)+"/", true)
-		if err != nil {
-			finalError = multierror.Append(finalError, err)
-		}
+		finalError = multierror.Append(finalError, tasks.DeleteTask(tid))
+
+		finalError = multierror.Append(finalError, consulutil.Delete(path.Join(consulutil.WorkflowsPrefix, tid)+"/", true))
+
 	}
 	return finalError.ErrorOrNil()
+}
+
+func handleError(merr *multierror.Error, continueOnError bool, f func() error) error {
+	multierror.Append(merr, f())
+	if continueOnError {
+		return nil
+	}
+	return merr.ErrorOrNil()
 }
 
 // PurgeDeployment allows to completely remove references of a deployment within yorc
@@ -75,7 +79,7 @@ func purgeTasks(ctx context.Context, deploymentID string, force bool, ignoreTask
 // This option will probably be transitory for Yorc 4.x before switching to a full synchronous purge model
 func PurgeDeployment(ctx context.Context, deploymentID, filepathWorkingDirectory string, force bool, ignoreTasks ...string) error {
 
-	var finalError *multierror.Error
+	finalError := new(multierror.Error)
 
 	if !force {
 		err := purgePreChecks(ctx, deploymentID)
@@ -95,52 +99,56 @@ func PurgeDeployment(ctx context.Context, deploymentID, filepathWorkingDirectory
 		// In force mode this error could be ignored
 	}
 
-	err = purgeTasks(ctx, deploymentID, force, ignoreTasks...)
+	err = handleError(finalError, force, func() error {
+		return purgeTasks(ctx, deploymentID, force, ignoreTasks...)
+	})
 	if err != nil {
-		finalError = multierror.Append(finalError, err)
-		if !force {
-			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-			return finalError
-		}
+		deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+		return err
 	}
 
 	// Delete events tree corresponding to the deployment TaskExecution
-	err = events.PurgeDeploymentEvents(ctx, deploymentID)
+	err = handleError(finalError, force, func() error {
+		return events.PurgeDeploymentEvents(ctx, deploymentID)
+	})
 	if err != nil {
-		finalError = multierror.Append(finalError, err)
-		if !force {
-			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-			return finalError
-		}
+		deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+		return err
 	}
 	// Delete logs tree corresponding to the deployment
-	err = events.PurgeDeploymentLogs(ctx, deploymentID)
+	err = handleError(finalError, force, func() error {
+		return events.PurgeDeploymentLogs(ctx, deploymentID)
+	})
 	if err != nil {
-		finalError = multierror.Append(finalError, err)
-		if !force {
-			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-			return finalError
-		}
+		deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+		return err
 	}
 	// Remove the working directory of the current target deployment
 	overlayPath := filepath.Join(filepathWorkingDirectory, "deployments", deploymentID)
-	err = os.RemoveAll(overlayPath)
+	err = handleError(finalError, force, func() error {
+		err := os.RemoveAll(overlayPath)
+		return errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
+	})
 	if err != nil {
-		err = errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
-		finalError = multierror.Append(finalError, err)
-		if !force {
-			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-			return finalError
-		}
+		deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+		return err
 	}
 
-	err = deployments.DeleteDeployment(ctx, deploymentID)
+	err = handleError(finalError, force, func() error {
+		return deployments.DeleteDeployment(ctx, deploymentID)
+	})
 	if err != nil {
-		finalError = multierror.Append(finalError, err)
-		if !force {
-			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
-			return finalError
-		}
+		deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+		return err
+	}
+
+	// Ensure this is effectively deleted in case of force (may not be the case de store deployment deletion fails in previous function)
+	err = handleError(finalError, force, func() error {
+		return consulutil.Delete(path.Join(consulutil.DeploymentKVPrefix, deploymentID)+"/", true)
+	})
+	if err != nil {
+		deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+		return err
 	}
 
 	return finalError.ErrorOrNil()
