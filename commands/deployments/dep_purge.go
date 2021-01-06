@@ -16,11 +16,14 @@ package deployments
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -42,18 +45,18 @@ A purge may be run in force mode. In this mode Yorc does not check if the deploy
 UNDEPLOYED status or even if the deployment exist. Moreover, in force mode the purge process
 doesn't fail-fast and try to delete as much as it can. An report with encountered errors is
 produced at the end of the process.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
-			}
-
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
 			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
 			deploymentID := args[0]
 
-			return postPurgeRequest(client, deploymentID, force)
+			err = postPurgeRequest(client, deploymentID, force)
+			if err != nil {
+				os.Exit(1)
+			}
 
 		},
 	}
@@ -88,6 +91,17 @@ func postPurgeRequest(client httputil.HTTPClient, deploymentID string, force boo
 	var errs rest.Errors
 	bodyContent, _ := ioutil.ReadAll(response.Body)
 	json.Unmarshal(bodyContent, &errs)
+
+	if len(errs.Errors) > 0 {
+		var err *multierror.Error
+		fmt.Println("Got errors on purge:")
+		for _, e := range errs.Errors {
+			fmt.Printf("  * Error: %s: %s\n", e.Title, e.Detail)
+			multierror.Append(err, e)
+		}
+
+		return err
+	}
 
 	return nil
 }
