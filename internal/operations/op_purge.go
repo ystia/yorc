@@ -30,41 +30,21 @@ import (
 	"github.com/ystia/yorc/v4/tasks"
 )
 
-// PurgeDeployment allows to completely remove references of a deployment within yorc
-//
-// Forced purge do not stop on errors and try to delete the maximum of elements while normal purge stops on the first error.
-// The error returned by this function may be multi-evaluated use the standard errors.Unwrap method to access individual errors.
-//
-// ignoreTasks allows to prevent removing a given list of tasks this is particularly useful when calling it within a task.
-// This option will probably be transitory for Yorc 4.x before switching to a full synchronous purge model
-func PurgeDeployment(ctx context.Context, deploymentID, filepathWorkingDirectory string, force bool, ignoreTasks ...string) error {
-
-	var finalError *multierror.Error
-
-	if !force {
-		status, err := deployments.GetDeploymentStatus(ctx, deploymentID)
-		if err != nil {
-			finalError = multierror.Append(finalError, err)
-			return finalError
-		}
-		if status != deployments.UNDEPLOYED {
-			finalError = multierror.Append(finalError, errors.Errorf("can't purge a deployment not in %q state, actual status is %q", deployments.UNDEPLOYED, status))
-			return finalError
-		}
-	}
-
-	// Set status to PURGE_IN_PROGRESS
-	err := deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_IN_PROGRESS)
+func purgePreChecks(ctx context.Context, deploymentID string) error {
+	status, err := deployments.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
-		if !force {
-			finalError = multierror.Append(finalError, err)
-			return finalError
-		}
-		// In force mode this error could be ignored
+		return err
 	}
+	if status != deployments.UNDEPLOYED {
+		return errors.Errorf("can't purge a deployment not in %q state, actual status is %q", deployments.UNDEPLOYED, status)
+	}
+	return nil
+}
 
+func purgeTasks(ctx context.Context, deploymentID string, force bool, ignoreTasks ...string) error {
+	var finalError *multierror.Error
 	kv := consulutil.GetKV()
-	// Remove from KV all tasks from the current target deployment, except this purge task
+	// Remove from KV all tasks from the current target deployment, except ignoredTasks tasks (generally the purge task when done asynchronously)
 	tasksList, err := deployments.GetDeploymentTaskList(ctx, deploymentID)
 	if err != nil {
 		finalError = multierror.Append(finalError, err)
@@ -94,6 +74,47 @@ func PurgeDeployment(ctx context.Context, deploymentID, filepathWorkingDirectory
 			}
 		}
 	}
+	return nil
+}
+
+// PurgeDeployment allows to completely remove references of a deployment within yorc
+//
+// Forced purge do not stop on errors and try to delete the maximum of elements while normal purge stops on the first error.
+// The error returned by this function may be multi-evaluated use the standard errors.Unwrap method to access individual errors.
+//
+// ignoreTasks allows to prevent removing a given list of tasks this is particularly useful when calling it within a task.
+// This option will probably be transitory for Yorc 4.x before switching to a full synchronous purge model
+func PurgeDeployment(ctx context.Context, deploymentID, filepathWorkingDirectory string, force bool, ignoreTasks ...string) error {
+
+	var finalError *multierror.Error
+
+	if !force {
+		err := purgePreChecks(ctx, deploymentID)
+		if err != nil {
+			finalError = multierror.Append(finalError, err)
+			return finalError
+		}
+	}
+
+	// Set status to PURGE_IN_PROGRESS
+	err := deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_IN_PROGRESS)
+	if err != nil {
+		if !force {
+			finalError = multierror.Append(finalError, err)
+			return finalError
+		}
+		// In force mode this error could be ignored
+	}
+
+	err = purgeTasks(ctx, deploymentID, force, ignoreTasks...)
+	if err != nil {
+		finalError = multierror.Append(finalError, err)
+		if !force {
+			deployments.SetDeploymentStatus(ctx, deploymentID, deployments.PURGE_FAILED)
+			return finalError
+		}
+	}
+
 	// Delete events tree corresponding to the deployment TaskExecution
 	err = events.PurgeDeploymentEvents(ctx, deploymentID)
 	if err != nil {
