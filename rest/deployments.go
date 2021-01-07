@@ -409,7 +409,8 @@ func (s *Server) purgeDeploymentHandler(w http.ResponseWriter, r *http.Request) 
 	errs := new(Errors)
 	forcePurge, err := getBoolQueryParam(r, "force")
 	if err != nil {
-		log.Panic(err)
+		writeError(w, r, newBadRequestMessage("force query parameter must be a boolean value"))
+		return
 	}
 	err = operations.PurgeDeployment(ctx, deploymentID, s.config.WorkingDirectory, forcePurge)
 	if err != nil {
