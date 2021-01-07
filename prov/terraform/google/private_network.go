@@ -39,7 +39,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 	if nodeType != "yorc.nodes.google.PrivateNetwork" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, "0")
 	privateNetwork := &PrivateNetwork{}
 
 	stringParams := []struct {
@@ -109,7 +109,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
 	subnet := &SubNetwork{}
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, "0")
 
 	var err error
 	strParams := []struct {
