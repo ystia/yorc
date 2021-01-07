@@ -426,6 +426,8 @@ func (s *Server) purgeDeploymentHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	if len(errs.Errors) > 0 {
 		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 	encodeJSONResponse(w, r, errs)
 }
