@@ -41,6 +41,7 @@ import (
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/ziputil"
 	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/collector"
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
 
@@ -446,6 +447,7 @@ func testPurgeDeploymentHandler(t *testing.T, client *api.Client, cfg config.Con
 			deploymentID := tt.name
 			prepareTest(t, deploymentID, client, srv)
 			err := deployments.SetDeploymentStatus(context.Background(), deploymentID, tt.depStatus)
+			collector.NewCollector(client).RegisterTask(deploymentID, tasks.TaskTypeDeploy)
 			require.NoError(t, err)
 			req := httptest.NewRequest("POST", "/deployments/"+deploymentID+"/purge", nil)
 			req.Header.Add("Accept", "application/json")
