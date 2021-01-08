@@ -447,6 +447,7 @@ func testPurgeDeploymentHandler(t *testing.T, client *api.Client, cfg config.Con
 			deploymentID := tt.name
 			prepareTest(t, deploymentID, client, srv)
 			err := deployments.SetDeploymentStatus(context.Background(), deploymentID, tt.depStatus)
+			require.NoError(t, err)
 			_, err = collector.NewCollector(client).RegisterTaskWithData(deploymentID, tasks.TaskTypeDeploy, map[string]string{"workflowName": "install"})
 			require.NoError(t, err)
 			req := httptest.NewRequest("POST", "/deployments/"+deploymentID+"/purge", nil)

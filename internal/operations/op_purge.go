@@ -45,25 +45,24 @@ func purgeTasks(ctx context.Context, deploymentID string, force bool, ignoreTask
 	var finalError *multierror.Error
 	// Remove from KV all tasks from the current target deployment, except ignoredTasks tasks (generally the purge task when done asynchronously)
 	tasksList, err := deployments.GetDeploymentTaskList(ctx, deploymentID)
-	if err != nil {
-		finalError = multierror.Append(finalError, err)
-	}
+	finalError = multierror.Append(finalError, err)
 	for _, tid := range tasksList {
 
 		if collections.ContainsString(ignoreTasks, tid) {
 			continue
 		}
-
-		finalError = multierror.Append(finalError, tasks.DeleteTask(tid))
-
-		finalError = multierror.Append(finalError, consulutil.Delete(path.Join(consulutil.WorkflowsPrefix, tid)+"/", true))
+		err = tasks.DeleteTask(tid)
+		finalError = multierror.Append(finalError, err)
+		err = consulutil.Delete(path.Join(consulutil.WorkflowsPrefix, tid)+"/", true)
+		finalError = multierror.Append(finalError, err)
 
 	}
 	return finalError.ErrorOrNil()
 }
 
 func handleError(merr *multierror.Error, continueOnError bool, f func() error) error {
-	multierror.Append(merr, f())
+	err := f()
+	multierror.Append(merr, err)
 	if continueOnError {
 		return nil
 	}
