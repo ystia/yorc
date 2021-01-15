@@ -424,6 +424,7 @@ func (s *Server) purgeDeploymentHandler(w http.ResponseWriter, r *http.Request) 
 		}
 
 	}
+	w.Header().Set("Content-Type", mimeTypeApplicationJSON)
 	if len(errs.Errors) > 0 {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
