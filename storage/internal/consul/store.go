@@ -127,13 +127,14 @@ func (c *consulStore) List(ctx context.Context, k string, waitIndex uint64, time
 		if err := c.codec.Unmarshal(kvp.Value, &value); err != nil {
 			return nil, 0, errors.Wrapf(err, "failed to unmarshal stored value: %q", string(kvp.Value))
 		}
-
-		values = append(values, store.KeyValueOut{
-			Key:             kvp.Key,
-			LastModifyIndex: kvp.ModifyIndex,
-			Value:           value,
-			RawValue:        kvp.Value,
-		})
+		if kvp.ModifyIndex > waitIndex {
+			values = append(values, store.KeyValueOut{
+				Key:             kvp.Key,
+				LastModifyIndex: kvp.ModifyIndex,
+				Value:           value,
+				RawValue:        kvp.Value,
+			})
+		}
 	}
 	return values, qm.LastIndex, nil
 }

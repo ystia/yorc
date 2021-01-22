@@ -41,11 +41,12 @@ var _LogLevelMap = map[LogLevel]string{
 	3: _LogLevelName[13:18],
 }
 
-func (i LogLevel) String() string {
-	if str, ok := _LogLevelMap[i]; ok {
+// String implements the Stringer interface.
+func (x LogLevel) String() string {
+	if str, ok := _LogLevelMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("LogLevel(%d)", i)
+	return fmt.Sprintf("LogLevel(%d)", x)
 }
 
 var _LogLevelValue = map[string]LogLevel{
@@ -58,7 +59,7 @@ var _LogLevelValue = map[string]LogLevel{
 // ParseLogLevel attempts to convert a string to a LogLevel
 func ParseLogLevel(name string) (LogLevel, error) {
 	if x, ok := _LogLevelValue[name]; ok {
-		return LogLevel(x), nil
+		return x, nil
 	}
 	return LogLevel(0), fmt.Errorf("%s is not a valid LogLevel", name)
 }

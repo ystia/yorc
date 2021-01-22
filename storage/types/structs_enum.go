@@ -39,6 +39,7 @@ var _StoreTypeNames = []string{
 	_StoreTypeName[13:18],
 }
 
+// StoreTypeNames returns a list of possible string values of StoreType.
 func StoreTypeNames() []string {
 	tmp := make([]string, len(_StoreTypeNames))
 	copy(tmp, _StoreTypeNames)
@@ -51,11 +52,12 @@ var _StoreTypeMap = map[StoreType]string{
 	2: _StoreTypeName[13:18],
 }
 
-func (i StoreType) String() string {
-	if str, ok := _StoreTypeMap[i]; ok {
+// String implements the Stringer interface.
+func (x StoreType) String() string {
+	if str, ok := _StoreTypeMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("StoreType(%d)", i)
+	return fmt.Sprintf("StoreType(%d)", x)
 }
 
 var _StoreTypeValue = map[string]StoreType{
@@ -67,7 +69,7 @@ var _StoreTypeValue = map[string]StoreType{
 // ParseStoreType attempts to convert a string to a StoreType
 func ParseStoreType(name string) (StoreType, error) {
 	if x, ok := _StoreTypeValue[name]; ok {
-		return StoreType(x), nil
+		return x, nil
 	}
 	return StoreType(0), fmt.Errorf("%s is not a valid StoreType, try [%s]", name, strings.Join(_StoreTypeNames, ", "))
 }

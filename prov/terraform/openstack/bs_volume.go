@@ -83,7 +83,7 @@ func computeBootVolume(ctx context.Context, deploymentID, nodeName string) (*Boo
 		return nil, err
 	}
 
-	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, deleteOnTerminationTOSCAKey}
+	keys := []string{uuidTOSCAKey, destinationTOSCAKey, sizeTOSCAKey, volumeTypeTOSCAKey, deleteOnTerminationTOSCAKey}
 	strValues := make(map[string]string, len(keys))
 	for _, key := range keys {
 		strValues[key], err = deployments.GetStringNodePropertyValue(ctx, deploymentID, nodeName, bootVolumeTOSCAAttr, key)
@@ -94,6 +94,8 @@ func computeBootVolume(ctx context.Context, deploymentID, nodeName string) (*Boo
 
 	vol.UUID = strValues[uuidTOSCAKey]
 	vol.Destination = strValues[destinationTOSCAKey]
+	vol.VolumeType = strValues[volumeTypeTOSCAKey]
+
 	if strValues[sizeTOSCAKey] != "" {
 		vol.Size, err = sizeutil.ConvertToGB(strValues[sizeTOSCAKey])
 		if err != nil {

@@ -422,6 +422,11 @@ func installDependencies(workingDirectoryPath string) error {
 		return err
 	}
 
+	// Install paramiko
+	if err := installParamiko(); err != nil {
+		return err
+	}
+
 	// Download Consul
 	overwrite := (previousBootstrapVersion.Consul != consulVersion)
 	if err := downloadUnzip(inputValues.Consul.DownloadURL, "consul.zip", workingDirectoryPath, overwrite); err != nil {
@@ -534,12 +539,41 @@ func installAnsible(version string) error {
 			fmt.Printf("Not installing ansible module as installed version %s >= needed version %s\n",
 				installedVersion, version)
 			return nil
+		} else {
+			noUpgradeVersion, _ := semver.Make("2.10.0")
+			if installedSemanticVersion.LT(noUpgradeVersion) {
+				fmt.Printf("No ansible upgrade possible from %s to %s, uninstalling %s first\n",
+					installedVersion, version, installedVersion)
+				cmd := exec.Command(pipCmd, "uninstall", "ansible")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				err = cmd.Run()
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 	}
 
 	// Installing ansible
 	cmd := exec.Command(pipCmd, "install", "--upgrade", "ansible=="+version)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	return err
+}
+
+// installParamiko installs Paramiko needed when openSSH is not used
+// Install using pip3 if available else using pip
+func installParamiko() error {
+	pipCmd, err := getPipCmd()
+	if err != nil {
+		return err
+	}
+
+	// Installing ansible
+	cmd := exec.Command(pipCmd, "install", "--upgrade", "paramiko")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()

@@ -214,6 +214,14 @@ Globals Command-line options
 
   * ``--ssh_connection_timeout``: Timeout to establish SSH connection from Yorc SSH client, especially used for Slurm and HostsPool locations. If not set the default value of `10 s` will be used.
 
+.. _option_ssh_connection_retry_backoff_cmd:
+
+  * ``--ssh_connection_retry_backoff``: Backoff duration before retrying an ssh connection. This may be superseded by a location attribute if supported. (default 1s)
+
+.. _option_ssh_connection_max_retries_cmd:
+
+  * ``--ssh_connection_max_retries``: Maximum number of retries (attempts are retries + 1) before giving-up to connect. This may be superseded by a location attribute if supported. (default 3)
+
 
 .. _yorc_config_file_section:
 
@@ -316,6 +324,14 @@ Below is an example of configuration file with TLS enabled.
 .. _option_ssh_connection_timeout_cfg:
 
   * ``ssh_connection_timeout``: Equivalent to :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>` command-line flag.
+
+.. _option_ssh_connection_retry_backoff_cfg:
+
+  * ``ssh_ssh_connection_retry_backoff``: Equivalent to :ref:`--ssh_ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` command-line flag.
+
+.. _option_ssh_connection_max_retries_cfg:
+
+  * ``ssh_connection_max_retries``: Equivalent to :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -489,7 +505,7 @@ can be any parameter specific to your ansible playbooks, or `behavioral inventor
 parameters <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#list-of-behavioral-inventory-parameters>`_
 describing how Ansible interacts with remote hosts.
 
-For example, for Ansible to use python3 on remote hosts, you must define
+For example, for Ansible to use a given python interpreter on target hosts, you must define
 the Ansible behavioral inventory parameter ``ansible_python_interpreter``
 in the Ansible inventory Yorc configuration, like below in Yaml:
 
@@ -503,16 +519,11 @@ in the Ansible inventory Yorc configuration, like below in Yaml:
 By default, the Orchestrator will define :
 
   * an inventory group ``target_hosts`` containing the list of remote hosts, and its
-    associated variable group ``target_hosts:vars`` configuring by default this
-    behavioral parameter:
+    associated variable group ``target_hosts:vars`` configuring by default these
+    behavioral parameters:
 
     * ``ansible_ssh_common_args="-o ConnectionAttempts=20"``
-
-  * an inventory group ``hosted_operations``  and its associated variable group ``hosted_operations:vars``
-    for operations that are executed on the orchestrator host, configuring by default
-    this behavioral parameter:
-
-    * ``ansible_python_interpreter=/usr/bin/env python``
+    * ``ansible_python_interpreter="auto_silent"``
 
 .. warning::
     Settings defined by the user take precedence over settings defined by the
@@ -875,6 +886,14 @@ Environment variables
 
   * ``YORC_SSH_CONNECTION_TIMEOUT``: Equivalent to :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>` command-line flag.
 
+.. _option_ssh_connection_retry_backoff_env:
+
+  * ``YORC_SSH_CONNECTION_RETRY_BACKOFF``: Equivalent to :ref:`--ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` command-line flag.
+
+.. _option_ssh_connection_max_retries_env:
+
+  * ``YORC_SSH_CONNECTION_MAX_RETRIES``: Equivalent to :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>` command-line flag.
+
 .. _option_log_env:
 
   * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
@@ -1109,28 +1128,40 @@ Slurm
 
 Slurm location type is ``slurm`` in lower case.
 
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-|     Property Name                |                          Description                             | Data Type |                     Required                      | Default |
-|                                  |                                                                  |           |                                                   |         |
-+==================================+==================================================================+===========+===================================================+=========+
-| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes (see below for alternatives)                  |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``password``                     | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``private_key``                  | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``url``                          | IP address of the Slurm Client's node                            | string    | yes                                               |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``port``                         | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``default_job_name``             | Default name for the job allocation.                             | string    | no                                                |         |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                | string    | no                                                |   5s    |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``enforce_accounting``           | If true, account properties are mandatory for jobs and computes  | boolean   | no                                                |  false  |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``keep_job_remote_artifacts``    | If true, job artifacts are not deleted at the end of the job.    | boolean   | no                                                |  false  |
-+----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+|          Property Name           |                                   Description                                   | Data Type |                     Required                      | Default |
+|                                  |                                                                                 |           |                                                   |         |
++==================================+=================================================================================+===========+===================================================+=========+
+| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node                   | string    | yes (see below for alternatives)                  |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``password``                     | SSH Password to be used to connect to the Slurm Client's node                   | string    | Either this or ``private_key`` should be provided |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``private_key``                  | SSH Private key to be used to connect to the Slurm Client's node                | string    | Either this or ``password`` should be provided    |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``url``                          | IP address of the Slurm Client's node                                           | string    | yes                                               |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``port``                         | SSH Port to be used to connect to the Slurm Client's node                       | string    | yes                                               |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``default_job_name``             | Default name for the job allocation.                                            | string    | no                                                |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                               | string    | no                                                | 5s      |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``enforce_accounting``           | If true, account properties are mandatory for jobs and computes                 | boolean   | no                                                | false   |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``keep_job_remote_artifacts``    | If true, job artifacts are not deleted at the end of the job.                   | boolean   | no                                                | false   |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``ssh_connection_timeout``       | Allow to supersede                                                              | Duration  | no                                                | false   |
+|                                  | :ref:`--ssh_connection_timeout <option_ssh_connection_timeout_cmd>`             |           |                                                   |         |
+|                                  | global server option for this specific location.                                |           |                                                   |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``ssh_connection_retry_backoff`` | Allow to supersede                                                              | Duration  | no                                                | false   |
+|                                  | :ref:`--ssh_connection_retry_backoff <option_ssh_connection_retry_backoff_cmd>` |           |                                                   |         |
+|                                  | global server option for this specific location.                                |           |                                                   |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``ssh_connection_max_retries``   | Allow to supersede                                                              | uint64    | no                                                | false   |
+|                                  | :ref:`--ssh_connection_max_retries <option_ssh_connection_max_retries_cmd>`     |           |                                                   |         |
+|                                  | global server option for this specific location.                                |           |                                                   |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 An alternative way to specify user credentials for SSH connection to the Slurm Client's node (user_name, password or private_key), is to provide them as application properties.
 In this case, Yorc gives priority to the application provided properties.
@@ -1144,7 +1175,7 @@ Storage configuration
 
 Different artifacts (topologies, logs, events, tasks...) are stored by Yorc during an application deployment.
 
-Previously, everything was stored in Consul KV. 
+Previously, everything was stored in Consul KV.
 Starting with version 4.0.0, we choosed to refactor the way Yorc stores data mainly for performance reasons, and also to make it more flexible.
 Yorc can now store the different kind of artifacts in different ``stores`` configured in a new section of the configuration file called ``storage``.
 
@@ -1172,10 +1203,13 @@ Currently Yorc supports 3 store ``types``:
   * ``Log``
   * ``Event``
 
-Yorc supports 3 store ``implementations``:
+Yorc supports 5 store ``implementations``:
   * ``consul``
+  * ``file``
+  * ``cipherFile``
   * ``fileCache``
   * ``cipherFileCache``
+  * ``elastic`` (experimental)
 
 By default, ``Log`` and ``Event`` store types use ``consul`` implementation, and ``Deployment`` store uses ``fileCache``.
 
@@ -1232,7 +1266,7 @@ A store configuration is defined with:
 | ``properties``                   | Specific store implementation properties.                        | map       | no               |                 |
 +----------------------------------+------------------------------------------------------------------+-----------+------------------+-----------------+
 
-``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation. 
+``migrate_data_from_consul`` allows to migrate data from ``consul`` to another store implementation.
 This is useful when a new store is configured (different from consul...) for logs or events.
 
 
@@ -1253,17 +1287,21 @@ Log
 
 Store that contains the applicative logs, also present in Alien4Cloud logs. ``consul`` is the default implementation for this store type.
 
-If you face some Consul memory usage issues, you can choose ``fileCache`` or ``cipherFileCache`` as logs may contains private information.
+If you face some Consul memory usage issues, you can choose ``file`` or ``cipherFile`` as logs may contains private information.
+
+Cache is not useful for this kind of data as we use blocking queries and modification index to retrieve it.
 
 Event
 ^^^^^
 
 Store that contains the applicative events, also present in Alien4Cloud events. ``consul`` is the default implementation for this store type.
+Same remarks as for Log as it's same kind of data and usage.
 
 Store implementations
 ~~~~~~~~~~~~~~~~~~~~~
 
-Currently Yorc provide 3 implementations with the following names:
+Currently Yorc provide 5 implementations (in fact 2 real ones with combinations around file) described below but you're welcome to contribute and bring your own implementation, you just need to implement the Store interface
+See `Storage interface  <https://github.com/ystia/yorc/blob/develop/storage/store/store.go>`_.
 
 consul
 ^^^^^^
@@ -1271,37 +1309,31 @@ consul
 This is the Consul KV store used by Yorc for main internal storage stuff. For example, the configuration of the stores is kept in the Consul KV.
 As Consul is already configurable here: :ref:`Consul configuration<yorc_config_file_consul_section>`, no other configuration is provided in this section.
 
-fileCache
-^^^^^^^^^
+file
+^^^^
 
-This is a file store with a cache system.
+This is a file store without cache system. It can be used for logs and events as this data is retrieved via blocking queries and modification index which can be used with a cache system.
 
 Here are specific properties for this implementation:
 
-.. _storage_file_cache_props:
+.. _storage_file_props:
 
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                   |           Description                              | Data Type |   Required       | Default         |
 +=====================================+====================================================+===========+==================+=================+
 | ``root_dir``                        | Root directory used for file storage               | string    | no               |   work/store    |
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e5 (100 000) |
-+-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |   1e7 (10 M)    |
-+-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
-+-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``blocking_query_default_timeout``  | default timeout for blocking queries               | string    | no               |   5m (5 minutes)|
 +-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``concurrency_limit``               | Limit for concurrent operations                    | integer   | no               |   1000          |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 
-For more information on cache properties, you can refer to `Ristretto README  <https://github.com/dgraph-io/ristretto>`_
+cipherFile
+^^^^^^^^^^
 
-cipherFileCache
-^^^^^^^^^^^^^^^
+This is a file store with file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
 
-This is a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
-
-Here are specific properties for this implementation in addition to ``fileCache`` properties:
+Here are specific properties for this implementation in addition to ``file`` properties:
 
 +----------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 |     Property Name                |           Description                              | Data Type |   Required       | Default         |
@@ -1314,7 +1346,7 @@ Here are specific properties for this implementation in addition to ``fileCache`
 ``Passphrase`` can be set with ``Secret function`` and retrieved from Vault as explained in the Vault integration chapter.
 
 
-Here is a JSON example of stores configuration with a cipherFileStore implementation for logs.
+Here is a JSON example of stores configuration with a cipherFile store implementation for logs.
 
 .. code-block:: JSON
 
@@ -1324,7 +1356,7 @@ Here is a JSON example of stores configuration with a cipherFileStore implementa
     "stores": [
       {
         "name": "myCipherFileStore",
-        "implementation": "cipherFileCache",
+        "implementation": "cipherFile",
         "migrate_data_from_consul": true,
         "types":  ["Log"],
         "properties": {
@@ -1343,13 +1375,40 @@ The same sample in YAML
       reset: false
       stores:
       - name: myCipherFileStore
-        implementation: cipherFileCache
+        implementation: cipherFile
         migrate_data_from_consul: true
         types:
         - Log
         properties:
           root_dir: "/mypath/to/store"
           passphrase: "myverystrongpasswordo32bitlength"
+
+fileCache
+^^^^^^^^^
+
+This is a file store with a cache system.
+
+Here are specific properties for this implementation:
+
+.. _storage_file_cache_props:
+
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name                   |           Description                              | Data Type |   Required       | Default         |
++=====================================+====================================================+===========+==================+=================+
+| ``cache_num_counters``              | number of keys to track frequency of               | int64     | no               |   1e5 (100 000) |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_max_cost``                  | maximum cost of cache                              | int64     | no               |   1e7 (10 M)    |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cache_buffer_items``              | number of keys per Get buffer                      | int64     | no               |   64            |
++-------------------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
+For more information on cache properties, you can refer to `Ristretto README  <https://github.com/dgraph-io/ristretto>`_
+
+cipherFileCache
+^^^^^^^^^^^^^^^
+
+This is a file store with a cache system and file data encryption (AES-256 bits key) which requires a 32-bits length passphrase.
+
 
 .. _storage_reset_note:
 
@@ -1361,6 +1420,61 @@ Stores configuration is saved once when Yorc server starts. If you want to re-in
 If no storage configuration is set, default stores implementations are used as defined previously to handle all store types (``Deployment``, ``Log`` and ``Event``).
 
 If any storage configuration is set with partial stores types, the missing store types will be added with default implementations.
+
+elastic
+^^^^^^^
+
+This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
+
+.. warning::
+    This storage is only suitable to store logs and events.
+
+ Per Yorc cluster : 1 index for logs, 1 index for events.
+
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+|     Property Name           |           Description                              | Data Type |   Required       | Default         |
++=============================+====================================================+===========+==================+=================+
+| ``es_urls``                 | the ES cluster urls                                | []string  | yes              |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``ca_cert_path``            | path to the PEM encoded CA's certificate file when | string    | no               |                 |
+|                             | TLS is activated for ES                            |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cert_path``               | path to a PEM encoded certificate file when TLS    | string    | no               |                 |
+|                             | is activated for ES                                |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``key_path``                | path to a PEM encoded private key file when TLS    | string    | no               |                 |
+|                             | is activated for ES                                |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   4s            |
+|                             | before each request when it returns nothing (until |           |                  |                 |
+|                             | something is returned or the waitTimeout is        |           |                  |                 |
+|                             | reached)                                           |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``es_refresh_wait_timeout`` | used to wait for more than refresh_interval (1s)   | duration  | no               |   2s            |
+|                             | (until something is returned or the waitTimeout is |           |                  |                 |
+|                             | is reached)                                        |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``es_force_refresh``        | when querying ES, force refresh index before when  | bool      | no               |   false         |
+|                             | waiting for refresh.                               |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``max_bulk_size``           | the maximum size (in kB) of bulk request sent when | int64     | no               |   4000          |
+|                             | while migrating data                               |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``max_bulk_count``          | maximum size (in term of number of documents) when | int64     | no               |   1000          |
+|                             | of bulk request sent while migrating data          |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``cluster_id``              | used to distinguish logs & events in the indexes   | string    | no               |                 |
+|                             | if different yorc cluster are writing in the same  |           |                  |                 |
+|                             | elastic cluster.                                   |           |                  |                 |
+|                             | If not set, the consul.datacenter will be used.    |           |                  |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``trace_requests``          | to print ES requests (for debug only)              | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``trace_events``            | to trace events & logs when sent (for debug only)  | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+
 
 Vault configuration
 -------------------

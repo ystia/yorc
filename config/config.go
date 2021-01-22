@@ -84,6 +84,12 @@ const DefaultUpgradesConcurrencyLimit = 1000
 // DefaultSSHConnectionTimeout is the default timeout for SSH connections
 const DefaultSSHConnectionTimeout = 10 * time.Second
 
+// DefaultSSHConnectionRetryBackoff is the default duration before retring connect for SSH connections
+const DefaultSSHConnectionRetryBackoff = 1 * time.Second
+
+// DefaultSSHConnectionMaxRetries is the default maximum number of retries before giving up (number of attempts is number of retries + 1)
+const DefaultSSHConnectionMaxRetries uint64 = 3
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
@@ -112,6 +118,8 @@ type Configuration struct {
 	Storage                          Storage       `yaml:"storage,omitempty" mapstructure:"storage"`
 	UpgradeConcurrencyLimit          int           `yaml:"concurrency_limit_for_upgrades,omitempty" mapstructure:"concurrency_limit_for_upgrades"`
 	SSHConnectionTimeout             time.Duration `yaml:"ssh_connection_timeout,omitempty" mapstructure:"ssh_connection_timeout"`
+	SSHConnectionRetryBackoff        time.Duration `yaml:"ssh_connection_retry_backoff,omitempty" mapstructure:"ssh_connection_retry_backoff"`
+	SSHConnectionMaxRetries          uint64        `yaml:"ssh_connection_max_retries,omitempty" mapstructure:"ssh_connection_max_retries"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -289,15 +297,57 @@ func (dm DynamicMap) GetInt(name string) int {
 	return cast.ToInt(dm.Get(name))
 }
 
+// GetIntOrDefault returns the value of the given key casted into an int.
+// The given default value is returned if not found.
+func (dm DynamicMap) GetIntOrDefault(name string, defaultValue int) int {
+	if !dm.IsSet(name) {
+		return defaultValue
+	}
+	return cast.ToInt(dm.Get(name))
+}
+
+// GetInt64OrDefault returns the value of the given key casted into an int64.
+// The given default value is returned if not found.
+func (dm DynamicMap) GetInt64OrDefault(name string, defaultValue int64) int64 {
+	if !dm.IsSet(name) {
+		return defaultValue
+	}
+	return cast.ToInt64(dm.Get(name))
+}
+
 // GetInt64 returns the value of the given key casted into an int64.
 // 0 is returned if not found.
 func (dm DynamicMap) GetInt64(name string) int64 {
 	return cast.ToInt64(dm.Get(name))
 }
 
+// GetUint64OrDefault returns the value of the given key casted into an uint64.
+// The given default value is returned if not found.
+func (dm DynamicMap) GetUint64OrDefault(name string, defaultValue uint64) uint64 {
+	if !dm.IsSet(name) {
+		return defaultValue
+	}
+	return cast.ToUint64(dm.Get(name))
+}
+
+// GetUint64 returns the value of the given key casted into an uint64.
+// 0 is returned if not found.
+func (dm DynamicMap) GetUint64(name string) uint64 {
+	return cast.ToUint64(dm.Get(name))
+}
+
 // GetDuration returns the value of the given key casted into a Duration.
 // A 0 duration is returned if not found.
 func (dm DynamicMap) GetDuration(name string) time.Duration {
+	return cast.ToDuration(dm.Get(name))
+}
+
+// GetDurationOrDefault returns the value of the given key casted into a Duration.
+// The given default value is returned if not found.
+func (dm DynamicMap) GetDurationOrDefault(name string, defaultValue time.Duration) time.Duration {
+	if !dm.IsSet(name) {
+		return defaultValue
+	}
 	return cast.ToDuration(dm.Get(name))
 }
 

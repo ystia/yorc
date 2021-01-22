@@ -17,12 +17,13 @@ package google
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	"path"
 	"testing"
+
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -84,6 +85,8 @@ func testSimpleComputeInstance(t *testing.T, cfg config.Configuration) {
 
 	assert.Equal(t, []string{"tag1", "tag2"}, compute.Tags)
 	assert.Equal(t, map[string]string{"key1": "value1", "key2": "value2"}, compute.Labels)
+
+	assert.Equal(t, map[string]string{"enable-oslogin": "false", "ssh-keys": "testuser:ecdsa-sha2-nistp256 AAAAE2VjZH/LlTXfXIr+N= test.user@name.org"}, compute.Metadata)
 
 	require.Contains(t, infrastructure.Resource, "null_resource")
 	require.Len(t, infrastructure.Resource["null_resource"], 1)

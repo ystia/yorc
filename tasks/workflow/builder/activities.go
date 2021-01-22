@@ -18,12 +18,15 @@ import "github.com/ystia/yorc/v4/tosca"
 
 //go:generate go-enum -f=activities.go --lower
 
-// ActivityType x ENUM(
-// delegate
-// set-state
-// call-operation
-// inline
-// )
+// ActivityType is an enumerated type for step activities
+/*
+ENUM(
+delegate
+set-state
+call-operation
+inline
+)
+*/
 type ActivityType int
 
 // An Activity is the representation of a workflow activity

@@ -17,20 +17,19 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"path"
 	"strings"
 	"time"
-
-	"github.com/ystia/yorc/v4/helper/collections"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/v4/events"
+	"github.com/ystia/yorc/v4/helper/collections"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
 )
 
 const purgedDeploymentsLock = consulutil.PurgedDeploymentKVPrefix + ".lock"
@@ -278,4 +277,32 @@ func DeleteDeployment(ctx context.Context, deploymentID string) error {
 	}
 	// Remove from KV
 	return consulutil.Delete(deploymentKeyPath, true)
+}
+
+// GetDeploymentTaskList returns the list of tasks ids associated with the given deployment
+func GetDeploymentTaskList(ctx context.Context, deploymentID string) ([]string, error) {
+	keys, err := consulutil.GetKeys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "tasks"))
+	if err != nil {
+		return keys, err
+	}
+	for i := range keys {
+		keys[i] = path.Base(keys[i])
+	}
+	return keys, err
+}
+
+// GetDeploymentsIDs returns the list of deployments IDs
+func GetDeploymentsIDs(ctx context.Context) ([]string, error) {
+
+	depPaths, err := consulutil.GetKeys(consulutil.DeploymentKVPrefix)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	deps := make([]string, 0)
+	for _, depPath := range depPaths {
+		deploymentID := path.Base(depPath)
+		deps = append(deps, deploymentID)
+	}
+	return deps, nil
 }

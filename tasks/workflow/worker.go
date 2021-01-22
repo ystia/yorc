@@ -344,13 +344,25 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		return
 	}
 	defer func() {
-		l, err := acquireRunningExecLock(w.consulClient, action.AsyncOperation.TaskID)
+		log.Debugf("endAction %q, wasCancelled %t, actionErr %v", action.ID, wasCancelled, actionErr)
+		// here we should take care of checking taskID of the async op not the one from the action itself
+		l, e, err := numberOfRunningExecutionsForTask(t.cc, action.AsyncOperation.TaskID)
 		if err != nil {
-
 			return
 		}
 		defer l.Unlock()
+		log.Debugf("Deleting runningExecutions with id %q for task %q", action.ID, action.AsyncOperation.TaskID)
 		w.consulClient.KV().Delete(path.Join(consulutil.TasksPrefix, action.AsyncOperation.TaskID, ".runningExecutions", action.ID), nil)
+		if e <= 1 {
+			log.Debugf("endAction %q, updating task %q status", action.ID, action.AsyncOperation.TaskID)
+			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
+			if err != nil {
+				err = errors.Wrapf(err, "failed to update task %q status according to workflow %s status for deployment %q", action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName, action.AsyncOperation.DeploymentID)
+				log.Printf("%v", err)
+				log.Debugf("%+v", err)
+			}
+		}
+
 	}()
 
 	// Rebuild the original workflow step
@@ -383,8 +395,6 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		time.Now(),
 		taskType,
 	))
-
-	defer updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx, w.consulClient, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
 
 	stepStatus := tasks.TaskStepStatusDONE
 	if wasCancelled {
@@ -630,7 +640,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 	}
 	kv := w.consulClient.KV()
 	// Remove from KV all tasks from the current target deployment, except this purge task
-	tasksList, err := tasks.GetTasksIdsForTarget(t.targetID)
+	tasksList, err := deployments.GetDeploymentTaskList(ctx, t.targetID)
 	if err != nil {
 		return err
 	}

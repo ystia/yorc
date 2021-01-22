@@ -80,6 +80,7 @@ func (t *taskExecution) notifyStart() error {
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	log.Debugf("Storing runningExecutions with id %q for task %q", t.id, t.taskID)
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions", t.id), consulNodeName)
 }
 
@@ -133,22 +134,12 @@ func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consuluti
 		l.Unlock()
 		return nil, 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	log.Debugf("numberOfRunningExecutionsForTask %q: %d", taskID, len(keys))
 	return l, len(keys), nil
 }
 
-func doIfNoMoreOtherExecutions(cc *api.Client, taskID string, f func() error) error {
-	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
-	if err != nil {
-		return err
-	}
-	defer l.Unlock()
-	if e <= 1 && f != nil {
-		return f()
-	}
-	return nil
-}
-
 func (t *taskExecution) notifyEnd() error {
+	log.Debugf("notifyEnd for taskExecution %q", t.id)
 	execPath := path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions")
 	l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
 	if err != nil {
@@ -158,11 +149,13 @@ func (t *taskExecution) notifyEnd() error {
 
 	kv := t.cc.KV()
 	// Delete our execID
+	log.Debugf("Deleting runningExecutions with id %q for task %q", t.id, t.taskID)
 	_, err = kv.Delete(path.Join(execPath, t.id), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if e <= 1 && t.finalFunction != nil {
+		log.Debugf("notifyEnd running finalFunction for taskExecution %q", t.id)
 		return t.finalFunction()
 	}
 	return nil

@@ -15,7 +15,7 @@
 package consulutil
 
 // YorcSchemaVersion is the version of the data schema in Consul understood by this version of Yorc
-const YorcSchemaVersion = "1.3.0"
+const YorcSchemaVersion = "1.3.1"
 
 // YorcSchemaVersionPath is the path where  the data schema version is stored in Consul
 const YorcSchemaVersionPath = yorcPrefix + "/database_schema_version"

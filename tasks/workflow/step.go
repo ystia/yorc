@@ -348,7 +348,8 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 				action.AsyncOperation.WorkflowStepInfo = eventInfo
 				// Register scheduled action for asynchronous execution
 				id, err := scheduling.RegisterAction(w.consulClient, deploymentID, timeInterval, action)
-				log.Debugf("Scheduled action with ID;%q has been registered with timeInterval:%s and ID:%q", action.ID, timeInterval.String(), id)
+				action.ID = id
+				log.Debugf("Scheduled action with ID: %q has been registered with timeInterval: %s", action.ID, timeInterval.String())
 				if err != nil {
 					return err
 				}
@@ -357,6 +358,7 @@ func (s *step) runActivity(wfCtx context.Context, cfg config.Configuration, depl
 					return err
 				}
 				defer l.Unlock()
+				log.Debugf("Storing runningExecutions with id %q for task %q", id, s.t.taskID)
 				return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, s.t.taskID, ".runningExecutions", id), "recurrent action")
 			}()
 		} else {
@@ -401,6 +403,10 @@ func (s *step) getActivityInputParameters(ctx context.Context, activity builder.
 	wf, err := deployments.GetWorkflow(ctx, deploymentID, workflowName)
 	if err != nil {
 		return nil, err
+	}
+
+	if wf == nil {
+		return nil, errors.Errorf("Can't retrieve inputs for an activity of workflow %q in deployment %q, workflow definition not found", workflowName, deploymentID)
 	}
 
 	for inputName, propDef := range wf.Inputs {

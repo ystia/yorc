@@ -72,6 +72,7 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 			},
 		}
 		ops = append(ops, stepOps...)
+		log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 	}
 	return ops
 }
@@ -86,21 +87,8 @@ func getCallOperationsFromStep(s *step) []string {
 	return ops
 }
 
-func updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx context.Context, cc *api.Client, deploymentID, taskID, workflowName string) error {
-	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
-	if err != nil {
-		return err
-	}
-	defer l.Unlock()
-	if e <= 1 {
-		// we are the latest
-		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, deploymentID, taskID, workflowName)
-		return err
-	}
-	return nil
-}
-
 func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, deploymentID, taskID, workflowName string) (tasks.TaskStatus, error) {
+	log.Debugf("Updating task status according to workflow status. Deployment %q, taskID %q, workflow %q", deploymentID, taskID, workflowName)
 	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(taskID)
 	if err != nil {
 		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)

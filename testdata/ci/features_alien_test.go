@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alien4cloud/alien4cloud-go-client/v2/alien4cloud"
+	"github.com/alien4cloud/alien4cloud-go-client/v3/alien4cloud"
 )
-
 
 const componentsDir = "components"
 
@@ -230,10 +229,10 @@ func (c *suiteContext) iCancelTheLastRunWorkflow() error {
 		return err
 	}
 
-	if wfExec == nil || wfExec.ID == "" {
+	if wfExec == nil || wfExec.Execution.ID == "" {
 		return fmt.Errorf("failed to get last workflow executionID for applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
 	}
-	return c.a4cClient.DeploymentService().CancelExecution(c.ctx, c.environmentID, wfExec.ID )
+	return c.a4cClient.DeploymentService().CancelExecution(c.ctx, c.environmentID, wfExec.Execution.ID)
 }
 
 func (c *suiteContext) theStatusOfTheWorkflowIsFinally(expectedStatus string, wait string) error {
@@ -255,11 +254,11 @@ func (c *suiteContext) theStatusOfTheWorkflowIsFinally(expectedStatus string, wa
 			return err
 		}
 
-		if wfExec == nil || wfExec.Status == "" {
+		if wfExec == nil || wfExec.Execution.Status == "" {
 			return fmt.Errorf("failed to get last workflow status for applicationID: %q or environmentID: %q", c.applicationID, c.environmentID)
 		}
 
-		status = wfExec.Status
+		status = wfExec.Execution.Status
 
 		select {
 		case <-timeAfter:
@@ -270,8 +269,6 @@ func (c *suiteContext) theStatusOfTheWorkflowIsFinally(expectedStatus string, wa
 
 	return nil
 }
-
-
 
 func (c *suiteContext) theStatusOfTheInstanceOfTheNodeNamedIs(instanceName, nodeName, expectedStatus string) error {
 	if c.applicationID == "" || c.environmentID == "" {
@@ -287,7 +284,6 @@ func (c *suiteContext) theStatusOfTheInstanceOfTheNodeNamedIs(instanceName, node
 	}
 	return nil
 }
-
 
 func (c *suiteContext) iHaveBuiltTheArtifactNamedFromTemplatesNamedToAlien(artifactName, templateName string) error {
 	// Check the zip isn't already done
@@ -338,7 +334,7 @@ func (c *suiteContext) getInstanceAttributeValue(nodeName, instance, attribute s
 }
 
 func (c *suiteContext) theAttributeOfTheInstanceOfTheNodeNamedIsEqualToTheAttributeOfTheInstanceOfTheNodeNamed(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2 string) error {
-	return c.compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2,true)
+	return c.compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2, true)
 }
 
 func (c *suiteContext) compareInstanceAttributeValues(attribute1, instance1, nodeName1, attribute2, instance2, nodeName2 string, wantEquals bool) error {
@@ -369,7 +365,7 @@ func (c *suiteContext) iHaveAddedAPolicyNamedOfTypeOnTargets(policyName, policyT
 		EnvID: c.environmentID,
 	}
 
-	err := c.a4cClient.TopologyService().AddPolicy(c.ctx,a4cCtx, policyName, policyType)
+	err := c.a4cClient.TopologyService().AddPolicy(c.ctx, a4cCtx, policyName, policyType)
 	if err != nil {
 		return fmt.Errorf("failed to add policy with name:%q due to error:%v", policyName, err)
 	}
@@ -400,4 +396,3 @@ func (c *suiteContext) theAttributeOfTheInstanceOfTheNodeNamedIsEqualTo(attribut
 	}
 	return nil
 }
-
