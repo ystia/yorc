@@ -31,6 +31,7 @@
 
 ### BUG FIXES
 
+* Error when storing runtime attributes of google subnet ([GH-712](https://github.com/ystia/yorc/issues/712))
 * Bootstrap fails on hosts where a version of ansible < 2.10.0 is installed ([GH-695](https://github.com/ystia/yorc/issues/695))
 * Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
 * Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
