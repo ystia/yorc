@@ -42,6 +42,8 @@ func TestConsul(t *testing.T) {
 	t.Run("groupInternalOperations", func(t *testing.T) {
 		testPurgeTasks(t, srv, client)
 		testPurgeDeployment(t, cfg, srv, client)
+		testPurgeDeploymentPreChecks(t, cfg, srv, client)
+		testEnsurePurgeFailedStatus(t, cfg, srv, client)
 	})
 
 }

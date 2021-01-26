@@ -145,17 +145,17 @@ func testRunPurgeFails(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	require.NoError(t, err)
 	require.Equal(t, tasks.TaskStatusFAILED, status, "task status not set to failed")
 
-	// Deployment status should be UNDEPLOYMENT_FAILED
+	// Deployment status should stay in DEPLOYED status as pre-purge check failed
 	depStatus, err := deployments.GetDeploymentStatus(context.Background(), myTaskExecution.targetID)
 	require.NoError(t, err)
-	require.Equal(t, deployments.UNDEPLOYMENT_FAILED, depStatus)
+	require.Equal(t, deployments.DEPLOYED, depStatus)
 
 	// One event with value containing "deploymentId":"Test-Env","status":"purged"
 	kvps, _, err := consulutil.GetKV().List(consulutil.EventsPrefix+"/"+deploymentID, nil)
-	require.True(t, len(kvps) == 5)
+	require.Equal(t, 4, len(kvps))
 
 	kvps, _, err = consulutil.GetKV().List(consulutil.PurgedDeploymentKVPrefix+"/"+deploymentID, nil)
-	require.True(t, len(kvps) == 0)
+	require.Equal(t, 0, len(kvps))
 }
 
 func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.Client) {

@@ -616,12 +616,13 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
-	err := iop.PurgeDeployment(ctx, t.targetID, w.cfg.WorkingDirectory, false, t.taskID)
+	err := iop.PurgeDeployment(ctx, t.targetID, w.cfg.WorkingDirectory, false, false, t.taskID)
 	if t.finalFunction == nil {
 		t.finalFunction = func() error {
 			if err != nil {
-				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
-				return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
+				return checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
+				// Deployment status is set within PurgeDeployment()
+				//return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
 			}
 			return nil
 		}

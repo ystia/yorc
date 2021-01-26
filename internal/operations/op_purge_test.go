@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/tasks"
 	"gotest.tools/v3/assert"
@@ -85,24 +86,80 @@ func testPurgeTasks(t *testing.T, srv *testutil.TestServer, client *api.Client) 
 
 func testPurgeDeployment(t *testing.T, cfg config.Configuration, srv *testutil.TestServer, client *api.Client) {
 	type args struct {
-		ctx         context.Context
-		force       bool
-		ignoreTasks []string
+		ctx             context.Context
+		force           bool
+		continueOnError bool
+		ignoreTasks     []string
 	}
 	tests := []struct {
 		name    string
 		args    args
 		wantErr bool
 	}{
-		{"NilContextErrorNoForce", args{ctx: nil, force: false}, true},
-		{"NoErrorForce", args{ctx: context.Background(), force: true}, false},
+		{"NilContextErrorNoForce", args{ctx: nil, force: false, continueOnError: false}, true},
+		{"NoErrorForce", args{ctx: context.Background(), force: true, continueOnError: true}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deploymentID := tt.name
-			if err := PurgeDeployment(tt.args.ctx, deploymentID, cfg.WorkingDirectory, tt.args.force, tt.args.ignoreTasks...); (err != nil) != tt.wantErr {
+			if err := PurgeDeployment(tt.args.ctx, deploymentID, cfg.WorkingDirectory, tt.args.force, tt.args.continueOnError, tt.args.ignoreTasks...); (err != nil) != tt.wantErr {
 				t.Errorf("PurgeDeployment() error = %v, wantErr %v", err, tt.wantErr)
 			}
+		})
+	}
+}
+
+func testPurgeDeploymentPreChecks(t *testing.T, cfg config.Configuration, srv *testutil.TestServer, client *api.Client) {
+
+	tests := []struct {
+		name             string
+		deploymentStatus deployments.DeploymentStatus
+		wantErr          bool
+		errContains      string
+	}{
+		{"NormalCase", deployments.UNDEPLOYED, false, ""},
+		{"NotUndeployedError", deployments.DEPLOYED, true, `can't purge a deployment not in "UNDEPLOYED" state, actual status is "DEPLOYED"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deploymentID := tt.name
+			loadTestYaml(t, deploymentID)
+			err := deployments.SetDeploymentStatus(context.Background(), deploymentID, tt.deploymentStatus)
+			assert.NilError(t, err)
+			err = purgePreChecks(context.Background(), deploymentID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PurgeDeployment() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				assert.ErrorContains(t, err, tt.errContains)
+			}
+
+		})
+	}
+}
+
+func testEnsurePurgeFailedStatus(t *testing.T, cfg config.Configuration, srv *testutil.TestServer, client *api.Client) {
+
+	tests := []struct {
+		name     string
+		storeDep bool
+	}{
+		{"NormalCase", true},
+		{"NotFoundDep", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deploymentID := tt.name
+			ctx := context.Background()
+			if tt.storeDep {
+				loadTestYaml(t, deploymentID)
+			}
+			ensurePurgeFailedStatus(ctx, deploymentID)
+
+			status, err := deployments.GetDeploymentStatus(ctx, deploymentID)
+			assert.NilError(t, err)
+			assert.Equal(t, status, deployments.PURGE_FAILED)
+
 		})
 	}
 }
