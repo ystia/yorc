@@ -10,6 +10,7 @@
 
 ### FEATURES
 
+* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
 * Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
 * [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
 
