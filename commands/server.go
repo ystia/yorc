@@ -261,6 +261,7 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Duration("tasks_dispatcher_long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime, "Wait time when long polling for executions tasks to dispatch to workers")
 	serverCmd.PersistentFlags().Duration("tasks_dispatcher_lock_wait_time", config.DefaultTasksDispatcherLockWaitTime, "Wait time for acquiring a lock for an execution task")
+	serverCmd.PersistentFlags().Duration("tasks_dispatcher_metrics_refresh_time", config.DefaultTasksDispatcherMetricsRefreshTime, "Tasks dispatcher metrics refresh time")
 
 	// Flags definition for Yorc HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -328,6 +329,7 @@ func setConfig() {
 
 	viper.BindPFlag("tasks.dispatcher.long_poll_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_long_poll_wait_time"))
 	viper.BindPFlag("tasks.dispatcher.lock_wait_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_lock_wait_time"))
+	viper.BindPFlag("tasks.dispatcher.metrics_refresh_time", serverCmd.PersistentFlags().Lookup("tasks_dispatcher_metrics_refresh_time"))
 
 	//Bind Flags Yorc HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
@@ -380,6 +382,7 @@ func setConfig() {
 	viper.BindEnv("purged_deployments_eviction_timeout")
 	viper.BindEnv("tasks.dispatcher.long_poll_wait_time")
 	viper.BindEnv("tasks.dispatcher.lock_wait_time")
+	viper.BindEnv("tasks.dispatcher.metrics_refresh_time")
 
 	//Bind Ansible environment variables flags
 	for key := range ansibleConfiguration {
@@ -410,6 +413,7 @@ func setConfig() {
 
 	viper.SetDefault("tasks.dispatcher.long_poll_wait_time", config.DefaultTasksDispatcherLongPollWaitTime)
 	viper.SetDefault("tasks.dispatcher.lock_wait_time", config.DefaultTasksDispatcherLockWaitTime)
+	viper.SetDefault("tasks.dispatcher.metrics_refresh_time", config.DefaultTasksDispatcherMetricsRefreshTime)
 
 	// Consul configuration default settings
 	for key, value := range consulConfiguration {
