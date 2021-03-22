@@ -178,7 +178,7 @@ func doQueryEs(c *elasticsearch6.Client, conf elasticStoreConf,
 		c.Search.WithSort("iid:"+order),
 	)
 	if e != nil {
-		err = errors.Wrapf(e, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
+		err = errors.Wrapf(e, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, e)
 		return
 	}
 	defer closeResponseBody("Search:"+index, res)
