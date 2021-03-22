@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
+
 ## 4.0.4 (October 23, 2020)
 
 ### ENHANCEMENTS
