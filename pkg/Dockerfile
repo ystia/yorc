@@ -22,8 +22,6 @@ RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi
     python3 -m ensurepip --upgrade && \
     if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
     if [ ! -e /usr/bin/python ]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
-    mkdir /tmp/docker && apk fetch -o /tmp/docker docker && \
-    tar xzf /tmp/docker/*.apk -C / usr/bin/docker && \
     pip install ansible==${ANSIBLE_VERSION} docker-py netaddr jmespath && \
     cd /tmp && \
     curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
