@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
+
 ### BUG FIXES
 
 * Yorc panics on ElasticSearch store error ([GH-719](https://github.com/ystia/yorc/issues/719))

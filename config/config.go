@@ -78,6 +78,9 @@ const DefaultTasksDispatcherLongPollWaitTime = 1 * time.Minute
 // DefaultTasksDispatcherLockWaitTime is the default wait time for acquiring a lock for an execution task
 const DefaultTasksDispatcherLockWaitTime = 50 * time.Millisecond
 
+// DefaultTasksDispatcherMetricsRefreshTime is the default refresh time for the Tasks dispatcher metrics
+const DefaultTasksDispatcherMetricsRefreshTime = 5 * time.Minute
+
 // DefaultUpgradesConcurrencyLimit is the default limit of concurrency used in Upgrade processes
 const DefaultUpgradesConcurrencyLimit = 1000
 
@@ -203,8 +206,9 @@ type Tasks struct {
 
 // Dispatcher configuration
 type Dispatcher struct {
-	LongPollWaitTime time.Duration `yaml:"long_poll_wait_time,omitempty" mapstructure:"long_poll_wait_time" json:"long_poll_wait_time,omitempty"`
-	LockWaitTime     time.Duration `yaml:"lock_wait_time,omitempty" mapstructure:"lock_wait_time" json:"lock_wait_time,omitempty"`
+	LongPollWaitTime   time.Duration `yaml:"long_poll_wait_time,omitempty" mapstructure:"long_poll_wait_time" json:"long_poll_wait_time,omitempty"`
+	LockWaitTime       time.Duration `yaml:"lock_wait_time,omitempty" mapstructure:"lock_wait_time" json:"lock_wait_time,omitempty"`
+	MetricsRefreshTime time.Duration `yaml:"metrics_refresh_time,omitempty" mapstructure:"metrics_refresh_time" json:"metrics_refresh_time,omitempty"`
 }
 
 // Storage configuration
