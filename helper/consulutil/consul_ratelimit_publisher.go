@@ -17,11 +17,12 @@ package consulutil
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v4/helper/collections"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ystia/yorc/v4/helper/collections"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -307,6 +308,9 @@ func (cs *consulStore) publishWithoutTx(key string, value []byte, flags uint64) 
 	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
 	consulPub.publish(cs.ctx, func(kv *api.KV) error {
 		_, err := kv.Put(p, nil)
+		if err != nil {
+			log.Printf("Failed to store key %s value %s", key, string(value))
+		}
 		return errors.Wrap(err, ConsulGenericErrMsg)
 	})
 }
