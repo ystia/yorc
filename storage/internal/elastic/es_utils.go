@@ -178,7 +178,7 @@ func doQueryEs(c *elasticsearch6.Client, conf elasticStoreConf,
 		c.Search.WithSort("iid:"+order),
 	)
 	if e != nil {
-		err = errors.Wrapf(err, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
+		err = errors.Wrapf(e, "Failed to perform ES search on index %s, query was: <%s>, error was: %+v", index, query, err)
 		return
 	}
 	defer closeResponseBody("Search:"+index, res)
@@ -299,9 +299,11 @@ func handleESResponseError(res *esapi.Response, requestDescription string, query
 
 // Close response body, if an error occur, just print it
 func closeResponseBody(requestDescription string, res *esapi.Response) {
-	err := res.Body.Close()
-	if err != nil {
-		log.Printf("[%s] Was not able to close resource response body, error was: %+v", requestDescription, err)
+	if res != nil && res.Body != nil {
+		err := res.Body.Close()
+		if err != nil {
+			log.Printf("[%s] Was not able to close resource response body, error was: %+v", requestDescription, err)
+		}
 	}
 }
 
