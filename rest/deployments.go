@@ -27,11 +27,13 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/internal/operations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tasks"
 )
@@ -396,4 +398,37 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	encodeJSONResponse(w, r, DeploymentsCollection{Deployments: deps})
+}
+
+func (s *Server) purgeDeploymentHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
+	deploymentID := params.ByName("id")
+
+	errs := new(Errors)
+	forcePurge, err := getBoolQueryParam(r, "force")
+	if err != nil {
+		writeError(w, r, newBadRequestMessage("force query parameter must be a boolean value"))
+		return
+	}
+	err = operations.PurgeDeployment(ctx, deploymentID, s.config.WorkingDirectory, forcePurge, true)
+	if err != nil {
+		log.Printf("purge error for deployment: %q\n%v", deploymentID, err)
+		if merr, ok := err.(*multierror.Error); ok {
+			for _, err := range merr.Errors {
+				errs.Errors = append(errs.Errors, &Error{"internal_server_error", http.StatusInternalServerError, "Internal Server Error", err.Error()})
+			}
+		} else {
+			errs.Errors = append(errs.Errors, newInternalServerError(err))
+		}
+
+	}
+	w.Header().Set("Content-Type", mimeTypeApplicationJSON)
+	if len(errs.Errors) > 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+	encodeJSONResponse(w, r, errs)
 }

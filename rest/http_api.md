@@ -116,6 +116,59 @@ This endpoint produces no content except in case of error.
 A critical note is that the undeployment is proceeded asynchronously and a success only guarantees that the undeployment task is successfully
 **submitted**.
 
+### Purge a deployment <a name="purge"></a>
+
+Purge a deployment. This deployment should be in UNDEPLOYED status.
+If an error is encountered the purge process is stopped and the deployment status is set
+to PURGE_FAILED.
+
+A purge may be run in force mode. In this mode Yorc does not check if the deployment is in
+UNDEPLOYED status or even if the deployment exist. Moreover, in force mode the purge process
+doesn't fail-fast and try to delete as much as it can. An report with encountered errors is
+produced at the end of the process.
+
+`POST /deployments/<deployment_id>/purge[?force]`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Length: 21
+Content-Type: application/json
+```
+
+```json
+{
+  "errors": null
+}
+```
+
+`errors` field is a list as force mode may encounter several errors below is an example:
+
+```json
+{
+  "errors": [
+    {
+      "id": "internal_server_error",
+      "status": 500,
+      "title": "Internal Server Error",
+      "detail": "failed to remove deployments artifacts stored on disk: \"work/deployments/TestSRun-Environment\": unlinkat work/deployments/TestSRun-Environment/dep: permission denied"
+    },
+    {
+      "id": "internal_server_error",
+      "status": 500,
+      "title": "Internal Server Error",
+      "detail": "Something went wrong: unlinkat work/store/_yorc/deployments/TestSRun-Environment/dep: permission denied"
+    }
+  ]
+}
+```
+
+**Note:**
+
+* Unlike the [Undeploy API endpoint](#undeploy) with purge option, this endpoint is synchronous.
+* This endpoint is transitory to ensure backward compatibility on the 4.x release, see [issue #710](https://github.com/ystia/yorc/issues/710) for more details.
+
 ### Get the deployment information <a name="dep-info"></a>
 
 Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.

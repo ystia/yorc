@@ -34,12 +34,14 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/ziputil"
 	"github.com/ystia/yorc/v4/tasks"
+	"github.com/ystia/yorc/v4/tasks/collector"
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )
 
@@ -61,6 +63,9 @@ func testDeploymentHandlers(t *testing.T, client *api.Client, cfg config.Configu
 	})
 	t.Run("testNewDeployments", func(t *testing.T) {
 		testNewDeployments(t, client, cfg, srv)
+	})
+	t.Run("testPurgeDeployment", func(t *testing.T) {
+		testPurgeDeploymentHandler(t, client, cfg, srv)
 	})
 
 	// Cleanup work
@@ -405,6 +410,69 @@ func testNewDeployments(t *testing.T, client *api.Client, cfg config.Configurati
 				require.Equal(t, tasks.TaskStatusINITIAL.String(), status)
 			}
 			cleanTest(depID, "")
+		})
+	}
+}
+
+func newStringPointer(input string) *string {
+	r := new(string)
+	*r = input
+	return r
+}
+
+func testPurgeDeploymentHandler(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {
+	t.Parallel()
+
+	type result struct {
+		statusCode int
+		errors     *Errors
+	}
+
+	tests := []struct {
+		name      string
+		force     *string
+		depStatus deployments.DeploymentStatus
+		want      *result
+	}{
+		{"purgeWithForceBadValue", newStringPointer("badValue"), deployments.INITIAL, &result{statusCode: http.StatusBadRequest, errors: &Errors{[]*Error{{ID: "bad_request", Status: 400, Title: "Bad Request", Detail: "force query parameter must be a boolean value"}}}}},
+		{"purgeWithForceTrue", newStringPointer("true"), deployments.INITIAL, &result{statusCode: http.StatusOK, errors: &Errors{}}},
+		{"purgeWithForceFalse", newStringPointer("false"), deployments.UNDEPLOYED, &result{statusCode: http.StatusOK, errors: &Errors{}}},
+		{"purgeWithForceNoValue", nil, deployments.UNDEPLOYED, &result{statusCode: http.StatusOK, errors: &Errors{}}},
+		{"purgeWithForceEmptyValue", new(string), deployments.DEPLOYED, &result{statusCode: http.StatusOK, errors: &Errors{}}},
+		{"purgeWithForceFalseWithError", newStringPointer("false"), deployments.DEPLOYED, &result{statusCode: http.StatusInternalServerError, errors: &Errors{Errors: []*Error{{ID: "internal_server_error", Status: 500, Title: "Internal Server Error", Detail: "can't purge a deployment not in \"UNDEPLOYED\" state, actual status is \"DEPLOYED\""}}}}},
+		{"purgeWithForceNoValueWithError", nil, deployments.DEPLOYED, &result{statusCode: http.StatusInternalServerError, errors: &Errors{Errors: []*Error{{ID: "internal_server_error", Status: 500, Title: "Internal Server Error", Detail: "can't purge a deployment not in \"UNDEPLOYED\" state, actual status is \"DEPLOYED\""}}}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deploymentID := tt.name
+			prepareTest(t, deploymentID, client, srv)
+			err := deployments.SetDeploymentStatus(context.Background(), deploymentID, tt.depStatus)
+			require.NoError(t, err)
+			_, err = collector.NewCollector(client).RegisterTaskWithData(deploymentID, tasks.TaskTypeDeploy, map[string]string{"workflowName": "install"})
+			require.NoError(t, err)
+			req := httptest.NewRequest("POST", "/deployments/"+deploymentID+"/purge", nil)
+			req.Header.Add("Accept", "application/json")
+			params := url.Values{}
+			if tt.force != nil {
+				params.Add("force", *tt.force)
+			}
+			req.URL.RawQuery = params.Encode()
+			resp := newTestHTTPRouter(client, cfg, req)
+			require.NotNil(t, resp, "unexpected nil response")
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, tt.want.statusCode)
+
+			body, err := ioutil.ReadAll(resp.Body)
+			require.Nil(t, err, "unexpected error reading body response")
+			if len(body) > 0 {
+				var errorsFound Errors
+				err = json.Unmarshal(body, &errorsFound)
+				require.Nil(t, err, "unexpected error unmarshalling json body")
+				if !reflect.DeepEqual(errorsFound, *tt.want.errors) {
+					t.Errorf("errors = %v, want %v", errorsFound, tt.want)
+				}
+			} else {
+				t.Error("Expecting a response body")
+			}
 		})
 	}
 }

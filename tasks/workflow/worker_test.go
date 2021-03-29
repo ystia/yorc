@@ -126,6 +126,7 @@ func testRunPurgeFails(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	deploymentID := "TestEnv2"
 
 	srv.PopulateKV(t, testData(deploymentID))
+	deployments.SetDeploymentStatus(context.Background(), deploymentID, deployments.DEPLOYED)
 	var myTaskExecution taskExecution
 	myTaskExecution.cc = client
 	// This execution corresponds to the purge task
@@ -144,17 +145,17 @@ func testRunPurgeFails(t *testing.T, srv *testutil.TestServer, client *api.Clien
 	require.NoError(t, err)
 	require.Equal(t, tasks.TaskStatusFAILED, status, "task status not set to failed")
 
-	// Deployment status should be UNDEPLOYMENT_FAILED
+	// Deployment status should stay in DEPLOYED status as pre-purge check failed
 	depStatus, err := deployments.GetDeploymentStatus(context.Background(), myTaskExecution.targetID)
 	require.NoError(t, err)
-	require.Equal(t, deployments.UNDEPLOYMENT_FAILED, depStatus)
+	require.Equal(t, deployments.DEPLOYED, depStatus)
 
 	// One event with value containing "deploymentId":"Test-Env","status":"purged"
 	kvps, _, err := consulutil.GetKV().List(consulutil.EventsPrefix+"/"+deploymentID, nil)
-	require.True(t, len(kvps) == 5)
+	require.Equal(t, 4, len(kvps))
 
 	kvps, _, err = consulutil.GetKV().List(consulutil.PurgedDeploymentKVPrefix+"/"+deploymentID, nil)
-	require.True(t, len(kvps) == 0)
+	require.Equal(t, 0, len(kvps))
 }
 
 func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.Client) {
@@ -182,7 +183,7 @@ func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.
 func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
 		// Add Test deployment
-		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deployments.INITIAL.String()),
+		consulutil.DeploymentKVPrefix + "/" + deploymentID + "/status": []byte(deployments.UNDEPLOYED.String()),
 		// deploy task
 		consulutil.TasksPrefix + "/t1/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t1/type":     []byte("0"),
