@@ -10,6 +10,7 @@
 
 ### FEATURES
 
+* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
 * Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
 * [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
 
@@ -32,6 +33,8 @@
 
 ### BUG FIXES
 
+* Yorc panics on ElasticSearch store error ([GH-719](https://github.com/ystia/yorc/issues/719))
+* Error when storing runtime attributes of google subnet ([GH-713](https://github.com/ystia/yorc/issues/713))
 * Bootstrap fails on hosts where a version of ansible < 2.10.0 is installed ([GH-695](https://github.com/ystia/yorc/issues/695))
 * Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
 * Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
