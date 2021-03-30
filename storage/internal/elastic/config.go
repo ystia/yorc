@@ -15,12 +15,13 @@
 package elastic
 
 import (
+	"reflect"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
-	"reflect"
-	"time"
 )
 
 var elasticStoreConfType = reflect.TypeOf(elasticStoreConf{})
@@ -54,6 +55,10 @@ type elasticStoreConf struct {
 	traceRequests bool `json:"trace_requests" default:"false"`
 	// Set to true if you want to trace events & logs when sent (for debug only)
 	traceEvents bool `json:"trace_events" default:"false"`
+	// Inital shards at index creation
+	InitialShards int `json:"initial_shards" default:"-1"`
+	// Initial replicas at index creation
+	InitialReplicas int `json:"initial_replicas" default:"-1"`
 }
 
 // Get the tag for this field (for internal usage only: fatal if not found !).
@@ -108,31 +113,86 @@ func getElasticStoreConfig(yorcConfig config.Configuration, storeConfig config.S
 	}
 	// Define store optional / default configuration
 	t, e = getElasticStorageConfigPropertyTag("caCertPath", "json")
+	if e != nil {
+		return
+	}
+
 	if storeProperties.IsSet(t) {
 		cfg.caCertPath = storeProperties.GetString(t)
 	}
 	t, e = getElasticStorageConfigPropertyTag("certPath", "json")
+	if e != nil {
+		return
+	}
+
 	if storeProperties.IsSet(t) {
 		cfg.certPath = storeProperties.GetString(t)
 	}
 	t, e = getElasticStorageConfigPropertyTag("keyPath", "json")
+	if e != nil {
+		return
+	}
+
 	if storeProperties.IsSet(t) {
 		cfg.keyPath = storeProperties.GetString(t)
 	}
 	cfg.esForceRefresh, e = getBoolFromSettingsOrDefaults("esForceRefresh", storeProperties)
+	if e != nil {
+		return
+	}
+
 	t, e = getElasticStorageConfigPropertyTag("indicePrefix", "json")
+	if e != nil {
+		return
+	}
+
 	if storeProperties.IsSet(t) {
 		cfg.indicePrefix = storeProperties.GetString(t)
 	} else {
 		cfg.indicePrefix, e = getElasticStorageConfigPropertyTag("indicePrefix", "default")
+		if e != nil {
+			return
+		}
 	}
 	cfg.esQueryPeriod, e = getDurationFromSettingsOrDefaults("esQueryPeriod", storeProperties)
+	if e != nil {
+		return
+	}
+
 	cfg.esRefreshWaitTimeout, e = getDurationFromSettingsOrDefaults("esRefreshWaitTimeout", storeProperties)
+	if e != nil {
+		return
+	}
+
 	cfg.maxBulkSize, e = getIntFromSettingsOrDefaults("maxBulkSize", storeProperties)
+	if e != nil {
+		return
+	}
 	cfg.maxBulkCount, e = getIntFromSettingsOrDefaults("maxBulkCount", storeProperties)
+	if e != nil {
+		return
+	}
+
 	cfg.traceRequests, e = getBoolFromSettingsOrDefaults("traceRequests", storeProperties)
+	if e != nil {
+		return
+	}
+
 	cfg.traceEvents, e = getBoolFromSettingsOrDefaults("traceEvents", storeProperties)
-	// If any error have been encountered, it will be returned
+	if e != nil {
+		return
+	}
+
+	cfg.InitialShards, e = getIntFromSettingsOrDefaults("InitialShards", storeProperties)
+	if e != nil {
+		return
+	}
+
+	cfg.InitialReplicas, e = getIntFromSettingsOrDefaults("InitialReplicas", storeProperties)
+	if e != nil {
+		return
+	}
+
 	return
 }
 
