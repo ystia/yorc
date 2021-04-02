@@ -1488,9 +1488,9 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``trace_events``            | to trace events & logs when sent (for debug only)  | bool      | no               |   false         |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``initial_shards``          | number of shards used to initilize indices         | int64     | no               |                 |
+| ``initial_shards``          | number of shards used to initialize indices        | int64     | no               |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``initial_replicas``        | number of replicas used to initializ indices       | int64     | no               |                 |
+| ``initial_replicas``        | number of replicas used to initialize indices      | int64     | no               |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 
 
