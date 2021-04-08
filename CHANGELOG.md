@@ -20,6 +20,7 @@
 
 ### ENHANCEMENTS
 
+* Alllow shards and replicas configuration for Elastic storage ([GH-722](https://github.com/ystia/yorc/issues/722))
 * Add a new synchronous purge API endpoint ([GH-707](https://github.com/ystia/yorc/issues/707))
 * Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
