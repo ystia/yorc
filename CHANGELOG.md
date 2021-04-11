@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 4.1.0 (April 11, 2021)
 
 ### DEPENDENCIES
 
