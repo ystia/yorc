@@ -3,7 +3,7 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-openstack-types
   template_author: yorc
-  template_version: 1.2.0
+  template_version: 1.2.1
 
 imports:
   - yorc: <yorc-types.yml>
@@ -36,6 +36,10 @@ data_types:
           source=blank and destination=local, or source=blank and destination=volume
         constraints:
           - greater_or_equal: 1 GB
+      volume_type:
+        type: string
+        required: false
+        description: Volume type
       delete_on_termination:
         type: boolean
         required: false
@@ -133,6 +137,12 @@ node_types:
         type: string
         description: >
           Comma-separated list of security groups to add to the Compute
+        required: false
+      metadata:
+        type: map
+        description: Metadata key/value pairs to make available from within the instance
+        entry_schema:
+          type: string
         required: false
     requirements:
       - group:

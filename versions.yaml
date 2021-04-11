@@ -1,10 +1,10 @@
-yorc_version: 4.0.5
+yorc_version: 4.1.0
 # Alien4Cloud version used by the bootstrap as the default version to download/install
-alien4cloud_version: 2.2.0
+alien4cloud_version: 3.0.0-M8
 consul_version: 1.2.3
 terraform_version: 0.11.8
-ansible_version: 2.7.9
+ansible_version: 2.10.0
 tf_consul_plugin_version: 2.1.0
 tf_aws_plugin_version: 1.36.0
-tf_openstack_plugin_version: 1.9.0
+tf_openstack_plugin_version: 1.32.0
 tf_google_plugin_version: 1.18.0

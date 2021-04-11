@@ -58,7 +58,7 @@ It requires the following packages to be installed on the local host:
   * wget
 
 This basic installation on the local host will attempt to install without sudo privileges
-python ansible module |ansible_version| if needed as well as python packages
+python ansible module |ansible_version| if needed as well as paramiko and python packages
 MarkupSafe, jinja2, PyYAML, six, cryptography, setuptools.
 So if this ansible module or python packages are not yet installed on the local host,
 you could either add them yourself, with sudo privileges, running for example:
@@ -279,12 +279,12 @@ for example :
 
 The bootstrap configuration file can be also be used to define Ansible Inventory
 configuration parameters.
-This is needed for example if remote hosts have python3 installed by default and not python,
-like on Ubuntu 18+.
+This is needed for example if you want to use on target hosts a python version
+different from the one automatically selected by Ansible.
 
 In this case, you can add in the bootstrap configuration file, a section allowing
 to configure an Ansible behavioral inventory parameter that will allow to specify
-which python interpreter could be used by Ansible on remote hosts, as described in
+which python interpreter could be used by Ansible on target hosts, as described in
 :ref:`Ansible Inventory Configuration section <option_ansible_inventory_cfg>`.
 
 This would give for example in the bootstrap configuration file:
@@ -343,14 +343,12 @@ Example of a Google Cloud deployment configuration file
 
 .. _yorc_google_example_ubuntu_section:
 
-Example of a Google Cloud deployment configuration with Ubuntu 19.04 on-demand compute
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example of a Google Cloud deployment configuration enforcing the use of python3
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In this example, on-demand compute instances run Ubuntu 19.04 on which python3
-is installed by default (and not python).
-In this case, a specific Ansible behavioral inventory parameter
-``ansible_python_interpreter`` must be defined so that Ansible is able to find
-this python interpreter on the remote hosts.
+In this example, a specific Ansible behavioral inventory parameter
+``ansible_python_interpreter`` is defined so that Ansible will use the specified
+python interpreter on the target hosts.
 
 .. code-block:: YAML
 
@@ -375,11 +373,7 @@ this python interpreter on the remote hosts.
         project: myproject
   ansible:
     inventory:
-      # Remote host run Ubuntu 19.04, using python3.
-      # Defining here the Ansible behavioral inventory parameter ansible_python_interpreter
-      # pointing to python3.
-      # This is required or Ansible will attempt to use python on the remote host
-      # which will fail as python is not installed by default.
+      # Enforce the use of /usr/bin/python3 by Ansible on target hosts
       "target_hosts:vars":
       - ansible_python_interpreter=/usr/bin/python3
   address:

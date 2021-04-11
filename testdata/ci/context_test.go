@@ -7,7 +7,7 @@ import (
 
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
-	"github.com/alien4cloud/alien4cloud-go-client/v2/alien4cloud"
+	"github.com/alien4cloud/alien4cloud-go-client/v3/alien4cloud"
 )
 
 type suiteContext struct {

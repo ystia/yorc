@@ -255,7 +255,7 @@ func (s *elasticStore) GetLastModifyIndex(k string) (lastIndex uint64, e error) 
 func (s *elasticStore) verifyLastIndex(indexName string, deploymentID string, estimatedLastIndex uint64) uint64 {
 	query := getListQuery(deploymentID, estimatedLastIndex, 0)
 	// size = 1 no need for the documents
-	hits, _, lastIndex, err := doQueryEs(s.esClient, s.cfg, indexName, query, estimatedLastIndex, 1, "desc")
+	hits, _, lastIndex, err := doQueryEs(context.Background(), s.esClient, s.cfg, indexName, query, estimatedLastIndex, 1, "desc")
 	if err != nil {
 		log.Printf("An error occurred while verifying lastIndex, returning the initial value %d, error was : %+v",
 			estimatedLastIndex, err)
@@ -293,7 +293,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 	var err error
 	for {
 		// first just query to know if they is something to fetch, we just want the max iid (so order desc, size 1)
-		hits, values, lastIndex, err = doQueryEs(s.esClient, s.cfg, indexName, query, waitIndex, 1, "desc")
+		hits, values, lastIndex, err = doQueryEs(ctx, s.esClient, s.cfg, indexName, query, waitIndex, 1, "desc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events, error was: %+v", err)
 		}
@@ -301,8 +301,14 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		if hits > 0 || now.After(end) {
 			break
 		}
+
 		log.Debugf("hits is %d and timeout not reached, sleeping %v ...", hits, s.cfg.esQueryPeriod)
-		time.Sleep(s.cfg.esQueryPeriod)
+		select {
+		case <-time.After(s.cfg.esQueryPeriod):
+			continue
+		case <-ctx.Done():
+			return values, lastIndex, nil
+		}
 	}
 	if hits > 0 {
 		// we do have something to retrieve, we will just wait esRefreshWaitTimeout to let any document that has just been stored to be indexed
@@ -314,7 +320,7 @@ func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, tim
 		}
 		time.Sleep(s.cfg.esRefreshWaitTimeout)
 		oldHits := hits
-		hits, values, lastIndex, err = doQueryEs(s.esClient, s.cfg, indexName, query, waitIndex, 10000, "asc")
+		hits, values, lastIndex, err = doQueryEs(ctx, s.esClient, s.cfg, indexName, query, waitIndex, 10000, "asc")
 		if err != nil {
 			return values, waitIndex, errors.Wrapf(err, "Failed to request ES logs or events (after waiting for refresh)")
 		}

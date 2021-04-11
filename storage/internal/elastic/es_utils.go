@@ -38,8 +38,7 @@ var pfalse = false
 func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Client, error) {
 	log.Printf("Elastic storage will run using this configuration: %+v", elasticStoreConfig)
 
-	var esConfig elasticsearch6.Config
-	esConfig = elasticsearch6.Config{Addresses: elasticStoreConfig.esUrls}
+	esConfig := elasticsearch6.Config{Addresses: elasticStoreConfig.esUrls}
 
 	if len(elasticStoreConfig.caCertPath) > 0 {
 		log.Printf("Reading CACert file from %s", elasticStoreConfig.caCertPath)
@@ -72,6 +71,9 @@ func prepareEsClient(elasticStoreConfig elasticStoreConf) (*elasticsearch6.Clien
 		// In debug mode or when traceRequests option is activated, we add a custom logger that print requests & responses
 		log.Printf("\t- Tracing ES requests & response can be expensive and verbose !")
 		esConfig.Logger = &debugLogger{}
+	} else {
+		// otherwise log only failure are logger
+		esConfig.Logger = &defaultLogger{}
 	}
 
 	log.Printf("\t- Index prefix will be %s", elasticStoreConfig.indicePrefix+elasticStoreConfig.clusterID+"_")
@@ -125,7 +127,7 @@ func initStorageIndex(c *elasticsearch6.Client, elasticStoreConfig elasticStoreC
 	} else if res.StatusCode == 404 {
 		log.Printf("Indice %s was not found, let's create it !", indexName)
 
-		requestBodyData := buildInitStorageIndexQuery()
+		requestBodyData := buildInitStorageIndexQuery(elasticStoreConfig)
 
 		// indice doest not exist, let's create it
 		req := esapi.IndicesCreateRequest{
@@ -159,7 +161,7 @@ func refreshIndex(c *elasticsearch6.Client, indexName string) {
 }
 
 // Query ES for events or logs specifying the expected results 'size' and the sort 'order'.
-func doQueryEs(c *elasticsearch6.Client, conf elasticStoreConf,
+func doQueryEs(ctx context.Context, c *elasticsearch6.Client, conf elasticStoreConf,
 	index string,
 	query string,
 	waitIndex uint64,
@@ -171,7 +173,7 @@ func doQueryEs(c *elasticsearch6.Client, conf elasticStoreConf,
 	lastIndex = waitIndex
 
 	res, e := c.Search(
-		c.Search.WithContext(context.Background()),
+		c.Search.WithContext(ctx),
 		c.Search.WithIndex(index),
 		c.Search.WithSize(size),
 		c.Search.WithBody(strings.NewReader(query)),
@@ -197,6 +199,8 @@ func doQueryEs(c *elasticsearch6.Client, conf elasticStoreConf,
 		)
 		return
 	}
+
+	logShardsInfos(r)
 
 	hits = int(r["hits"].(map[string]interface{})["total"].(float64))
 	duration := int(r["took"].(float64))
@@ -308,6 +312,20 @@ func closeResponseBody(requestDescription string, res *esapi.Response) {
 	}
 }
 
+// Log shards stats
+func logShardsInfos(r map[string]interface{}) {
+	si := r["_shards"].(map[string]interface{})
+
+	duration := int(r["took"].(float64))
+
+	tt := int(si["total"].(float64))
+	ts := int(si["successful"].(float64))
+
+	if ts < tt {
+		log.Printf("[Warn] ES Uncomplete response: %d/%d shards (%dms)", ts, tt, duration)
+	}
+}
+
 type debugLogger struct{}
 
 // RequestBodyEnabled makes the client pass request body to logger
@@ -354,4 +372,80 @@ func (l *debugLogger) LogRoundTrip(
 		level, start, req.Method, req.URL.String(), res.StatusCode, dur, reqStr, resStr)
 
 	return nil
+}
+
+type defaultLogger struct{}
+
+// RequestBodyEnabled makes the client pass request body to logger
+func (l *defaultLogger) RequestBodyEnabled() bool { return true }
+
+// ResponseBodyEnabled makes the client pass response body to logger
+func (l *defaultLogger) ResponseBodyEnabled() bool { return true }
+
+// LogRoundTrip will use log to debug ES request and response (when debug is activated)
+func (l *defaultLogger) LogRoundTrip(
+	req *http.Request,
+	res *http.Response,
+	err error,
+	start time.Time,
+	dur time.Duration,
+) error {
+
+	var level string
+	var errType string
+	var errReason string
+
+	switch {
+	case err != nil:
+		level = "Exception"
+	case res != nil && res.StatusCode > 0 && res.StatusCode < 300:
+		return nil
+	case res != nil && res.StatusCode > 299 && res.StatusCode < 500:
+		level = "Warn"
+	case res != nil && res.StatusCode > 499:
+		errType, errReason = extractEsError(res)
+		level = "Error"
+	default:
+		level = "Unknown"
+	}
+
+	if errType == "" && errReason == "" {
+		log.Printf("ES Request [%s][%v][%s][%s][%d][%v]",
+			level, start, req.Method, req.URL.String(), res.StatusCode, dur)
+	} else {
+		log.Printf("ES Request [%s][%v][%s][%s][%d][%v][%s][%s]",
+			level, start, req.Method, req.URL.String(), res.StatusCode, dur, errType, errReason)
+	}
+	return nil
+}
+
+func extractEsError(response *http.Response) (errType, errReason string) {
+	var rb map[string]interface{}
+	var rv interface{}
+	var ok bool
+
+	errType = "N/A"
+	errReason = "N/A"
+
+	if err := json.NewDecoder(response.Body).Decode(&rb); err != nil {
+		return
+	}
+
+	if rv, ok = rb["error"]; !ok {
+		return
+	}
+
+	if rb, ok = rv.(map[string]interface{}); !ok {
+		return
+	}
+
+	if rv, ok = rb["type"]; ok {
+		errType, _ = rv.(string)
+	}
+
+	if rv, ok = rb["reason"]; ok {
+		errReason, _ = rv.(string)
+	}
+
+	return
 }

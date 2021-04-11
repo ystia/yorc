@@ -509,7 +509,7 @@ can be any parameter specific to your ansible playbooks, or `behavioral inventor
 parameters <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#list-of-behavioral-inventory-parameters>`_
 describing how Ansible interacts with remote hosts.
 
-For example, for Ansible to use python3 on remote hosts, you must define
+For example, for Ansible to use a given python interpreter on target hosts, you must define
 the Ansible behavioral inventory parameter ``ansible_python_interpreter``
 in the Ansible inventory Yorc configuration, like below in Yaml:
 
@@ -523,16 +523,11 @@ in the Ansible inventory Yorc configuration, like below in Yaml:
 By default, the Orchestrator will define :
 
   * an inventory group ``target_hosts`` containing the list of remote hosts, and its
-    associated variable group ``target_hosts:vars`` configuring by default this
-    behavioral parameter:
+    associated variable group ``target_hosts:vars`` configuring by default these
+    behavioral parameters:
 
     * ``ansible_ssh_common_args="-o ConnectionAttempts=20"``
-
-  * an inventory group ``hosted_operations``  and its associated variable group ``hosted_operations:vars``
-    for operations that are executed on the orchestrator host, configuring by default
-    this behavioral parameter:
-
-    * ``ansible_python_interpreter=/usr/bin/env python``
+    * ``ansible_python_interpreter="auto_silent"``
 
 .. warning::
     Settings defined by the user take precedence over settings defined by the
@@ -734,7 +729,9 @@ Below is an example of configuration file with Tasks configuration options.
   * ``lock_wait_time``: Equivalent to :ref:`--tasks_dispatcher_lock_wait_time <option_tasks_dispatcher_lock_wait_time_cmd>` command-line flag.
 
 .. _option_tasks_dispatcher_metrics_refresh_time_cfg:
+
   * ``metrics_refresh_time``: Equivalent to :ref:`--tasks_dispatcher_metrics_refresh_time <option_tasks_dispatcher_metrics_refresh_time_cmd>` command-line flag.
+
 
 Environment variables
 ---------------------
@@ -1490,6 +1487,10 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 | ``trace_requests``          | to print ES requests (for debug only)              | bool      | no               |   false         |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``trace_events``            | to trace events & logs when sent (for debug only)  | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``initial_shards``          | number of shards used to initialize indices        | int64     | no               |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``initial_replicas``        | number of replicas used to initialize indices      | int64     | no               |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 
 

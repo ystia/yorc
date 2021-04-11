@@ -22,6 +22,7 @@ topology_template:
         service_account: "yorc@yorc.net"
         tags: "tag1, tag2"
         labels: "key1=value1, key2=value2"
+        metadata: "enable-oslogin=false,ssh-keys=testuser:ecdsa-sha2-nistp256 AAAAE2VjZH/LlTXfXIr+N= test.user@name.org"
         scratch_disks:
           - interface: SCSI
           - interface: NVME

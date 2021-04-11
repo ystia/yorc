@@ -167,7 +167,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	if job.Status.Active == 0 && job.Status.Succeeded == 0 && job.Status.Failed == 0 {
 		jobState = "No pods created"
 	}
-
+	// TODO(loicalbertin) for now we consider only instance 0 (https://github.com/ystia/yorc/issues/670)
 	// Get previus node status and avoit to set err to nil if no error occurs in get
 	previousState, err1 := deployments.GetInstanceStateString(ctx, deploymentID, action.Data["nodeName"], "0")
 	if err1 != nil {

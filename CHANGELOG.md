@@ -1,67 +1,49 @@
 # Yorc Changelog
 
-## 4.0.5 (March 22, 2021)
+## 4.1.0 (April 11, 2021)
 
-### ENHANCEMENTS
+### DEPENDENCIES
 
-* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
+* The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
+* The orchestrator requires now at least Terraform OpenStack Provider version 1.32.0 (upgrade from 1.9.0 introduced in [GH-703](https://github.com/ystia/yorc/issues/703))
 
-### BUG FIXES
-
-* Yorc panics on ElasticSearch store error ([GH-719](https://github.com/ystia/yorc/issues/719))
-
-## 4.0.4 (October 23, 2020)
-
-### ENHANCEMENTS
-
-* Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
-* Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
-
-### BUG FIXES
-
-* Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
-* Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
-
-## 4.0.3 (August 27, 2020)
 
 ### FEATURES
 
+* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
+* Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
 * [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
-
-### BUG FIXES
-
-* Asynchronous execution termination detection error ([GH-677](https://github.com/ystia/yorc/issues/677))
-* Yorc generates forcePurge tasks on list deployments API endpoint ([GH-674](https://github.com/ystia/yorc/issues/674))
-* Yorc is getting slow when there is a lot of tasks ([GH-671](https://github.com/ystia/yorc/issues/671))
-* Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
-
-## 4.0.2 (July 10, 2020)
 
 ### SECURITY FIXES
 
 * Fix [vulnerability in golang.org/x/crypto/ssh](https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-551923) by upgrading dependency
 
-### FEATURES
-
-* Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
-
 ### ENHANCEMENTS
 
+* Alllow shards and replicas configuration for Elastic storage ([GH-722](https://github.com/ystia/yorc/issues/722))
+* Add a new synchronous purge API endpoint ([GH-707](https://github.com/ystia/yorc/issues/707))
+* Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
+* Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
+* Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
+* Should be able to specify edcsa or rsa ssh keys in gcloud compute instances metadata ([GH-697](https://github.com/ystia/yorc/issues/697))
+* Add the ability to define OpenStack Compute Instance metadata ([GH-687](https://github.com/ystia/yorc/issues/687))
+* Support Alien4Cloud 3.0 ([GH-689](https://github.com/ystia/yorc/issues/689))
+* Upgrade Ansible version from 2.7.9 to 2.10.0 ([GH-648](https://github.com/ystia/yorc/issues/648))
+* Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
 * Enhance logs and events long-polling performances on file storage ([GH-654](https://github.com/ystia/yorc/issues/654))
 
 ### BUG FIXES
 
+* Yorc panics on ElasticSearch store error ([GH-719](https://github.com/ystia/yorc/issues/719))
+* Error when storing runtime attributes of google subnet ([GH-713](https://github.com/ystia/yorc/issues/713))
+* Bootstrap fails on hosts where a version of ansible < 2.10.0 is installed ([GH-695](https://github.com/ystia/yorc/issues/695))
+* Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
+* Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))
+* Yorc generates forcePurge tasks on list deployments API endpoint ([GH-674](https://github.com/ystia/yorc/issues/674))
+* Yorc is getting slow when there is a lot of tasks ([GH-671](https://github.com/ystia/yorc/issues/671))
+* Yorc does not build on Go1.15 ([GH-665](https://github.com/ystia/yorc/issues/665))
 * Concurrency issue in workflows execution may lead to a task never reaching a terminal status ([GH-659](https://github.com/ystia/yorc/issues/659))
 * Bootstrap on Centos 7 on GCP fails ([GH-649](https://github.com/ystia/yorc/issues/649))
-
-## 4.0.1 (May 14, 2020)
-
-### ENHANCEMENTS
-
-* Alien4Cloud download URL change ([GH-637](https://github.com/ystia/yorc/issues/637))
-
-### BUG FIXES
-
 * Kubernetes Client uses deprecated apis removed on recent versions of K8S (v1.17+) ([GH-645](https://github.com/ystia/yorc/issues/645))
 * Bootstrap may failed with a nil pointer error if download of a component fails ([GH-634](https://github.com/ystia/yorc/issues/634))
 * Missing concurrency limit during data migration for logs and events file storage ([GH-640](https://github.com/ystia/yorc/issues/640))

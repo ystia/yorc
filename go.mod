@@ -33,6 +33,7 @@ require (
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
+	github.com/fvbommel/sortorder v1.0.1
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/gocql/gocql v0.0.0-20200228163523-cd4b606dd2fb // indirect
 	github.com/golang/snappy v0.0.1 // indirect
@@ -48,7 +49,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.1
 	github.com/hashicorp/go-hclog v0.8.0
 	github.com/hashicorp/go-memdb v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.0.0
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-plugin v1.0.0
 	github.com/hashicorp/go-rootcerts v1.0.0
 	github.com/hashicorp/serf v0.8.3 // indirect
@@ -90,7 +91,6 @@ require (
 	github.com/stevedomin/termtable v0.0.0-20150929082024-09d29f3fd628
 	github.com/stretchr/testify v1.4.0
 	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
-	github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 // indirect
 	github.com/ystia/tdt2go v0.3.0
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
@@ -107,7 +107,6 @@ require (
 	k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d
 	k8s.io/client-go v8.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20190709113604-33be087ad058 // indirect
-	vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc
 )
 
 // Due to this capital letter thing we have troubles and we have to replace it explicitly

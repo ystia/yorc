@@ -63,6 +63,7 @@ Now you can proceed with the installation of softwares used by Yorc.
 .. parsed-literal::
 
     sudo pip install ansible==\ |ansible_version|
+    sudo pip install paramiko
     wget \https://releases.hashicorp.com/consul/\ |consul_version|\ /consul\_\ |consul_version|\ _linux_amd64.zip
     sudo unzip consul\_\ |consul_version|\ _linux_amd64.zip -d /usr/local/bin
     wget \https://releases.hashicorp.com/terraform/\ |terraform_version|\ /terraform\_\ |terraform_version|\ _linux_amd64.zip

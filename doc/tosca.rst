@@ -215,14 +215,9 @@ In order to let Yorc interact with Docker to manage sandboxes some requirements 
 Yorc uses standard Docker's APIs so ``DOCKER_HOST`` and ``DOCKER_CERT_PATH`` environment variables could be used
 to configure the way Yorc interacts with Docker.
 
-In order to execute operations on containers, either the following requirements
-should be met on Docker images used as sandboxes:
-
-  * the ``/usr/bin/env`` command should be present
-  * a python 2 interpreter compatible with ansible |ansible_version| should be available as the ``python`` command
-
-or Yorc configuration should provide a python interpreter path through the Ansible
-behavioral inventory parameter ``ansible_python_interpreter``, like below in a Yaml
+To execute operations on containers, Ansible will by default detect the python interpreter to use
+as described in `Ansible documentation <https://docs.ansible.com/ansible/latest/reference_appendices/interpreter_discovery.html>`_ section ``auto_silent``.
+To provide yourself a python interpreter path, use the Ansible behavioral inventory parameter ``ansible_python_interpreter``, like below in a Yaml
 Yorc configuration excerpt specifying to use python3 :
 
 .. code-block:: YAML

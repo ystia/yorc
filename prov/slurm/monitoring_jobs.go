@@ -131,7 +131,7 @@ func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClie
 
 	info, err := getJobInfo(sshClient, actionData.jobID)
 
-	// TODO(loicalbertin): This should be improved instance name should not be hard-coded
+	// TODO(loicalbertin): This should be improved instance name should not be hard-coded (https://github.com/ystia/yorc/issues/670)
 	instanceName := "0"
 
 	if err != nil {

@@ -103,6 +103,7 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 			return err
 		}
 		// Not cancelling within the same task try to get jobID from attribute
+		// TODO(loicalbertin) for now we consider only instance 0 (https://github.com/ystia/yorc/issues/670)
 		jobIDValue, err := deployments.GetInstanceAttributeValue(ctx, e.deploymentID, e.nodeName, "0", "job_id")
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id to cancel, found neither in task context neither as instance attribute")

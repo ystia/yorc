@@ -26,25 +26,26 @@ const (
 	sourceTOSCAKey              = "source"
 	destinationTOSCAKey         = "destination"
 	sizeTOSCAKey                = "size"
+	volumeTypeTOSCAKey          = "volume_type"
 	deleteOnTerminationTOSCAKey = "delete_on_termination"
 )
 
 // A ComputeInstance represent an OpenStack compute
 type ComputeInstance struct {
-	Region           string           `json:"region"`
-	Name             string           `json:"name,omitempty"`
-	ImageID          string           `json:"image_id,omitempty"`
-	ImageName        string           `json:"image_name,omitempty"`
-	BootVolume       *BootVolume      `json:"block_device,omitempty"`
-	FlavorID         string           `json:"flavor_id,omitempty"`
-	FlavorName       string           `json:"flavor_name,omitempty"`
-	FloatingIP       string           `json:"floating_ip,omitempty"`
-	SecurityGroups   []string         `json:"security_groups,omitempty"`
-	AvailabilityZone string           `json:"availability_zone,omitempty"`
-	Networks         []ComputeNetwork `json:"network,omitempty"`
-	KeyPair          string           `json:"key_pair,omitempty"`
-	SchedulerHints   SchedulerHints   `json:"scheduler_hints,omitempty"`
-
+	Region           string            `json:"region"`
+	Name             string            `json:"name,omitempty"`
+	ImageID          string            `json:"image_id,omitempty"`
+	ImageName        string            `json:"image_name,omitempty"`
+	BootVolume       *BootVolume       `json:"block_device,omitempty"`
+	FlavorID         string            `json:"flavor_id,omitempty"`
+	FlavorName       string            `json:"flavor_name,omitempty"`
+	FloatingIP       string            `json:"floating_ip,omitempty"`
+	SecurityGroups   []string          `json:"security_groups,omitempty"`
+	AvailabilityZone string            `json:"availability_zone,omitempty"`
+	Networks         []ComputeNetwork  `json:"network,omitempty"`
+	KeyPair          string            `json:"key_pair,omitempty"`
+	SchedulerHints   SchedulerHints    `json:"scheduler_hints,omitempty"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
 	commons.Resource
 }
 
@@ -54,6 +55,7 @@ type BootVolume struct {
 	Source              string `json:"source_type"`
 	Destination         string `json:"destination_type,omitempty"`
 	Size                int    `json:"volume_size,omitempty"`
+	VolumeType          string `json:"volume_type,omitempty"`
 	DeleteOnTermination bool   `json:"delete_on_termination,omitempty"`
 }
 

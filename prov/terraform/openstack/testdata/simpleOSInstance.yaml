@@ -9,6 +9,13 @@ imports:
   - openstack-types: <yorc-openstack-types.yml>
 
 topology_template:
+  inputs:
+    vm_metadata:
+      type: map
+      entry_schema:
+        type: string
+      default: {"firstKey": "firstValue", "secondKey": "secondValue"}
+      required: false
   node_templates:
     Compute:
       type: yorc.nodes.openstack.Compute
@@ -18,6 +25,7 @@ topology_template:
         availability_zone: nova
         key_pair: yorc
         security_groups: openbar,default
+        metadata: {get_input: vm_metadata}
       capabilities:
         endpoint:
           properties:

@@ -189,6 +189,7 @@ func (s *Server) registerHandlers() {
 	s.router.Post("/deployments/:id/workflows/:workflowName", commonHandlers.ThenFunc(s.newWorkflowHandler))
 	s.router.Get("/deployments/:id/workflows/:workflowName", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.getWorkflowHandler))
 	s.router.Get("/deployments/:id/workflows", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listWorkflowsHandler))
+	s.router.Post("/deployments/:id/purge", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.purgeDeploymentHandler))
 
 	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listRegistryDelegatesHandler))
 	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler(mimeTypeApplicationJSON)).ThenFunc(s.listRegistryImplementationsHandler))

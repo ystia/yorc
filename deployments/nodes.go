@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fvbommel/sortorder"
 	"github.com/pkg/errors"
-	"vbom.ml/util/sortorder"
 
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -497,7 +497,7 @@ func GetKeyValuePairsNodeProperty(ctx context.Context, deploymentID, nodeName, p
 		values := strings.Split(strValue.RawString(), ",")
 		result = make(map[string]string, len(values))
 		for _, val := range values {
-			keyValuePair := strings.Split(val, "=")
+			keyValuePair := strings.SplitN(val, "=", 2)
 			if len(keyValuePair) != 2 {
 				return result, errors.Errorf("Expected KEY=VALUE format, got %s for property %s on %s",
 					val, propertyName, nodeName)

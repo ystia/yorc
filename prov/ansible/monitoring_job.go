@@ -17,8 +17,9 @@ package ansible
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v4/deployments"
 	"strings"
+
+	"github.com/ystia/yorc/v4/deployments"
 
 	"github.com/pkg/errors"
 
@@ -59,7 +60,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	opErr := o.executor.ExecOperation(ctx, cfg, originalTaskID, deploymentID, nodeName, operation)
 
 	if strings.ToLower(operation.Name) == tosca.RunnableRunOperationName {
-		// for now we consider only instance 0
+		// TODO(loicalbertin) for now we consider only instance 0 (https://github.com/ystia/yorc/issues/670)
 		dataName := nodeName + "-0-TOSCA_JOB_STATUS"
 		status, err := tasks.GetTaskData(originalTaskID, dataName)
 		if err != nil {

@@ -34,6 +34,35 @@ feature requires to have the ``management`` ACL. It is possible to disable this 
 
 .. note:: A rolling upgrade without interruption feature is planned for future versions.
 
+.. _yorc_upgrades_410_section:
+
+Upgrading to Yorc 4.1.0
+-----------------------
+
+Ansible
+~~~~~~~
+
+Upgrade Ansible to version 2.10.0:
+
+.. code-block:: bash
+
+    sudo pip uninstall ansible
+    sudo pip install ansible==2.10.0
+    sudo pip install paramiko
+
+Terraform OpenStack Provider
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Terraform OpenStack Provider needs to be upgraded at least to version 1.32.0.
+
+.. code-block:: bash
+
+    # Assuming Terraform providers are stored at /var/terraform/plugins
+    wget https://releases.hashicorp.com/terraform-provider-openstack/1.9.0/terraform-provider-openstack_1.32.0_linux_amd64.zip
+    sudo rm /var/terraform/plugins/terraform-provider-openstack_*
+    sudo unzip terraform-provider-openstack_1.32.0_linux_amd64.zip -d /var/terraform/plugins
+    sudo chmod 775 /var/terraform/plugins/*
+
 .. _yorc_upgrades_320_section:
 
 Upgrading to Yorc 3.2.0

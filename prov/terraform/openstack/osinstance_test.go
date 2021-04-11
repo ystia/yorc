@@ -16,12 +16,13 @@ package openstack
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
 
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,9 @@ func testSimpleOSInstance(t *testing.T) {
 	require.Len(t, compute.SecurityGroups, 2)
 	require.Contains(t, compute.SecurityGroups, "default")
 	require.Contains(t, compute.SecurityGroups, "openbar")
+	require.Len(t, compute.Metadata, 2)
+	require.Equal(t, "firstValue", compute.Metadata["firstKey"])
+	require.Equal(t, "secondValue", compute.Metadata["secondKey"])
 
 	require.Len(t, compute.Provisioners, 0)
 	require.Contains(t, infrastructure.Resource, "null_resource")
@@ -141,7 +145,9 @@ func testOSInstanceWithBootVolume(t *testing.T) {
 	assert.Equal(t, 10, compute.BootVolume.Size,
 		"Wrong boot volume size value")
 	assert.Equal(t, true, compute.BootVolume.DeleteOnTermination,
-		"Wrong boot volume deleta on termination value")
+		"Wrong boot volume delete on termination value")
+	assert.Equal(t, "BurstBuffer", compute.BootVolume.VolumeType,
+		"Wrong boot volume type  value")
 
 	assert.Equal(t, "yorc", compute.KeyPair)
 	assert.Equal(t, "2", compute.FlavorID)

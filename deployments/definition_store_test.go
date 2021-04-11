@@ -29,8 +29,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"vbom.ml/util/sortorder"
 
+	"github.com/fvbommel/sortorder"
 	ctu "github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

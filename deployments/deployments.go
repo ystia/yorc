@@ -45,7 +45,7 @@ func (d deploymentNotFound) Error() string {
 // IsDeploymentNotFoundError checks if an error is a deployment not found error
 func IsDeploymentNotFoundError(err error) bool {
 	cause := errors.Cause(err)
-	_, ok := cause.(deploymentNotFound)
+	_, ok := cause.(*deploymentNotFound)
 	return ok
 }
 
@@ -97,7 +97,7 @@ func GetDeploymentStatus(ctx context.Context, deploymentID string) (DeploymentSt
 		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if !exist || value == "" {
-		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
+		return INITIAL, errors.WithStack(&deploymentNotFound{deploymentID: deploymentID})
 	}
 	return DeploymentStatusFromString(value, true)
 }

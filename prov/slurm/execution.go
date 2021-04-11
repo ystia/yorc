@@ -217,6 +217,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			if !tasks.IsTaskDataNotFoundError(err) {
 				return err
 			}
+			// TODO(loicalbertin) for now we consider only instance 0 (https://github.com/ystia/yorc/issues/670)
 			// Not cancelling within the same task try to get jobID from attribute
 			id, err := deployments.GetInstanceAttributeValue(ctx, e.deploymentID, e.NodeName, "0", "job_id")
 			if err != nil {
