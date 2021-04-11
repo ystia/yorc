@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 4.1.0 (April 11, 2021)
+
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
