@@ -30,24 +30,22 @@ import (
 	_ "github.com/ystia/yorc/v4/prov/slurm"
 	// Registering hosts pool delegate executor in the registry
 	_ "github.com/ystia/yorc/v4/prov/hostspool"
+	// Registering maas delegate executor in the registry
+	_ "github.com/ystia/yorc/v4/prov/maas"
 	// Registering builtin Tosca definition files
 	_ "github.com/ystia/yorc/v4/tosca"
 	// Registering builtin HashiCorp Vault Client Builder
 	_ "github.com/ystia/yorc/v4/vault/hashivault"
 	// Registering builtin activity hooks
-	_ "github.com/ystia/yorc/v4/prov/validation"
-)
-
-import (
 	"context"
 	"os"
 	"path/filepath"
 
 	"github.com/ystia/yorc/v4/deployments/store"
+	_ "github.com/ystia/yorc/v4/prov/validation"
 
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/plugin"
