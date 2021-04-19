@@ -16,13 +16,18 @@ package maas
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/locations"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tasks"
 	"github.com/ystia/yorc/v4/tosca"
+	"golang.org/x/sync/errgroup"
 )
 
 const infrastructureType = "maas"
@@ -41,8 +46,8 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	// Get deployment instances names
-	instances, err := e.getAvailableInstances(ctx, deploymentID, nodeName)
+	// Get instances names
+	instances, err := tasks.GetInstances(ctx, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -50,7 +55,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	operation := strings.ToLower(delegateOperation)
 	switch {
 	case operation == "install":
-		err = e.installNode(ctx, cfg, locationProps, deploymentID, nodeName, operation, instances)
+		err = e.installNode(ctx, cfg, locationProps, deploymentID, nodeName, operation, &instances)
 	// case operation == "uninstall":
 	// 	err = e.uninstallNode(ctx, cfg, locationProps, deploymentID, nodeName, instances, operation)
 	default:
@@ -59,34 +64,46 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	return err
 }
 
-func (e *defaultExecutor) getAvailableInstances(ctx context.Context, deploymentID, nodeName string) ([]string, error) {
-	instances, err := deployments.GetNodeInstancesIds(ctx, deploymentID, nodeName)
-	if err != nil {
-		return nil, err
-	}
-
-	availableIntances := []string{}
-	for _, instanceName := range instances {
-		instanceState, err := deployments.GetInstanceState(ctx, deploymentID, nodeName, instanceName)
+func (e *defaultExecutor) installNode(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName, operation string, instances *[]string) error {
+	for _, instance := range *instances {
+		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
-			// Do not generate something for this node instance (will be deleted if exists)
-			continue
-		}
-		availableIntances = append(availableIntances, instanceName)
 	}
 
-	return availableIntances, nil
-}
-
-func (e *defaultExecutor) installNode(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName string, operation string) error {
-	infra, err := generateInfrastructure(ctx, locationProps, deploymentID, nodeName, operation)
+	infra, err := generateInfrastructure(ctx, locationProps, deploymentID, nodeName, operation, instances)
 	if err != nil {
 		return err
 	}
 
-	// return e.createInfrastructure(ctx, cfg, locationProps, deploymentID, nodeName, infra)
+	return e.createInfrastructure(ctx, cfg, locationProps, deploymentID, nodeName, infra)
+}
+
+func (e *defaultExecutor) createInfrastructure(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName string, infra *infrastructure) error {
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Creating the maas infrastructure")
+	var g errgroup.Group
+	for _, compute := range infra.nodes {
+		func(ctx context.Context, comp *nodeAllocation) {
+			g.Go(func() error {
+				return e.createNodeAllocation(ctx, cfg, locationProps, comp, deploymentID, nodeName)
+			})
+		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: compute.instanceName}), compute)
+	}
+
+	if err := g.Wait(); err != nil {
+		err = errors.Wrapf(err, "Failed to create maas infrastructure for deploymentID:%q, node name:%s", deploymentID, nodeName)
+		log.Debugf("%+v", err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Successfully creating the maas infrastructure")
+	return nil
+}
+
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
+
 	return nil
 }

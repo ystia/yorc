@@ -24,13 +24,27 @@ import (
 	"github.com/ystia/yorc/v4/tosca"
 )
 
-func generateInfrastructure(ctx context.Context, locationProps config.DynamicMap, deploymentID, nodeName, operation string, instances []string) (*infrastructure, error) {
+func generateInfrastructure(ctx context.Context, locationProps config.DynamicMap, deploymentID, nodeName, operation string, instances *[]string) (*infrastructure, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	infra := &infrastructure{}
 	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, instance := range *instances {
+		instanceState, err := deployments.GetInstanceState(ctx, deploymentID, nodeName, instance)
+		if err != nil {
+			return nil, err
+		}
+
+		if operation == "install" && instanceState != tosca.NodeStateCreating {
+			continue
+		} else if operation == "uninstall" && instanceState != tosca.NodeStateDeleting {
+			continue
+		}
+
 	}
 
 	switch nodeType {
