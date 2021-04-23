@@ -105,5 +105,29 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, cfg config.C
 func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 
+	maasClient, err := getMaasClient(locationProps)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
+	deployRes, err := allocateAndDeploy(maasClient)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
+	deployRes = deployRes
+
+	// err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "system_id", deployRes.system_id)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "Failed to set attribute (system_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
+	// }
+
+	// err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", deployRes.ip_address)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
+	// }
+
 	return nil
 }
