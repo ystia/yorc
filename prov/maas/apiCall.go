@@ -35,8 +35,8 @@ func getMaasClient(locationProps config.DynamicMap) (*gomaasapi.MAASObject, erro
 		return nil, err
 	}
 
-	apiURL := locationProps.GetString("api_token")
-	apiKey := locationProps.GetString("api_url")
+	apiURL := locationProps.GetString("api_url")
+	apiKey := locationProps.GetString("api_key")
 
 	authClient, err := gomaasapi.NewAuthenticatedClient(gomaasapi.AddAPIVersionToURL(apiURL, apiVersion), apiKey)
 	if err != nil {
@@ -120,24 +120,24 @@ func getMachineInfo(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JS
 }
 
 func allocateAndDeploy(maas *gomaasapi.MAASObject) (*deployResults, error) {
-	log.Println("Allocating machine")
+	// log.Println("Allocating machine")
 	system_id, err := allocateMachine(maas)
 	if err != nil {
 		return nil, fmt.Errorf("failed to allocate machine: %w", err)
 	}
 
-	log.Println("Deploying machine with system_id : " + system_id)
+	// log.Println("Deploying machine with system_id : " + system_id)
 	_, err = deploy(maas, system_id)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println("Allocating and deployement of " + system_id + " successfull")
+	// log.Println("Allocating and deployement of " + system_id + " successfull")
 	// Wait for the node to finish deploying
 	var deployRes gomaasapi.MAASObject
 	for {
 		time.Sleep(20 * time.Second)
-		log.Println("Checking if " + system_id + " has finished deploying...")
+		// log.Println("Checking if " + system_id + " has finished deploying...")
 
 		json, err := getMachineInfo(maas, system_id)
 		if err != nil {
