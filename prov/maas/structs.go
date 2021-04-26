@@ -21,3 +21,8 @@ type infrastructure struct {
 type nodeAllocation struct {
 	instanceName string
 }
+
+type deployResults struct {
+	ips       []string
+	system_id string
+}

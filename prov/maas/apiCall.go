@@ -15,7 +15,6 @@
 package maas
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -23,6 +22,7 @@ import (
 	"time"
 
 	"github.com/juju/gomaasapi"
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/config"
 )
 
@@ -119,7 +119,7 @@ func getMachineInfo(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JS
 	return &jsonObj, nil
 }
 
-func allocateAndDeploy(maas *gomaasapi.MAASObject) (*gomaasapi.MAASObject, error) {
+func allocateAndDeploy(maas *gomaasapi.MAASObject) (*deployResults, error) {
 	log.Println("Allocating machine")
 	system_id, err := allocateMachine(maas)
 	if err != nil {
@@ -127,30 +127,19 @@ func allocateAndDeploy(maas *gomaasapi.MAASObject) (*gomaasapi.MAASObject, error
 	}
 
 	log.Println("Deploying machine with system_id : " + system_id)
-	json, err := deploy(maas, system_id)
+	_, err = deploy(maas, system_id)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Println("Allocating and deployement of " + system_id + " successfull")
-
-	tmp, err := json.GetMAASObject()
-	if err != nil {
-		return nil, fmt.Errorf("error getting mass obj: %w", err)
-
-	}
-	status, err := tmp.GetField("status_name")
-	if err != nil {
-		return nil, fmt.Errorf("error extracting status_name: %w", err)
-
-	}
-
+	// Wait for the node to finish deploying
 	var deployRes gomaasapi.MAASObject
 	for {
 		time.Sleep(20 * time.Second)
 		log.Println("Checking if " + system_id + " has finished deploying...")
 
-		json, err = getMachineInfo(maas, system_id)
+		json, err := getMachineInfo(maas, system_id)
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +147,7 @@ func allocateAndDeploy(maas *gomaasapi.MAASObject) (*gomaasapi.MAASObject, error
 		if err != nil {
 			return nil, err
 		}
-		status, err = deployRes.GetField("status_name")
+		status, err := deployRes.GetField("status_name")
 		if err != nil {
 			return nil, err
 		}
@@ -167,9 +156,26 @@ func allocateAndDeploy(maas *gomaasapi.MAASObject) (*gomaasapi.MAASObject, error
 		}
 	}
 
-	// if status != "Deployed" {
-	// 	return nil, fmt.Errorf("machine still not deployed, status is :" + status)
-	// }
+	// Get machines ips
+	test := deployRes.GetMap()
+	ipaddrObj := test["ip_addresses"]
 
-	return &deployRes, nil
+	ipsAddr, err := ipaddrObj.GetArray()
+	if err != nil {
+		return nil, err
+	}
+
+	var ips []string
+	for _, ipObj := range ipsAddr {
+		ipString, err := ipObj.GetString()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed getting ips from machines with system_id : %s", system_id)
+		}
+		ips = append(ips, ipString)
+	}
+
+	return &deployResults{
+		ips:       ips,
+		system_id: system_id,
+	}, nil
 }

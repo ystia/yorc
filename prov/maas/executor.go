@@ -117,17 +117,15 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.C
 		return err
 	}
 
-	deployRes = deployRes
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "system_id", deployRes.system_id)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set attribute (system_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
+	}
 
-	// err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "system_id", deployRes.system_id)
-	// if err != nil {
-	// 	return errors.Wrapf(err, "Failed to set attribute (system_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
-	// }
-
-	// err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", deployRes.ip_address)
-	// if err != nil {
-	// 	return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
-	// }
+	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", deployRes.ips[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
+	}
 
 	return nil
 }
