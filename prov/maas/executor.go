@@ -16,7 +16,6 @@ package maas
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -35,6 +34,16 @@ const infrastructureType = "maas"
 type defaultExecutor struct {
 }
 
+type operationParameters struct {
+	locationProps     config.DynamicMap
+	taskID            string
+	deploymentID      string
+	nodeName          string
+	delegateOperation string
+	instances         []string
+}
+
+// ExecDelegate : Get required operation params and call the operation
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	// Get locations props
 	var locationProps config.DynamicMap
@@ -52,79 +61,70 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
+	// Apply operation
+	operationParams := operationParameters{
+		locationProps:     locationProps,
+		taskID:            taskID,
+		deploymentID:      deploymentID,
+		nodeName:          nodeName,
+		delegateOperation: delegateOperation,
+		instances:         instances,
+	}
+
 	operation := strings.ToLower(delegateOperation)
 	switch {
 	case operation == "install":
-		err = e.installNode(ctx, cfg, locationProps, deploymentID, nodeName, operation, &instances)
-	// case operation == "uninstall":
-	// 	err = e.uninstallNode(ctx, cfg, locationProps, deploymentID, nodeName, instances, operation)
+		err = e.installNode(ctx, &operationParams)
+	case operation == "uninstall":
+		// err = e.uninstallNode(ctx, cfg, locationProps, deploymentID, nodeName, instances, operation)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName, operation string, instances *[]string) error {
-	for _, instance := range *instances {
-		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), deploymentID, nodeName, instance, tosca.NodeStateCreating)
+func (e *defaultExecutor) installNode(ctx context.Context, operationParams *operationParameters) error {
+	log.Debugf("Installing node %s for deployment %s", operationParams.nodeName, operationParams.deploymentID)
+
+	// Verify node Type
+	nodeType, err := deployments.GetNodeType(ctx, operationParams.deploymentID, operationParams.nodeName)
+	if err != nil {
+		return err
+	}
+	if nodeType != "yorc.nodes.maas.Compute" {
+		return errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, operationParams.nodeName, operationParams.deploymentID)
+	}
+
+	compute, err := getMaasCompute(ctx, operationParams)
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get Compute properties for deploymentID:%q, node name:%s", operationParams.deploymentID, operationParams.nodeName)
+	}
+
+	var g errgroup.Group
+	for _, instance := range operationParams.instances {
+		instanceState, err := deployments.GetInstanceState(ctx, operationParams.deploymentID, operationParams.nodeName, instance)
 		if err != nil {
 			return err
 		}
-	}
 
-	infra, err := generateInfrastructure(ctx, locationProps, deploymentID, nodeName, operation, instances)
-	if err != nil {
-		return err
-	}
+		// If instance creating or deleting, ignore it
+		if instanceState == tosca.NodeStateCreating || instanceState == tosca.NodeStateDeleting {
+			continue
+		}
 
-	return e.createInfrastructure(ctx, cfg, locationProps, deploymentID, nodeName, infra)
-}
-
-func (e *defaultExecutor) createInfrastructure(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName string, infra *infrastructure) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Creating the maas infrastructure")
-	var g errgroup.Group
-	for _, compute := range infra.nodes {
-		func(ctx context.Context, comp *nodeAllocation) {
+		func(ctx context.Context, comp *maasCompute) {
 			g.Go(func() error {
-				return e.createNodeAllocation(ctx, cfg, locationProps, comp, deploymentID, nodeName)
+				return compute.deployOnMaas(ctx, operationParams, instance)
 			})
-		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: compute.instanceName}), compute)
+		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), compute)
 	}
 
 	if err := g.Wait(); err != nil {
-		err = errors.Wrapf(err, "Failed to create maas infrastructure for deploymentID:%q, node name:%s", deploymentID, nodeName)
+		err = errors.Wrapf(err, "Failed install node deploymentID:%q, node name:%s", operationParams.deploymentID, operationParams.nodeName)
 		log.Debugf("%+v", err)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, operationParams.deploymentID).RegisterAsString(err.Error())
 		return err
-	}
-
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Successfully creating the maas infrastructure")
-	return nil
-}
-
-func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
-
-	maasClient, err := getMaasClient(locationProps)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
-		return err
-	}
-
-	deployRes, err := allocateAndDeploy(maasClient)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
-		return err
-	}
-
-	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "system_id", deployRes.system_id)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to set attribute (system_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
-	}
-
-	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", deployRes.ips[0])
-	if err != nil {
-		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
 
 	return nil

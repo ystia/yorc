@@ -28,6 +28,11 @@ import (
 
 var apiVersion string = "2.0"
 
+type deployResults struct {
+	ips       []string
+	system_id string
+}
+
 func getMaasClient(locationProps config.DynamicMap) (*gomaasapi.MAASObject, error) {
 	// Check manadatory maas configuration
 	if err := checkLocationConfig(locationProps); err != nil {
