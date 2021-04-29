@@ -106,8 +106,8 @@ func deploy(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JSONObject
 	return &machineJsonObj, nil
 }
 
-func release(maas *gomaasapi.MAASObject, system_id string) error {
-	machineListing := maas.GetSubObject("machines/" + system_id)
+func release(maas *gomaasapi.MAASObject, systemId string) error {
+	machineListing := maas.GetSubObject("machines/" + systemId)
 	_, err := machineListing.CallPost("release", url.Values{"quick_erase": {"true"}})
 	if err != nil {
 		return err
@@ -116,8 +116,8 @@ func release(maas *gomaasapi.MAASObject, system_id string) error {
 	return nil
 }
 
-func getMachineInfo(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JSONObject, error) {
-	machineListing := maas.GetSubObject("machines/" + system_id)
+func getMachineInfo(maas *gomaasapi.MAASObject, systemId string) (*gomaasapi.JSONObject, error) {
+	machineListing := maas.GetSubObject("machines/" + systemId)
 	jsonObj, err := machineListing.CallGet("", url.Values{})
 	if err != nil {
 		return nil, err
