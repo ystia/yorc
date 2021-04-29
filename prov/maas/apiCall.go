@@ -106,14 +106,15 @@ func deploy(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JSONObject
 	return &machineJsonObj, nil
 }
 
-// func release(maas *gomaasapi.MAASObject, system_id string) []byte {
-// 	machineListing := maas.GetSubObject("machines/" + system_id)
-// 	machineJsonObj, err := machineListing.CallPost("release", url.Values{"quick_erase": {"true"}})
+func release(maas *gomaasapi.MAASObject, system_id string) error {
+	machineListing := maas.GetSubObject("machines/" + system_id)
+	_, err := machineListing.CallPost("release", url.Values{"quick_erase": {"true"}})
+	if err != nil {
+		return err
+	}
 
-// 	json, err := machineJsonObj.MarshalJSON()
-
-// 	return json
-// }
+	return nil
+}
 
 func getMachineInfo(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JSONObject, error) {
 	machineListing := maas.GetSubObject("machines/" + system_id)

@@ -34,7 +34,7 @@ type hostCapabilities struct {
 	disk_size string
 }
 
-func (*maasCompute) deployOnMaas(ctx context.Context, operationParams *operationParameters, instance string) error {
+func (*maasCompute) deploy(ctx context.Context, operationParams *operationParameters, instance string) error {
 	deploymentID := operationParams.deploymentID
 	nodeName := operationParams.nodeName
 	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateCreating)
@@ -105,5 +105,29 @@ func getPropertiesFromHostCapabilities(ctx context.Context, operationParams *ope
 	if p != nil && p.RawString() != "" {
 		hostCapabilities.disk_size = p.RawString()
 	}
+	return nil
+}
+
+func (*maasCompute) undeploy(ctx context.Context, operationParams *operationParameters, instance string) error {
+	deploymentID := operationParams.deploymentID
+	nodeName := operationParams.nodeName
+	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+
+	maasClient, err := getMaasClient(operationParams.locationProps)
+	if err != nil {
+		return err
+	}
+
+	system_id, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, instance, "system_id")
+	if err != nil {
+		return errors.Wrapf(err, "can't find instance attribute system id for nodename:%s deployementId: %s", nodeName, deploymentID)
+	}
+
+	err = release(maasClient, system_id.RawString())
+	if err != nil {
+		return errors.Wrapf(err, "Release API call error for nodename:%s deployementId: %s", nodeName, deploymentID)
+	}
+
+	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
 	return nil
 }
