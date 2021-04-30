@@ -50,7 +50,7 @@ jobs:
         make tools
         TESTARGS='-coverprofile coverage-sonar.out -coverpkg=./...' make json-test
     - name: SonarCloud Scan
-      uses: sonarsource/sonarcloud-github-action@v1.1
+      uses: sonarsource/sonarcloud-github-action@master
       # Do this only on push commit do not need to be re-analyzed on PR
       if: github.event_name == 'push'
       with:
@@ -76,9 +76,52 @@ jobs:
           # Ping the server
           jfrog rt ping
 
-      # - name: Generate artifacts
-      #   run: |
-      #     ./build/zip_csar.sh
-      # - name: Deploy artifacts to Artifactory
-      #   run: |
-      #     ./build/deploy_artifactory.sh
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Cache pip
+        uses: actions/cache@v2
+        with:
+          # This path is specific to Ubuntu
+          path: ~/.cache/pip
+          # Look to see if there is a cache hit for the corresponding requirements file
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-
+
+      - name: Install sphinx dependencies
+        run: |
+          pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23
+          sudo apt-get install -y jq \
+                                  latexmk \
+                                  texlive-binaries \
+                                  texlive-fonts-recommended \
+                                  texlive-latex-base \
+                                  texlive-latex-extra \
+                                  texlive-latex-recommended
+
+      - name: Setup go
+        uses: actions/setup-go@v1
+        with:
+          go-version: "1"
+
+      - name: Make and deploy distribution
+        run: |
+          set -euo pipefail
+          SKIP_TESTS=1 make dist
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Make Docker container
+        run: |
+          ./docker_build.sh
+
+      - name: Deploy artifacts to Artifactory
+        run: |
+          ./build/deploy_artifactory.sh
