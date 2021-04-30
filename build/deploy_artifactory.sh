@@ -41,8 +41,8 @@ fi
 
 cd "${rootDir}"
 
-./jfrog rt u --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
-./jfrog rt u --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
+jfrog rt u --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
+jfrog rt u --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
 jfrog rt bce
 jfrog rt bag
 jfrog rt bp
