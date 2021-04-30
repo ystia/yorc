@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/juju/gomaasapi"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/config"
@@ -75,9 +76,22 @@ func checkLocationConfig(locationProps config.DynamicMap) error {
 // 	return json
 // }
 
-func allocateMachine(maas *gomaasapi.MAASObject) (string, error) {
+func allocateMachine(maas *gomaasapi.MAASObject, compute *maasCompute) (string, error) {
+	host := compute.hostCapabilities
+
+	// Convert mem into MB without text
+	mem, err := humanize.ParseBytes(host.mem_size)
+	if err != nil {
+		return "", err
+	}
+	mem = mem / 1000000
+	fmt.Println("mem size : " + fmt.Sprint(mem))
+
 	machineListing := maas.GetSubObject("machines")
-	machineJsonObj, err := machineListing.CallPost("allocate", url.Values{})
+	machineJsonObj, err := machineListing.CallPost("allocate", url.Values{
+		"cpu_count": {host.num_cpus},
+		"mem":       {fmt.Sprint(mem)},
+	})
 	if err != nil {
 		return "", err
 	}
@@ -125,9 +139,9 @@ func getMachineInfo(maas *gomaasapi.MAASObject, systemId string) (*gomaasapi.JSO
 	return &jsonObj, nil
 }
 
-func allocateAndDeploy(maas *gomaasapi.MAASObject) (*deployResults, error) {
+func allocateAndDeploy(maas *gomaasapi.MAASObject, compute *maasCompute) (*deployResults, error) {
 	// log.Println("Allocating machine")
-	system_id, err := allocateMachine(maas)
+	system_id, err := allocateMachine(maas, compute)
 	if err != nil {
 		return nil, fmt.Errorf("failed to allocate machine: %w", err)
 	}

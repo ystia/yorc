@@ -34,7 +34,7 @@ type hostCapabilities struct {
 	disk_size string
 }
 
-func (*maasCompute) deploy(ctx context.Context, operationParams *operationParameters, instance string) error {
+func (compute *maasCompute) deploy(ctx context.Context, operationParams *operationParameters, instance string) error {
 	deploymentID := operationParams.deploymentID
 	nodeName := operationParams.nodeName
 	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateCreating)
@@ -43,13 +43,11 @@ func (*maasCompute) deploy(ctx context.Context, operationParams *operationParame
 
 	maasClient, err := getMaasClient(operationParams.locationProps)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
-	deployRes, err := allocateAndDeploy(maasClient)
+	deployRes, err := allocateAndDeploy(maasClient, compute)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
