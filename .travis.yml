@@ -26,7 +26,7 @@ install:
 script:
   # Test and compute coverage
   - TESTARGS="-coverprofile coverage-sonar.out -coverpkg=./..." make json-test
-  - ./build/travis-sonar.sh
+  #- ./build/travis-sonar.sh
   # Generate distribution
   - SKIP_TESTS=1 make dist
   - "./docker_build.sh"

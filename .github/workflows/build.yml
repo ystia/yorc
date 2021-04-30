@@ -31,6 +31,34 @@ jobs:
       with:
         command: monitor
 
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        # Disabling shallow clone is recommended for improving relevancy of reporting (for sonar)
+        fetch-depth: 0
+    - name: Setup go
+      uses: actions/setup-go@v1
+      with:
+        go-version: "1"
+    - name: Test
+      run: |
+        echo "YORC_VERSION=$(grep "yorc_version" versions.yaml | awk '{print $2}')" >> $GITHUB_ENV
+        make tools
+        TESTARGS='-coverprofile coverage-sonar.out -coverpkg=./...' make json-test
+    - name: SonarCloud Scan
+      uses: sonarsource/sonarcloud-github-action@v1.1
+      # Do this only on push commit do not need to be re-analyzed on PR
+      if: github.event_name == 'push'
+      with:
+        args: >
+          -Dsonar.projectVersion=${{ env.YORC_VERSION }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }
+
+
   build:
     runs-on: ubuntu-latest
     steps:
