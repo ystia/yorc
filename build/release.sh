@@ -56,13 +56,13 @@ if [[ -z "${version}" ]]; then
     exit 1
 fi
 
-if [[ "$(python -c "import semantic_version; print semantic_version.validate('${version}')" )" != "True" ]]; then
+if [[ "$(python -c "import semantic_version; print(semantic_version.validate('${version}'))" )" != "True" ]]; then
     echo "Parameter -v should be a semver 2.0 compatible version (http://semver.org/)" >&2
     exit 1
 fi
 
 # read version
-read -r major minor patch prerelease build <<< $(python -c "import semantic_version; v = semantic_version.Version('${version}'); print v.major, v.minor, v.patch, '.'.join(v.prerelease), '.'.join(v.build);")
+read -r major minor patch prerelease build <<< $(python -c "import semantic_version; v = semantic_version.Version('${version}'); print(v.major, v.minor, v.patch, '.'.join(v.prerelease), '.'.join(v.build));")
 
 # Detect correct supporting branch
 branch=$(git branch --list -r "*/release/${major}.${minor}")
@@ -79,7 +79,7 @@ if [[ -e versions.yaml ]]; then
     currentVersion=$(grep  "${componentVersionName}:" versions.yaml | head -1 | sed -e 's/^[^:]\+:\s*\(.*\)\s*$/\1/')
     # Change -SNAPSHOT into -0 for comparaison as a snapshot is never revelant
     checkVers=$(echo ${currentVersion} | sed -e "s/-SNAPSHOT/-0/")
-    if [[ "True" != "$(python -c "import semantic_version; print  semantic_version.Version('${version}') >= semantic_version.Version('${checkVers}')" )" ]]; then
+    if [[ "True" != "$(python -c "import semantic_version; print(semantic_version.Version('${version}') >= semantic_version.Version('${checkVers}'))" )" ]]; then
         echo "Warning: releasing version ${version} on top of branch ${branch} while its current version is ${currentVersion}" >&2
         read -p "Are you sure? [y/N]" CONFIRM
         if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]] ; then
@@ -94,7 +94,7 @@ branchTag=$(git describe --abbrev=0 --tags ${branch}) || {
 }
 branchTag=$(echo $branchTag | sed -e 's/^v\(.*\)$/\1/')
 
-if [[ "True" != "$(python -c "import semantic_version; print  semantic_version.Version('${version}') > semantic_version.Version('${branchTag}')" )" ]]; then
+if [[ "True" != "$(python -c "import semantic_version; print(semantic_version.Version('${version}') > semantic_version.Version('${branchTag}'))" )" ]]; then
     echo "Warning: releasing version ${version} on top of branch ${branch} while it contains a newer tag: ${branchTag}" >&2
     read -p "Are you sure? [y/N]" CONFIRM
     if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]] ; then
@@ -107,7 +107,7 @@ if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
     releaseBranch="release/${major}.${minor}"
     git checkout -b "${releaseBranch}"
     sed -i -e "s@svg?branch=[^)]*@svg?branch=${releaseBranch}@g" README.md
-    git commit -m "Update travis links in readme for release ${version}" README.md
+    git commit -m "Update CI links in readme for release ${version}" README.md
 fi
 
 # Now checks are passed then tag, build, release and cleanup :)
@@ -115,7 +115,8 @@ cherries=()
 # Update changelog Release date
 sed -i -e "s/^## UNRELEASED.*$/## ${version} ($(LC_ALL=C date +'%B %d, %Y'))/g" CHANGELOG.md
 # Update readme for Release number
-sed -i -e "s@download.svg?version=[^)]*@download.svg?version=${version}@g" -e "s@distributions/[^/]*/link@distributions/${version}/link@g" README.md
+sed -i -e "s@https://img.shields.io/badge/download-[^-]*-blue@https://img.shields.io/badge/download-v${version}-blue@g" \
+    -e "s@releases/tag/[^)]*@releases/tag/v${version}@g" README.md
 git commit -m "Update changelog and readme for release ${version}" CHANGELOG.md README.md
 cherries+=("$(git log -1 --pretty=format:"%h")")
 
@@ -137,7 +138,7 @@ if [[ -e versions.yaml ]]; then
     nextDevelopmentVersion=""
     if [[ -z "${prerelease}" ]]; then
         # We are releasing a final version
-        nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print v.next_patch()" )
+        nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print(v.next_patch())" )
         nextDevelopmentVersion="${nextDevelopmentVersion}-SNAPSHOT"
     else
         # in prerelease revert to version minus prerelease plus -SNAPSHOT
@@ -159,7 +160,7 @@ if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
 
     if [[ -e versions.yaml ]]; then
         # Update version
-        nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print v.next_minor()" )
+        nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print(v.next_minor())" )
         nextDevelopmentVersion="${nextDevelopmentVersion}-SNAPSHOT"
         sed -i -e "/${componentVersionName}: /c${componentVersionName}: ${nextDevelopmentVersion}" versions.yaml
         git commit -m "Prepare for next development cycle ${nextDevelopmentVersion}" versions.yaml
@@ -173,7 +174,7 @@ if [[ -z "${prerelease}" ]]; then
     }
     masterTag=$(echo ${masterTag} | sed -e 's/^v\(.*\)$/\1/')
 
-    if [[ "True" == "$(python -c "import semantic_version; print  semantic_version.Version('${version}') > semantic_version.Version('${masterTag}')" )" ]]; then
+    if [[ "True" == "$(python -c "import semantic_version; print(semantic_version.Version('${version}') > semantic_version.Version('${masterTag}'))" )" ]]; then
         # We should merge the tag to master as it is our highest release
         git checkout master
         git merge --no-ff "v${version}" -X theirs -m "merging latest tag v${version} into master" || {
