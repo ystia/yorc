@@ -80,20 +80,11 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      - name: Cache pip
-        uses: actions/cache@v2
-        with:
-          # This path is specific to Ubuntu
-          path: ~/.cache/pip
-          # Look to see if there is a cache hit for the corresponding requirements file
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
 
       - name: Install sphinx dependencies
         run: |
           pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23
+          pip install -r doc/requirements.txt
           sudo apt-get install -y jq \
                                   latexmk \
                                   texlive-binaries \
