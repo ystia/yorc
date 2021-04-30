@@ -310,7 +310,7 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 if os.path.exists('../versions.yaml'):
     with open('../versions.yaml', 'r') as file:
-        versions_file = yaml.load(file)
+        versions_file = yaml.load(file, Loader=yaml.SafeLoader)
         rst_epilog = ''
         for product in versions_file:
             rst_epilog += ".. |" + product + "| replace:: " + versions_file[product] + "\n"

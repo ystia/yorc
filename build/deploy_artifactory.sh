@@ -23,7 +23,7 @@ if [[ "${GITHUB_ACTIONS}" != "true" ]] ; then
     exit 0
 fi
 
-if [[ "${DISABLE_ARTIFACTORY}" == "true" ]] ; then
+if [[ "${DISABLE_ARTIFACTORY:=false}" == "true" ]] ; then
     echo "Skipping Artifactory publication"
     exit 0
 fi
