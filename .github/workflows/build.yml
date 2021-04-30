@@ -110,6 +110,7 @@ jobs:
       - name: Make and deploy distribution
         run: |
           set -euo pipefail
+          make tools
           SKIP_TESTS=1 make dist
 
       - name: Login to Docker Hub
