@@ -30,8 +30,8 @@ script:
   # Generate distribution
   - SKIP_TESTS=1 make dist
   - "./docker_build.sh"
-  - echo "Deploying artifacts"
-  - bash "./build/deploy_artifactory.sh"
+#  - echo "Deploying artifacts"
+#  - bash "./build/deploy_artifactory.sh"
 
 before_deploy:
   - "bash ./build/pre_bintray_release.sh"
