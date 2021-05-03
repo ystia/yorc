@@ -41,10 +41,12 @@ type deployResults struct {
 	system_id string
 }
 
-func newAllocateParams(num_cpus, RAM string) *allocateParams {
+func newAllocateParams(num_cpus, RAM, arch, storage string) *allocateParams {
 	values := url.Values{
 		"cpu_count": {num_cpus},
 		"mem":       {RAM},
+		"arch":      {arch},
+		"storage":   {storage},
 	}
 	return &allocateParams{
 		values: values,

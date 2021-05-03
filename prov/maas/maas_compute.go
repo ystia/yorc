@@ -39,7 +39,6 @@ type hostCapabilities struct {
 type osCapabilities struct {
 	architecture string
 	distribution string
-	version      string
 }
 
 func (c *maasCompute) deploy(ctx context.Context, operationParams *operationParameters, instance string) error {
@@ -172,13 +171,13 @@ func (c *maasCompute) getAndsetPropertiesFromOSCapabilities(ctx context.Context,
 		os.distribution = p.RawString()
 	}
 
-	// p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "version")
-	// if err != nil {
-	// 	return err
-	// }
-	// if p != nil && p.RawString() != "" {
-	// 	os.version = p.RawString()
-	// }
+	p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "architecture")
+	if err != nil {
+		return err
+	}
+	if p != nil && p.RawString() != "" {
+		os.architecture = p.RawString()
+	}
 	return nil
 }
 
@@ -194,5 +193,5 @@ func (c *maasCompute) buildAllocateParams() (*allocateParams, error) {
 		mem = fmt.Sprint(memInt)
 	}
 
-	return newAllocateParams(c.host.num_cpus, mem), nil
+	return newAllocateParams(c.host.num_cpus, mem, c.os.architecture, ""), nil
 }
