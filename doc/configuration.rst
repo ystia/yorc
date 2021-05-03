@@ -1459,7 +1459,7 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 | ``key_path``                | path to a PEM encoded private key file when TLS    | string    | no               |                 |
 |                             | is activated for ES                                |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
+| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc\_        |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   4s            |
 |                             | before each request when it returns nothing (until |           |                  |                 |
@@ -1487,6 +1487,10 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 | ``trace_requests``          | to print ES requests (for debug only)              | bool      | no               |   false         |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``trace_events``            | to trace events & logs when sent (for debug only)  | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``initial_shards``          | number of shards used to initialize indices        | int64     | no               |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``initial_replicas``        | number of replicas used to initialize indices      | int64     | no               |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 
 

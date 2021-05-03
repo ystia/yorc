@@ -1,0 +1,103 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'version to be released'
+        required: true
+        default: ''
+
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Configure Git user
+      run: |
+        git config user.email "actions@github.com"
+        git config user.name "GitHub Actions"
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install semantic_version
+
+    - name: Tag and push a release
+      id: release
+      run: |
+        ./build/release.sh -v "${{ github.event.inputs.release_version }}"
+        read -r major minor patch prerelease build <<< $(python -c "import semantic_version; v = semantic_version.Version('${{ github.event.inputs.release_version }}'); print(v.major, v.minor, v.patch, '.'.join(v.prerelease), '.'.join(v.build));")
+        if [[ -z "${prerelease}" ]] ; then
+            echo "PRERELEASE=false" >> $GITHUB_ENV
+        else
+            echo "PRERELEASE=true" >> $GITHUB_ENV
+        fi
+        tagName="v${{ github.event.inputs.release_version }}"
+        echo "TAG_NAME=${tagName}" >> $GITHUB_ENV
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Checkout tag
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.TAG_NAME }}
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install sphinx dependencies
+      run: |
+        pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23 Pygments>=2.7.1
+        pip install -r doc/requirements.txt
+        sudo apt-get install -y jq \
+                                latexmk \
+                                texlive-binaries \
+                                texlive-fonts-recommended \
+                                texlive-latex-base \
+                                texlive-latex-extra \
+                                texlive-latex-recommended
+
+    - name: Setup go
+      uses: actions/setup-go@v1
+      with:
+        go-version: "1"
+
+    - name: Generate distribution and changelog
+      run: |
+        set -euo pipefail
+        make tools
+        SKIP_TESTS=1 make dist
+        # Generate changelog
+        awk '{f=1} f{ if (/^## / && i++>=1) exit; else print $0}' CHANGELOG.md | tee CHANGELOG-for-version.md
+
+
+    - name: Create or Update Github Release draft
+      id: update_release
+      uses: loicalbertin/action-gh-release@080e2e752ac77817dcfd2e8809873bdc24817584
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        body_path: CHANGELOG-for-version.md
+        name: ${{ env.TAG_NAME }}
+        prerelease: ${{ env.PRERELEASE }}
+        draft: true
+        files: build/csars/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Publish Github Release
+      uses: eregon/publish-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        release_id: ${{ steps.update_release.outputs.id }}

@@ -48,9 +48,11 @@ const (
 	UPDATE_FAILURE
 	// PURGED is a DeploymentStatus of type PURGED
 	PURGED
+	// PURGE_FAILED is a DeploymentStatus of type PURGE_FAILED
+	PURGE_FAILED
 )
 
-const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSPURGE_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILUREPURGED"
+const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSPURGE_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSUPDATE_IN_PROGRESSUPDATEDUPDATE_FAILUREPURGEDPURGE_FAILED"
 
 var _DeploymentStatusMap = map[DeploymentStatus]string{
 	0:  _DeploymentStatusName[0:7],
@@ -66,6 +68,7 @@ var _DeploymentStatusMap = map[DeploymentStatus]string{
 	10: _DeploymentStatusName[161:168],
 	11: _DeploymentStatusName[168:182],
 	12: _DeploymentStatusName[182:188],
+	13: _DeploymentStatusName[188:200],
 }
 
 // String implements the Stringer interface.
@@ -90,6 +93,7 @@ var _DeploymentStatusValue = map[string]DeploymentStatus{
 	_DeploymentStatusName[161:168]: 10,
 	_DeploymentStatusName[168:182]: 11,
 	_DeploymentStatusName[182:188]: 12,
+	_DeploymentStatusName[188:200]: 13,
 }
 
 // ParseDeploymentStatus attempts to convert a string to a DeploymentStatus

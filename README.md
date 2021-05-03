@@ -1,6 +1,6 @@
 # Ystia Orchestrator
 
-[![Download](https://api.bintray.com/packages/ystia/yorc-engine/distributions/images/download.svg?version=4.0.0)](https://bintray.com/ystia/yorc-engine/distributions/4.0.0/link) [![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=release/4.0)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) [![Docker Pulls](https://img.shields.io/docker/pulls/ystia/yorc.svg?style=flat)](https://hub.docker.com/r/ystia/yorc) [![Join the chat at https://gitter.im/ystia/yorc](https://badges.gitter.im/ystia/yorc.svg)](https://gitter.im/ystia/yorc?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Download](https://img.shields.io/badge/download-v4.1.0-blue)](https://github.com/ystia/yorc/releases/tag/v4.1.0) [![Build Status](https://github.com/ystia/yorc/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/ystia/yorc/actions) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) [![Docker Pulls](https://img.shields.io/docker/pulls/ystia/yorc.svg?style=flat)](https://hub.docker.com/r/ystia/yorc) [![Join the chat at https://gitter.im/ystia/yorc](https://badges.gitter.im/ystia/yorc.svg)](https://gitter.im/ystia/yorc?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/ystia/yorc/develop/doc/_static/logo/github-repository-open-graph-template.png" width="50%" height="50%" title="Yorc Logo">
@@ -24,9 +24,9 @@ Yorc is now the official orchestrator for Alien4Cloud and Alien4Cloud distributi
 
 ## How to download the Ystia Orchestrator
 
-Yorc releases can be downloaded from our [BinTray account](https://bintray.com/ystia/yorc-engine/distributions).
+Yorc releases can be downloaded from our [GitHub Release](https://github.com/ystia/yorc/releases).
 
-Grab the [latest release here](https://bintray.com/ystia/yorc-engine/distributions/_latestVersion).
+Grab the [latest release here](https://github.com/ystia/yorc/releases/latest).
 
 Docker images could be found on [Docker Hub](https://hub.docker.com/r/ystia/yorc).
 

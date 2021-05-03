@@ -2,6 +2,13 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Support Alien4Cloud 3.2.0 ([GH-723](https://github.com/ystia/yorc/issues/723))
+
+
+## 4.1.0 (April 11, 2021)
+
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
@@ -20,6 +27,8 @@
 
 ### ENHANCEMENTS
 
+* Alllow shards and replicas configuration for Elastic storage ([GH-722](https://github.com/ystia/yorc/issues/722))
+* Add a new synchronous purge API endpoint ([GH-707](https://github.com/ystia/yorc/issues/707))
 * Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
 * Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
@@ -32,6 +41,7 @@
 
 ### BUG FIXES
 
+* Yorc panics on ElasticSearch store error ([GH-719](https://github.com/ystia/yorc/issues/719))
 * Error when storing runtime attributes of google subnet ([GH-713](https://github.com/ystia/yorc/issues/713))
 * Bootstrap fails on hosts where a version of ansible < 2.10.0 is installed ([GH-695](https://github.com/ystia/yorc/issues/695))
 * Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))

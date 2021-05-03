@@ -18,8 +18,9 @@ ADD rootfs /
 
 # Python is required here as it should not be removed automatically when uninstalling python-dev
 # We do not install the whole docker package but just docker-cli
-RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev docker-cli && \
-    python3 -m ensurepip && \
+
+RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev docker-cli cargo rust && \
+    python3 -m ensurepip --upgrade && \
     if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
     if [ ! -e /usr/bin/python ]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
     pip install ansible==${ANSIBLE_VERSION} docker-py netaddr jmespath && \
