@@ -95,7 +95,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, operationParams *oper
 		return errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, operationParams.nodeName, operationParams.deploymentID)
 	}
 
-	compute, err := getMaasCompute(ctx, operationParams)
+	compute, err := getComputeFromDeployment(ctx, operationParams)
 
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get Compute properties for deploymentID:%q, node name:%s", operationParams.deploymentID, operationParams.nodeName)
@@ -142,7 +142,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, operationParams *op
 		return errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, operationParams.nodeName, operationParams.deploymentID)
 	}
 
-	compute, err := getMaasCompute(ctx, operationParams)
+	compute, err := getComputeFromDeployment(ctx, operationParams)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get Compute properties for deploymentID:%q, node name:%s", operationParams.deploymentID, operationParams.nodeName)
 	}

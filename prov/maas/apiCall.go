@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/juju/gomaasapi"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/config"
@@ -29,9 +28,36 @@ import (
 
 var apiVersion string = "2.0"
 
+type allocateParams struct {
+	values url.Values
+}
+type deployParams struct {
+	values    url.Values
+	system_id string
+}
+
 type deployResults struct {
 	ips       []string
 	system_id string
+}
+
+func newAllocateParams(num_cpus, RAM string) *allocateParams {
+	values := url.Values{
+		"cpu_count": {num_cpus},
+		"mem":       {RAM},
+	}
+	return &allocateParams{
+		values: values,
+	}
+}
+
+func newDeployParams(distro_series string) *deployParams {
+	values := url.Values{
+		"distro_series": {distro_series},
+	}
+	return &deployParams{
+		values: values,
+	}
 }
 
 func getMaasClient(locationProps config.DynamicMap) (*gomaasapi.MAASObject, error) {
@@ -62,10 +88,6 @@ func checkLocationConfig(locationProps config.DynamicMap) error {
 	if strings.Trim(locationProps.GetString("api_key"), "") == "" {
 		return errors.New("maas location api key is not set")
 	}
-
-	// if strings.Trim(locationProps.GetString("user_token"), "") == "" {
-	// 	return errors.New("maas location user token is not set")
-	// }
 	return nil
 }
 
@@ -76,22 +98,10 @@ func checkLocationConfig(locationProps config.DynamicMap) error {
 // 	return json
 // }
 
-func allocateMachine(maas *gomaasapi.MAASObject, compute *maasCompute) (string, error) {
-	host := compute.hostCapabilities
-
-	// Convert mem into MB without text
-	mem, err := humanize.ParseBytes(host.mem_size)
-	if err != nil {
-		return "", err
-	}
-	mem = mem / 1000000
-	fmt.Println("mem size : " + fmt.Sprint(mem))
+func allocateMachine(maas *gomaasapi.MAASObject, allocateParams *allocateParams) (string, error) {
 
 	machineListing := maas.GetSubObject("machines")
-	machineJsonObj, err := machineListing.CallPost("allocate", url.Values{
-		"cpu_count": {host.num_cpus},
-		"mem":       {fmt.Sprint(mem)},
-	})
+	machineJsonObj, err := machineListing.CallPost("allocate", allocateParams.values)
 	if err != nil {
 		return "", err
 	}
@@ -109,9 +119,9 @@ func allocateMachine(maas *gomaasapi.MAASObject, compute *maasCompute) (string, 
 	return system_id, nil
 }
 
-func deploy(maas *gomaasapi.MAASObject, system_id string) (*gomaasapi.JSONObject, error) {
-	machineListing := maas.GetSubObject("machines/" + system_id)
-	machineJsonObj, err := machineListing.CallPost("deploy", url.Values{})
+func deploy(maas *gomaasapi.MAASObject, deployParams *deployParams) (*gomaasapi.JSONObject, error) {
+	machineListing := maas.GetSubObject("machines/" + deployParams.system_id)
+	machineJsonObj, err := machineListing.CallPost("deploy", deployParams.values)
 
 	if err != nil {
 		return nil, err
@@ -139,25 +149,22 @@ func getMachineInfo(maas *gomaasapi.MAASObject, systemId string) (*gomaasapi.JSO
 	return &jsonObj, nil
 }
 
-func allocateAndDeploy(maas *gomaasapi.MAASObject, compute *maasCompute) (*deployResults, error) {
-	// log.Println("Allocating machine")
-	system_id, err := allocateMachine(maas, compute)
+func allocateAndDeploy(maas *gomaasapi.MAASObject, allocateParams *allocateParams, deployParams *deployParams) (*deployResults, error) {
+	system_id, err := allocateMachine(maas, allocateParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to allocate machine: %w", err)
 	}
+	deployParams.system_id = system_id
 
-	// log.Println("Deploying machine with system_id : " + system_id)
-	_, err = deploy(maas, system_id)
+	_, err = deploy(maas, deployParams)
 	if err != nil {
 		return nil, err
 	}
 
-	// log.Println("Allocating and deployement of " + system_id + " successfull")
 	// Wait for the node to finish deploying
 	var deployRes gomaasapi.MAASObject
 	for {
 		time.Sleep(20 * time.Second)
-		// log.Println("Checking if " + system_id + " has finished deploying...")
 
 		json, err := getMachineInfo(maas, system_id)
 		if err != nil {

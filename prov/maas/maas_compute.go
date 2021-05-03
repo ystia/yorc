@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
@@ -25,7 +26,8 @@ import (
 )
 
 type maasCompute struct {
-	hostCapabilities hostCapabilities
+	host hostCapabilities
+	os   osCapabilities
 }
 
 type hostCapabilities struct {
@@ -34,7 +36,13 @@ type hostCapabilities struct {
 	disk_size string
 }
 
-func (compute *maasCompute) deploy(ctx context.Context, operationParams *operationParameters, instance string) error {
+type osCapabilities struct {
+	architecture string
+	distribution string
+	version      string
+}
+
+func (c *maasCompute) deploy(ctx context.Context, operationParams *operationParameters, instance string) error {
 	deploymentID := operationParams.deploymentID
 	nodeName := operationParams.nodeName
 	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateCreating)
@@ -46,7 +54,12 @@ func (compute *maasCompute) deploy(ctx context.Context, operationParams *operati
 		return err
 	}
 
-	deployRes, err := allocateAndDeploy(maasClient, compute)
+	allocateParams, err := c.buildAllocateParams()
+	if err != nil {
+		return err
+	}
+
+	deployRes, err := allocateAndDeploy(maasClient, allocateParams, newDeployParams(c.os.distribution))
 	if err != nil {
 		return err
 	}
@@ -65,10 +78,15 @@ func (compute *maasCompute) deploy(ctx context.Context, operationParams *operati
 	return nil
 }
 
-func getMaasCompute(ctx context.Context, operationParams *operationParameters) (*maasCompute, error) {
+func getComputeFromDeployment(ctx context.Context, operationParams *operationParameters) (*maasCompute, error) {
 	maasCompute := &maasCompute{}
 
-	err := getPropertiesFromHostCapabilities(ctx, operationParams, &maasCompute.hostCapabilities)
+	err := maasCompute.getAndsetPropertiesFromHostCapabilities(ctx, operationParams)
+	if err != nil {
+		return nil, err
+	}
+
+	err = maasCompute.getAndsetPropertiesFromOSCapabilities(ctx, operationParams)
 	if err != nil {
 		return nil, err
 	}
@@ -76,9 +94,35 @@ func getMaasCompute(ctx context.Context, operationParams *operationParameters) (
 	return maasCompute, nil
 }
 
-func getPropertiesFromHostCapabilities(ctx context.Context, operationParams *operationParameters, hostCapabilities *hostCapabilities) error {
+func (*maasCompute) undeploy(ctx context.Context, operationParams *operationParameters, instance string) error {
 	deploymentID := operationParams.deploymentID
 	nodeName := operationParams.nodeName
+	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+
+	maasClient, err := getMaasClient(operationParams.locationProps)
+	if err != nil {
+		return err
+	}
+
+	system_id, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, instance, "system_id")
+	if err != nil || system_id == nil {
+		return errors.Wrapf(err, "can't find instance attribute system id for nodename:%s deployementId: %s \n Maybe last deployement was not successful", nodeName, deploymentID)
+	}
+
+	err = release(maasClient, system_id.RawString())
+	if err != nil {
+		return errors.Wrapf(err, "Release API call error for nodename:%s deployementId: %s", nodeName, deploymentID)
+	}
+
+	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
+	return nil
+}
+
+// Set host capabilities using deployments values
+func (c *maasCompute) getAndsetPropertiesFromHostCapabilities(ctx context.Context, operationParams *operationParameters) error {
+	deploymentID := operationParams.deploymentID
+	nodeName := operationParams.nodeName
+	hostCapabilities := &c.host
 
 	p, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
@@ -106,26 +150,49 @@ func getPropertiesFromHostCapabilities(ctx context.Context, operationParams *ope
 	return nil
 }
 
-func (*maasCompute) undeploy(ctx context.Context, operationParams *operationParameters, instance string) error {
+// Set os capabilities using deployments values
+func (c *maasCompute) getAndsetPropertiesFromOSCapabilities(ctx context.Context, operationParams *operationParameters) error {
 	deploymentID := operationParams.deploymentID
 	nodeName := operationParams.nodeName
-	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+	os := &c.os
 
-	maasClient, err := getMaasClient(operationParams.locationProps)
+	p, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "architecture")
 	if err != nil {
 		return err
 	}
-
-	system_id, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, instance, "system_id")
-	if err != nil {
-		return errors.Wrapf(err, "can't find instance attribute system id for nodename:%s deployementId: %s", nodeName, deploymentID)
+	if p != nil && p.RawString() != "" {
+		os.architecture = p.RawString()
 	}
 
-	err = release(maasClient, system_id.RawString())
+	p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "distribution")
 	if err != nil {
-		return errors.Wrapf(err, "Release API call error for nodename:%s deployementId: %s", nodeName, deploymentID)
+		return err
+	}
+	if p != nil && p.RawString() != "" {
+		os.distribution = p.RawString()
 	}
 
-	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
+	// p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "version")
+	// if err != nil {
+	// 	return err
+	// }
+	// if p != nil && p.RawString() != "" {
+	// 	os.version = p.RawString()
+	// }
 	return nil
+}
+
+func (c *maasCompute) buildAllocateParams() (*allocateParams, error) {
+	// Convert mem into MB without text
+	mem := ""
+	if c.host.mem_size != "" {
+		memInt, err := humanize.ParseBytes(c.host.mem_size)
+		if err != nil {
+			return nil, err
+		}
+		memInt = memInt / 1000000
+		mem = fmt.Sprint(memInt)
+	}
+
+	return newAllocateParams(c.host.num_cpus, mem), nil
 }
