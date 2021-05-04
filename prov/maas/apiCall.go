@@ -27,6 +27,7 @@ import (
 )
 
 var apiVersion string = "2.0"
+var delayBetweenStatusCheck string = "20s"
 
 type allocateParams struct {
 	values url.Values
@@ -63,7 +64,7 @@ func newDeployParams(distro_series string) *deployParams {
 }
 
 func getMaasClient(locationProps config.DynamicMap) (*gomaasapi.MAASObject, error) {
-	// Check manadatory maas configuration
+	// Check mandatory maas configuration
 	if err := checkLocationConfig(locationProps); err != nil {
 		log.Printf("Unable to provide maas client due to:%+v", err)
 		return nil, err
@@ -71,6 +72,11 @@ func getMaasClient(locationProps config.DynamicMap) (*gomaasapi.MAASObject, erro
 
 	apiURL := locationProps.GetString("api_url")
 	apiKey := locationProps.GetString("api_key")
+
+	stringDelay := locationProps.GetString("delayBetweenStatusCheck")
+	if stringDelay != "" {
+		delayBetweenStatusCheck = stringDelay
+	}
 
 	authClient, err := gomaasapi.NewAuthenticatedClient(gomaasapi.AddAPIVersionToURL(apiURL, apiVersion), apiKey)
 	if err != nil {
@@ -164,9 +170,13 @@ func allocateAndDeploy(maas *gomaasapi.MAASObject, allocateParams *allocateParam
 	}
 
 	// Wait for the node to finish deploying
+	duration, err := time.ParseDuration(delayBetweenStatusCheck)
+	if err != nil {
+		return nil, err
+	}
 	var deployRes gomaasapi.MAASObject
 	for {
-		time.Sleep(20 * time.Second)
+		time.Sleep(duration)
 
 		json, err := getMachineInfo(maas, system_id)
 		if err != nil {
