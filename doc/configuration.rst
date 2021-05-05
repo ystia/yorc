@@ -1462,7 +1462,7 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 | ``key_path``                | path to a PEM encoded private key file when TLS    | string    | no               |                 |
 |                             | is activated for ES                                |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
+| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc\_        |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   4s            |
 |                             | before each request when it returns nothing (until |           |                  |                 |
