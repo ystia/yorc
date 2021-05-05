@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Can't bootstrap Yorc as BinTray is now unavailable ([GH-727](https://github.com/ystia/yorc/issues/727))
+
 ## 4.0.5 (March 22, 2021)
 
 ### ENHANCEMENTS
