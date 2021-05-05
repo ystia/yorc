@@ -12,7 +12,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Run Snyk to check for vulnerabilities
       uses: snyk/actions/golang@master
       continue-on-error: true # To make sure that SARIF upload gets called
@@ -34,7 +34,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         # Disabling shallow clone is recommended for improving relevancy of reporting (for sonar)
         fetch-depth: 0
