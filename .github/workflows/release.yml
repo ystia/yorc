@@ -19,6 +19,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        # Disabling shallow clone to access git history (specially tags for comparing)
+        fetch-depth: 0
     - name: Configure Git user
       run: |
         git config user.email "actions@github.com"
