@@ -1,0 +1,39 @@
+name: Artifactory Cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      from_date:
+        description: ''
+        required: false
+        default: '30 days ago'
+  schedule:
+    - cron: '0 12 7,14,21,28 * *'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  cleanup:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup jfrog CLI
+      uses: jfrog/setup-jfrog-cli@v1
+      env:
+        JF_ARTIFACTORY_1: ${{ secrets.JF_ARTIFACTORY_SERVER_1 }}
+
+    - name: Ping Artifactory with jfrog CLI
+      run: |
+        # Ping the server
+        jfrog rt ping
+
+    - name: Run Cleanup
+      run: |
+        ./build/gh-action-cleanup-artifactory.sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        FROM_DATE: ${{ github.event.inputs.from_date || '30 days ago' }}
