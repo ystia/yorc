@@ -2,6 +2,14 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Support Alien4Cloud 3.2.0 ([GH-723](https://github.com/ystia/yorc/issues/723))
+
+### BUG FIXES
+
+* Can't bootstrap Yorc as BinTray is now unavailable ([GH-727](https://github.com/ystia/yorc/issues/727))
+
 ## 4.1.0 (April 11, 2021)
 
 ### DEPENDENCIES
