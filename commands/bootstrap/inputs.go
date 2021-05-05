@@ -1552,7 +1552,7 @@ func getYorcDownloadURL() string {
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-engine/%s/yorc-%s.tgz",
+			"https://github.com/ystia/yorc/releases/download/v%s/yorc-%s.tgz",
 			yorcVersion, yorcVersion)
 	}
 	return downloadURL
