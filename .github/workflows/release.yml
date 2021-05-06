@@ -96,7 +96,9 @@ jobs:
         name: ${{ env.TAG_NAME }}
         prerelease: ${{ env.PRERELEASE }}
         draft: true
-        files: build/csars/*.zip
+        files: |
+          dist/yorc-.*.tgz
+          dist/yorc-server.*-distrib.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
