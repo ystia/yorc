@@ -96,3 +96,17 @@ If you are having trouble getting into the mood of idiomatic Go, we recommend
 reading through [Effective Go](https://golang.org/doc/effective_go.html). The
 [Go Blog](https://blog.golang.org) is also a great resource. Drinking the
 kool-aid is a lot easier than going thirsty.
+
+## Release Yorc
+
+Releases are now handled by a [GitHub Action Workflow](https://github.com/ystia/yorc/actions/workflows/release.yml).
+Contributors with `members` role on this project can trigger this workflow. it requires as an input the release version
+in semver format (leading 'v' should be omitted).
+
+This workflow will:
+
+1. call the `build/release.sh` script
+2. checkout the generated tag
+3. generate the distribution and a changelog for this version
+4. create a GH Release and upload assets
+5. publish the GH Release
