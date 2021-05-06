@@ -97,8 +97,8 @@ jobs:
         prerelease: ${{ env.PRERELEASE }}
         draft: true
         files: |
-          dist/yorc-.*.tgz
-          dist/yorc-server.*-distrib.zip
+          dist/yorc-*.tgz
+          dist/yorc-server*-distrib.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
