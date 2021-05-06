@@ -14,7 +14,7 @@
 # limitations under the License.
 
 #set -x
-set -e
+set -eo pipefail
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 componentVersionName="yorc_version"
@@ -170,7 +170,7 @@ fi
 
 if [[ -z "${prerelease}" ]]; then
     # Merge on master only final version
-    masterTag=$(git describe --abbrev=0 --tags master) || {
+    masterTag=$(git describe --abbrev=0 --tags origin/master) || {
         masterTag="v0.0.0"
     }
     masterTag=$(echo ${masterTag} | sed -e 's/^v\(.*\)$/\1/')
