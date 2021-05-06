@@ -71,5 +71,8 @@ func TestRunConsulSchedulingPackageTests(t *testing.T) {
 		t.Run("testUnregisterAction", func(t *testing.T) {
 			testUnregisterAction(t, client)
 		})
+		t.Run("testUpdateActionData", func(t *testing.T) {
+			testUpdateActionData(t, client)
+		})
 	})
 }
