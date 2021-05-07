@@ -37,17 +37,23 @@ type deployParams struct {
 	system_id string
 }
 
+type releaseParams struct {
+	values    url.Values
+	system_id string
+}
+
 type deployResults struct {
 	ips       []string
 	system_id string
 }
 
-func newAllocateParams(num_cpus, RAM, arch, storage string) *allocateParams {
+func newAllocateParams(num_cpus, RAM, arch, storage, tags string) *allocateParams {
 	values := url.Values{
 		"cpu_count": {num_cpus},
 		"mem":       {RAM},
 		"arch":      {arch},
 		"storage":   {storage},
+		"tags":      {tags},
 	}
 	return &allocateParams{
 		values: values,
@@ -59,6 +65,17 @@ func newDeployParams(distro_series string) *deployParams {
 		"distro_series": {distro_series},
 	}
 	return &deployParams{
+		values: values,
+	}
+}
+
+func newReleaseParams(erase, secure_erase, quick_erase string) *releaseParams {
+	values := url.Values{
+		"erase":        {erase},
+		"secure_erase": {secure_erase},
+		"quick_erase":  {quick_erase},
+	}
+	return &releaseParams{
 		values: values,
 	}
 }
@@ -138,9 +155,9 @@ func deploy(maas *gomaasapi.MAASObject, deployParams *deployParams) (*gomaasapi.
 	return &machineJsonObj, nil
 }
 
-func release(maas *gomaasapi.MAASObject, systemId string) error {
-	machineListing := maas.GetSubObject("machines/" + systemId)
-	_, err := machineListing.CallPost("release", url.Values{"quick_erase": {"true"}})
+func release(maas *gomaasapi.MAASObject, releaseParams *releaseParams) error {
+	machineListing := maas.GetSubObject("machines/" + releaseParams.system_id)
+	_, err := machineListing.CallPost("release", releaseParams.values)
 	if err != nil {
 		return err
 	}

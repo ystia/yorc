@@ -26,8 +26,14 @@ import (
 )
 
 type maasCompute struct {
-	host hostCapabilities
-	os   osCapabilities
+	distro_series string
+	arch          string
+	erase         string
+	secure_erase  string
+	quick_erase   string
+	tags          string
+	host          hostCapabilities
+	os            osCapabilities
 }
 
 type hostCapabilities struct {
@@ -58,7 +64,7 @@ func (c *maasCompute) deploy(ctx context.Context, operationParams *operationPara
 		return err
 	}
 
-	deployRes, err := allocateAndDeploy(maasClient, allocateParams, newDeployParams(c.os.distribution))
+	deployRes, err := allocateAndDeploy(maasClient, allocateParams, newDeployParams(c.distro_series))
 	if err != nil {
 		return err
 	}
@@ -80,7 +86,12 @@ func (c *maasCompute) deploy(ctx context.Context, operationParams *operationPara
 func getComputeFromDeployment(ctx context.Context, operationParams *operationParameters) (*maasCompute, error) {
 	maasCompute := &maasCompute{}
 
-	err := maasCompute.getAndsetPropertiesFromHostCapabilities(ctx, operationParams)
+	err := maasCompute.getAndsetProperties(ctx, operationParams)
+	if err != nil {
+		return nil, err
+	}
+
+	err = maasCompute.getAndsetPropertiesFromHostCapabilities(ctx, operationParams)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +104,7 @@ func getComputeFromDeployment(ctx context.Context, operationParams *operationPar
 	return maasCompute, nil
 }
 
-func (*maasCompute) undeploy(ctx context.Context, operationParams *operationParameters, instance string) error {
+func (c *maasCompute) undeploy(ctx context.Context, operationParams *operationParameters, instance string) error {
 	deploymentID := operationParams.deploymentID
 	nodeName := operationParams.nodeName
 	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
@@ -108,12 +119,94 @@ func (*maasCompute) undeploy(ctx context.Context, operationParams *operationPara
 		return errors.Wrapf(err, "can't find instance attribute system id for nodename:%s deployementId: %s \n Maybe last deployement was not successful", nodeName, deploymentID)
 	}
 
-	err = release(maasClient, system_id.RawString())
+	releaseParams := newReleaseParams(c.erase, c.secure_erase, c.quick_erase)
+	releaseParams.system_id = system_id.RawString()
+
+	err = release(maasClient, releaseParams)
 	if err != nil {
 		return errors.Wrapf(err, "Release API call error for nodename:%s deployementId: %s", nodeName, deploymentID)
 	}
 
 	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
+	return nil
+}
+
+func (c *maasCompute) buildAllocateParams() (*allocateParams, error) {
+	// Convert mem into MB without text
+	mem := ""
+	if c.host.mem_size != "" {
+		memInt, err := humanize.ParseBytes(c.host.mem_size)
+		if err != nil {
+			return nil, err
+		}
+		memInt = memInt / 1000000
+		mem = fmt.Sprint(memInt)
+	}
+
+	storage := ""
+	if c.host.disk_size != "" {
+		storageInt, err := humanize.ParseBytes(c.host.disk_size)
+		if err != nil {
+			return nil, err
+		}
+		storageInt = storageInt / 1000000000
+		storage = "label:" + fmt.Sprint(storageInt)
+	}
+	return newAllocateParams(c.host.num_cpus, mem, c.arch, storage, c.tags), nil
+}
+
+// Set host capabilities using deployments values
+func (c *maasCompute) getAndsetProperties(ctx context.Context, operationParams *operationParameters) error {
+	deploymentID := operationParams.deploymentID
+	nodeName := operationParams.nodeName
+
+	p, err := deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "distro_series", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.distro_series = p
+	}
+
+	p, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "arch", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.arch = p
+	}
+
+	p, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "erase", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.erase = p
+	}
+
+	p, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "secure_erase", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.secure_erase = p
+	}
+
+	p, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "quick_erase", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.quick_erase = p
+	}
+
+	p, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "tags", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.tags = p
+	}
 	return nil
 }
 
@@ -179,19 +272,4 @@ func (c *maasCompute) getAndsetPropertiesFromOSCapabilities(ctx context.Context,
 		os.architecture = p.RawString()
 	}
 	return nil
-}
-
-func (c *maasCompute) buildAllocateParams() (*allocateParams, error) {
-	// Convert mem into MB without text
-	mem := ""
-	if c.host.mem_size != "" {
-		memInt, err := humanize.ParseBytes(c.host.mem_size)
-		if err != nil {
-			return nil, err
-		}
-		memInt = memInt / 1000000
-		mem = fmt.Sprint(memInt)
-	}
-
-	return newAllocateParams(c.host.num_cpus, mem, c.os.architecture, ""), nil
 }
