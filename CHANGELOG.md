@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
+
 ### BUG FIXES
 
 * Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
