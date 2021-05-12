@@ -32,6 +32,7 @@ type maasCompute struct {
 	secure_erase  string
 	quick_erase   string
 	tags          string
+	not_tags      string
 	host          hostCapabilities
 	os            osCapabilities
 }
@@ -77,6 +78,11 @@ func (c *maasCompute) deploy(ctx context.Context, operationParams *operationPara
 	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, instance, "endpoint", "ip_address", deployRes.ips[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, instance)
+	}
+
+	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, instance, "endpoint", "private_address", deployRes.ips[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set capability attribute (private_address) for node name:%s, instance name:%q", nodeName, instance)
 	}
 
 	deployments.SetInstanceStateWithContextualLogs(ctx, deploymentID, nodeName, instance, tosca.NodeStateCreated)
@@ -152,7 +158,7 @@ func (c *maasCompute) buildAllocateParams() (*allocateParams, error) {
 		storageInt = storageInt / 1000000000
 		storage = "label:" + fmt.Sprint(storageInt)
 	}
-	return newAllocateParams(c.host.num_cpus, mem, c.arch, storage, c.tags), nil
+	return newAllocateParams(c.host.num_cpus, mem, c.arch, storage, c.tags, c.not_tags), nil
 }
 
 // Set host capabilities using deployments values
@@ -207,6 +213,15 @@ func (c *maasCompute) getAndsetProperties(ctx context.Context, operationParams *
 	if p != "" {
 		c.tags = p
 	}
+
+	p, err = deployments.GetStringNodeProperty(ctx, deploymentID, nodeName, "not_tags", false)
+	if err != nil {
+		return err
+	}
+	if p != "" {
+		c.not_tags = p
+	}
+
 	return nil
 }
 
