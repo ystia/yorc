@@ -154,8 +154,8 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, operationParams *op
 			return err
 		}
 
-		// If instance creating or deleting, ignore it
-		if instanceState == tosca.NodeStateCreating || instanceState == tosca.NodeStateDeleting {
+		// If instance deleting, ignore it
+		if instanceState == tosca.NodeStateDeleting {
 			continue
 		}
 
