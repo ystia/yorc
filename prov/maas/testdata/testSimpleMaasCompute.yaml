@@ -1,0 +1,74 @@
+tosca_definitions_version: alien_dsl_3_0_0
+
+metadata:
+  template_name: 1Compute
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-maas-types.yml>
+
+topology_template:
+  node_templates:
+    Compute:
+      type: yorc.nodes.maas.Compute
+      properties:
+        distro_series: bionic
+        arch: amd64
+        erase: true
+        quick_erase: true
+        secure_erase: true
+        tags: tagTest
+        not_tags: notTagTest
+      capabilities:
+        host:
+          properties:
+            num_cpus: 3
+            mem_size: "10 GB"
+            disk_size: "200 GB"
+
+        endpoint:
+          properties:
+            credentials: 
+              user: ubuntu
+              token_type: null
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          target: Compute
+          activities:
+            - delegate: install
+    uninstall:
+      steps:
+        Compute_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        Compute_start:
+          target: Compute
+          activities:
+            - delegate: start
+    stop:
+      steps:
+        Compute_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+    run:
+    cancel:
