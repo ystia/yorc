@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
+
 ## 4.0.6 (May 06, 2021)
 
 ### BUG FIXES

@@ -24,6 +24,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
 
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -367,4 +368,31 @@ func testUnregisterAction(t *testing.T, client *api.Client) {
 	require.Nil(t, err, "Unexpected error while getting flag for removal")
 	require.NotNil(t, kvp, "kvp is nil")
 	require.Equal(t, "true", string(kvp.Value), "unregisterFlag is not set to true")
+}
+
+func testUpdateActionData(t *testing.T, client *api.Client) {
+	t.Parallel()
+	deploymentID := "dep-" + t.Name()
+	ti := 1 * time.Second
+	actionType := "test-action"
+	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"}}
+	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
+	assert.NilError(t, err, "Failed to register action")
+
+	err = scheduling.UpdateActionData(client, id, "key2", "newVal")
+	assert.NilError(t, err, "Failed to update action data")
+
+	testSched := scheduler{cc: client}
+	newAction, err := testSched.buildScheduledAction(id)
+	assert.NilError(t, err, "Failed to build action")
+
+	val := newAction.Data["key2"]
+	assert.Equal(t, val, "newVal", "Unexpected value for action key updated")
+
+	// Check the update of an unregistered action, should fail
+	err = testSched.unregisterAction(id)
+	assert.NilError(t, err, "Failed to unregister action")
+
+	err = scheduling.UpdateActionData(client, id, "key3", "newVal")
+	assert.ErrorContains(t, err, "unregistered")
 }
