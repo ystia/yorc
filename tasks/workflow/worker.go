@@ -448,6 +448,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 		}
 	}
 	wasCancelled := new(bool)
+	taskFailure := new(bool)
 	if action.AsyncOperation.TaskID != "" {
 		ctx = operations.SetOperationLogFields(ctx, action.AsyncOperation.Operation)
 		ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
@@ -468,6 +469,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 			tasks.UpdateTaskStepWithStatus(action.AsyncOperation.TaskID, action.AsyncOperation.StepName, tasks.TaskStepStatusCANCELED)
 		})
 		tasks.MonitorTaskFailure(ctx, action.AsyncOperation.TaskID, func() {
+			*taskFailure = true
 			// Unregister this action asap to prevent new schedulings
 			scheduling.UnregisterAction(w.consulClient, action.ID)
 
@@ -495,6 +497,9 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 	deregister, err := operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
 	if deregister || *wasCancelled {
 		scheduling.UnregisterAction(w.consulClient, action.ID)
+		w.endAction(ctx, t, action, *wasCancelled, err)
+	} else if *taskFailure {
+		err = errors.Errorf("Stopped on task failure")
 		w.endAction(ctx, t, action, *wasCancelled, err)
 	}
 	if err != nil {

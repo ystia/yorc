@@ -22,7 +22,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -104,7 +104,16 @@ func UnregisterAction(client *api.Client, id string) error {
 // UpdateActionData updates the value of a given data within an action
 func UpdateActionData(client *api.Client, id, key, value string) error {
 
-	//TODO check if action exists
-	scaKeyPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id, "data", key)
+	// check if action still exists
+	actionIdPrefix := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
+	kvp, _, err := client.KV().Get(path.Join(actionIdPrefix, "deploymentID"), nil)
+	if err != nil {
+		return err
+	}
+	if kvp == nil {
+		return errors.Errorf("Action with ID %s is unregistered", id)
+	}
+
+	scaKeyPath := path.Join(actionIdPrefix, "data", key)
 	return errors.Wrapf(consulutil.StoreConsulKeyAsString(scaKeyPath, value), "Failed to update data %q for action %q", key, id)
 }
