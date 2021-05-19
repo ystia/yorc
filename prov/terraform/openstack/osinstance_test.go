@@ -97,7 +97,7 @@ func testSimpleOSInstance(t *testing.T) {
 	require.Len(t, compute.Metadata, 2)
 	require.Equal(t, "firstValue", compute.Metadata["firstKey"])
 	require.Equal(t, "secondValue", compute.Metadata["secondKey"])
-
+	require.Contains(t, compute.UserData, "cloud-config")
 	require.Len(t, compute.Provisioners, 0)
 	require.Contains(t, infrastructure.Resource, "null_resource")
 	require.Len(t, infrastructure.Resource["null_resource"], 1)

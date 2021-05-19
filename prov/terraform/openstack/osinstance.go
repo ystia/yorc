@@ -172,10 +172,13 @@ func generateComputeInstance(ctx context.Context, opts osInstanceOptions) (Compu
 	if toscaVal != nil && toscaVal.RawString() != "" {
 		err = json.Unmarshal([]byte(toscaVal.RawString()), &instance.Metadata)
 		if err != nil {
-			err = errors.Wrapf(err, "Expected a map of strings for the metadata value of node %s instance %s, got: %s",
+			return instance, errors.Wrapf(err, "Expected a map of strings for the metadata value of node %s instance %s, got: %s",
 				opts.nodeName, opts.instanceName, toscaVal.RawString())
 		}
 	}
+
+	instance.UserData, err = deployments.GetStringNodeProperty(ctx, opts.deploymentID,
+		opts.nodeName, "user_data", false)
 
 	return instance, err
 }

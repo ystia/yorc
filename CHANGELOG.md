@@ -2,6 +2,26 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
+
+### BUG FIXES
+
+* Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
+
+## 4.2.0-milestone.1 (May 06, 2021)
+
+### ENHANCEMENTS
+
+* Support Alien4Cloud 3.2.0 ([GH-723](https://github.com/ystia/yorc/issues/723))
+
+### BUG FIXES
+
+* Can't bootstrap Yorc as BinTray is now unavailable ([GH-727](https://github.com/ystia/yorc/issues/727))
+
+## 4.1.0 (April 11, 2021)
+
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
@@ -20,6 +40,7 @@
 
 ### ENHANCEMENTS
 
+* Alllow shards and replicas configuration for Elastic storage ([GH-722](https://github.com/ystia/yorc/issues/722))
 * Add a new synchronous purge API endpoint ([GH-707](https://github.com/ystia/yorc/issues/707))
 * Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
