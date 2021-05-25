@@ -5,12 +5,9 @@
 ### BUG FIXES
 
 * Over-consumption of Consul connections ([GH-745](https://github.com/ystia/yorc/issues/745))
+* Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
 
 ## 4.1.1 (May 06, 2021)
-
-### ENHANCEMENTS
-
-* Support Alien4Cloud 3.2.0 ([GH-723](https://github.com/ystia/yorc/issues/723))
 
 ### BUG FIXES
 
