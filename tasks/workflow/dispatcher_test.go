@@ -87,8 +87,9 @@ func testDispatcherRun(t *testing.T, srv *testutil.TestServer, client *api.Clien
 		},
 		Tasks: config.Tasks{
 			Dispatcher: config.Dispatcher{
-				LongPollWaitTime: 50 * time.Millisecond,
-				LockWaitTime:     5 * time.Millisecond,
+				LongPollWaitTime:   50 * time.Millisecond,
+				LockWaitTime:       5 * time.Millisecond,
+				MetricsRefreshTime: 50 * time.Millisecond,
 			},
 		},
 	}

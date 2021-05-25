@@ -1,4 +1,4 @@
-FROM ystia/alpine-consul:1.0.4_consul-1.2.3
+FROM ystia/alpine-consul:1.1.0_consul-1.2.3
 ARG TERRAFORM_VERSION
 ARG ANSIBLE_VERSION
 ARG TF_CONSUL_PLUGIN_VERSION
@@ -17,13 +17,12 @@ ENV YORC_TERRAFORM_PLUGINS_DIR /var/terraform/plugins
 ADD rootfs /
 
 # Python is required here as it should not be removed automatically when uninstalling python-dev
-# We do not install the whole docker package we download the package and extract only the client
-RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev && \
-    python3 -m ensurepip && \
+# We do not install the whole docker package but just docker-cli
+
+RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev docker-cli cargo rust && \
+    python3 -m ensurepip --upgrade && \
     if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
     if [ ! -e /usr/bin/python ]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
-    mkdir /tmp/docker && apk fetch -o /tmp/docker docker && \
-    tar xzf /tmp/docker/*.apk -C / usr/bin/docker && \
     pip install ansible==${ANSIBLE_VERSION} docker-py netaddr jmespath && \
     cd /tmp && \
     curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
@@ -50,7 +49,7 @@ RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi
     unzip terraform-provider-openstack_${TF_OPENSTACK_PLUGIN_VERSION}_linux_amd64.zip && \
     chmod 775 ${YORC_TERRAFORM_PLUGINS_DIR}/* && \
     echo "Cleaning up" && \
-    apk del make py-pip python-dev gcc musl-dev libffi-dev openssl-dev && \
+    apk del make py-pip python3-dev gcc musl-dev libffi-dev openssl-dev && \
     rm -rf /var/cache/apk/* && \
     rm -fr /tmp/*
 

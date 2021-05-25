@@ -190,6 +190,10 @@ Globals Command-line options
 
   * ``--tasks_dispatcher_lock_wait_time``: Wait time (Golang duration format) for acquiring a lock for an execution task. If not set the default value of `50ms` will be used.
 
+.. _option_tasks_dispatcher_metrics_refresh_time_cmd:
+
+  * ``--tasks_dispatcher_metrics_refresh_time``: Refresh time (Golang duration format) for the tasks dispatcher metrics. If not set the default value of `5m` will be used.
+
 .. _option_workers_cmd:
 
   * ``--workers_number``: Yorc instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `30` will be used.
@@ -714,6 +718,7 @@ Below is an example of configuration file with Tasks configuration options.
       dispatcher:
         long_polling_wait_time: "1m"
         lock_wait_time: "50ms"
+        metrics_refresh_time: "5m"
 
 .. _option_tasks_dispatcher_long_polling_wait_time_cfg:
 
@@ -722,6 +727,11 @@ Below is an example of configuration file with Tasks configuration options.
 .. _option_tasks_dispatcher_lock_wait_time_cfg:
 
   * ``lock_wait_time``: Equivalent to :ref:`--tasks_dispatcher_lock_wait_time <option_tasks_dispatcher_lock_wait_time_cmd>` command-line flag.
+
+.. _option_tasks_dispatcher_metrics_refresh_time_cfg:
+
+  * ``metrics_refresh_time``: Equivalent to :ref:`--tasks_dispatcher_metrics_refresh_time <option_tasks_dispatcher_metrics_refresh_time_cmd>` command-line flag.
+
 
 Environment variables
 ---------------------
@@ -861,6 +871,10 @@ Environment variables
 .. _option_tasks_dispatcher_lock_wait_time_env:
 
   * ``YORC_TASKS_DISPATCHER_LOCK_WAIT_TIME``: Equivalent to :ref:`--tasks_dispatcher_lock_wait_time <option_tasks_dispatcher_lock_wait_time_cmd>` command-line flag.
+
+.. _option_tasks_dispatcher_metrics_refresh_time_env:
+
+  * ``YORC_TASKS_DISPATCHER_METRICS_REFRESH_TIME``: Equivalent to :ref:`--tasks_dispatcher_metrics_refresh_time <option_tasks_dispatcher_metrics_refresh_time_cmd>` command-line flag.
 
 .. _option_workers_env:
 
@@ -1445,7 +1459,7 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 | ``key_path``                | path to a PEM encoded private key file when TLS    | string    | no               |                 |
 |                             | is activated for ES                                |           |                  |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
-| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc_         |
+| ``index_prefix``            | indexes used by yorc can be prefixed               | string    | no               |   yorc\_        |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``es_query_period``         | when querying logs and event, we wait this timeout | duration  | no               |   4s            |
 |                             | before each request when it returns nothing (until |           |                  |                 |
@@ -1473,6 +1487,10 @@ This store ables you to store ``Log`` s and ``Event`` s in elasticsearch.
 | ``trace_requests``          | to print ES requests (for debug only)              | bool      | no               |   false         |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 | ``trace_events``            | to trace events & logs when sent (for debug only)  | bool      | no               |   false         |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``initial_shards``          | number of shards used to initialize indices        | int64     | no               |                 |
++-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
+| ``initial_replicas``        | number of replicas used to initialize indices      | int64     | no               |                 |
 +-----------------------------+----------------------------------------------------+-----------+------------------+-----------------+
 
 

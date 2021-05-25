@@ -26,6 +26,7 @@ topology_template:
         key_pair: yorc
         security_groups: openbar,default
         metadata: {get_input: vm_metadata}
+        user_data: "#cloud-config\nwrite_files:\n- content: |\n    test\n  owner: root:root\n  path: /etc/test.txt\n  permissions: '0644'"
       capabilities:
         endpoint:
           properties:

@@ -2,6 +2,26 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
+
+### BUG FIXES
+
+* Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
+
+## 4.2.0-milestone.1 (May 06, 2021)
+
+### ENHANCEMENTS
+
+* Support Alien4Cloud 3.2.0 ([GH-723](https://github.com/ystia/yorc/issues/723))
+
+### BUG FIXES
+
+* Can't bootstrap Yorc as BinTray is now unavailable ([GH-727](https://github.com/ystia/yorc/issues/727))
+
+## 4.1.0 (April 11, 2021)
+
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Ansible 2.10.0 (upgrade from 2.7.9 introduced in [GH-648](https://github.com/ystia/yorc/issues/648))
@@ -10,6 +30,7 @@
 
 ### FEATURES
 
+* Added a tasks dispatcher metrics refresh time configuration parameter ([GH-715](https://github.com/ystia/yorc/issues/715))
 * Added an ElasticSearch store for events and logs ([GH-658](https://github.com/ystia/yorc/issues/658))
 * [Slurm] Expose Slurm scontrol show job results as job attributes ([GH-664](https://github.com/ystia/yorc/issues/664))
 
@@ -19,6 +40,8 @@
 
 ### ENHANCEMENTS
 
+* Alllow shards and replicas configuration for Elastic storage ([GH-722](https://github.com/ystia/yorc/issues/722))
+* Add a new synchronous purge API endpoint ([GH-707](https://github.com/ystia/yorc/issues/707))
 * Should be able to specify the type of volume when creating an openstack instance ([GH-703](https://github.com/ystia/yorc/issues/703))
 * Support ssh connection retries ([GH-688](https://github.com/ystia/yorc/issues/688))
 * Remove useless/cluttering logs ([GH-681](https://github.com/ystia/yorc/issues/681))
@@ -31,6 +54,8 @@
 
 ### BUG FIXES
 
+* Yorc panics on ElasticSearch store error ([GH-719](https://github.com/ystia/yorc/issues/719))
+* Error when storing runtime attributes of google subnet ([GH-713](https://github.com/ystia/yorc/issues/713))
 * Bootstrap fails on hosts where a version of ansible < 2.10.0 is installed ([GH-695](https://github.com/ystia/yorc/issues/695))
 * Panic due to nil pointer dereference may happen when retrieving a workflow ([GH-691](https://github.com/ystia/yorc/issues/691))
 * Empty directories not removed after ansible executions can lead to inodes exhaustion ([GH-683](https://github.com/ystia/yorc/issues/683))

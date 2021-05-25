@@ -39,7 +39,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 	if nodeType != "yorc.nodes.google.PrivateNetwork" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodeInstanceKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, "0")
 	privateNetwork := &PrivateNetwork{}
 
 	stringParams := []struct {
@@ -65,7 +65,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 		// Provide output for network_name
 		networkKey := nodeName + "-network"
 		commons.AddOutput(infrastructure, networkKey, &commons.Output{Value: privateNetwork.Name})
-		outputs[path.Join(nodeKey, "/attributes/network_name")] = networkKey
+		outputs[path.Join(nodeInstanceKey, "/attributes/network_name")] = networkKey
 		return nil
 	}
 
@@ -102,14 +102,14 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, cfg config
 	// Provide output for network_name
 	networkKey := nodeName + "-network"
 	commons.AddOutput(infrastructure, networkKey, &commons.Output{Value: fmt.Sprintf("${google_compute_network.%s.name}", privateNetwork.Name)})
-	outputs[path.Join(nodeKey, "/attributes/network_name")] = networkKey
+	outputs[path.Join(nodeInstanceKey, "/attributes/network_name")] = networkKey
 	return nil
 }
 
 func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
 	subnet := &SubNetwork{}
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodeInstanceKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, "0")
 
 	var err error
 	strParams := []struct {
@@ -195,15 +195,15 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, cfg config.Con
 	// Provide outputs
 	gatewayKey := nodeName + "-gateway"
 	commons.AddOutput(infrastructure, gatewayKey, &commons.Output{Value: fmt.Sprintf("${google_compute_subnetwork.%s.gateway_address}", subnet.Name)})
-	outputs[path.Join(nodeKey, "/attributes/gateway_ip")] = gatewayKey
+	outputs[path.Join(nodeInstanceKey, "/attributes/gateway_ip")] = gatewayKey
 
 	networkKey := nodeName + "-network"
 	commons.AddOutput(infrastructure, networkKey, &commons.Output{Value: subnet.Network})
-	outputs[path.Join(nodeKey, "/attributes/network_name")] = networkKey
+	outputs[path.Join(nodeInstanceKey, "/attributes/network_name")] = networkKey
 
 	subnetKey := nodeName + "-subnet"
 	commons.AddOutput(infrastructure, subnetKey, &commons.Output{Value: subnet.Name})
-	outputs[path.Join(nodeKey, "/attributes/subnetwork_name")] = subnetKey
+	outputs[path.Join(nodeInstanceKey, "/attributes/subnetwork_name")] = subnetKey
 
 	// Add internal firewall rules for subnet
 	sourceRanges := append(secondarySourceRange, subnet.IPCIDRRange)

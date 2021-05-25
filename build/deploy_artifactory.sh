@@ -13,43 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -euo pipefail
 
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 rootDir=$(readlink -f "${scriptDir}/..")
 
-if [[ "${TRAVIS}" != "true" ]] ; then
+if [[ "${GITHUB_ACTIONS}" != "true" ]] ; then
     echo "This script is designed to publish CI build artifacts"
     exit 0
 fi
 
-if [[ "${DISABLE_ARTIFACTORY}" == "true" ]] ; then
+if [[ "${DISABLE_ARTIFACTORY:=false}" == "true" ]] ; then
     echo "Skipping Artifactory publication"
     exit 0
 fi
 
-if [[ "${TRAVIS_PULL_REQUEST}" != "false" ]] && [[ -z "${ARTIFACTORY_API_KEY}" ]] ; then
-    echo "Building an external pull request, artifactory publication is disabled"
-    exit 0
-fi
-
-if [[ -n "${TRAVIS_TAG}" ]] ; then
-    deploy_path="yorc-engine-product-ystia-dist/ystia/yorc/dist/${TRAVIS_TAG}/{1}"
-elif [[ "${TRAVIS_PULL_REQUEST}" != "false" ]]; then
-    deploy_path="yorc-bin-dev-local/ystia/yorc/dist/PR-${TRAVIS_PULL_REQUEST}/{1}"
+ref="${GITHUB_REF#refs/*/}"
+if [[ "${GITHUB_REF}" == refs/tags/* ]] ; then
+    deploy_path="yorc-engine-product-ystia-dist/ystia/yorc/dist/${ref}/{1}"
+elif [[ "${GITHUB_REF}" == refs/pull/* ]] ; then
+    # For PRs ref is different
+    ref=$(echo "${GITHUB_REF}" | awk -F / '{print $3;}')
+    deploy_path="yorc-bin-dev-local/ystia/yorc/dist/PR-${ref}/{1}"
 else
-    deploy_path="yorc-bin-dev-local/ystia/yorc/dist/${TRAVIS_BRANCH}/{1}"
+    deploy_path="yorc-bin-dev-local/ystia/yorc/dist/${ref}/{1}"
 fi
 
-curl -fL https://getcli.jfrog.io | sh
+cd "${rootDir}"
 
-build_name="yorc-travis-ci"
-
-# Disabling interactive mode as config ask for a question about client certificates we do not use
-./jfrog rt c --interactive=false --apikey="${ARTIFACTORY_API_KEY}" --user=travis --url=https://ystia.jfrog.io/ystia ystia
-
-./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
-./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
-# Do not publish environment variables as it may expose some secrets
-#./jfrog rt bce "${build_name}" "${TRAVIS_BUILD_NUMBER}"
-./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}" "${rootDir}"
-./jfrog rt bp "${build_name}" "${TRAVIS_BUILD_NUMBER}"
+jfrog rt u --target-props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
+jfrog rt u --target-props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
+jfrog rt bce
+jfrog rt bag
+jfrog rt bp

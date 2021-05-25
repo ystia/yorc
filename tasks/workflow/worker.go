@@ -18,9 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/helper/metricsutil"
+	iop "github.com/ystia/yorc/v4/internal/operations"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/prov"
 	"github.com/ystia/yorc/v4/prov/operations"
@@ -448,6 +447,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 		}
 	}
 	wasCancelled := new(bool)
+	taskFailure := new(bool)
 	if action.AsyncOperation.TaskID != "" {
 		ctx = operations.SetOperationLogFields(ctx, action.AsyncOperation.Operation)
 		ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
@@ -468,6 +468,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 			tasks.UpdateTaskStepWithStatus(action.AsyncOperation.TaskID, action.AsyncOperation.StepName, tasks.TaskStepStatusCANCELED)
 		})
 		tasks.MonitorTaskFailure(ctx, action.AsyncOperation.TaskID, func() {
+			*taskFailure = true
 			// Unregister this action asap to prevent new schedulings
 			scheduling.UnregisterAction(w.consulClient, action.ID)
 
@@ -495,6 +496,9 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 	deregister, err := operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
 	if deregister || *wasCancelled {
 		scheduling.UnregisterAction(w.consulClient, action.ID)
+		w.endAction(ctx, t, action, *wasCancelled, err)
+	} else if *taskFailure {
+		err = errors.Errorf("Stopped on task failure")
 		w.endAction(ctx, t, action, *wasCancelled, err)
 	}
 	if err != nil {
@@ -617,63 +621,17 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
-	// Set status to PURGE_IN_PROGRESS
-	err := deployments.SetDeploymentStatus(ctx, t.targetID, deployments.PURGE_IN_PROGRESS)
+	err := iop.PurgeDeployment(ctx, t.targetID, w.cfg.WorkingDirectory, false, false, t.taskID)
 	if t.finalFunction == nil {
 		t.finalFunction = func() error {
 			if err != nil {
-				checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
-				return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
+				return checkAndSetTaskStatus(ctx, t.targetID, t.taskID, tasks.TaskStatusFAILED, err)
+				// Deployment status is set within PurgeDeployment()
+				//return deployments.SetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
 			}
 			return nil
 		}
 	}
-	if err != nil {
-		return err
-	}
-
-	if w.consulClient == nil {
-		// This is mainly for testing this is not expected to be nil in normal conditions
-		err = errors.Errorf("expecting a non-nil consul client to run a purge")
-		// note that it is expected to be on 2 different lines to let final function detect it
-		return err
-	}
-	kv := w.consulClient.KV()
-	// Remove from KV all tasks from the current target deployment, except this purge task
-	tasksList, err := deployments.GetDeploymentTaskList(ctx, t.targetID)
-	if err != nil {
-		return err
-	}
-	for _, tid := range tasksList {
-		if tid != t.taskID {
-			err = tasks.DeleteTask(tid)
-			if err != nil {
-				return err
-			}
-		}
-		_, err = kv.DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid)+"/", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-	}
-	// Delete events tree corresponding to the deployment TaskExecution
-	err = events.PurgeDeploymentEvents(ctx, t.targetID)
-	if err != nil {
-		return err
-	}
-	// Delete logs tree corresponding to the deployment
-	err = events.PurgeDeploymentLogs(ctx, t.targetID)
-	if err != nil {
-		return err
-	}
-	// Remove the working directory of the current target deployment
-	overlayPath := filepath.Join(w.cfg.WorkingDirectory, "deployments", t.targetID)
-	err = os.RemoveAll(overlayPath)
-	if err != nil {
-		return errors.Wrapf(err, "failed to remove deployments artifacts stored on disk: %q", overlayPath)
-	}
-	// Remove from KV this purge tasks
-	err = deployments.DeleteDeployment(ctx, t.targetID)
 	if err != nil {
 		return err
 	}

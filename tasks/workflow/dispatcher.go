@@ -82,7 +82,7 @@ func (d *Dispatcher) emitMetrics(client *api.Client) {
 		lastWarn := time.Now().Add(-6 * time.Minute)
 		for {
 			select {
-			case <-time.After(time.Second):
+			case <-time.After(d.cfg.Tasks.Dispatcher.MetricsRefreshTime):
 				d.emitWorkersMetrics()
 				d.emitTaskExecutionsMetrics(client, &lastWarn)
 			case <-d.shutdownCh:
