@@ -379,7 +379,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if eo != nil && eo.Value != nil {
+	if eo != nil && eo.RawString() != "" {
 		err = mapstructure.Decode(eo.Value, &e.jobInfo.ExecutionOptions)
 		if err != nil {
 			return errors.Wrapf(err, `invalid execution options datatype for attribute "execution_options" for node %q`, e.NodeName)
