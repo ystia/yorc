@@ -4,6 +4,7 @@
 
 ### BUG FIXES
 
+* Yorc panics attempting to print an error handling a script execution stdout ([GH-741](https://github.com/ystia/yorc/issues/741))
 * Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
 
 ## 4.0.7 (May 19, 2021)
