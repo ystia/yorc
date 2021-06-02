@@ -62,8 +62,11 @@ func TestMainMaas(t *testing.T) {
 	}()
 
 	t.Run("groupMaas", func(t *testing.T) {
-		t.Run("testSimpleMaasCompute", func(t *testing.T) {
+		t.Run("testInstallCompute", func(t *testing.T) {
 			testInstallCompute(t, cfg)
+		})
+		t.Run("testUninstallCompute", func(t *testing.T) {
+			testUninstallCompute(t, cfg)
 		})
 		t.Run("testSimpleMaasCompute", func(t *testing.T) {
 			testGetComputeFromDeployment(t, cfg)
@@ -93,5 +96,23 @@ func testInstallCompute(t *testing.T, cfg config.Configuration) {
 		httpmock.NewStringResponder(200, machineDeployed))
 
 	err = executor.ExecDelegate(ctx, cfg, "taskID", deploymentID, "Compute", "install")
+	require.Nil(t, err)
+}
+
+func testUninstallCompute(t *testing.T, cfg config.Configuration) {
+	executor := &defaultExecutor{}
+	ctx := context.Background()
+
+	deploymentID := path.Base(t.Name())
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/testSimpleMaasCompute.yaml")
+	require.Nil(t, err, "Failed to parse testUninstallCompute definition")
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "/10.0.0.0/api/2.0/machines/tdgqkw/?op=release",
+		httpmock.NewStringResponder(200, deployResponse))
+
+	err = executor.ExecDelegate(ctx, cfg, "taskID", deploymentID, "Compute", "uninstall")
 	require.Nil(t, err)
 }
