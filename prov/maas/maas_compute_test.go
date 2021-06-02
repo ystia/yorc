@@ -24,17 +24,11 @@ import (
 	"github.com/ystia/yorc/v4/deployments"
 )
 
-func loadTestYaml(t *testing.T) string {
-	deploymentID := path.Base(t.Name())
-	yamlName := "testdata/" + deploymentID + ".yaml"
-	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, yamlName)
-	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
-	return deploymentID
-}
-
-func testSimpleMaasCompute(t *testing.T, cfg config.Configuration) {
+func testGetComputeFromDeployment(t *testing.T, cfg config.Configuration) {
 	t.Parallel()
-	deploymentID := loadTestYaml(t)
+	deploymentID := path.Base(t.Name())
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/testSimpleMaasCompute.yaml")
+	require.Nil(t, err, "Failed to parse testInstallCompute definition")
 
 	operationParams := operationParameters{
 		locationProps:     MAAS_LOCATION_PROPS,
