@@ -122,7 +122,7 @@ func (c *maasCompute) undeploy(ctx context.Context, operationParams *operationPa
 
 	system_id, err := deployments.GetInstanceAttributeValue(ctx, deploymentID, nodeName, instance, "system_id")
 	if err != nil || system_id == nil {
-		return errors.Wrapf(err, "can't find instance attribute system id for nodename:%s deployementId: %s \n Maybe last deployement was not successful", nodeName, deploymentID)
+		return errors.Errorf("can't find instance attribute system id for nodename:%s deployementId: %s \n Maybe last deployement was not successful", nodeName, deploymentID)
 	}
 
 	releaseParams := newReleaseParams(c.erase, c.secure_erase, c.quick_erase)

@@ -68,6 +68,9 @@ func TestMainMaas(t *testing.T) {
 		t.Run("testUninstallCompute", func(t *testing.T) {
 			testUninstallCompute(t, cfg)
 		})
+		t.Run("testUninstallNoSystemIdErrorCompute", func(t *testing.T) {
+			testUninstallNoSystemIdErrorCompute(t, cfg)
+		})
 		t.Run("testSimpleMaasCompute", func(t *testing.T) {
 			testGetComputeFromDeployment(t, cfg)
 		})
@@ -113,6 +116,28 @@ func testUninstallCompute(t *testing.T, cfg config.Configuration) {
 	httpmock.RegisterResponder("POST", "/10.0.0.0/api/2.0/machines/tdgqkw/?op=release",
 		httpmock.NewStringResponder(200, deployResponse))
 
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, "Compute", "0", "system_id", "tdgqkw")
+	require.Nil(t, err)
+
 	err = executor.ExecDelegate(ctx, cfg, "taskID", deploymentID, "Compute", "uninstall")
 	require.Nil(t, err)
+}
+
+func testUninstallNoSystemIdErrorCompute(t *testing.T, cfg config.Configuration) {
+	executor := &defaultExecutor{}
+	ctx := context.Background()
+
+	deploymentID := path.Base(t.Name())
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/testSimpleMaasCompute.yaml")
+	require.Nil(t, err, "Failed to parse testUninstallCompute definition")
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", "/10.0.0.0/api/2.0/machines/tdgqkw/?op=release",
+		httpmock.NewStringResponder(200, deployResponse))
+
+	err = executor.ExecDelegate(ctx, cfg, "taskID", deploymentID, "Compute", "uninstall")
+
+	require.Contains(t, err.Error(), "can't find instance attribute system id")
 }
