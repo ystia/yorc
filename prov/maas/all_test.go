@@ -65,6 +65,9 @@ func TestMainMaas(t *testing.T) {
 		t.Run("testInstallCompute", func(t *testing.T) {
 			testInstallCompute(t, cfg)
 		})
+		t.Run("testInstallCompute", func(t *testing.T) {
+			testInstallComputeNoApiResponse(t, cfg)
+		})
 		t.Run("testUninstallCompute", func(t *testing.T) {
 			testUninstallCompute(t, cfg)
 		})
@@ -102,6 +105,18 @@ func testInstallCompute(t *testing.T, cfg config.Configuration) {
 	require.Nil(t, err)
 }
 
+func testInstallComputeNoApiResponse(t *testing.T, cfg config.Configuration) {
+	executor := &defaultExecutor{}
+	ctx := context.Background()
+
+	deploymentID := path.Base(t.Name())
+	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/testSimpleMaasCompute.yaml")
+	require.Nil(t, err, "Failed to parse testInstallComputeNoApiResponse definition")
+
+	err = executor.ExecDelegate(ctx, cfg, "taskID", deploymentID, "Compute", "install")
+	require.NotNil(t, err)
+}
+
 func testUninstallCompute(t *testing.T, cfg config.Configuration) {
 	executor := &defaultExecutor{}
 	ctx := context.Background()
@@ -129,13 +144,7 @@ func testUninstallNoSystemIdErrorCompute(t *testing.T, cfg config.Configuration)
 
 	deploymentID := path.Base(t.Name())
 	err := deployments.StoreDeploymentDefinition(context.Background(), deploymentID, "testdata/testSimpleMaasCompute.yaml")
-	require.Nil(t, err, "Failed to parse testUninstallCompute definition")
-
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	httpmock.RegisterResponder("POST", "/10.0.0.0/api/2.0/machines/tdgqkw/?op=release",
-		httpmock.NewStringResponder(200, deployResponse))
+	require.Nil(t, err, "Failed to parse testUninstallNoSystemIdErrorCompute definition")
 
 	err = executor.ExecDelegate(ctx, cfg, "taskID", deploymentID, "Compute", "uninstall")
 

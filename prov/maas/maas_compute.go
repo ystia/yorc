@@ -263,28 +263,12 @@ func (c *maasCompute) getAndsetPropertiesFromOSCapabilities(ctx context.Context,
 	nodeName := operationParams.nodeName
 	os := &c.os
 
-	p, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "architecture")
-	if err != nil {
-		return err
-	}
-	if p != nil && p.RawString() != "" {
-		os.architecture = p.RawString()
-	}
-
-	p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "distribution")
+	p, err := deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "distribution")
 	if err != nil {
 		return err
 	}
 	if p != nil && p.RawString() != "" {
 		os.distribution = p.RawString()
-	}
-
-	p, err = deployments.GetCapabilityPropertyValue(ctx, deploymentID, nodeName, "os", "architecture")
-	if err != nil {
-		return err
-	}
-	if p != nil && p.RawString() != "" {
-		os.architecture = p.RawString()
 	}
 	return nil
 }
