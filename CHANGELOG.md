@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Over-consumption of Consul connections ([GH-745](https://github.com/ystia/yorc/issues/745))
+
 ## 4.1.1 (May 06, 2021)
 
 ### ENHANCEMENTS
