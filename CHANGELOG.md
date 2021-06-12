@@ -2,8 +2,15 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
+
 ### BUG FIXES
 
+* Over-consumption of Consul connections ([GH-745](https://github.com/ystia/yorc/issues/745))
+* Yorc panics attempting to print an error handling a script execution stdout ([GH-741](https://github.com/ystia/yorc/issues/741))
+* Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
 * Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
 
 ## 4.2.0-milestone.1 (May 06, 2021)
