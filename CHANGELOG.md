@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 4.0.8 (June 22, 2021)
 
 ### BUG FIXES
 
