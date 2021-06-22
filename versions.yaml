@@ -1,4 +1,4 @@
-yorc_version: 4.0.8-SNAPSHOT
+yorc_version: 4.0.8
 # Alien4Cloud version used by the bootstrap as the default version to download/install
 alien4cloud_version: 2.2.0
 consul_version: 1.2.3
