@@ -1267,7 +1267,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 
 	err := cmd.Run()
 	if handlerErr := handler.stop(); handlerErr != nil {
-		log.Printf("Error stopping output handler: %s", err.Error())
+		log.Printf("Error stopping output handler: %s", handlerErr.Error())
 	}
 	if err != nil {
 		return e.checkAnsibleRetriableError(ctx, err)
