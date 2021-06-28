@@ -63,6 +63,8 @@ Currently Yorc supports as builtin implementations for operations:
 * Python scripts
 * Ansible Playbooks
 
+Basic support for raws scripts execution through Ansible playbooks is also provided on Windows targets configured to use ssh.
+
 New implementations can be plugged into Yorc using its plugin mechanism.
 
 .. todo:
