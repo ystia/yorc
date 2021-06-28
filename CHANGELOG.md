@@ -4,6 +4,7 @@
 
 ### ENHANCEMENTS
 
+* Add basic support for ssh on Windows ([GH-751](https://github.com/ystia/yorc/issues/751))
 * Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
 
 ### BUG FIXES
