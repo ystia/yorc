@@ -338,7 +338,8 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) (contex
 	return ctx, err
 }
 
-func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.Action, wasCancelled bool, actionErr error) {
+func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.Action, wasCancelled bool, actionErr error,
+	bypassErrors bool) {
 	if action.AsyncOperation.TaskID == "" {
 		return
 	}
@@ -401,7 +402,9 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnCancel)
 	} else if actionErr != nil {
 		stepStatus = tasks.TaskStepStatusERROR
-		tasks.NotifyErrorOnTask(action.AsyncOperation.TaskID)
+		if !bypassErrors && len(s.OnFailure) == 0 {
+			_ = tasks.NotifyErrorOnTask(action.AsyncOperation.TaskID)
+		}
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnFailure)
 	} else {
 		// we are not stopped or erroed we just have to reschedule next steps
@@ -496,10 +499,12 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 	deregister, err := operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
 	if deregister || *wasCancelled {
 		scheduling.UnregisterAction(w.consulClient, action.ID)
-		w.endAction(ctx, t, action, *wasCancelled, err)
+		wfName, _ := tasks.GetTaskData(t.taskID, "workflowName")
+		bypassErrors, _ := checkByPassErrors(t, wfName)
+		w.endAction(ctx, t, action, *wasCancelled, err, bypassErrors)
 	} else if *taskFailure {
 		err = errors.Errorf("Stopped on task failure")
-		w.endAction(ctx, t, action, *wasCancelled, err)
+		w.endAction(ctx, t, action, *wasCancelled, err, false)
 	}
 	if err != nil {
 		return err
