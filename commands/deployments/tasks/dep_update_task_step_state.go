@@ -17,7 +17,6 @@ package tasks
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"path"
 	"strings"
@@ -51,7 +50,7 @@ func updateTaskStepState(deploymentID, taskID, stepName, statusStr string) {
 	step := &tasks.TaskStep{Status: statusStr}
 	body, err := json.Marshal(step)
 	if err != nil {
-		log.Panic(err)
+		httputil.ErrExit(err)
 	}
 
 	url := path.Join("/deployments", deploymentID, "tasks", taskID, "steps", stepName)
