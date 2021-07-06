@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Workflows steps replays on error  ([GH-753](https://github.com/ystia/yorc/issues/753))
+
 ### ENHANCEMENTS
 
 * Add basic support for ssh on Windows ([GH-751](https://github.com/ystia/yorc/issues/751))
