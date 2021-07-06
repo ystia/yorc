@@ -79,10 +79,7 @@ var updateTaskStepStateCmd = &cobra.Command{
 	The task step must be on error to be update.
 	This allows to bypass or retry errors happening in a workflow. So accepted state are either DONE or INITIAL.
 	Use 'yorc deployment tasks resume' command to restart a workflow after having updated it's errors`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-
+	Run: func(cmd *cobra.Command, args []string) {
 		updateTaskStepState(args[0], args[1], args[2], args[3])
-
-		return nil
 	},
 }
