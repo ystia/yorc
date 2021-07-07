@@ -46,7 +46,6 @@ func updateTaskStepState(deploymentID, taskID, stepName, statusStr string) {
 		httputil.ErrExit(err)
 	}
 
-	// The task step status is set to "done"
 	step := &tasks.TaskStep{Status: statusStr}
 	body, err := json.Marshal(step)
 	if err != nil {
