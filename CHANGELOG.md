@@ -14,6 +14,10 @@
 * Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
 * Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
 
+### ENGINEERING
+
+* Generate a checksum file for release artifacts and sign it ([GH-755](https://github.com/ystia/yorc/issues/755))
+
 ## 4.2.0-milestone.1 (May 06, 2021)
 
 ### ENHANCEMENTS
