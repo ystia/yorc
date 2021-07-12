@@ -163,7 +163,7 @@ func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClie
 		return true, err
 	}
 
-	info, err := getJobInfo(sshClient, actionData.jobID)
+	info, err := getJobInfo(ctx, sshClient, deploymentID, actionData.jobID)
 
 	// TODO(loicalbertin): This should be improved instance name should not be hard-coded
 	instanceName := "0"
