@@ -37,7 +37,7 @@ import (
 
 const reSbatch = `Submitted batch job (\d+)`
 
-const invalidJob = "Invalid job id specified"
+const errMsgInvalidJob = "Invalid job id specified"
 
 const errMsgAccountingDisabled = "Slurm accounting storage is disabled"
 
@@ -349,6 +349,7 @@ func getJobStatusUsingAccounting(client sshutil.Client, jobID string) (string, e
 	out := strings.Trim(output, "\" \t\n\x00")
 	if err != nil {
 		if strings.Contains(out, errMsgAccountingDisabled) {
+			log.Printf("accounting is disabled on Slurm cluster, can't retrieve job status for job %q.", jobID)
 			return "", &noJobFound{msg: err.Error()}
 		}
 		return "", err
@@ -371,15 +372,13 @@ func getJobInfo(client sshutil.Client, jobID string) (map[string]string, error) 
 	cmd := fmt.Sprintf("scontrol show job %s", jobID)
 	output, err := client.RunCommand(cmd)
 	out := strings.Trim(output, "\" \t\n\x00")
-	if err != nil {
-		if strings.Contains(out, invalidJob) {
-			return getMinimalJobInfoUsingAccounting(client, jobID)
-		}
-		return nil, errors.Wrap(err, out)
-	}
-	if out != "" {
+	if err == nil && out != "" {
 		return parseJobInfo(strings.NewReader(out))
 	}
+	if err != nil && !strings.Contains(out, errMsgInvalidJob) {
+		return nil, errors.Wrap(err, out)
+	}
+	log.Debugf("job %q vanished from \"scontrol show job\". Trying accounting to get the job status.", jobID)
 	return getMinimalJobInfoUsingAccounting(client, jobID)
 }
 
