@@ -89,7 +89,8 @@ jobs:
         mkdir -p dist/gh-release
         mv dist/yorc-*.tgz dist/yorc-server*-distrib.zip dist/gh-release/
 
-    - uses: tristan-weil/ghaction-checksum-sign-artifact@v1
+    # Use a specific trusted commit (do not relie on tags that could evolve like v1) 
+    - uses: tristan-weil/ghaction-checksum-sign-artifact@1d1a6873e7f53532850e8a6f03e790e063bae662
       with:
         path: 'dist/gh-release/*'
         sign_key: '${{ secrets.YSTIA_BOT_SIGN_KEY }}'
