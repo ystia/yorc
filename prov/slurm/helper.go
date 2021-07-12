@@ -39,6 +39,8 @@ const reSbatch = `Submitted batch job (\d+)`
 
 const invalidJob = "Invalid job id specified"
 
+const errMsgAccountingDisabled = "Slurm accounting storage is disabled"
+
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
 func getSSHClient(cfg config.Configuration, credentials *types.Credential, locationProps config.DynamicMap) (*sshutil.SSHClient, error) {
@@ -341,20 +343,44 @@ func parseKeyValue(str string) (bool, string, string) {
 	return false, "", ""
 }
 
+func getJobStatusUsingAccounting(client sshutil.Client, jobID string) (string, error) {
+	cmd := fmt.Sprintf("sacct -P -n -o JobID,State -j %s | grep \"^%s|\" | awk -F '|' '{print $2;}'", jobID, jobID)
+	output, err := client.RunCommand(cmd)
+	out := strings.Trim(output, "\" \t\n\x00")
+	if err != nil {
+		if strings.Contains(out, errMsgAccountingDisabled) {
+			return "", &noJobFound{msg: err.Error()}
+		}
+		return "", err
+	}
+	if out == "" {
+		return "", &noJobFound{msg: fmt.Sprintf("no accounting information found for job with id: %q", jobID)}
+	}
+	return out, nil
+}
+
+func getMinimalJobInfoUsingAccounting(client sshutil.Client, jobID string) (map[string]string, error) {
+	status, err := getJobStatusUsingAccounting(client, jobID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"JobState": status}, nil
+}
+
 func getJobInfo(client sshutil.Client, jobID string) (map[string]string, error) {
 	cmd := fmt.Sprintf("scontrol show job %s", jobID)
 	output, err := client.RunCommand(cmd)
 	out := strings.Trim(output, "\" \t\n\x00")
 	if err != nil {
 		if strings.Contains(out, invalidJob) {
-			return nil, &noJobFound{msg: err.Error()}
+			return getMinimalJobInfoUsingAccounting(client, jobID)
 		}
 		return nil, errors.Wrap(err, out)
 	}
 	if out != "" {
 		return parseJobInfo(strings.NewReader(out))
 	}
-	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q", jobID)}
+	return getMinimalJobInfoUsingAccounting(client, jobID)
 }
 
 func quoteArgs(t []string) string {

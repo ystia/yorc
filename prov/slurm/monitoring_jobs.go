@@ -118,6 +118,40 @@ func getMonitoringJobActionData(action *prov.Action) (*actionData, error) {
 
 }
 
+func getCustomLogStream(cc *api.Client, action *prov.Action, info map[string]string, streamName string) (string, bool) {
+	stream, streamExist := action.Data[streamName]
+	if !streamExist {
+		stream, streamExist = info[streamName]
+		if streamExist {
+			action.Data[streamName] = stream
+			scheduling.UpdateActionData(cc, action.ID, streamName, stream)
+		}
+	}
+	return stream, streamExist
+}
+
+func (o *actionOperator) logJob(ctx context.Context, cc *api.Client, sshClient sshutil.Client, deploymentID, jobID string, action *prov.Action, info map[string]string) {
+
+	stdOut, existStdOut := getCustomLogStream(cc, action, info, "StdOut")
+	stdErr, existStdErr := getCustomLogStream(cc, action, info, "StdErr")
+	if existStdOut && existStdErr && stdOut == stdErr {
+		o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
+	} else {
+		if existStdOut {
+			o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut", sshClient)
+		}
+		if existStdErr {
+			o.logFile(ctx, cc, action, deploymentID, stdErr, "StdErr", sshClient)
+		}
+	}
+
+	// See default output if nothing is specified here
+	if !existStdOut && !existStdErr {
+		o.logFile(ctx, cc, action, deploymentID, fmt.Sprintf("slurm-%s.out", jobID), "StdOut/Stderr", sshClient)
+	}
+
+}
+
 func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClient sshutil.Client, deploymentID, nodeName string, action *prov.Action, keepArtifacts bool) (bool, error) {
 	var (
 		err        error
@@ -146,31 +180,17 @@ func (o *actionOperator) analyzeJob(ctx context.Context, cc *api.Client, sshClie
 		return true, errors.Wrapf(err, "failed to update job attributes with jobID: %q", actionData.jobID)
 	}
 
-	var mess string
-	if info["Reason"] != "None" {
-		mess = fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Reason:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["Reason"], info["RunTime"])
-	} else {
-		mess = fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["RunTime"])
-	}
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mess)
-
-	stdOut, existStdOut := info["StdOut"]
-	stdErr, existStdErr := info["StdErr"]
-	if existStdOut && existStdErr && stdOut == stdErr {
-		o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut/StdErr", sshClient)
-	} else {
-		if existStdOut {
-			o.logFile(ctx, cc, action, deploymentID, stdOut, "StdOut", sshClient)
+	if _, ok := info["RunTime"]; ok {
+		var mess string
+		if info["Reason"] != "None" {
+			mess = fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Reason:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["Reason"], info["RunTime"])
+		} else {
+			mess = fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["RunTime"])
 		}
-		if existStdErr {
-			o.logFile(ctx, cc, action, deploymentID, stdErr, "StdErr", sshClient)
-		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mess)
 	}
 
-	// See default output if nothing is specified here
-	if !existStdOut && !existStdErr {
-		o.logFile(ctx, cc, action, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
-	}
+	o.logJob(ctx, cc, sshClient, deploymentID, actionData.jobID, action, info)
 
 	previousJobState, err := deployments.GetInstanceStateString(ctx, deploymentID, nodeName, instanceName)
 	if err != nil {

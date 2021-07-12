@@ -351,7 +351,58 @@ func TestGetJobInfoWithInvalidJob(t *testing.T) {
 	t.Parallel()
 	s := &sshutil.MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
-			return "slurm_load_jobs error: Invalid job id specified", errors.New("")
+			if strings.HasPrefix(cmd, "scontrol") {
+				return "slurm_load_jobs error: Invalid job id specified", errors.New("")
+			}
+			return "", nil
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.Equal(t, true, isNoJobFoundError(err), "expected no job found error")
+}
+
+func TestGetJobInfoWithEmptyResponseButAccounting(t *testing.T) {
+	t.Parallel()
+	s := &sshutil.MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			if strings.HasPrefix(cmd, "scontrol") {
+				return "", nil
+			}
+			return "COMPLETED", nil
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.NotNil(t, info, "info should not be nil")
+	require.Nil(t, err)
+	require.Equal(t, map[string]string{"JobState": "COMPLETED"}, info, "unexpected job info")
+}
+
+func TestGetJobInfoWithEmptyResponseAndAccountingError(t *testing.T) {
+	t.Parallel()
+	s := &sshutil.MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			if strings.HasPrefix(cmd, "scontrol") {
+				return "", nil
+			}
+			return "", errors.New("some error")
+		},
+	}
+	info, err := getJobInfo(s, "1234")
+	require.Nil(t, info, "info should be nil")
+
+	require.NotNil(t, err, "expecting an error")
+}
+
+func TestGetJobInfoWithEmptyResponseAndAccountingNotConfigured(t *testing.T) {
+	t.Parallel()
+	s := &sshutil.MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			if strings.HasPrefix(cmd, "scontrol") {
+				return "", nil
+			}
+			return errMsgAccountingDisabled, errors.New("1")
 		},
 	}
 	info, err := getJobInfo(s, "1234")
