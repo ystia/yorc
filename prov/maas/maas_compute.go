@@ -72,7 +72,27 @@ func (c *maasCompute) deploy(ctx context.Context, operationParams *operationPara
 
 	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, instance, "system_id", deployRes.system_id)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to set attribute (system_id) for node name:%q, instance name:%q", nodeName, instance)
+		return errors.Wrapf(err, "Failed to set instance attribute (system_id) for node name:%q, instance name:%q", nodeName, instance)
+	}
+
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, instance, "ip_address", deployRes.ips[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set instance attribute (ip_address) for node name:%q, instance name:%q", deployRes.ips[0], instance)
+	}
+
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, instance, "private_address", deployRes.ips[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set attribute instance attribute (private_address) for node name:%q, instance name:%q", deployRes.ips[0], instance)
+	}
+
+	err = deployments.SetInstanceAttribute(ctx, deploymentID, nodeName, instance, "public_address", deployRes.ips[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set attribute instance attribute (public_address) for node name:%q, instance name:%q", deployRes.ips[0], instance)
+	}
+
+	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, instance, "endpoint", "private_address", deployRes.ips[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set instance attribute (private_address) for node name:%s, instance name:%q", nodeName, instance)
 	}
 
 	err = deployments.SetInstanceCapabilityAttribute(ctx, deploymentID, nodeName, instance, "endpoint", "ip_address", deployRes.ips[0])
