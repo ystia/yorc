@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENGINEERING
+
+* Generate a checksum file for release artifacts and sign it ([GH-755](https://github.com/ystia/yorc/issues/755))
+
 ## 4.0.8 (June 22, 2021)
 
 ### BUG FIXES

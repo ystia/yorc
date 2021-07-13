@@ -85,11 +85,23 @@ jobs:
         SKIP_TESTS=1 make dist
         # Generate changelog
         awk '{f=1} f{ if (/^## / && i++>=1) exit; else print $0}' CHANGELOG.md | tee CHANGELOG-for-version.md
+        # Move release artifacts for signing
+        mkdir -p dist/gh-release
+        mv dist/yorc-*.tgz dist/yorc-server*-distrib.zip dist/gh-release/
 
+    # Use a specific trusted commit (do not relie on tags that could evolve like v1) 
+    - uses: tristan-weil/ghaction-checksum-sign-artifact@1d1a6873e7f53532850e8a6f03e790e063bae662
+      with:
+        path: 'dist/gh-release/*'
+        sign_key: '${{ secrets.YSTIA_BOT_SIGN_KEY }}'
+        sign_key_passphrase: '${{ secrets.YSTIA_BOT_SIGN_KEY_PASSPHRASE }}'
+        sign_key_fingerprint: 'CEC021997E92CADB298EFC8AFA71C23B880E40F9'
+        sign_keyserver: 'keys.openpgp.org'
 
     - name: Create or Update Github Release draft
       id: update_release
-      uses: loicalbertin/action-gh-release@080e2e752ac77817dcfd2e8809873bdc24817584
+      # Wait for a released version containg https://github.com/softprops/action-gh-release/pull/60
+      uses: softprops/action-gh-release@9729932bfb75c05ad1f6e3a729294e05abaa7001
       with:
         tag_name: ${{ env.TAG_NAME }}
         body_path: CHANGELOG-for-version.md
@@ -97,8 +109,7 @@ jobs:
         prerelease: ${{ env.PRERELEASE }}
         draft: true
         files: |
-          dist/yorc-*.tgz
-          dist/yorc-server*-distrib.zip
+          dist/gh-release/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
