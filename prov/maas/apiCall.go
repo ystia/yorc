@@ -108,11 +108,11 @@ func getMaasClient(locationProps config.DynamicMap) (*gomaasapi.MAASObject, erro
 
 func checkLocationConfig(locationProps config.DynamicMap) error {
 	if strings.Trim(locationProps.GetString("api_url"), "") == "" {
-		return errors.New("maas location ulr is not set")
+		return errors.New("maas api_url is not set")
 	}
 
 	if strings.Trim(locationProps.GetString("api_key"), "") == "" {
-		return errors.New("maas location api key is not set")
+		return errors.New("maas api key is not set")
 	}
 	return nil
 }

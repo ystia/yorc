@@ -167,7 +167,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, operationParams *op
 	}
 
 	if err := g.Wait(); err != nil {
-		err = errors.Wrapf(err, "Failed install node deploymentID:%q, node name:%s", operationParams.deploymentID, operationParams.nodeName)
+		err = errors.Wrapf(err, "Failed uninstall node deploymentID:%q, node name:%s", operationParams.deploymentID, operationParams.nodeName)
 		log.Debugf("%+v", err)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, operationParams.deploymentID).RegisterAsString(err.Error())
 		return err

@@ -1,0 +1,18 @@
+{{ define "Infrastructure" }}
+      type: org.ystia.yorc.location.MAASConfig
+      properties: {{formatAsYAML .Location.Properties 8}}
+        location_name: "{{.Location.Name}}"
+      requirements:
+        - infraHostedOnYorcServer:
+            type_requirement: yorc
+            node: YorcServer
+            capability: org.ystia.yorc.pub.capabilities.YorcConfigContainer
+            relationship: org.ystia.yorc.linux.ansible.relationships.YorcConfigMAASHostedOnYorc
+        {{if not .Insecure}}
+        - infraSecretsHostedOnVault:
+            type_requirement: host
+            node: VaultServer
+            capability: org.alien4cloud.vault.pub.capabilities.VaultServer
+            relationship: org.ystia.yorc.linux.ansible.relationships.HostsPoolSecretsOnVault
+        {{end}}
+{{ end }}
