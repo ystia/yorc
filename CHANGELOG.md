@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* [Bootstrap] Error in AWS location configuration for the bootstrapped Yorc ([GH-762](https://github.com/ystia/yorc/issues/762))
+
 ### ENGINEERING
 
 * Generate a checksum file for release artifacts and sign it ([GH-755](https://github.com/ystia/yorc/issues/755))
