@@ -9,6 +9,7 @@
 
 ### BUG FIXES
 
+* [Bootstrap] Error in AWS location configuration for the bootstrapped Yorc ([GH-762](https://github.com/ystia/yorc/issues/762))
 * Over-consumption of Consul connections ([GH-745](https://github.com/ystia/yorc/issues/745))
 * Yorc panics attempting to print an error handling a script execution stdout ([GH-741](https://github.com/ystia/yorc/issues/741))
 * Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
