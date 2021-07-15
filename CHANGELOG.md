@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Slurm: Use sacct to retrieve job status when scontrol show job does not show the job anymore ([GH-757](https://github.com/ystia/yorc/issues/757))
+
 ### BUG FIXES
 
 * [Bootstrap] Error in AWS location configuration for the bootstrapped Yorc ([GH-762](https://github.com/ystia/yorc/issues/762))
