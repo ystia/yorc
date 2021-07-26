@@ -18,7 +18,7 @@ data_types:
         description: UUID of the image, volume, or snapshot. Required unless source is set to 'blank'
       source:
         type: string
-        required: true
+        required: false
         description: Source type of the device. Must be one of 'blank', 'image', 'volume', or 'snapshot'
         constraints:
           - valid_values: [ blank, image, volume, snapshot ]
