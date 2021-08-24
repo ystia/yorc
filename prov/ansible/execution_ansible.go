@@ -34,7 +34,11 @@ const uploadArtifactsPlaybook = `
   hosts: all
   strategy: free
   tasks:
-[[[ range $artName, $art := .Artifacts ]]]    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
+[[[ range $artName, $art := .Artifacts ]]]
+    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
+    [[[printf "  when: ansible_os_family != 'Windows'"]]]
+    [[[printf "- ansible.windows.win_file: path=\"{{ ansible_env.HOME}}\\%s\\%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
+    [[[printf "  when: ansible_os_family == 'Windows'"]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
 [[[end]]]
 `
@@ -47,6 +51,9 @@ const ansiblePlaybook = `
   strategy: free
   tasks:
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s\" state=directory mode=0755" $.OperationRemotePath]]]
+    [[[printf "  when: ansible_os_family != 'Windows'"]]]
+    [[[printf "- ansible.windows.win_file: path=\"{{ ansible_env.HOME}}\\%s\" state=directory mode=0755" $.OperationRemotePath]]]
+    [[[printf "  when: ansible_os_family == 'Windows'"]]]
     [[[printf "- template: src=\"outputs.csv.j2\" dest=\"{{ ansible_env.HOME}}/%s/out.csv\"" $.OperationRemotePath]]]
     [[[printf "- fetch: src=\"{{ ansible_env.HOME}}/%s/out.csv\" dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
 [[[end]]]
@@ -56,6 +63,9 @@ const ansiblePlaybook = `
   strategy: free
   tasks:
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
+      when: ansible_os_family != 'Windows'
+    - ansible.windows.win_file: path="{{ ansible_env.HOME}}\[[[.OperationRemoteBaseDir]]]" state=absent
+      when: ansible_os_family == 'Windows'
 [[[end]]]
 `
 

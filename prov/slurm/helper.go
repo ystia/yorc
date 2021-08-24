@@ -30,6 +30,7 @@ import (
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
+	"github.com/ystia/yorc/v4/events"
 	"github.com/ystia/yorc/v4/helper/sshutil"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/tosca/types"
@@ -37,7 +38,9 @@ import (
 
 const reSbatch = `Submitted batch job (\d+)`
 
-const invalidJob = "Invalid job id specified"
+const errMsgInvalidJob = "Invalid job id specified"
+
+const errMsgAccountingDisabled = "Slurm accounting storage is disabled"
 
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
@@ -341,20 +344,45 @@ func parseKeyValue(str string) (bool, string, string) {
 	return false, "", ""
 }
 
-func getJobInfo(client sshutil.Client, jobID string) (map[string]string, error) {
-	cmd := fmt.Sprintf("scontrol show job %s", jobID)
+func getJobStatusUsingAccounting(ctx context.Context, client sshutil.Client, deploymentID, jobID string) (string, error) {
+	cmd := fmt.Sprintf("sacct -P -n -o JobID,State -j %s | grep \"^%s|\" | awk -F '|' '{print $2;}'", jobID, jobID)
 	output, err := client.RunCommand(cmd)
 	out := strings.Trim(output, "\" \t\n\x00")
 	if err != nil {
-		if strings.Contains(out, invalidJob) {
-			return nil, &noJobFound{msg: err.Error()}
+		if strings.Contains(out, errMsgAccountingDisabled) {
+			errMsg := fmt.Sprintf("accounting is disabled on Slurm cluster, can't retrieve job status for job %q.", jobID)
+			log.Print(errMsg)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).RegisterAsString(errMsg)
+			return "", &noJobFound{msg: err.Error()}
 		}
-		return nil, errors.Wrap(err, out)
+		return "", err
 	}
-	if out != "" {
+	if out == "" {
+		return "", &noJobFound{msg: fmt.Sprintf("no accounting information found for job with id: %q", jobID)}
+	}
+	return out, nil
+}
+
+func getMinimalJobInfoUsingAccounting(ctx context.Context, client sshutil.Client, deploymentID, jobID string) (map[string]string, error) {
+	status, err := getJobStatusUsingAccounting(ctx, client, deploymentID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"JobState": status}, nil
+}
+
+func getJobInfo(ctx context.Context, client sshutil.Client, deploymentID, jobID string) (map[string]string, error) {
+	cmd := fmt.Sprintf("scontrol show job %s", jobID)
+	output, err := client.RunCommand(cmd)
+	out := strings.Trim(output, "\" \t\n\x00")
+	if err == nil && out != "" {
 		return parseJobInfo(strings.NewReader(out))
 	}
-	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q", jobID)}
+	if err != nil && !strings.Contains(out, errMsgInvalidJob) {
+		return nil, errors.Wrap(err, out)
+	}
+	log.Debugf("job %q vanished from \"scontrol show job\". Trying accounting to get the job status.", jobID)
+	return getMinimalJobInfoUsingAccounting(ctx, client, deploymentID, jobID)
 }
 
 func quoteArgs(t []string) string {
