@@ -767,10 +767,20 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 	if err != nil {
 		return errors.Wrapf(err, "The workflow %s step %s ended on error", workflowName, t.step)
 	}
-	if !s.Async {
+
+	registerNextSteps := !s.Async
+	// On workflow replay, asynchronous steps already done are skipped
+	// and next steps need to be registered here
+	if s.Async {
+		stepStatus, err := tasks.GetTaskStepStatus(s.t.taskID, s.Name)
+		if err != nil {
+			return errors.Wrapf(err, "The workflow %s step %s ended on error getting step status", workflowName, t.step)
+		}
+		registerNextSteps = (stepStatus == tasks.TaskStepStatusDONE)
+	}
+	if registerNextSteps {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID: %q, Workflow: %q, step: %q ended successfully", t.targetID, workflowName, t.step))
 		return s.registerNextSteps(ctx, workflowName)
 	}
-	// If we are asynchronous then no the workflow is not done
 	return nil
 }
