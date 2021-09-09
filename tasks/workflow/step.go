@@ -215,7 +215,13 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, deploymentID s
 				// Set step in error but continue if needed
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
-					tasks.NotifyErrorOnTask(s.t.taskID)
+					if len(s.OnFailure) > 0 {
+						// Do not end the workflow as there is a on failure branch
+						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf(
+							"TaskStep %q had error: %+v, workflow continues with on failure step", s.Name, err)
+					} else {
+						tasks.NotifyErrorOnTask(s.t.taskID)
+					}
 					// only set generic error message here.
 					// Task status is handled in task execution final function
 					tasks.CheckAndSetTaskErrorMessage(s.t.taskID, fmt.Sprintf("Workflow %q step %q failed.", workflowName, s.Name), false)
