@@ -97,6 +97,14 @@ func (c *Collector) ResumeTask(ctx context.Context, taskID string) error {
 			Key:   path.Join(taskPath, "errorMessage"),
 			Value: []byte(""),
 		},
+		&api.KVTxnOp{
+			Verb: api.KVDelete,
+			Key:  path.Join(taskPath, ".errorFlag"),
+		},
+		&api.KVTxnOp{
+			Verb: api.KVDelete,
+			Key:  path.Join(taskPath, ".cancelFlag"),
+		},
 	}
 	// Set deployment status to initial for some task types
 	switch taskType {

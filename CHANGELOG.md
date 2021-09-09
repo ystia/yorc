@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Workflows steps replays on error  ([GH-753](https://github.com/ystia/yorc/issues/753))
+
 ### ENHANCEMENTS
 
 * Slurm: Use sacct to retrieve job status when scontrol show job does not show the job anymore ([GH-757](https://github.com/ystia/yorc/issues/757))
