@@ -170,6 +170,7 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		log.Panic(err)
 	}
+	step.Name = stepID
 
 	// Check taskStep status change
 	allowed, err := tasks.CheckTaskStepStatusChange(stepBefore.Status, step.Status)

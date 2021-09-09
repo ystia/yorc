@@ -20,5 +20,5 @@ JobId=6260 JobName=test-salloc-Environment
    Command=(null)
    WorkDir=/home_nfs/john
    StdOut=/home_nfs/john/file.out
-   StdErr=/home_nfs/john/file.err
+   StdErr=/home_nfs/john/file.out
    Power= SICP=0
