@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 4.2.0 (September 10, 2021)
 
 ### FEATURES
 
