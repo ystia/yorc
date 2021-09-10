@@ -4,10 +4,12 @@
 
 ### FEATURES
 
-* Workflows steps replays on error  ([GH-753](https://github.com/ystia/yorc/issues/753))
+* Allow to replay workflow steps even if they are not in error ([GH-771](https://github.com/ystia/yorc/issues/771))
+* Workflows steps replays on error ([GH-753](https://github.com/ystia/yorc/issues/753))
 
 ### ENHANCEMENTS
 
+* Support Alien4Cloud 3.3.0 ([GH-773](https://github.com/ystia/yorc/issues/773))
 * Slurm: Use sacct to retrieve job status when scontrol show job does not show the job anymore ([GH-757](https://github.com/ystia/yorc/issues/757))
 * Add basic support for ssh on Windows ([GH-751](https://github.com/ystia/yorc/issues/751))
 * Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
