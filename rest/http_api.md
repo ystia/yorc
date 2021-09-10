@@ -605,7 +605,7 @@ Content-Type: application/json
 
 ### Update a task step status <a name="task-step-update"></a>
 
-Update a task step status for given deployment and task. For the moment, only step status change from "ERROR"
+Update a task step status for given deployment and task. For the moment, only step status change from "ERROR" or "DONE"
 to "DONE" or "INITIAL" is allowed otherwise an HTTP 401 (Forbidden) error is returned.
 
 `PUT    /deployments/<deployment_id>/tasks/<taskId>/steps/<stepId>`

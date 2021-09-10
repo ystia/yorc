@@ -4,7 +4,8 @@
 
 ### FEATURES
 
-* Workflows steps replays on error  ([GH-753](https://github.com/ystia/yorc/issues/753))
+* Allow to replay workflow steps even if they are not in error ([GH-771](https://github.com/ystia/yorc/issues/771))
+* Workflows steps replays on error ([GH-753](https://github.com/ystia/yorc/issues/753))
 
 ### ENHANCEMENTS
 

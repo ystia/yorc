@@ -76,6 +76,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("TestRunPurgeFails", func(t *testing.T) {
 			testRunPurgeFails(t, srv, client)
 		})
+		t.Run("TestRunWorkflowStepReplay", func(t *testing.T) {
+			testRunWorkflowStepReplay(t, srv, client)
+		})
 	})
 }
 
