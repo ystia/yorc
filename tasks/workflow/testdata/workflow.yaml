@@ -36,6 +36,24 @@ node_types:
             type: ystia.yorc.tests.artifacts.Implementation.Custom
             file: whatever
 
+  ystia.yorc.tests.nodes.JobNode:
+    derived_from: org.alien4cloud.nodes.Job
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: whatever
+      tosca.interfaces.node.lifecycle.Runnable:
+        submit:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: whatever
+        run:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: whatever
+
 topology_template:
   node_templates:
     WFNode:
@@ -61,6 +79,8 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
+    JobNode:
+      type: ystia.yorc.tests.nodes.JobNode
   workflows:
     custom_wf1:
       steps:
@@ -80,6 +100,39 @@ topology_template:
           target: WFNode
           activities:
           - call_operation: custom.operation1
+    custom_submit_job:
+      steps:
+        job_create:
+          target: JobNode
+          operation_host: ORCHESTRATOR
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - job_submit
+        job_submit:
+          target: JobNode
+          operation_host: ORCHESTRATOR
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.submit
+          on_success:
+            - job_submitted
+        job_submitted:
+          target: JobNode
+          activities:
+            - set_state: submitted
+    custom_monitor_job:
+      steps:
+        job_run:
+          target: JobNode
+          operation_host: ORCHESTRATOR
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Runnable.run
+          on_success:
+            - job_executed
+        job_executed:
+          target: JobNode
+          activities:
+            - set_state: executed
     install:
       steps:
         Compute_install:
