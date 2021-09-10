@@ -543,7 +543,7 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 		return false, err
 	}
 
-	if stBefore != TaskStepStatusERROR || stAfter != TaskStepStatusDONE {
+	if (stBefore != TaskStepStatusERROR && stBefore != TaskStepStatusDONE) || (stAfter != TaskStepStatusDONE && stAfter != TaskStepStatusINITIAL) {
 		return false, nil
 	}
 	return true, nil

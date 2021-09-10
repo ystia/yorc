@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strconv"
 	"testing"
 
@@ -179,6 +180,59 @@ func testRunQueryInfraUsage(t *testing.T, srv *testutil.TestServer, client *api.
 	require.NoError(t, err, "Unexpected error returned by runQuery()")
 }
 
+func testRunWorkflowStepReplay(t *testing.T, srv *testutil.TestServer, client *api.Client) {
+	// Run a workflow whose first step is an asynchronous step already done
+	myWorker := &worker{
+		consulClient: client,
+		cfg: config.Configuration{
+			// Ensure we are not deleting filesystem files elsewhere
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+
+	deploymentID := "TestRunWf"
+	topologyPath := "testdata/workflow.yaml"
+	ctx := context.Background()
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, topologyPath)
+	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
+
+	// Registering test data with the first step of the workflow already done
+	srv.PopulateKV(t, testData(deploymentID))
+
+	wfName := "custom_monitor_job"
+
+	srv.PopulateKV(t, testData(deploymentID))
+	deployments.SetDeploymentStatus(context.Background(), deploymentID, deployments.DEPLOYED)
+	var myTaskExecution taskExecution
+	myTaskExecution.cc = client
+	myTaskExecution.targetID = deploymentID
+	myTaskExecution.taskID = "tWorkflow"
+	myTaskExecution.step = "job_run"
+
+	expectedNextStep := "job_executed"
+
+	err = myWorker.runWorkflowStep(context.Background(), &myTaskExecution, wfName, false)
+	require.NoError(t, err)
+
+	// Test that consul contains an execution for next step
+
+	execKeys, _, err := consulutil.GetKV().Keys(consulutil.ExecutionsTaskPrefix+"/", "/", nil)
+	require.NoError(t, err)
+	foundStep := false
+	for _, execKey := range execKeys {
+		execID := path.Base(execKey)
+		execPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
+		found, value, err := consulutil.GetStringValue(path.Join(execPath, "step"))
+		require.NoError(t, err)
+		if found && value == expectedNextStep {
+			foundStep = true
+			break
+		}
+	}
+
+	require.Equal(t, true, foundStep, "Did not find step %s in next steps to execute", expectedNextStep)
+}
+
 // Construct key/value to initialise KV before running test
 func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
@@ -194,6 +248,13 @@ func testData(deploymentID string) map[string][]byte {
 		consulutil.TasksPrefix + "/t3/targetId": []byte(deploymentID),
 		consulutil.TasksPrefix + "/t3/type":     []byte("4"),
 		consulutil.TasksPrefix + "/t3/status":   []byte(strconv.Itoa(int(tasks.TaskStatusRUNNING))),
+		// custom workflow task task
+		consulutil.TasksPrefix + "/tWorkflow/targetId": []byte(deploymentID),
+		consulutil.TasksPrefix + "/tWorkflow/type":     []byte("6"),
+		consulutil.TasksPrefix + "/tWorkflow/status":   []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
+		// custom workflow step status, first step done
+		consulutil.WorkflowsPrefix + "/tWorkflow/job_run":      []byte(tasks.TaskStepStatusDONE.String()),
+		consulutil.WorkflowsPrefix + "/tWorkflow/job_executed": []byte(tasks.TaskStepStatusINITIAL.String()),
 		// query task
 		consulutil.TasksPrefix + "/tQuery/targetId":          []byte("infra_usage:myInfraName"),
 		consulutil.TasksPrefix + "/tQuery/type":              []byte("7"),

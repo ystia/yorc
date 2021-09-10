@@ -46,6 +46,7 @@ type ComputeInstance struct {
 	KeyPair          string            `json:"key_pair,omitempty"`
 	SchedulerHints   SchedulerHints    `json:"scheduler_hints,omitempty"`
 	Metadata         map[string]string `json:"metadata,omitempty"`
+	UserData         string            `json:"user_data,omitempty"`
 	commons.Resource
 }
 

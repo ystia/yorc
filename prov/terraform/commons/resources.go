@@ -204,6 +204,7 @@ func AddConnectionCheckResource(ctx context.Context, deploymentID, nodeName stri
 		User:       user,
 		Host:       accessIP,
 		PrivateKey: "${var.private_key}",
+		Timeout:    "15m",
 	}
 
 	bast, err := provutil.GetInstanceBastionHost(ctx, deploymentID, nodeName)

@@ -1,14 +1,36 @@
 # Yorc Changelog
 
-## 4.1.2 (June 23, 2021)
+## 4.2.0 (September 10, 2021)
+
+### FEATURES
+
+* Allow to replay workflow steps even if they are not in error ([GH-771](https://github.com/ystia/yorc/issues/771))
+* Workflows steps replays on error ([GH-753](https://github.com/ystia/yorc/issues/753))
+
+### ENHANCEMENTS
+
+* Support Alien4Cloud 3.3.0 ([GH-773](https://github.com/ystia/yorc/issues/773))
+* Slurm: Use sacct to retrieve job status when scontrol show job does not show the job anymore ([GH-757](https://github.com/ystia/yorc/issues/757))
+* Add basic support for ssh on Windows ([GH-751](https://github.com/ystia/yorc/issues/751))
+* Add the ability to define OpenStack Compute Instance user_data ([GH-735](https://github.com/ystia/yorc/issues/735))
 
 ### BUG FIXES
 
+* [Bootstrap] Error in AWS location configuration for the bootstrapped Yorc ([GH-762](https://github.com/ystia/yorc/issues/762))
 * Over-consumption of Consul connections ([GH-745](https://github.com/ystia/yorc/issues/745))
 * Yorc panics attempting to print an error handling a script execution stdout ([GH-741](https://github.com/ystia/yorc/issues/741))
 * Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
+* Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
 
-## 4.1.1 (May 06, 2021)
+### ENGINEERING
+
+* Generate a checksum file for release artifacts and sign it ([GH-755](https://github.com/ystia/yorc/issues/755))
+
+## 4.2.0-milestone.1 (May 06, 2021)
+
+### ENHANCEMENTS
+
+* Support Alien4Cloud 3.2.0 ([GH-723](https://github.com/ystia/yorc/issues/723))
 
 ### BUG FIXES
 
