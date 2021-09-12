@@ -55,7 +55,13 @@ require (
 	github.com/hashicorp/serf v0.8.3 // indirect
 	github.com/hashicorp/vault v0.9.0
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c
+	github.com/jarcoal/httpmock v1.0.8
 	github.com/jefferai/jsonx v1.0.1 // indirect
+	github.com/juju/collections v0.0.0-20200605021417-0d0ec82b7271 // indirect
+	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f // indirect
+	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
+	github.com/juju/loggo v0.0.0-20200526014432-9ce3a2e09b5e // indirect
+	github.com/juju/schema v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/justinas/alice v0.0.0-20160512134231-052b8b6c18ed
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect

@@ -1,0 +1,20 @@
+{{ define "Compute" }}
+      type: yorc.nodes.maas.Compute
+      properties: {{formatAsYAML .Compute 8}}
+      capabilities:
+        endpoint:
+          properties:
+            credentials: {{formatAsYAML .Credentials 14}}
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        os:
+          properties:
+            type: linux
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+{{ end }}

@@ -403,6 +403,8 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			infrastructureType = "aws"
 		case "HostsPool":
 			infrastructureType = "hostspool"
+		case "MAAS":
+			infrastructureType = "maas"
 		default:
 			infrastructureType = ""
 		}
@@ -428,7 +430,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			fmt.Println("")
 			prompt := &survey.Select{
 				Message: "Select an infrastructure type:",
-				Options: []string{"Google", "AWS", "OpenStack", "HostsPool"},
+				Options: []string{"Google", "AWS", "OpenStack", "HostsPool", "MAAS"},
 			}
 			survey.AskOne(prompt, &infraSelected, nil)
 			infrastructureType = strings.ToLower(infraSelected)
@@ -477,8 +479,10 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	case "hostspool":
 		// No infrastructure defined in case of hosts pool
 		// Hosts Pool don't have network-reletad on-demand resources
+	case "maas":
+		infraNodeType = "org.ystia.yorc.pub.location.MAASConfig"
 	default:
-		return fmt.Errorf("Infrastruture type %s is not supported by bootstrap",
+		return fmt.Errorf("infrastruture type %s is not supported by bootstrap",
 			infrastructureType)
 	}
 
@@ -491,7 +495,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		return err
 	}
 	if len(matchingPath) == 0 {
-		return fmt.Errorf("Found no node types definition file matching pattern %s", nodeTypesFilePathPattern)
+		return fmt.Errorf("found no node types definition file matching pattern %s", nodeTypesFilePathPattern)
 	}
 
 	data, err := ioutil.ReadFile(matchingPath[0])
@@ -768,6 +772,8 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		inputValues.Location.Type = "AWS"
 	case "hostspool":
 		inputValues.Location.Type = "HostsPool"
+	case "maas":
+		inputValues.Location.Type = "maas"
 	default:
 		return fmt.Errorf("Bootstrapping on %s not supported yet", infrastructureType)
 	}

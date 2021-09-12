@@ -1,0 +1,45 @@
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
+
+metadata:
+  template_name: yorc-maas-types
+  template_author: yorc
+  template_version: 1.0.0
+
+imports:
+  - yorc: <yorc-types.yml>
+
+node_types:
+  yorc.nodes.maas.Compute:
+    derived_from: yorc.nodes.Compute
+    properties:
+      distro_series:
+        type: string
+        required: false
+        description: If present, this parameter specifies the OS the machine will use. Else the MASS default OS will be use.
+      arch :
+        type: string
+        required: false
+        description: Architecture of the returned machine (e.g. 'i386/generic', 'amd64', 'armhf/highbank', etc.).
+      erase:
+        type: boolean
+        required: false
+        description: Erase the disk when undeploying. if neither secure_erase nor quick_erase are specified, MAAS will overwrite the whole disk with null bytes. This can be very slow.
+      secure_erase:
+        type: boolean
+        required: false
+        description: Use the drive's secure erase feature if available. In some cases, this can be much faster than overwriting the drive. Some drives implement secure erasure by overwriting themselves so this could still be slow.
+      quick_erase:
+        type: boolean
+        required: false
+        description: Wipe 2MiB at the start and at the end of the drive to make data recovery inconvenient and unlikely to happen by accident. This is not secure.
+      tags:
+        type: string
+        required: false
+        description: Comma separated list of tags that the machine must match in order to be acquired. If multiple tag names are specified, the machine must be tagged with all of them.
+      not_tags:
+        type: string
+        required: false
+        description: Comma separated list of tags that the machine must NOT match. If multiple tag names are specified, the machine must NOT be tagged with ANY of them.
+    capabilities:
+      host:
+        type: tosca.capabilities.Container
