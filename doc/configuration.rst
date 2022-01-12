@@ -1010,13 +1010,15 @@ OpenStack location type is ``openstack`` in lower case.
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``user_domain_name``              | Specify the domain name where the user is located (Identity v3 only).                                               | string    | yes (if use Identity v3)                           |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``domain_id``                     | Specify the ID of the Domain to scope to (Identity v3 only).                                                        | string    | no                                                 |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``project_id``                    | Specify the ID of the project to login with (Identity v3 only).                                                     | string    | Either this or ``project_name`` should be provided.|               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``project_name``                  | Specify the name of the project to login with (Identity v3 only).                                                   | string    | Either this or ``project_id`` should be provided.  |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-| ``user_name``                     | Specify the OpenStack user name to use.                                                                             | string    | yes                                                |               |
+| ``user_name``                     | Specify the OpenStack user name to use.                                                                             | string    | yes (see note below for more details)              |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-| ``password``                      | Specify the OpenStack password to use.                                                                              | string    | yes                                                |               |
+| ``password``                      | Specify the OpenStack password to use.                                                                              | string    | yes (see note below for more details)              |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``region``                        | Specify the OpenStack region to use                                                                                 | string    | no                                                 | ``RegionOne`` |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
@@ -1041,6 +1043,10 @@ OpenStack location type is ``openstack`` in lower case.
 |                                   | the contents of the key                                                                                             |           |                                                    |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 
+Note:
+In environments where user/password authentication cannot be used to authenticate against OpenStack, it is possible to define in a topology, within the TOSCA Compute node template metadata property, which is a map of key/value pairs:
+* either the key `token` and an OpenStack token value, to perform a token-based authentication,
+* or the keys `application_credential_id` and `application_credential_secret` with respective values, to perform an authentication based on OpenStack application credentials.
 
 .. _option_infra_kubernetes:
 
