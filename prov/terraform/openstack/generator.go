@@ -82,7 +82,10 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, cfg con
 		return false, nil, nil, nil, err
 	}
 	var cmdEnv []string
-	infrastructure.Provider, cmdEnv = getOpenStackProviderEnv(cfg, locationProps)
+	infrastructure.Provider, cmdEnv, err = getOpenStackProviderEnv(ctx, cfg, locationProps, deploymentID, nodeName)
+	if err != nil {
+		return false, nil, nil, nil, err
+	}
 
 	log.Debugf("inspecting node %s", nodeName)
 	nodeType, err := deployments.GetNodeType(ctx, deploymentID, nodeName)
@@ -130,33 +133,78 @@ func (g *osGenerator) generateTerraformInfraForNode(ctx context.Context, cfg con
 	return true, outputs, cmdEnv, nil, nil
 }
 
-func getOpenStackProviderEnv(cfg config.Configuration, locationProps config.DynamicMap) (map[string]interface{}, []string) {
-	cmdEnv := []string{
-		fmt.Sprintf("OS_USERNAME=%s", locationProps.GetString("user_name")),
-		fmt.Sprintf("OS_PASSWORD=%s", locationProps.GetString("password")),
-		fmt.Sprintf("OS_PROJECT_NAME=%s", locationProps.GetString("project_name")),
-		fmt.Sprintf("OS_PROJECT_ID=%s", locationProps.GetString("project_id")),
-		fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", locationProps.GetString("user_domain_name")),
-		fmt.Sprintf("OS_AUTH_URL=%s", locationProps.GetString("auth_url")),
+func getOpenStackProviderEnv(ctx context.Context, cfg config.Configuration, locationProps config.DynamicMap, deploymentID, nodeName string) (map[string]interface{}, []string, error) {
+
+	// Token authentication is not performed from location configuration settings
+	// but using a token value in the node metadata
+	tokenFound, tokenValue, err := deployments.GetNodeMetadata(ctx, deploymentID, nodeName, tosca.MetadataTokenKey)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	// Management of variables for Terraform
+	// Getting application credentials as well to workaround a keystone bug
+	// hit by Terraform when token generated from application credentials are provided
+	// See keystone bug https://bugs.launchpad.net/keystone/+bug/1878438
+	secretFound, credsSecret, err := deployments.GetNodeMetadata(ctx, deploymentID, nodeName, tosca.MetadataApplicationCredentialSecretKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, credsID, err := deployments.GetNodeMetadata(ctx, deploymentID, nodeName, tosca.MetadataApplicationCredentialIDKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var cmdEnv []string
+	if secretFound && credsSecret != "" && credsID != "" {
+		// Specifying the User domain name when application credentials are used.
+		// No environment variable is defined for application credentials, they will be set
+		// in the OpenStack provider settings below
+		cmdEnv = []string{
+			fmt.Sprintf("OS_USER_DOMAIN_NAME=%s", locationProps.GetString("user_domain_name")),
+		}
+	} else if tokenFound && tokenValue != "" {
+		// Specifying the Domain ID when a token is used
+		cmdEnv = []string{
+			fmt.Sprintf("OS_TOKEN=%s", tokenValue),
+			fmt.Sprintf("OS_DOMAIN_ID=%s", locationProps.GetString("domain_id")),
+		}
+	} else {
+		// User/password authentication
+		// No OS_USER_DOMAIN_NAME set here as this will cause an issue to terraform here
+		cmdEnv = []string{
+			fmt.Sprintf("OS_USERNAME=%s", locationProps.GetString("user_name")),
+			fmt.Sprintf("OS_PASSWORD=%s", locationProps.GetString("password")),
+			fmt.Sprintf("OS_DOMAIN_ID=%s", locationProps.GetString("domain_id")),
+		}
+	}
+	// Variables common to all authentication modes
+	cmdEnv = append(cmdEnv,
+		fmt.Sprintf("OS_PROJECT_NAME=%s", locationProps.GetString("project_name")),
+		fmt.Sprintf("OS_PROJECT_ID=%s", locationProps.GetString("project_id")),
+		fmt.Sprintf("OS_AUTH_URL=%s", locationProps.GetString("auth_url")))
+
+	// Defining OpenStack parameters for Terraform
+	openStackSettings := map[string]interface{}{
+		"version":     cfg.Terraform.OpenStackPluginVersionConstraint,
+		"tenant_name": locationProps.GetString("tenant_name"),
+		"insecure":    locationProps.GetString("insecure"),
+		"cacert_file": locationProps.GetString("cacert_file"),
+		"cert":        locationProps.GetString("cert"),
+		"key":         locationProps.GetString("key"),
+	}
+	if secretFound && credsSecret != "" && credsID != "" {
+		openStackSettings["application_credential_id"] = credsID
+		openStackSettings["application_credential_secret"] = credsSecret
+	}
 	provider := map[string]interface{}{
-		"openstack": map[string]interface{}{
-			"version":     cfg.Terraform.OpenStackPluginVersionConstraint,
-			"tenant_name": locationProps.GetString("tenant_name"),
-			"insecure":    locationProps.GetString("insecure"),
-			"cacert_file": locationProps.GetString("cacert_file"),
-			"cert":        locationProps.GetString("cert"),
-			"key":         locationProps.GetString("key"),
-		},
-		"consul": commons.GetConsulProviderfiguration(cfg),
+		"openstack": openStackSettings,
+		"consul":    commons.GetConsulProviderfiguration(cfg),
 		"null": map[string]interface{}{
 			"version": commons.NullPluginVersionConstraint,
 		},
 	}
 
-	return provider, cmdEnv
+	return provider, cmdEnv, err
 }
 
 func (g *osGenerator) generateInstanceInfra(ctx context.Context, opts generateInfraOptions,
