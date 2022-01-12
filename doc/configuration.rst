@@ -1044,8 +1044,8 @@ OpenStack location type is ``openstack`` in lower case.
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 
 Note:
-In environments where user/password authentication cannot be used to authenticate against OpenStack, it is possible to define in a topology, within the TOSCA Compute node template metadata property, which is a map of key/value pairs:
-* either the key `token` and an OpenStack token value, to perform a token-based authentication,
+In environments where user/password authentication cannot be used to authenticate against OpenStack, it is possible to define in a topology, within a TOSCA node template metadata property, which is a map of key/value pairs:
+* either the key `token` and an OpenStack token value, to perform an OpenStack token-based authentication,
 * or the keys `application_credential_id` and `application_credential_secret` with respective values, to perform an authentication based on OpenStack application credentials.
 
 .. _option_infra_kubernetes:
