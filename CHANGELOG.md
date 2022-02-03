@@ -5,6 +5,7 @@
 ### FEATURES
 
 * Ability to authenticate against OpenStack with token or application credentials ([GH-775](https://github.com/ystia/yorc/issues/775))
+* Support nested TOSCA functions in get_secret (added a get_vault_secret function) ([GH-777](https://github.com/ystia/yorc/issues/777))
 * Allow to replay workflow steps even if they are not in error ([GH-771](https://github.com/ystia/yorc/issues/771))
 * Workflows steps replays on error ([GH-753](https://github.com/ystia/yorc/issues/753))
 
