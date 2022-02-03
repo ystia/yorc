@@ -26,6 +26,7 @@
 ### ENGINEERING
 
 * Generate a checksum file for release artifacts and sign it ([GH-755](https://github.com/ystia/yorc/issues/755))
+* Upgrade Vault client lib to support kv secret engine v2 ([GH-779](https://github.com/ystia/yorc/issues/779))
 
 ## 4.2.0-milestone.1 (May 06, 2021)
 
