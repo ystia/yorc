@@ -1,0 +1,195 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: TestAppCreds
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <normative-types.yml>
+  - <yorc-openstack-types.yml>
+
+topology_template:
+  node_templates:
+    BlockStorage:
+      type: yorc.nodes.openstack.BlockStorage
+      properties:
+        deletable: false
+        size: "10 GB"
+      requirements:
+        - attachToComputeAttach:
+            type_requirement: attachment
+            node: Compute
+            capability: tosca.capabilities.Attachment
+            relationship: tosca.relationships.AttachTo
+    Compute:
+      type: yorc.nodes.openstack.Compute
+      metadata:
+        application_credential_id: test_cred_id
+        application_credential_secret: test_cred_secret
+      properties:
+        image: "a460db41-e574-416f-9634-96f2862f10fe"
+        flavor: 3
+        key_pair: yorc
+      requirements:
+        - networkNetwork2Connection:
+            type_requirement: network
+            node: Network_2
+            capability: tosca.capabilities.Connectivity
+            relationship: tosca.relationships.Network
+        - Compute_FIPCompute:
+            type_requirement: network
+            node: FIPCompute
+            capability: yorc.capabilities.openstack.FIPConnectivity
+            relationship: tosca.relationships.Network
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              keys:
+                0: |
+                  -----BEGIN RSA PRIVATE KEY-----
+                  MIIEpAIBAAKCAQEAuEl5Wjgdvlqbz0x2vcllSQrDiRd+bWdA2MgpOl726ovxw9uE
+                  QJSlXYBJbSCQg+q++OEtXmvfahN5Y9aemuPey/o/S9RWyQ/X+uVeXdNV4Xkgar6b
+                  uYr1n1Ju7ltmdVJME7fr+Ti+2d+EMBs7V+jGXyZzBTdr6wCJuBHHXV/ZKDzw1cHd
+                  bRF8obBmMcxyzNbXnhSUvBgXT+GQ0/CgkNdrTwGOgtckqNYTuw1Rd6wAsF5xgN23
+                  uss5WJOg3/eMW2JMjyxNqaJhBUtA2CKcdnLjwyDxWdmC1NMHKL1umPOjuCyNczpl
+                  axMKW//UZT3WyfVt/gcHGGNIuI0izwFJ6QjlrQIDAQABAoIBAAet8COlUP/8sJ97
+                  1TrlaJYZn7pXw0n10or2FFm9WVa+zC1YOXOjfhyeWvD0OXF1181xPL3BiwbVlupl
+                  KCjWNBOV8wtK5u7r/RkUc9E/HEYQERzBoqWht8iS29KM9oEPE+KCeI/jIHjdypli
+                  mR95sMKITKS8AYBCfnqwKvmmI9t8VIXsrZWsg1dUD9TCa8QxoA66raSpXegDgjox
+                  T8IjZW90BwD6oG/5+HfbuwtjKR1Lca5tMzqxDMvqBf3KdCuee1x2Uuzla9/MsK/4
+                  Nuqv88gpoI7bDJOJnF/KrJqEH1ihF5zNVOs5c7XKmnAdry05tA7CjbiILOeFq3yn
+                  elkdR5UCgYEA3RC0bAR/TjSKGBEzvzfJFNp2ipdlZ1svobHl5sqDJzQp7P9aIogU
+                  qUhw2vr/nHg4dfmLnMHJYh6GCIjN1H7NZzaBiQSUcT+s2GRxYJqRV4geFHvKNzt3
+                  a50Hi5rSsbKm0LvlUA3vGkMABICyzkETPDl2WSFtKWUYrTMZSKixCtsCgYEA1Wjj
+                  fn+3HOmAv3lX4PzhHiBBfBj60BKPCnBbWG6TTF4ya7UEU+e5aAbLD10QdQyx77rL
+                  V3G3Xda1BWA2wGKRDfC9ksFUuxH2egNPGadOVZH2U/a/87YGOFUmbf03jJ6mbeRV
+                  BBBVcB8oGSD+NemiDPqYUi/G1lT+oRLFIkkYhBcCgYEApjKj4j2zVCFt3NA5/j27
+                  gGEKFAHka8MDWWY8uLlxxuyRxKrpoeJ63hYnOorP11wO3qshClYqyAi4rfvj+yjl
+                  1f4FfvShgU7k7L7++ijaslsUekPi8IlVq+MfxBY+5vewMGfC69+97hmHDtuPEj+c
+                  bX+p+TKHNkLaPYSYMqcYi1cCgYEAxf6JSfyt48oT5BFtYdTb+zpL5xm54T/GrBWv
+                  +eylBm5Cc0E/YaUUlBnxXTCnqyD7GQKB04AycoJX8kPgqD8KexeGmlh6BxFUTsEx
+                  KwjZGXTRR/cfAbo4LR17CQKr/e/XUw9LfPi2e868QgwlLdmzujzpAx9GZ+X1U3V5
+                  piSQ9UMCgYBdegnYh2fqU/oGH+d9WahuO1LW9vz8sFEIhRgJyLfA/ypAg6WCgJF2
+                  GtepEYBXL+QZnhudVxi0YPTmNN3+gtHdr+B4dKZ8z7m9NO2nk5AKdf0sYGWHEzhy
+                  PAgZzG5OTZiu+YohUPnC66eFiyS6anLBj0DGNa9VA8j352ecgeNO4A==
+                  -----END RSA PRIVATE KEY-----
+              user: centos
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Network_2:
+      type: yorc.nodes.openstack.Network
+      properties:
+        ip_version: 4
+        cidr: "10.1.0.0/24"
+    FIPCompute:
+      type: yorc.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: "public-net1"
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          target: Compute
+          activities:
+            - delegate: install
+        FIPCompute_install:
+          target: FIPCompute
+          activities:
+            - delegate: install
+          on_success:
+            - Compute_install
+        Network_2_install:
+          target: Network_2
+          activities:
+            - delegate: install
+          on_success:
+            - Compute_install
+        BlockStorage_install:
+          target: BlockStorage
+          activities:
+            - delegate: install
+          on_success:
+            - Compute_install
+    uninstall:
+      steps:
+        Compute_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+          on_success:
+            - Network_2_uninstall
+            - FIPCompute_uninstall
+            - BlockStorage_uninstall
+        Network_2_uninstall:
+          target: Network_2
+          activities:
+            - delegate: uninstall
+        FIPCompute_uninstall:
+          target: FIPCompute
+          activities:
+            - delegate: uninstall
+        BlockStorage_uninstall:
+          target: BlockStorage
+          activities:
+            - delegate: uninstall
+    start:
+      steps:
+        Network_2_start:
+          target: Network_2
+          activities:
+            - delegate: start
+          on_success:
+            - Compute_start
+        Compute_start:
+          target: Compute
+          activities:
+            - delegate: start
+          on_success:
+            - BlockStorage_start
+        FIPCompute_start:
+          target: FIPCompute
+          activities:
+            - delegate: start
+          on_success:
+            - Compute_start
+        BlockStorage_start:
+          target: BlockStorage
+          activities:
+            - delegate: start
+    stop:
+      steps:
+        FIPCompute_stop:
+          target: FIPCompute
+          activities:
+            - delegate: stop
+        Network_2_stop:
+          target: Network_2
+          activities:
+            - delegate: stop
+        BlockStorage_stop:
+          target: BlockStorage
+          activities:
+            - delegate: stop
+          on_success:
+            - Compute_stop
+        Compute_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+          on_success:
+            - FIPCompute_stop
+            - Network_2_stop
+    run:
+    cancel:
