@@ -17,10 +17,10 @@ package tosca
 import (
 	"bytes"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"strconv"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/ystia/yorc/v4/log"
 )
@@ -47,6 +47,8 @@ const (
 	GetSecretOperator Operator = "get_secret"
 )
 
+const getVaultSecretOperator = "get_vault_secret"
+
 // IsOperator checks if a given token is a known TOSCA function keyword
 func IsOperator(op string) bool {
 	return op == string(GetPropertyOperator) ||
@@ -54,7 +56,8 @@ func IsOperator(op string) bool {
 		op == string(GetInputOperator) ||
 		op == string(GetOperationOutputOperator) ||
 		op == string(ConcatOperator) ||
-		op == string(GetSecretOperator)
+		op == string(GetSecretOperator) ||
+		op == getVaultSecretOperator
 }
 
 func parseOperator(op string) (Operator, error) {
@@ -69,7 +72,7 @@ func parseOperator(op string) (Operator, error) {
 		return GetOperationOutputOperator, nil
 	case op == string(ConcatOperator):
 		return ConcatOperator, nil
-	case op == string(GetSecretOperator):
+	case op == string(GetSecretOperator), op == getVaultSecretOperator:
 		return GetSecretOperator, nil
 	default:
 		return GetPropertyOperator, errors.Errorf("%q is not a known or supported TOSCA operator", op)
@@ -118,7 +121,7 @@ func (f Function) String() string {
 	var b bytes.Buffer
 	b.WriteString(string(f.Operator))
 	b.WriteString(": ")
-	if len(f.Operands) == 1 {
+	if len(f.Operands) == 1 && f.Operands[0].IsLiteral() {
 		// Shortcut
 		b.WriteString(f.Operands[0].String())
 		return b.String()

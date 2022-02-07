@@ -543,7 +543,7 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 		return false, err
 	}
 
-	if stBefore != TaskStepStatusERROR || stAfter != TaskStepStatusDONE {
+	if (stBefore != TaskStepStatusERROR && stBefore != TaskStepStatusDONE) || (stAfter != TaskStepStatusDONE && stAfter != TaskStepStatusINITIAL) {
 		return false, nil
 	}
 	return true, nil
@@ -625,15 +625,11 @@ func MonitorTaskFailure(ctx context.Context, taskID string, f func()) {
 func monitorTaskFlag(ctx context.Context, taskID, flag string, value []byte, f func()) {
 	go func() {
 		var lastIndex uint64
+		queryMeta := &api.QueryOptions{}
+		queryMeta = queryMeta.WithContext(ctx)
 		for {
-			select {
-			case <-ctx.Done():
-				log.Debugf("Task monitoring for flag %s exit", flag)
-				return
-			default:
-			}
-
-			kvp, qMeta, err := consulutil.GetKV().Get(path.Join(consulutil.TasksPrefix, taskID, flag), &api.QueryOptions{WaitIndex: lastIndex})
+			queryMeta.WaitIndex = lastIndex
+			kvp, qMeta, err := consulutil.GetKV().Get(path.Join(consulutil.TasksPrefix, taskID, flag), queryMeta)
 
 			select {
 			case <-ctx.Done():

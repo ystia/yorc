@@ -86,6 +86,9 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 		t.Run("TestGenerateTerraformInfo", func(t *testing.T) {
 			testGenerateTerraformInfo(t, srv, locationMgr)
 		})
+		t.Run("TestAppCredentials", func(t *testing.T) {
+			testAppCredentials(t, srv, locationMgr)
+		})
 		t.Run("TestComputeBootVolumeWrongSize", func(t *testing.T) {
 			testComputeBootVolumeWrongSize(t, srv)
 		})
