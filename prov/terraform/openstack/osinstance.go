@@ -257,11 +257,9 @@ func generateAttachedVolumes(ctx context.Context, opts osInstanceOptions,
 }
 
 func getVolumeID(ctx context.Context, deploymentID, volumeNodeName, instanceName string) (string, error) {
-
-	var volumeID string
 	log.Debugf("Looking for volume_id")
-	volumeIDValue, err := deployments.GetNodePropertyValue(ctx, deploymentID, volumeNodeName, "volume_id")
-	if err != nil || volumeIDValue != nil && volumeIDValue.RawString() != "" {
+	volumeID, err := deployments.GetStringNodeProperty(ctx, deploymentID, volumeNodeName, "volume_id", false)
+	if err != nil || volumeID != "" {
 		return volumeID, err
 	}
 
