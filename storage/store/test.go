@@ -16,13 +16,6 @@ package store
 
 import (
 	"context"
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/mitchellh/mapstructure"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -30,6 +23,14 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/sdk/testutil"
+	"github.com/mitchellh/mapstructure"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 // Foo is just some struct for common tests.
@@ -90,7 +91,7 @@ func NewTestConsulInstance(t testing.TB, cfg *config.Configuration) (*testutil.T
 		c.LogLevel = logLevel
 	}
 
-	srv1, err := testutil.NewTestServerConfig(cb)
+	srv1, err := testutil.NewTestServerConfigT(t, cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}

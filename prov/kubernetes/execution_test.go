@@ -672,11 +672,11 @@ func testExecutionManageNamespaceDeletion(t *testing.T) {
 	//Setup
 	// One ns "default", 0 controler
 	k8s := newTestSimpleK8s()
-	k8s.clientset.CoreV1().Namespaces().Create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
+	k8s.clientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}, metav1.CreateOptions{})
 	// One ns "test-ns", 1 controler
 	k8s1 := newTestSimpleK8s()
-	k8s1.clientset.CoreV1().Namespaces().Create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test-ns"}})
-	k8s1.clientset.AppsV1().Deployments("test-ns").Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}})
+	k8s1.clientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test-ns"}}, metav1.CreateOptions{})
+	k8s1.clientset.AppsV1().Deployments("test-ns").Create(ctx, &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploy"}}, metav1.CreateOptions{})
 
 	type args struct {
 		clientset         kubernetes.Interface
@@ -717,7 +717,7 @@ func testExecutionManageNamespaceDeletion(t *testing.T) {
 			if err := e.manageNamespaceDeletion(ctx, tt.args.clientset, tt.args.namespaceProvided, tt.args.namespaceName); (err != nil) != tt.wantErr {
 				t.Errorf("execution.manageNamespaceDeletion() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if ns, _ := tt.args.clientset.CoreV1().Namespaces().Get(tt.args.namespaceName, metav1.GetOptions{}); (ns == nil) != tt.wantNsDeleted {
+			if ns, _ := tt.args.clientset.CoreV1().Namespaces().Get(ctx, tt.args.namespaceName, metav1.GetOptions{}); (ns == nil) != tt.wantNsDeleted {
 				t.Errorf("execution.manageNamespaceDeletion() namespace = %v, wantNsDeleted %v", ns, tt.wantNsDeleted)
 			}
 			//t.Logf("Ns found : %s, err : %s", ns, err)

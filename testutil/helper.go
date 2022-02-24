@@ -15,14 +15,15 @@
 package testutil
 
 import (
-	"github.com/ystia/yorc/v4/storage"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/ystia/yorc/v4/storage"
+
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ystia/yorc/v4/config"
@@ -60,7 +61,7 @@ func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerCon
 //  - stores common-types to Consul only if storeCommons bool parameter is true
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, cfg *config.Configuration, storeCommons bool) (*testutil.TestServer, *api.Client) {
-	srv1, err := testutil.NewTestServerConfig(cb)
+	srv1, err := testutil.NewTestServerConfigT(t, cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/v4/config"
@@ -42,7 +42,7 @@ func TestConsulStore(t *testing.T) {
 		c.Args = []string{"-ui"}
 		c.LogLevel = logLevel
 	}
-	srv, err := testutil.NewTestServerConfig(cb)
+	srv, err := testutil.NewTestServerConfigT(t, cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}

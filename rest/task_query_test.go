@@ -15,15 +15,16 @@
 package rest
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
-	"github.com/ystia/yorc/v4/helper/consulutil"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/sdk/testutil"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/config"
+	"github.com/ystia/yorc/v4/helper/consulutil"
 )
 
 func testTaskQueryHandlers(t *testing.T, client *api.Client, cfg config.Configuration, srv *testutil.TestServer) {

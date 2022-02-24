@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/v4/deployments"
@@ -70,7 +71,7 @@ func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interfac
 	}
 
 	if !job.namespaceProvided {
-		err = createNamespaceIfMissing(job.namespace, clientset)
+		err = createNamespaceIfMissing(ctx, job.namespace, clientset)
 		if err != nil {
 			return err
 		}
@@ -82,7 +83,7 @@ func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interfac
 		job.jobRepr.Spec.Template.Spec.RestartPolicy = "Never"
 	}
 
-	job.jobRepr, err = clientset.BatchV1().Jobs(job.namespace).Create(job.jobRepr)
+	job.jobRepr, err = clientset.BatchV1().Jobs(job.namespace).Create(ctx, job.jobRepr, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
 	}
