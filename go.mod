@@ -25,6 +25,7 @@ require (
 	github.com/frankban/quicktest v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/fvbommel/sortorder v1.0.1
+	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/addlicense v0.0.0-20190107131845-2e5cf00261bf
 	github.com/google/go-cmp v0.5.6 // indirect
@@ -48,11 +49,10 @@ require (
 	github.com/hashicorp/vault/api v1.1.0
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87 // indirect
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c
-	github.com/julienschmidt/httprouter v1.2.0
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/justinas/alice v0.0.0-20160512134231-052b8b6c18ed
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
@@ -68,8 +68,7 @@ require (
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.4.0
-	github.com/satori/go.uuid v1.2.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/sethvargo/go-retry v0.1.0
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.6
