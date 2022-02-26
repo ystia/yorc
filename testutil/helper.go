@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v4/storage"
 
 	"github.com/hashicorp/consul/api"
@@ -61,18 +62,42 @@ func NewTestConsulInstanceWithConfigAndStore(t testing.TB, cb testutil.ServerCon
 //  - stores common-types to Consul only if storeCommons bool parameter is true
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstanceWithConfig(t testing.TB, cb testutil.ServerConfigCallback, cfg *config.Configuration, storeCommons bool) (*testutil.TestServer, *api.Client) {
-	srv1, err := testutil.NewTestServerConfigT(t, cb)
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
+
+	// Retrying attempts to create a test consul instance and create a session
+	// as they can fail intermittently on slow test servers
+	var srv1 *testutil.TestServer
+	var client *api.Client
+	var lock *consulutil.AutoDeleteLock
+	err := errors.Errorf("Failed to create consul server")
+	i := 0
+	for i < 10 && err != nil {
+		srv1, err = testutil.NewTestServerConfigT(t, cb)
+		if err != nil {
+			i = i + 1
+			t.Logf("Attempt %d to create a consul server failed with error: %s", i, err.Error())
+			continue
+		}
+		cfg.Consul.Address = srv1.HTTPAddr
+		cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
+		client, err = cfg.GetNewConsulClient()
+		assert.Nil(t, err, "Failed to get a consul client")
+
+		kv := client.KV()
+		consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
+
+		// Checking a request to avoid intermittent session creation errors
+		lock, err = consulutil.AcquireLock(client, ".lock_test", 0)
+		if err != nil {
+			i = i + 1
+			t.Logf("Attempt %d to acquire a consul lock failed with error: %s", i, err.Error())
+			continue
+		}
+		_ = lock.Unlock()
 	}
 
-	cfg.Consul.Address = srv1.HTTPAddr
-	cfg.Consul.PubMaxRoutines = config.DefaultConsulPubMaxRoutines
-	client, err := cfg.GetNewConsulClient()
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	consulutil.InitConsulPublisher(cfg.Consul.PubMaxRoutines, kv)
+	if err != nil {
+		t.Fatalf("Failed to create a test consul server: %v", err)
+	}
 
 	// Load stores
 	// Load main stores used for deployments, logs, events
