@@ -111,10 +111,11 @@ type LocationConfiguration struct {
 	Properties    config.DynamicMap // Referenced in go template files used to build the topology
 }
 
-// CredentialsConfiguration provides a user and private key
+// CredentialsConfiguration provides a user, private key, and token type (required property)
 type CredentialsConfiguration struct {
-	User string
-	Keys map[string]string
+	User      string
+	Keys      map[string]string
+	TokenType string `yaml:"token_type" mapstructure:"token_type"`
 }
 
 // VaultConfiguration provides Vault user-defined settings
