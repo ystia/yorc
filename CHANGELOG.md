@@ -4,7 +4,7 @@
 
 ### DEPENDENCIES
 
-* Consul version updated to 1.11.3 (([GH-783](https://github.com/ystia/yorc/issues/783)))
+* Consul version updated to 1.11.3 ([GH-783](https://github.com/ystia/yorc/issues/783))
 
 ### FEATURES
 
