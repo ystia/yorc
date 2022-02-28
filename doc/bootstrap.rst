@@ -459,9 +459,14 @@ Example of an OpenStack deployment configuration file
   address:
     floating_network_name: mypublic-net
   compute:
-    image: "7d9bd308-d9c1-4952-123-95b761672499"
-    flavor: 3
+    flavorName: medium
     key_pair: yorc
+    boot_volume:
+      uuid: 7d9bd308-d9c1-4952-123-95b761672499
+      source: image
+      destination: volume
+      size: 20 GB
+      delete_on_termination: true
   credentials:
     # User on compute instance created on demand
     user: user1
