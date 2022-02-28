@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* Consul version updated to 1.11.3 (([GH-783](https://github.com/ystia/yorc/issues/783)))
+
 ### FEATURES
 
 * Ability to authenticate against OpenStack with token or application credentials ([GH-775](https://github.com/ystia/yorc/issues/775))
