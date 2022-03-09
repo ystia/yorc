@@ -34,6 +34,29 @@ feature requires to have the ``management`` ACL. It is possible to disable this 
 
 .. note:: A rolling upgrade without interruption feature is planned for future versions.
 
+.. _yorc_upgrades_430_section:
+
+Upgrading to Yorc 4.3.0
+-----------------------
+
+Consul
+~~~~~~
+
+Consul needs to be upgraded to version 1.11.3, run the following command to
+do it:
+
+.. code-block:: bash
+
+    wget https://releases.hashicorp.com/consul/1.11.3/consul_1.11.3_linux_amd64.zip
+    sudo unzip consul_1.11.3_linux_amd64.zip -d /usr/local/bin
+
+
+Then restart Consul.
+
+The recommended way to upgrade Consul is to perform a rolling upgrade.
+See `Consul documentation <https://www.consul.io/docs/upgrading.html>`_ for details.
+
+
 .. _yorc_upgrades_410_section:
 
 Upgrading to Yorc 4.1.0

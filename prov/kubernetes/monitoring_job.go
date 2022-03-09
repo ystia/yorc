@@ -90,7 +90,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		err        error
 		deregister bool
 	)
-	job, err := clientSet.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
+	job, err := clientSet.BatchV1().Jobs(namespace).Get(ctx, jobID, metav1.GetOptions{})
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve job %q", jobID)
 	}
@@ -98,7 +98,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	publishJobLogs(ctx, cfg, clientSet, deploymentID, namespace, job.Name, action)
 
 	// Check for pods status to refine job state
-	podsList, err := clientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
+	podsList, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve pods for job %q", jobID)
 	}

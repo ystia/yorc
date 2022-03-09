@@ -623,7 +623,10 @@ func (s *step) registerNextSteps(ctx context.Context, workflowName string) error
 		return err
 	}
 	defer l.Unlock()
-	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
+	ops, err := createWorkflowStepsOperations(s.t.taskID, regSteps)
+	if err != nil {
+		return err
+	}
 	err = tasks.StoreOperations(s.t.taskID, ops)
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
@@ -647,7 +650,10 @@ func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName 
 		return err
 	}
 	defer l.Unlock()
-	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
+	ops, err := createWorkflowStepsOperations(s.t.taskID, regSteps)
+	if err != nil {
+		return err
+	}
 	err = tasks.StoreOperations(s.t.taskID, ops)
 	if err != nil {
 		err = errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)

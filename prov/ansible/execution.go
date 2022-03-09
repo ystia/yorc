@@ -31,10 +31,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/gofrs/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
@@ -187,6 +187,11 @@ type outputHandler interface {
 }
 
 func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, cli *client.Client) (execution, error) {
+
+	u, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
 	execCommon := &executionCommon{
 		cfg:          cfg,
 		ctx:          ctx,
@@ -202,7 +207,7 @@ func newExecution(ctx context.Context, cfg config.Configuration, taskID, deploym
 		taskID:                  taskID,
 		Outputs:                 make(map[string]string),
 		cli:                     cli,
-		vaultToken:              uuid.NewV4().String(),
+		vaultToken:              u.String(),
 	}
 	if err := execCommon.resolveOperation(ctx); err != nil {
 		return nil, err

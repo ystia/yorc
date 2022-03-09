@@ -77,7 +77,7 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Creating docker container from image: %s", sandboxCfg.Image)
-	createResp, err := cli.ContainerCreate(ctx, cc, hc, nil, "")
+	createResp, err := cli.ContainerCreate(ctx, cc, hc, nil, nil, "")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create docker sandbox %q", sandboxCfg.Image)
 	}

@@ -17,14 +17,15 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/v4/config"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/sdk/testutil"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v4/config"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"

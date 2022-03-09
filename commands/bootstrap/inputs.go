@@ -1061,24 +1061,8 @@ func getComputeCredentials(askIfNotRequired bool, creds *CredentialsConfiguratio
 
 	creds.Keys = make(map[string]string)
 	creds.Keys["0"] = inputValues.Yorc.PrivateKeyFile
-	/*
-
-		if askIfNotRequired {
-			prompt := &survey.Input{
-				Message: "Private key:",
-			}
-			question := &survey.Question{
-				Name:   "value",
-				Prompt: prompt,
-			}
-			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
-				return err
-			}
-			creds.Keys = make(map[string]string)
-			creds.Keys["0"] = answer.Value
-
-		}
-	*/
+	// Alien4Cloud expects a value for the token type
+	creds.TokenType = "key"
 
 	return nil
 }

@@ -20,9 +20,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/helper/consulutil"
 	"github.com/ystia/yorc/v4/log"
@@ -32,7 +32,12 @@ import (
 // RegisterAction allows to register a scheduled action and to start scheduling it
 func RegisterAction(client *api.Client, deploymentID string, timeInterval time.Duration, action *prov.Action) (string, error) {
 	log.Debugf("Action with ID:%q has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action.ID, deploymentID, timeInterval.String())
-	id := uuid.NewV4().String()
+	u, err := uuid.NewV4()
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to generate a UUID for action %q", action.ID)
+	}
+
+	id := u.String()
 
 	// Check mandatory parameters
 	if deploymentID == "" {

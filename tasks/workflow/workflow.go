@@ -16,13 +16,12 @@ package workflow
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strconv"
 
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
@@ -46,12 +45,16 @@ const (
 )
 
 // createWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
-func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
+func createWorkflowStepsOperations(taskID string, steps []*step) (api.KVTxnOps, error) {
 	ops := make(api.KVTxnOps, 0)
 	var stepOps api.KVTxnOps
 	for _, step := range steps {
 		// Add execution key for initial steps only
-		execID := fmt.Sprint(uuid.NewV4())
+		u, err := uuid.NewV4()
+		if err != nil {
+			return ops, errors.Wrapf(err, "Failed to generate a UUID")
+		}
+		execID := u.String()
 		log.Debugf("Register task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
 		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 		stepOps = api.KVTxnOps{
@@ -74,7 +77,7 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 		ops = append(ops, stepOps...)
 		log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 	}
-	return ops
+	return ops, nil
 }
 
 func getCallOperationsFromStep(s *step) []string {

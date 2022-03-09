@@ -27,10 +27,10 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/internal/operations"
@@ -164,7 +164,14 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		uid = id
 	} else {
-		uid = fmt.Sprint(uuid.NewV4())
+		u, err := uuid.NewV4()
+		if err != nil {
+			log.Printf("Failed to generate a UUID: %s\n", err.Error())
+			writeError(w, r, newInternalServerError(err))
+			return
+
+		}
+		uid = u.String()
 	}
 	log.Printf("Analyzing deployment %s\n", uid)
 

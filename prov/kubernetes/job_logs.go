@@ -66,7 +66,7 @@ func (l jobLogs) String() string {
 }
 
 func publishJobLogs(ctx context.Context, cfg config.Configuration, clientset kubernetes.Interface, deploymentID, namespace, jobName string, action *prov.Action) error {
-	podsList, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name=" + jobName})
+	podsList, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "job-name=" + jobName})
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func publishJobLogs(ctx context.Context, cfg config.Configuration, clientset kub
 	logs := make(jobLogs, 0)
 	for _, pod := range podsList.Items {
 		for _, container := range pod.Spec.Containers {
-			l, err := getJobLogs(clientset, since, namespace, pod.Name, container.Name)
+			l, err := getJobLogs(ctx, clientset, since, namespace, pod.Name, container.Name)
 			if err != nil {
 				return err
 			}
@@ -117,7 +117,7 @@ func publishJobLogs(ctx context.Context, cfg config.Configuration, clientset kub
 	return nil
 }
 
-func getJobLogs(clientset kubernetes.Interface, since *time.Time, namespace, podID, containerID string) ([]jobLog, error) {
+func getJobLogs(ctx context.Context, clientset kubernetes.Interface, since *time.Time, namespace, podID, containerID string) ([]jobLog, error) {
 
 	logOptions := &corev1.PodLogOptions{
 		Container:  containerID,
@@ -129,7 +129,7 @@ func getJobLogs(clientset kubernetes.Interface, since *time.Time, namespace, pod
 		logOptions.SinceTime = &metav1.Time{Time: *since}
 	}
 
-	readCloser, err := clientset.CoreV1().Pods(namespace).GetLogs(podID, logOptions).Stream()
+	readCloser, err := clientset.CoreV1().Pods(namespace).GetLogs(podID, logOptions).Stream(ctx)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read logs for pod %q", podID)
