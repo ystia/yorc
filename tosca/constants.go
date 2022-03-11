@@ -76,6 +76,18 @@ const ComputeNodeNetworksAttributeName = "networks"
 // the name of the location where to create this node template
 const MetadataLocationNameKey = "location"
 
+// MetadataTokenKey is the node template metadata key whose value provides
+// the value of a token
+const MetadataTokenKey = "token"
+
+// MetadataApplicationCredentialIDKey is the node template metadata key whose value provides
+// an application credential identifier
+const MetadataApplicationCredentialIDKey = "application_credential_id"
+
+// MetadataApplicationCredentialSecretKey is the node template metadata key whose value provides
+// the secret value associated to an application credential identifier
+const MetadataApplicationCredentialSecretKey = "application_credential_secret"
+
 // NetworkNameProperty is the name of the property containing the name of a logical
 // network
 //

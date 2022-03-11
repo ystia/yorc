@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	ctu "github.com/hashicorp/consul/testutil"
+	ctu "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/sshutil"

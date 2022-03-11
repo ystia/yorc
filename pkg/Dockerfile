@@ -1,4 +1,4 @@
-FROM ystia/alpine-consul:1.1.0_consul-1.2.3
+FROM ystia/alpine-consul:1.1.0_consul-1.11.3
 ARG TERRAFORM_VERSION
 ARG ANSIBLE_VERSION
 ARG TF_CONSUL_PLUGIN_VERSION

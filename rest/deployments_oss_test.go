@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build !premium
 // +build !premium
 
 package rest
@@ -19,8 +20,9 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/v4/config"
 	"reflect"
+
+	"github.com/ystia/yorc/v4/config"
 
 	"io/ioutil"
 	"net/http"
@@ -29,7 +31,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
 	ytestutil "github.com/ystia/yorc/v4/testutil"
 )

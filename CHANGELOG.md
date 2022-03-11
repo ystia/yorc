@@ -1,9 +1,15 @@
 # Yorc Changelog
 
-## 4.2.0 (September 10, 2021)
+## 4.3.0 (March 11, 2022)
+
+### DEPENDENCIES
+
+* Consul version updated to 1.11.3 ([GH-783](https://github.com/ystia/yorc/issues/783))
 
 ### FEATURES
 
+* Ability to authenticate against OpenStack with token or application credentials ([GH-775](https://github.com/ystia/yorc/issues/775))
+* Support nested TOSCA functions in get_secret (added a get_vault_secret function) ([GH-777](https://github.com/ystia/yorc/issues/777))
 * Allow to replay workflow steps even if they are not in error ([GH-771](https://github.com/ystia/yorc/issues/771))
 * Workflows steps replays on error ([GH-753](https://github.com/ystia/yorc/issues/753))
 
@@ -25,6 +31,7 @@
 ### ENGINEERING
 
 * Generate a checksum file for release artifacts and sign it ([GH-755](https://github.com/ystia/yorc/issues/755))
+* Upgrade Vault client lib to support kv secret engine v2 ([GH-779](https://github.com/ystia/yorc/issues/779))
 
 ## 4.2.0-milestone.1 (May 06, 2021)
 

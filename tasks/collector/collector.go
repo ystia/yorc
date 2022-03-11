@@ -16,14 +16,13 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strconv"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/events"
@@ -159,7 +158,11 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 		}
 	}
 
-	taskID := fmt.Sprint(uuid.NewV4())
+	u, err := uuid.NewV4()
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to generate a UUID")
+	}
+	taskID := u.String()
 	taskPath := path.Join(consulutil.TasksPrefix, taskID)
 	creationDate, err := time.Now().MarshalBinary()
 	if err != nil {
@@ -253,7 +256,11 @@ func (c *Collector) prepareForRegistration(ctx context.Context, operations api.K
 		operations = append(operations, stepOps...)
 	} else {
 		// Add execution key for non workflow task
-		execID := fmt.Sprint(uuid.NewV4())
+		u, err := uuid.NewV4()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to generate a UUID, error %s", err.Error())
+		}
+		execID := u.String()
 		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 		operations = append(operations, &api.KVTxnOp{
 			Verb:  api.KVSet,

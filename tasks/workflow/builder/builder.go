@@ -16,12 +16,11 @@ package builder
 
 import (
 	"context"
-	"fmt"
 	"path"
 
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/ystia/yorc/v4/deployments"
 	"github.com/ystia/yorc/v4/helper/consulutil"
@@ -206,7 +205,11 @@ func BuildInitExecutionOperations(ctx context.Context, deploymentID, taskID, wor
 
 		// Add execution key for initial steps only
 		if step.IsInitial() {
-			execID := fmt.Sprint(uuid.NewV4())
+			u, err := uuid.NewV4()
+			if err != nil {
+				return ops, errors.Wrapf(err, "Failed to generate a UUID")
+			}
+			execID := u.String()
 			log.Debugf("Register initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
 			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 			stepOps := api.KVTxnOps{

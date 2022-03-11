@@ -33,7 +33,7 @@ import (
 	"github.com/ystia/yorc/v4/tasks"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 )
 
 // Test deployment ID

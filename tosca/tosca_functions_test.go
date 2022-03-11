@@ -16,6 +16,7 @@ package tosca
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
@@ -41,6 +42,8 @@ func TestFunctionParsing(t *testing.T) {
 		{"TestConcatFunction", inputs{yml: "concat: [get_property: [SELF, ip_address], get_attribute: [SELF, port]]"}, false},
 		{"TestGetInputFunction", inputs{yml: "get_input: ip_address"}, false},
 		{"TestConcatFunctionQuoting", inputs{yml: `concat: ["http://", get_property: [SELF, ip_address], get_attribute: [SELF, port], "\"ff\""]`}, false},
+		{"TestComplexNestedFunctions", inputs{yml: `get_secret: [concat: [/secrets/data/credentials/, get_input: user_name]]`}, false},
+		{"TestComplexNestedFunctions2", inputs{yml: `get_vault_secret: [concat: [/secrets/data/credentials/, get_input: user_name]]`}, false},
 	}
 
 	for _, tt := range tests {
@@ -52,8 +55,11 @@ func TestFunctionParsing(t *testing.T) {
 				return
 			}
 			if err == nil {
-				if resultFn.String() != tt.inputs.yml {
-					t.Errorf("Function.Unmarshal() expecting = %v, got %v", tt.inputs.yml, resultFn)
+				expecting := tt.inputs.yml
+				// get_vault_secret is an alias to get_secret
+				expecting = strings.Replace(expecting, "get_vault_secret", "get_secret", -1)
+				if resultFn.String() != expecting {
+					t.Errorf("Function.Unmarshal() expecting = %v, got %v", expecting, resultFn)
 				}
 			}
 		})

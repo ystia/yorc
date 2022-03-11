@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/consul/api"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -146,7 +146,9 @@ func testPostComputeCreationHook(t *testing.T, cfg config.Configuration) {
 			err := deployments.StoreDeploymentDefinition(ctx, deploymentID, "testdata/compute.yaml")
 			require.Nil(t, err)
 
-			taskID := uuid.NewV4().String()
+			u, err := uuid.NewV4()
+			require.NoError(t, err, "Failed to generate a UUID")
+			taskID := u.String()
 
 			p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(tt.args.taskStatus)))}
 			_, err = consulutil.GetKV().Put(p, nil)

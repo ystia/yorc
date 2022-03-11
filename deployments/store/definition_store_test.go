@@ -16,15 +16,16 @@ package store
 
 import (
 	"context"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -72,7 +73,7 @@ func newTestConsulInstance(t *testing.T, cfg *config.Configuration) (*testutil.T
 		c.Args = []string{"-ui"}
 		c.LogLevel = logLevel
 	}
-	srv1, err := testutil.NewTestServerConfig(cb)
+	srv1, err := testutil.NewTestServerConfigT(t, cb)
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}

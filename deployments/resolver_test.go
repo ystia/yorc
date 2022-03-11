@@ -278,6 +278,15 @@ func testResolveSecret(t *testing.T) {
 		{"ResolvePropWithVault", data{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(data data) (*TOSCAValue, error) {
 			return GetNodePropertyValue(ctx, deploymentID, data.nodeName, "java_home")
 		}, false, true, "mysupersecret"},
+		{"ResolvePropWithVaultAndNestedFn1", data{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(data data) (*TOSCAValue, error) {
+			return GetNodePropertyValue(ctx, deploymentID, data.nodeName, "java_home2")
+		}, false, true, "mysupersecret"},
+		{"ResolvePropWithVaultAndNestedFn2", data{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(data data) (*TOSCAValue, error) {
+			return GetNodePropertyValue(ctx, deploymentID, data.nodeName, "java_home3")
+		}, false, true, "mysupersecret"},
+		{"ResolvePropWithVaultAndNestedFn3", data{"JDK", "", ""}, &vaultClientMock{"/secrets/myapp/javahome", "mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(data data) (*TOSCAValue, error) {
+			return GetNodePropertyValue(ctx, deploymentID, data.nodeName, "java_home4")
+		}, false, true, "mysupersecret"},
 		{"ResolveCapabilityPropWithoutVault", data{"Tomcat", "", ""}, &vaultClientMock{"/secrets/myapp/tomcatport", "443", []string{"tom_opt1=1", "tom_opt2=2"}}, func(data data) (*TOSCAValue, error) {
 			return GetCapabilityPropertyValue(ctx, deploymentID, data.nodeName, "data_endpoint", "port")
 		}, false, true, "443"},

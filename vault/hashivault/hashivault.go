@@ -197,7 +197,15 @@ type vaultSecret struct {
 
 func (vs *vaultSecret) String() string {
 	if d, ok := vs.options["data"]; ok {
-		return fmt.Sprint(vs.Data[d])
+		data := vs.Data
+		_, okMeta := vs.Data["metadata"]
+		_, okData := vs.Data["data"]
+		if okMeta && okData {
+			// v2 kv secret
+			data = vs.Data["data"].(map[string]interface{})
+		}
+
+		return fmt.Sprint(data[d])
 	}
 	return fmt.Sprint(vs.Data)
 }

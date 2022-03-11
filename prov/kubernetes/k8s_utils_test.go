@@ -71,9 +71,9 @@ func TestGetVersionDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal("getVersion should not raise an error")
 	}
-	expected := "v0.0.0-master+$Format:%h$"
+	expected := "v0.0.0-master+$Format:%H$"
 	if v != expected {
-		t.Fatal("getVersion should return " + expected)
+		t.Fatal("getVersion expected " + expected + ", got " + v)
 	}
 }
 
@@ -82,8 +82,9 @@ func TestGetExternalIPAdress(t *testing.T) {
 	nodeExtIP := "1.2.3.4"
 	nodeName := "testNode"
 	node := newTestSimpleNode(nodeName, nodeExtIP)
-	k8s.clientset.CoreV1().Nodes().Create(&node)
-	ip, err := getExternalIPAdress(k8s.clientset, nodeName)
+	ctx := context.Background()
+	k8s.clientset.CoreV1().Nodes().Create(ctx, &node, metav1.CreateOptions{})
+	ip, err := getExternalIPAdress(ctx, k8s.clientset, nodeName)
 	if err != nil {
 		t.Fatal("should not raise an error when IP is present", err)
 	}
@@ -97,8 +98,9 @@ func TestGetExternalIPAdressWrongNodeName(t *testing.T) {
 	nodeExtIP := "1.2.3.4"
 	nodeName := "testNode"
 	node := newTestSimpleNode(nodeName, nodeExtIP)
-	k8s.clientset.CoreV1().Nodes().Create(&node)
-	ip, err := getExternalIPAdress(k8s.clientset, "randomNodeName")
+	ctx := context.Background()
+	k8s.clientset.CoreV1().Nodes().Create(ctx, &node, metav1.CreateOptions{})
+	ip, err := getExternalIPAdress(ctx, k8s.clientset, "randomNodeName")
 	if err == nil || ip != "" {
 		t.Fatal("Getting a non existing node should raise an error and return empty string")
 	}
@@ -110,8 +112,9 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	nodeName := "testNode"
 	node := newTestSimpleNode(nodeName, nodeExtIP)
 	t.Log(node.Status.Addresses)
-	k8s.clientset.CoreV1().Nodes().Create(&node)
-	ip, err := getExternalIPAdress(k8s.clientset, "testNode")
+	ctx := context.Background()
+	k8s.clientset.CoreV1().Nodes().Create(ctx, &node, metav1.CreateOptions{})
+	ip, err := getExternalIPAdress(ctx, k8s.clientset, "testNode")
 	if err == nil || ip != "" {
 		t.Fatal("Getting a node with no externalIP should raise error and return empty ip")
 	}
@@ -281,6 +284,7 @@ func Test_podControllersInNamespace(t *testing.T) {
 	type args struct {
 		namespace string
 	}
+	ctx := context.Background()
 	tests := []struct {
 		name    string
 		setup   func() kubernetes.Interface
@@ -301,7 +305,10 @@ func Test_podControllersInNamespace(t *testing.T) {
 			"Test one deployment left",
 			func() kubernetes.Interface {
 				k8s := newTestSimpleK8s()
-				k8s.clientset.AppsV1().Deployments(nsName).Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
+				k8s.clientset.AppsV1().Deployments(nsName).Create(
+					ctx,
+					&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}},
+					metav1.CreateOptions{})
 				return k8s.clientset
 			},
 			args{namespace: nsName},
@@ -311,9 +318,18 @@ func Test_podControllersInNamespace(t *testing.T) {
 			"Test one deployment & 2 statefulSets left",
 			func() kubernetes.Interface {
 				k8s := newTestSimpleK8s()
-				k8s.clientset.AppsV1().StatefulSets(nsName).Create(&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-1", Namespace: nsName}})
-				k8s.clientset.AppsV1().StatefulSets(nsName).Create(&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-2", Namespace: nsName}})
-				k8s.clientset.AppsV1().Deployments(nsName).Create(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}})
+				k8s.clientset.AppsV1().StatefulSets(nsName).Create(
+					ctx,
+					&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-1", Namespace: nsName}},
+					metav1.CreateOptions{})
+				k8s.clientset.AppsV1().StatefulSets(nsName).Create(
+					ctx,
+					&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "my-statefulset-2", Namespace: nsName}},
+					metav1.CreateOptions{})
+				k8s.clientset.AppsV1().Deployments(nsName).Create(
+					ctx,
+					&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "my-deployment", Namespace: nsName}},
+					metav1.CreateOptions{})
 				return k8s.clientset
 			},
 			args{namespace: nsName},
@@ -322,7 +338,7 @@ func Test_podControllersInNamespace(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := podControllersInNamespace(tt.setup(), tt.args.namespace)
+			got, err := podControllersInNamespace(ctx, tt.setup(), tt.args.namespace)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("podControllersInNamespace() error = %v, wantErr %v", err, tt.wantErr)
 				return

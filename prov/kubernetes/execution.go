@@ -209,7 +209,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 				set attributes			OK
 		*/
 		if !namespaceProvided {
-			err = createNamespaceIfMissing(namespaceName, clientset)
+			err = createNamespaceIfMissing(ctx, namespaceName, clientset)
 			if err != nil {
 				return err
 			}
@@ -303,7 +303,7 @@ func (e *execution) manageNamespaceDeletion(ctx context.Context, clientset kuber
 		}
 		// Check if other deployments exist in the namespace
 		// In that case nothing to do
-		nbControllers, err := podControllersInNamespace(clientset, namespaceName)
+		nbControllers, err := podControllersInNamespace(ctx, clientset, namespaceName)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
 			return err
@@ -311,7 +311,7 @@ func (e *execution) manageNamespaceDeletion(ctx context.Context, clientset kuber
 		if nbControllers > 0 {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Do not delete %s namespace as %d deployments exist", namespaceName, nbControllers)
 		} else {
-			err = deleteNamespace(namespaceName, clientset)
+			err = deleteNamespace(ctx, namespaceName, clientset)
 			if err != nil {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf(namespaceDeletionFailedMessage, namespaceName)
 				return err

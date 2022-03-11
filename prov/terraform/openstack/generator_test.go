@@ -17,15 +17,16 @@ package openstack
 import (
 	"context"
 	"encoding/json"
-	"github.com/ystia/yorc/v4/storage"
-	"github.com/ystia/yorc/v4/storage/types"
-	"github.com/ystia/yorc/v4/tosca"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/hashicorp/consul/testutil"
+	"github.com/ystia/yorc/v4/storage"
+	"github.com/ystia/yorc/v4/storage/types"
+	"github.com/ystia/yorc/v4/tosca"
+
+	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -96,7 +97,7 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, location
 		})
 	require.NoError(t, err, "Failed to create a location")
 	defer func() {
-		locationMgr.RemoveLocation(t.Name())
+		_ = locationMgr.RemoveLocation(t.Name())
 	}()
 
 	var cfg config.Configuration
@@ -171,7 +172,59 @@ func testGenerateTerraformInfo(t *testing.T, srv1 *testutil.TestServer, location
 	err = storage.GetStore(types.StoreTypeDeployment).Set(ctx, path.Join(consulutil.DeploymentKVPrefix, depID, "topology/nodes/FIPCompute"), FIPCompute)
 	require.Nil(t, err)
 
-	_, outputs, _, _, err = g.generateTerraformInfraForNode(context.Background(), cfg, depID, "FIPCompute", tempdir)
+	_, _, _, _, err = g.generateTerraformInfraForNode(context.Background(), cfg, depID, "FIPCompute", tempdir)
 	require.NoError(t, err, "Unexpected error generating FIPCompute terraform info")
 
+}
+
+func testAppCredentials(t *testing.T, srv1 *testutil.TestServer, locationMgr locations.Manager) {
+	t.Parallel()
+	log.SetDebug(true)
+	ctx := context.Background()
+	depID := path.Base(t.Name())
+	yamlName := "testdata/topology_test_app_creds.yaml"
+	err := deployments.StoreDeploymentDefinition(context.Background(), depID, yamlName)
+	require.Nil(t, err, "Failed to parse "+yamlName+" definition")
+
+	// Simulate the persistent disk "volume_id" attribute registration
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix,
+		depID, "topology/instances")
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(instancesPrefix, "BlockStorage/0/attributes/volume_id"): []byte("my_vol_id"),
+		path.Join(instancesPrefix, "/FIPCompute/0/capabilities/endpoint",
+			"attributes/floating_ip_address"): []byte("1.2.3.4"),
+		path.Join(instancesPrefix, "/Network_2/0/attributes/network_id"): []byte("netID"),
+	})
+
+	locationProps := config.DynamicMap{
+		"auth_url":                "http://1.2.3.4:5000/v2.0",
+		"default_security_groups": []string{"default", "sec2"},
+		"password":                "test",
+		"private_network_name":    "private-net",
+		"region":                  "RegionOne",
+		"tenant_name":             "test",
+		"user_name":               "test",
+		"user_domain_name":        "test_user_domain_name",
+	}
+	err = locationMgr.CreateLocation(
+		locations.LocationConfiguration{
+			Name:       t.Name(),
+			Type:       infrastructureType,
+			Properties: locationProps,
+		})
+	require.NoError(t, err, "Failed to create a location")
+	defer func() {
+		_ = locationMgr.RemoveLocation(t.Name())
+	}()
+
+	var cfg config.Configuration
+	provider, _, err := getOpenStackProviderEnv(ctx, cfg, locationProps, depID, "Compute")
+	require.NoError(t, err, "Unexpected error getting openstack provider")
+	val, openStackProviderFound := provider["openstack"]
+	require.True(t, openStackProviderFound, "Expected to get an openstack provider")
+	openStackSettings, isMap := val.(map[string]interface{})
+	require.True(t, isMap, "Expected to get map for openstack settings")
+
+	require.Equal(t, "test_cred_id", openStackSettings["application_credential_id"], "Wrong openstack credential id")
+	require.Equal(t, "test_cred_secret", openStackSettings["application_credential_secret"], "Wrong openstack credential secret")
 }

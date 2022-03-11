@@ -15,7 +15,7 @@
 package consul
 
 import (
-	"github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/consul/sdk/testutil"
 	"os"
 	"testing"
 
