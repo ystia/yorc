@@ -35,19 +35,15 @@ import (
 	// Registering builtin HashiCorp Vault Client Builder
 	_ "github.com/ystia/yorc/v4/vault/hashivault"
 	// Registering builtin activity hooks
-	_ "github.com/ystia/yorc/v4/prov/validation"
-)
-
-import (
 	"context"
 	"os"
 	"path/filepath"
 
 	"github.com/ystia/yorc/v4/deployments/store"
+	_ "github.com/ystia/yorc/v4/prov/validation"
 
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-
 	"github.com/ystia/yorc/v4/config"
 	"github.com/ystia/yorc/v4/log"
 	"github.com/ystia/yorc/v4/plugin"
@@ -229,4 +225,22 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 	}
 
 	return nil
+}
+
+func (pm *pluginManager) pingPlugins() error {
+	var err error
+	for _, pluginClient := range pm.pluginClients {
+		var c gplugin.ClientProtocol
+		c, err = pluginClient.Client()
+		if err != nil {
+			break
+		}
+
+		err = c.Ping()
+		if err != nil {
+			break
+		}
+	}
+
+	return err
 }

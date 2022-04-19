@@ -174,6 +174,10 @@ Globals Command-line options
 
   * ``--plugins_directory``: The name of the plugins directory of the Yorc server. The default is to use a directory named *plugins* in the current directory.
 
+.. _option_plugins_health_check_time_interval_cmd:
+
+  * ``--plugins_health_check_time_interval``: Plugins health check time interval. The default is ``1m``.
+
 .. _option_locations_cmd:
 
   * ``--locations_file_path``: File path to locations configuration. This configuration is taken in account for the first time the server starts.
@@ -296,6 +300,10 @@ Below is an example of configuration file with TLS enabled.
 .. _option_plugindir_cfg:
 
   * ``plugins_directory``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+
+.. _option_plugins_health_check_time_interval_cfg:
+
+  * ``plugins_health_check_time_interval``: Equivalent to :ref:`--plugins_directory <option_plugins_health_check_time_interval_cmd>` command-line flag.
 
 .. _option_resources_prefix_cfg:
 
@@ -855,6 +863,10 @@ Environment variables
 .. _option_plugindir_env:
 
   * ``YORC_PLUGINS_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+
+.. _option_plugins_health_check_time_interval_env:
+
+  * ``PLUGINS_HEALTH_CHECK_TIME_INTERVAL``: Equivalent to :ref:`--plugins_directory <option_plugins_health_check_time_interval_cmd>` command-line flag.
 
 .. _option_resources_prefix_env:
 

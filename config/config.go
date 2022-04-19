@@ -49,6 +49,9 @@ const DefaultHTTPAddress string = "0.0.0.0"
 // DefaultPluginDir is the default path for the plugin directory
 const DefaultPluginDir = "plugins"
 
+// DefaultPluginsHealthCheckTimeInterval is the default time interval for plugins health check
+const DefaultPluginsHealthCheckTimeInterval = 1 * time.Minute
+
 // DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Yorc server before exiting
 const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
@@ -97,6 +100,7 @@ const DefaultSSHConnectionMaxRetries uint64 = 3
 type Configuration struct {
 	Ansible                          Ansible       `yaml:"ansible,omitempty" mapstructure:"ansible"`
 	PluginsDirectory                 string        `yaml:"plugins_directory,omitempty" mapstructure:"plugins_directory"`
+	PluginsHealthCheckTimeInterval   time.Duration `yaml:"plugins_health_check_time_interval,omitempty" mapstructure:"plugins_health_check_time_interval"`
 	WorkingDirectory                 string        `yaml:"working_directory,omitempty" mapstructure:"working_directory"`
 	WorkersNumber                    int           `yaml:"workers_number,omitempty" mapstructure:"workers_number"`
 	ServerGracefulShutdownTimeout    time.Duration `yaml:"server_graceful_shutdown_timeout,omitempty" mapstructure:"server_graceful_shutdown_timeout"`

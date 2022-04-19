@@ -158,6 +158,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	scheduler.Start(configuration, client)
 	defer scheduler.Stop()
 
+	healthCheckTimeInterval := configuration.PluginsHealthCheckTimeInterval
+	if healthCheckTimeInterval <= 0 {
+		healthCheckTimeInterval = config.DefaultPluginsHealthCheckTimeInterval
+	}
+	tickerPingPlugins := time.NewTicker(healthCheckTimeInterval)
+	defer tickerPingPlugins.Stop()
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {
@@ -169,6 +175,20 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		case <-shutdownCh:
 			sig = os.Interrupt
 			shutdownChClosed = true
+		case <-tickerPingPlugins.C:
+			err := pm.pingPlugins()
+			if err != nil {
+				log.Printf("[ERROR] Failed to ping plugins: %s", err.Error())
+				log.Printf("Cleaning up plugins")
+				pm.cleanup()
+				log.Printf("Reloading plugins")
+				err = pm.loadPlugins(configuration)
+				if err != nil {
+					log.Printf("[ERROR] Failed to load plugins: %+v", errors.WithStack(err))
+					return err
+				}
+			}
+			continue
 		}
 
 		// Check if this is a SIGHUP

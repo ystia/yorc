@@ -245,6 +245,7 @@ func setConfig() {
 	//Flags definition for Yorc server
 	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/yorc/config.yorc.json)")
 	serverCmd.PersistentFlags().String("plugins_directory", config.DefaultPluginDir, "The name of the plugins directory of the Yorc server")
+	serverCmd.PersistentFlags().Duration("plugins_health_check_time_interval", config.DefaultPluginsHealthCheckTimeInterval, "Plugins health check time interval")
 	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Yorc server")
 	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Yorc server. If not set the default value will be used")
 	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits.")
@@ -314,6 +315,7 @@ func setConfig() {
 	//Bind Flags for Yorc server
 	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
 	viper.BindPFlag("plugins_directory", serverCmd.PersistentFlags().Lookup("plugins_directory"))
+	viper.BindPFlag("plugins_health_check_time_interval", serverCmd.PersistentFlags().Lookup("plugins_health_check_time_interval"))
 	viper.BindPFlag("workers_number", serverCmd.PersistentFlags().Lookup("workers_number"))
 	viper.BindPFlag("server_graceful_shutdown_timeout", serverCmd.PersistentFlags().Lookup("graceful_shutdown_timeout"))
 	viper.BindPFlag("resources_prefix", serverCmd.PersistentFlags().Lookup("resources_prefix"))
@@ -355,6 +357,7 @@ func setConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 	viper.BindEnv("working_directory")
 	viper.BindEnv("plugins_directory")
+	viper.BindEnv("plugins_health_check_time_interval")
 	viper.BindEnv("server_graceful_shutdown_timeout")
 	viper.BindEnv("workers_number")
 	viper.BindEnv("http_port")
@@ -398,12 +401,13 @@ func setConfig() {
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
 	viper.SetDefault("plugins_directory", config.DefaultPluginDir)
+	viper.SetDefault("plugins_directory", config.DefaultPluginDir)
 	viper.SetDefault("http_port", config.DefaultHTTPPort)
 	viper.SetDefault("http_address", config.DefaultHTTPAddress)
 	viper.SetDefault("resources_prefix", "yorc-")
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
-	viper.SetDefault("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout)
+	viper.SetDefault("plugins_health_check_time_interval", config.DefaultPluginsHealthCheckTimeInterval)
 	viper.SetDefault("server_id", host)
 	viper.SetDefault("disable_ssh_agent", false)
 	viper.SetDefault("concurrency_limit_for_upgrades", config.DefaultUpgradesConcurrencyLimit)
