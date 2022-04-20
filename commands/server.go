@@ -407,7 +407,7 @@ func setConfig() {
 	viper.SetDefault("resources_prefix", "yorc-")
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
-        viper.SetDefault("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout)
+	viper.SetDefault("purged_deployments_eviction_timeout", config.DefaultPurgedDeploymentsEvictionTimeout)
 	viper.SetDefault("server_id", host)
 	viper.SetDefault("disable_ssh_agent", false)
 	viper.SetDefault("concurrency_limit_for_upgrades", config.DefaultUpgradesConcurrencyLimit)
