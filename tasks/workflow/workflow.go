@@ -49,6 +49,14 @@ func createWorkflowStepsOperations(taskID string, steps []*step) (api.KVTxnOps, 
 	ops := make(api.KVTxnOps, 0)
 	var stepOps api.KVTxnOps
 	for _, step := range steps {
+		exist, err := existTaskExecutionForStep(taskID, step.Name)
+		if err != nil {
+			return ops, errors.Wrapf(err, "Failed to check registered task execution for TaskID:%q, step:%q", taskID, step.Name)
+		}
+		if exist {
+			log.Debugf("Step:%q in TaskID:%q has already been registered for execution", step.Name, taskID)
+			continue
+		}
 		// Add execution key for initial steps only
 		u, err := uuid.NewV4()
 		if err != nil {
@@ -73,11 +81,24 @@ func createWorkflowStepsOperations(taskID string, steps []*step) (api.KVTxnOps, 
 				Key:   path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions", execID),
 				Value: []byte(""),
 			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(consulutil.TasksPrefix, taskID, ".registeredExecutions", step.Name),
+				Value: []byte(""),
+			},
 		}
 		ops = append(ops, stepOps...)
 		log.Debugf("Will store runningExecutions with id %q in txn for task %q", execID, taskID)
 	}
 	return ops, nil
+}
+
+func existTaskExecutionForStep(taskID string, stepName string) (bool, error) {
+	exist, _, err := consulutil.GetValue(path.Join(consulutil.TasksPrefix, taskID, ".registeredExecutions", stepName))
+	if err != nil {
+		return false, err
+	}
+	return exist, nil
 }
 
 func getCallOperationsFromStep(s *step) []string {

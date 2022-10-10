@@ -79,6 +79,22 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
+
+    Compute_2:
+      type: ystia.yorc.tests.nodes.WFCompute
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+
     JobNode:
       type: ystia.yorc.tests.nodes.JobNode
   workflows:
@@ -141,6 +157,12 @@ topology_template:
           - delegate: install
           on_success:
           - WFNode_hostedOnComputeHost_add_target
+          - WFNode_creating
+        Compute_2_install:
+          target: Compute_2
+          activities:
+          - delegate: install
+          on_success:
           - WFNode_creating
         WFNode_initial:
           target: WFNode

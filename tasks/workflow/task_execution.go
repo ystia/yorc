@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -141,6 +142,7 @@ func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consuluti
 func (t *taskExecution) notifyEnd() error {
 	log.Debugf("notifyEnd for taskExecution %q", t.id)
 	execPath := path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions")
+	registeredPath := path.Join(consulutil.TasksPrefix, t.taskID, ".registeredExecutions")
 	l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
 	if err != nil {
 		return err
@@ -149,10 +151,28 @@ func (t *taskExecution) notifyEnd() error {
 
 	kv := t.cc.KV()
 	// Delete our execID
+	ops := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb: api.KVDelete,
+			Key:  path.Join(execPath, t.id),
+		},
+		&api.KVTxnOp{
+			Verb: api.KVDelete,
+			Key:  path.Join(registeredPath, t.step),
+		},
+	}
 	log.Debugf("Deleting runningExecutions with id %q for task %q", t.id, t.taskID)
-	_, err = kv.Delete(path.Join(execPath, t.id), nil)
+	ok, response, _, err := kv.Txn(ops, nil)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return errors.Wrap(err, "Failed to execute transaction")
+	}
+	if !ok {
+		// Check the response
+		var errs []string
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to execute transaction: %s", strings.Join(errs, ", "))
 	}
 	if e <= 1 && t.finalFunction != nil {
 		log.Debugf("notifyEnd running finalFunction for taskExecution %q", t.id)
