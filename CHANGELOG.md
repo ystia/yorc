@@ -27,6 +27,7 @@
 * Yorc panics attempting to print an error handling a script execution stdout ([GH-741](https://github.com/ystia/yorc/issues/741))
 * Error submitting a SLURM job with no execution option ([GH-739](https://github.com/ystia/yorc/issues/739))
 * Workflow with asynchronous action never stops after another step failure  ([GH-733](https://github.com/ystia/yorc/issues/733))
+* Fix `get_property`/`get_attribute` functions with `REQ_TARGET` keyword failing even if requirement is optional ([GH-789](https://github.com/ystia/yorc/issues/789))
 
 ### ENGINEERING
 
