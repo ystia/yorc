@@ -53,7 +53,7 @@ func (vat ValueAssignmentType) String() string {
 	return "unsupported"
 }
 
-//UnmarshalJSON unmarshals json into a ValueAssignmentType
+// UnmarshalJSON unmarshals json into a ValueAssignmentType
 func (vat *ValueAssignmentType) UnmarshalJSON(b []byte) error {
 
 	var i int

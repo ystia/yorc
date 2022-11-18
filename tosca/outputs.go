@@ -22,8 +22,6 @@ import (
 )
 
 // An Output is the representation of the output part of a TOSCA Operation Definition
-//
-//
 type Output struct {
 	ValueAssign      *ValueAssignment  `json:"value_assignment,omitempty"`
 	AttributeMapping *AttributeMapping `json:"attribute_mapping,omitempty"`

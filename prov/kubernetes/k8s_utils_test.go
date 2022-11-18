@@ -120,8 +120,11 @@ func TestGetNoneExternalIPAdress(t *testing.T) {
 	}
 }
 
-/* Return a map of mocked k8s objects corresponding to their resource in
-Currently support only : StatefulSet, PVC, Service and Deployment */
+/*
+	Return a map of mocked k8s objects corresponding to their resource in
+
+Currently support only : StatefulSet, PVC, Service and Deployment
+*/
 func mockSupportedResources() map[string]runtime.Object {
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvcTest", Namespace: "test-ns"}}
 	dep := &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "deploymentTest", Namespace: "test-ns"}}
@@ -136,9 +139,12 @@ func mockSupportedResources() map[string]runtime.Object {
 	return supportedRes
 }
 
-/*  React to get on k8s objects. After 2 get if deleteObj boolean is set to true then it fakely delete it. If the boolean is set to false,
+/*
+	React to get on k8s objects. After 2 get if deleteObj boolean is set to true then it fakely delete it. If the boolean is set to false,
+
 then it marked the object as succefully present or deployed for pods controllers.
-If the API continue to receive GET, raise error by signaling the errorChan */
+If the API continue to receive GET, raise error by signaling the errorChan
+*/
 func fakeGetObjectReaction(k8sObject runtime.Object, errorChan chan struct{}, deleteObj bool) k8stesting.ReactionFunc {
 	getCount := 0
 	return func(action k8stesting.Action) (bool, runtime.Object, error) {

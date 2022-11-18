@@ -83,14 +83,16 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 // GetDeploymentStatus returns a DeploymentStatus for a given deploymentId
 //
 // If the given deploymentId doesn't refer to an existing deployment an error is returned. This error could be checked with
-//  IsDeploymentNotFoundError(err error) bool
+//
+//	IsDeploymentNotFoundError(err error) bool
 //
 // For example:
-//  if status, err := GetDeploymentStatus(kv, deploymentId); err != nil {
-//  	if IsDeploymentNotFoundError(err) {
-//  		// Do something in case of deployment not found
-//  	}
-//  }
+//
+//	if status, err := GetDeploymentStatus(kv, deploymentId); err != nil {
+//		if IsDeploymentNotFoundError(err) {
+//			// Do something in case of deployment not found
+//		}
+//	}
 func GetDeploymentStatus(ctx context.Context, deploymentID string) (DeploymentStatus, error) {
 	exist, value, err := consulutil.GetStringValue(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"))
 	if err != nil {

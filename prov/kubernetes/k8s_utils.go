@@ -299,7 +299,7 @@ func replaceServiceIPInResourceSpec(ctx context.Context, clientset kubernetes.In
 	return replaceServiceDepLookups(ctx, clientset, namespace, rSpec, serviceDepsLookups.RawString())
 }
 
-//Return the external IP of a given node
+// Return the external IP of a given node
 func getExternalIPAdress(ctx context.Context, clientset kubernetes.Interface, nodeName string) (string, error) {
 	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {

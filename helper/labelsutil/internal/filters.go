@@ -214,7 +214,7 @@ func (o *SetOperator) createFilter(labelKey string) (Filter, error) {
 /* ###################################################### */
 /* ###################################################### */
 
-//CompositionStrategy is used to define the type of combination used into composite filter
+// CompositionStrategy is used to define the type of combination used into composite filter
 type CompositionStrategy int
 
 const (
@@ -224,7 +224,7 @@ const (
 	Or CompositionStrategy = iota
 )
 
-//CompositeFilter is a filter made of other filters, combined using AND method
+// CompositeFilter is a filter made of other filters, combined using AND method
 type CompositeFilter struct {
 	Strat   CompositionStrategy //combination operator, AND or OR
 	filters []Filter
@@ -270,7 +270,7 @@ func (f *CompositeFilter) matchOr(labels map[string]string) (bool, error) {
 
 /* ###################################################### */
 
-//RegexStrategy is used to define the type of search used into regexp filter
+// RegexStrategy is used to define the type of search used into regexp filter
 type RegexStrategy int
 
 const (
@@ -284,7 +284,7 @@ const (
 	Differs RegexStrategy = iota
 )
 
-//RegexFilter is a filter checking if a label matches a regular expression
+// RegexFilter is a filter checking if a label matches a regular expression
 type RegexFilter struct {
 	LabelKey string
 	Strat    RegexStrategy
@@ -321,7 +321,7 @@ func (f *RegexFilter) Matches(labels map[string]string) (bool, error) {
 
 /* ###################################################### */
 
-//ComparisonOperator is used to define the type of comparison used into comparison filter
+// ComparisonOperator is used to define the type of comparison used into comparison filter
 type ComparisonOperator int
 
 const (
@@ -339,7 +339,7 @@ const (
 	Neq ComparisonOperator = iota
 )
 
-//ComparisonFilter is a filter checking if a label is higher than a certain value
+// ComparisonFilter is a filter checking if a label is higher than a certain value
 type ComparisonFilter struct {
 	LabelKey string
 	Cop      ComparisonOperator
@@ -474,7 +474,7 @@ func siToFloat64(fval float64, funit string, lvalS string) (float64, float64, er
 
 /* ###################################################### */
 
-//KeyFilterStrat is used to define the type of combination used into LabelExists filter
+// KeyFilterStrat is used to define the type of combination used into LabelExists filter
 type KeyFilterStrat int
 
 const (
@@ -484,7 +484,7 @@ const (
 	Absent KeyFilterStrat = iota
 )
 
-//KeyFilter is a filter checking if a label is existing or not
+// KeyFilter is a filter checking if a label is existing or not
 type KeyFilter struct {
 	LabelKey string
 	Strat    KeyFilterStrat
