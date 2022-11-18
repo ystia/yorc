@@ -16,12 +16,15 @@ package deployments
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/v4/helper/consulutil"
-	"github.com/ystia/yorc/v4/tosca"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v4/helper/consulutil"
+	"github.com/ystia/yorc/v4/log"
+	"github.com/ystia/yorc/v4/tosca"
 )
 
 // Requirement describes a requirement assignment with its name and index
@@ -171,7 +174,6 @@ func getRequirementByIndex(ctx context.Context, deploymentID, nodeName, requirem
 
 // GetTargetInstanceForRequirement returns the target node and instances
 // associated with a given requirementIndex of the given nodeName/instanceName.
-//
 func GetTargetInstanceForRequirement(ctx context.Context, deploymentID, nodeName, requirementIndex, instanceName string) (string, []string, error) {
 	targetPrefix := path.Join(
 		consulutil.DeploymentKVPrefix, deploymentID,
@@ -259,4 +261,26 @@ func HasAnyRequirementFromNodeType(ctx context.Context, deploymentID, nodeName, 
 		}
 	}
 	return false, "", nil
+}
+
+func GetRequirementDefinitionOnTypeByName(ctx context.Context, deploymentID, nodeType, requirementName string) (*tosca.RequirementDefinition, error) {
+	log.Debugf("-> searching for requirement %q on node type %q\n", requirementName, nodeType)
+	node := new(tosca.NodeType)
+	err := getExpectedTypeFromName(ctx, deploymentID, nodeType, node)
+	if err != nil {
+		return nil, err
+	}
+	for _, reqMap := range node.Requirements {
+		req, ok := reqMap[requirementName]
+		if ok {
+			log.Debugf("-> found requirement %q on node type %q\n", requirementName, nodeType)
+			return &req, nil
+		}
+	}
+
+	if node.DerivedFrom == "" {
+		log.Debugf("-> requirement %q not found on node type %q and no parent type\n", requirementName, nodeType)
+		return nil, nil
+	}
+	return GetRequirementDefinitionOnTypeByName(ctx, deploymentID, node.DerivedFrom, requirementName)
 }

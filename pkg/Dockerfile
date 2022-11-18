@@ -19,7 +19,9 @@ ADD rootfs /
 # Python is required here as it should not be removed automatically when uninstalling python-dev
 # We do not install the whole docker package but just docker-cli
 
-RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev docker-cli cargo rust && \
+RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi-dev openssl-dev docker-cli cargo && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs --output /tmp/rustup.sh && \
+    chmod +x /tmp/rustup.sh && /tmp/rustup.sh -y && source "$HOME/.cargo/env" && \
     python3 -m ensurepip --upgrade && \
     if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
     if [ ! -e /usr/bin/python ]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
@@ -50,6 +52,7 @@ RUN apk add --update make openssh-client python3 python3-dev gcc musl-dev libffi
     chmod 775 ${YORC_TERRAFORM_PLUGINS_DIR}/* && \
     echo "Cleaning up" && \
     apk del make py-pip python3-dev gcc musl-dev libffi-dev openssl-dev && \
+    rustup self uninstall -y && \
     rm -rf /var/cache/apk/* && \
     rm -fr /tmp/*
 

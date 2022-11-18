@@ -247,6 +247,25 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(ctx context.Context, r
 		if err != nil {
 			return nil, err
 		}
+		if actualNode == "" {
+			nodeType, err := GetNodeType(ctx, fr.deploymentID, fr.nodeName)
+			if err != nil {
+				return nil, err
+			}
+			req, err := GetRequirementDefinitionOnTypeByName(ctx, fr.deploymentID, nodeType, operands[1])
+			if err != nil {
+				return nil, err
+			}
+			if req == nil {
+				return nil, errors.Errorf("missing requirement %q on node %q", operands[1], fr.nodeName)
+			}
+			if req.Occurrences.LowerBound != 0 {
+				return nil, errors.Errorf("requirement %q on node %q not found while not optional (occurrences lower bound set to %d)", operands[1], fr.nodeName, req.Occurrences.LowerBound)
+			}
+			// this means that the relationship between those 2 nodes does not exist
+			// and the requirement definition occurrence lower bound is set to 0 meaning it is optional.
+			return nil, nil
+		}
 	default:
 		actualNode = entity
 	}

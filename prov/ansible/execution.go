@@ -715,7 +715,9 @@ func (e *executionCommon) addRunnablesSpecificInputsAndOutputs() error {
 }
 
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
+//
 //	add_target, remove_target, add_source, remove_source, target_changed
+//
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
 func (e *executionCommon) resolveIsPerInstanceOperation(ctx context.Context, operationName string) error {
 	op := strings.ToLower(operationName)

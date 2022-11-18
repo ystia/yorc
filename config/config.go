@@ -52,10 +52,10 @@ const DefaultPluginDir = "plugins"
 // DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Yorc server before exiting
 const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
-//DefaultKeepOperationRemotePath is set to false by default in order to remove path created to store operation artifacts on nodes.
+// DefaultKeepOperationRemotePath is set to false by default in order to remove path created to store operation artifacts on nodes.
 const DefaultKeepOperationRemotePath = false
 
-//DefaultArchiveArtifacts is set to false by default.
+// DefaultArchiveArtifacts is set to false by default.
 // When ArchiveArtifacts is true, destination hosts need tar to be installed,
 // to be able to unarchive artifacts.
 const DefaultArchiveArtifacts = false

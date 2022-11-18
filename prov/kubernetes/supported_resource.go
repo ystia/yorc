@@ -32,7 +32,7 @@ import (
 	"github.com/ystia/yorc/v4/events"
 )
 
-//Interface to implement for new supported objects in K8s
+// Interface to implement for new supported objects in K8s
 type yorcK8sObject interface {
 	// Operations for yorc kubernetes objects
 	createResource(ctx context.Context, deploymentID string, clientset kubernetes.Interface, namespace string) error
@@ -130,9 +130,9 @@ func (yorcPVC *yorcK8sPersistentVolumeClaim) streamLogs(ctx context.Context, dep
 }
 
 /*
-	----------------------------------------------
-	| 				Deployment					 |
-	----------------------------------------------
+----------------------------------------------
+| 				Deployment					 |
+----------------------------------------------
 */
 func (yorcDep *yorcK8sDeployment) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
 	err := json.Unmarshal([]byte(rSpec), &yorcDep)
@@ -231,9 +231,9 @@ func (yorcDep *yorcK8sDeployment) streamLogs(ctx context.Context, deploymentID s
 }
 
 /*
-	----------------------------------------------
-	| 				StatefulSet					 |
-	----------------------------------------------
+----------------------------------------------
+| 				StatefulSet					 |
+----------------------------------------------
 */
 func (yorcSts *yorcK8sStatefulSet) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
 	err := json.Unmarshal([]byte(rSpec), &yorcSts)
@@ -325,9 +325,9 @@ func (yorcSts *yorcK8sStatefulSet) streamLogs(ctx context.Context, deploymentID 
 }
 
 /*
-	----------------------------------------------
-	| 					Service					 |
-	----------------------------------------------
+----------------------------------------------
+| 					Service					 |
+----------------------------------------------
 */
 func (yorcSvc *yorcK8sService) unmarshalResource(ctx context.Context, e *execution, deploymentID string, clientset kubernetes.Interface, rSpec string) error {
 	return json.Unmarshal([]byte(rSpec), &yorcSvc)

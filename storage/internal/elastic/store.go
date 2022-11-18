@@ -268,8 +268,9 @@ func (s *elasticStore) verifyLastIndex(indexName string, deploymentID string, es
 // List simulates long polling request by :
 // - periodically querying ES for documents (Aggregation to get the max iid and 0 size result).
 // - if a some result is found, wait some time (es_refresh_wait_timeout) in order to:
-//   	- let ES index recently added documents AND to let
-// 		- let Yorc eventually Set a document that has a less iid than the older known document in ES (concurrence issues)
+//   - let ES index recently added documents AND to let
+//   - let Yorc eventually Set a document that has a less iid than the older known document in ES (concurrence issues)
+//
 // - if no result if found after the the given 'timeout', return empty slice
 func (s *elasticStore) List(ctx context.Context, k string, waitIndex uint64, timeout time.Duration) ([]store.KeyValueOut, uint64, error) {
 	log.Debugf("List called k: %s, waitIndex: %d, timeout: %v", k, waitIndex, timeout)

@@ -602,7 +602,8 @@ func fixAlienBlockStorages(ctx context.Context, deploymentID, nodeName string) e
 	return nil
 }
 
-/**
+/*
+*
 This function create a given number of floating IP instances
 */
 func createNodeInstances(consulStore consulutil.ConsulStore, numberInstances uint32, deploymentID, nodeName string) {
@@ -643,7 +644,8 @@ func createMissingBlockStorageForNodes(ctx context.Context, consulStore consulut
 	return nil
 }
 
-/**
+/*
+*
 This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
 func checkBlockStorage(ctx context.Context, deploymentID, nodeName string) (bool, []string, error) {

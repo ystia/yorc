@@ -80,9 +80,9 @@ type NodeTemplate struct {
 	Interfaces   map[string]InterfaceDefinition  `yaml:"interfaces,omitempty" json:"interfaces,omitempty"`
 }
 
-//A Repository is representation of TOSCA Repository
+// A Repository is representation of TOSCA Repository
 //
-//See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/csprd01/TOSCA-Simple-Profile-YAML-v1.0-csprd01.html#_Toc430015673 for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/csprd01/TOSCA-Simple-Profile-YAML-v1.0-csprd01.html#_Toc430015673 for more details
 type Repository struct {
 	URL         string     `yaml:"url,omitempty" json:"url,omitempty"`
 	Type        string     `yaml:"type,omitempty" json:"type,omitempty"`

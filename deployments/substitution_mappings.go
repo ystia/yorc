@@ -205,11 +205,11 @@ func isSubstitutionNodeInstance(ctx context.Context, deploymentID, nodeName, nod
 
 // getSubstitutableNodeType returns the node type of a substitutable node.
 // There are 2 cases :
-// - either this node a reference to an external service, and the node type
-//   here is a real node type (abstract)
-// - or this is a reference to a managed service, and the node type here
-//   does not exist, it is the name of a template whose import contains the
-//    real node type
+//   - either this node a reference to an external service, and the node type
+//     here is a real node type (abstract)
+//   - or this is a reference to a managed service, and the node type here
+//     does not exist, it is the name of a template whose import contains the
+//     real node type
 func getSubstitutableNodeType(ctx context.Context, deploymentID, nodeName, nodeType string) (string, error) {
 	_, err := GetParentType(ctx, deploymentID, nodeType)
 	if err == nil {

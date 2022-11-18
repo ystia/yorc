@@ -36,26 +36,26 @@ type SubstitutionMapping struct {
 // PropAttrMapping defines a property or attribute mapping.
 // It accepts several grammars.
 //
-// - Single-line grammar:
-//   <property_name>: <property_value>
-//   or
-//   <property_name>: [ <input_name> ]
-//   or
-//   <property_name>: [ <node_template_name>, <node_template_property_name> ]
-//   or
-//   <property_name>: [ <node_template_name>, <node_template_capability_name> | <node_template_requirement_name>, <property_name> ]
+//   - Single-line grammar:
+//     <property_name>: <property_value>
+//     or
+//     <property_name>: [ <input_name> ]
+//     or
+//     <property_name>: [ <node_template_name>, <node_template_property_name> ]
+//     or
+//     <property_name>: [ <node_template_name>, <node_template_capability_name> | <node_template_requirement_name>, <property_name> ]
 //
-// - Multi-line grammar:
-//   <property_name>:
+//   - Multi-line grammar:
+//     <property_name>:
 //     mapping: [ < input_name > ]
-//   or
-//   <property_name>:
+//     or
+//     <property_name>:
 //     mapping: [ <node_template_name>, <node_template_property_name> ]
-//   or
-//   <property_name>:
+//     or
+//     <property_name>:
 //     mapping: [ <node_template_name>, <node_template_capability_name> | <node_template_requirement_name>, <property_name> ]
-//   or
-//   <property_name>:
+//     or
+//     <property_name>:
 //     value: <property_value>
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
@@ -124,17 +124,17 @@ func (p *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error
 // CapReqMapping defines a capability mapping or a requirement mapping.
 // It accepts two grammars.
 //
-// - Single-line grammar:
-//   <capability_name>: [ <node_template_name>, <node_template_capability_name> ]
+//   - Single-line grammar:
+//     <capability_name>: [ <node_template_name>, <node_template_capability_name> ]
 //
-// - Multi-line grammar:
-//   <capability_name>:
-//      mapping: [ <node_template_name>, <node_template_capability_name> ]
-//   <capability_name>:
-//      properties:
-//        <property_name>: <property_value>
-//      attributes:
-//        <attribute_name>: <attribute_value>
+//   - Multi-line grammar:
+//     <capability_name>:
+//     mapping: [ <node_template_name>, <node_template_capability_name> ]
+//     <capability_name>:
+//     properties:
+//     <property_name>: <property_value>
+//     attributes:
+//     <attribute_name>: <attribute_value>
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.9 Capability mapping and 3.8.10 Requirement mapping

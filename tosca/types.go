@@ -28,18 +28,18 @@ func IsBuiltinType(typeName string) bool {
 // IsPrimitiveType checks if a given type name corresponds to a primitive type
 // It means a data type that can'be broken down into a more simple data type.
 // Known primitive types:
-// 	- string
-//	- integer
-//	- float
-//	- boolean
-//	- timestamp
-//	- null
-//	- version
-//	- range
-//	- scalar-unit.size
-//	- scalar-unit.time
-//	- scalar-unit.frequency
-//	- scalar-unit.bitrate
+//   - string
+//   - integer
+//   - float
+//   - boolean
+//   - timestamp
+//   - null
+//   - version
+//   - range
+//   - scalar-unit.size
+//   - scalar-unit.time
+//   - scalar-unit.frequency
+//   - scalar-unit.bitrate
 func IsPrimitiveType(typeName string) bool {
 	return typeName == "string" || typeName == "integer" || typeName == "float" || typeName == "boolean" ||
 		typeName == "timestamp" || typeName == "null" || typeName == "version" || typeName == "range" ||

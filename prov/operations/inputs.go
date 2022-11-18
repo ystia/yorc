@@ -118,13 +118,13 @@ func ResolveInputsWithInstances(ctx context.Context, deploymentID, nodeName, tas
 //
 // It may happen in rare cases that several capabilities match the same requirement.
 // Values are stored in this way:
-//   * TARGET_CAPABILITY_NAMES: comma-separated list of matching capabilities names. It could be use to loop over the injected variables
-//   * TARGET_CAPABILITY_<capabilityName>_TYPE: actual type of the capability
-//   * TARGET_CAPABILITY_TYPE: actual type of the capability of the first matching capability
-// 	 * TARGET_CAPABILITY_<capabilityName>_PROPERTY_<propertyName>: value of a property
-// 	 * TARGET_CAPABILITY_PROPERTY_<propertyName>: value of a property for the first matching capability
-// 	 * TARGET_CAPABILITY_<capabilityName>_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance
-// 	 * TARGET_CAPABILITY_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance for the first matching capability
+//   - TARGET_CAPABILITY_NAMES: comma-separated list of matching capabilities names. It could be use to loop over the injected variables
+//   - TARGET_CAPABILITY_<capabilityName>_TYPE: actual type of the capability
+//   - TARGET_CAPABILITY_TYPE: actual type of the capability of the first matching capability
+//   - TARGET_CAPABILITY_<capabilityName>_PROPERTY_<propertyName>: value of a property
+//   - TARGET_CAPABILITY_PROPERTY_<propertyName>: value of a property for the first matching capability
+//   - TARGET_CAPABILITY_<capabilityName>_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance
+//   - TARGET_CAPABILITY_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance for the first matching capability
 func GetTargetCapabilityPropertiesAndAttributesValues(ctx context.Context, deploymentID, nodeName string, op prov.Operation) (map[string]*deployments.TOSCAValue, error) {
 	// Only for relationship operations
 	if !IsRelationshipOperation(op) {
