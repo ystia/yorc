@@ -83,7 +83,7 @@ jobs:
 
       - name: Install sphinx dependencies
         run: |
-          pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23 Pygments>=2.7.1
+          pip install --user --upgrade sphinx<2 semantic-version requests urllib3[secure]==1.23 Pygments>=2.7.1
           pip install -r doc/requirements.txt
           sudo apt-get install -y jq \
                                   latexmk \
