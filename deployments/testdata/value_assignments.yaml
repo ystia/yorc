@@ -58,6 +58,8 @@ node_types:
         type: integer
       list:
         type: list
+      input_name:
+        type: string
       map:
         type: map
         entry_schema:
@@ -421,6 +423,7 @@ topology_template:
       type: yorc.tests.nodes.ValueAssignmentNode
       properties:
         port: "80"
+        input_name: "literal"
         literal: 1
         list: ["http://", "yorc", ".io"]
         map: {one: "1", "two": "2"}
@@ -456,6 +459,7 @@ topology_template:
       properties:
         port: "80"
         literal: 1
+        input_name: "literal"
         list:
           - "http://"
           - "yorc"

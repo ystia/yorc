@@ -48,6 +48,7 @@ const (
 )
 
 const getVaultSecretOperator = "get_vault_secret"
+const getInputWithNestedFunctionsOperator = "get_input_nf"
 
 // IsOperator checks if a given token is a known TOSCA function keyword
 func IsOperator(op string) bool {
@@ -57,7 +58,8 @@ func IsOperator(op string) bool {
 		op == string(GetOperationOutputOperator) ||
 		op == string(ConcatOperator) ||
 		op == string(GetSecretOperator) ||
-		op == getVaultSecretOperator
+		op == getVaultSecretOperator ||
+		op == getInputWithNestedFunctionsOperator
 }
 
 func parseOperator(op string) (Operator, error) {
@@ -66,7 +68,7 @@ func parseOperator(op string) (Operator, error) {
 		return GetPropertyOperator, nil
 	case op == string(GetAttributeOperator):
 		return GetAttributeOperator, nil
-	case op == string(GetInputOperator):
+	case op == string(GetInputOperator), op == getInputWithNestedFunctionsOperator:
 		return GetInputOperator, nil
 	case op == string(GetOperationOutputOperator):
 		return GetOperationOutputOperator, nil

@@ -162,6 +162,10 @@ func testResolveComplex(t *testing.T) {
 		{"ResolveGetRequirementAttributeWithAbsent", data{"VANode1", "0", "0"}, args{`{get_attribute: [SELF, host, absentAttr]}`}, false, false, ``},
 		{"ResolveGetPropertyWithAbsent", data{"VANode1", "", ""}, args{`{get_property: [SELF, absentAttr]}`}, true, false, ``},
 		{"ResolveGetRequirementPropertyWithAbsent", data{"VANode1", "", "0"}, args{`{get_property: [SELF, host, absentAttr]}`}, true, false, ``},
+		{"ResolveGetInput", data{"VANode1", "", ""}, args{`{get_input: literal}`}, false, true, `literalInput`},
+		{"ResolveGetInputWithNestedFunc", data{"VANode1", "", ""}, args{`{get_input: [get_property: [SELF, input_name]]}`}, false, true, `literalInput`},
+		{"ResolveGetInputWithNestedFuncAlias", data{"VANode1", "", ""}, args{`{get_input_nf: [get_property: [SELF, input_name]]}`}, false, true, `literalInput`},
+		{"ResolveGetInputWithNestedFuncAliasComplex", data{"VANode2", "", ""}, args{`{get_input_nf: [concat: [get_property: [SELF, input_name], "Default"]]}`}, false, true, `1`},
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {
