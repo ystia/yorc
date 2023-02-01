@@ -1187,6 +1187,10 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 					}
 
 				}
+				err := tasks.SetTaskData(e.taskID, "operation_outputs/"+e.NodeName+"-"+e.operation.Name+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
