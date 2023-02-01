@@ -2,8 +2,6 @@
 
 ## UNRELEASED
 
-## 4.4.0-milestone.1 (February 01, 2023)
-
 ### DEPENDENCIES
 
 * Consul version updated to 1.11.3 ([GH-783](https://github.com/ystia/yorc/issues/783))
