@@ -94,7 +94,7 @@ topology_template:
             node: ComputeA
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-        - connect:
+        - connect: # This requirement is not defined in the A type, isn't it?
             node: NodeB
             capability: yorc.types.Cap
             relationship: yorc.types.Rel

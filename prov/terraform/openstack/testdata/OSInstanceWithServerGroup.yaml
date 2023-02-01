@@ -48,9 +48,3 @@ topology_template:
       properties:
         policy: "anti-affinity"
         name: "sg-SimpleApp-ServerGroupPolicy"
-  policies:
-    - ServerGroupPolicy:
-        type: yorc.openstack.policies.ServerGroupPolicy
-        targets: [ ComputeA ]
-        properties:
-          policy: "anti-affinity"

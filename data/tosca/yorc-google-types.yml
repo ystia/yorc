@@ -221,8 +221,7 @@ node_types:
         required: false
         entry_schema:
           type: yorc.datatypes.google.ScratchDisk
-          constraints:
-            - greater_or_equal: 0
+        constraints:
             - max_length: 8
     requirements:
       - assignment:

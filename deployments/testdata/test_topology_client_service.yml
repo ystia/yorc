@@ -74,7 +74,7 @@ topology_template:
             secure: false
             network_name: PRIVATE
             initiator: source
-workflows:
+  workflows:
     install:
       steps:
         AppBInstance_configured:

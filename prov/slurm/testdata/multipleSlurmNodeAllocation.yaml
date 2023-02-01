@@ -16,7 +16,6 @@ topology_template:
       type: yorc.nodes.slurm.Compute
       properties:
         partition: debug
-        user: root
         gres: gpu:1
         constraint: "[rack1*2&rack2*4]"
         job_name: xyz

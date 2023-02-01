@@ -15,7 +15,6 @@ imports:
 topology_template:
   node_templates:
     Compute:
-      metadata:
       type: yorc.nodes.google.Compute
       properties:
         image_project: "centos-cloud"
@@ -27,7 +26,7 @@ topology_template:
             node: BS1
             capability: tosca.capabilities.Attachment
             relationship:
-              type: tosca.relationships.AttachesTo
+              type: tosca.relationships.google.AttachesTo
               properties:
                 mode: "READ_ONLY"
       capabilities:
@@ -47,7 +46,6 @@ topology_template:
             max_instances: 1
             default_instances: 1
     BS1:
-      metadata:
       type: yorc.nodes.google.PersistentDisk
       properties:
         zone: "europe-west1-b"

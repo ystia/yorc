@@ -53,7 +53,7 @@ topology_template:
           sha256: 5678
       requirements:
         - attachToComputeAttach:
-            type_requirement: attachment
-            node: Comp
+            type_requirement: attachment # Where is defined this requirement type?
+            node: Comp # Where is defined this node template?
             capability: tosca.capabilities.Attachment
             relationship: tosca.relationships.AttachTo

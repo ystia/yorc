@@ -29,7 +29,7 @@ topology_template:
         name: "custom-subnet"
         ip_cidr_range: "10.10.0.0/24"
         region: "europe-west1"
-        description: "mydesc"
+#        description: "mydesc" # this property is not defined in the type, isn't it?
         project: "myproj"
         enable_flow_logs: true
         private_ip_google_access: false
