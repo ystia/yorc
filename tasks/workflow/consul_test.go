@@ -79,6 +79,9 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("TestRunWorkflowStepReplay", func(t *testing.T) {
 			testRunWorkflowStepReplay(t, srv, client)
 		})
+		t.Run("testConcurrentTaskExecutionsForNextStep", func(t *testing.T) {
+			testConcurrentTaskExecutionsForNextStep(t, srv, client)
+		})
 	})
 }
 

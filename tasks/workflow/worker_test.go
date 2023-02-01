@@ -233,6 +233,81 @@ func testRunWorkflowStepReplay(t *testing.T, srv *testutil.TestServer, client *a
 	require.Equal(t, true, foundStep, "Did not find step %s in next steps to execute", expectedNextStep)
 }
 
+func testConcurrentTaskExecutionsForNextStep(t *testing.T, srv *testutil.TestServer, client *api.Client) {
+	myWorker := &worker{
+		consulClient: client,
+		cfg: config.Configuration{
+			// Ensure we are not deleting filesystem files elsewhere
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+	myWorker2 := &worker{
+		consulClient: client,
+		cfg: config.Configuration{
+			// Ensure we are not deleting filesystem files elsewhere
+			WorkingDirectory: "./testdata/work/",
+		},
+	}
+	deploymentID := "TestRunWf"
+	taskID := "tWorkflow"
+	topologyPath := "testdata/workflow.yaml"
+	ctx := context.Background()
+	err := deployments.StoreDeploymentDefinition(ctx, deploymentID, topologyPath)
+	require.NoError(t, err, "Unexpected error storing %s", topologyPath)
+
+	// Registering test data with the first step of the workflow already done
+	srv.PopulateKV(t, testData(deploymentID))
+
+	wfName := "install"
+
+	srv.PopulateKV(t, testData(deploymentID))
+	deployments.SetDeploymentStatus(context.Background(), deploymentID, deployments.DEPLOYMENT_IN_PROGRESS)
+
+	mockExecutor := &mockExecutor{}
+	registry.GetRegistry().RegisterDelegates([]string{"ystia.yorc.tests.nodes.WFCompute"}, mockExecutor, "tests")
+
+	var myTaskExecution taskExecution
+	myTaskExecution.cc = client
+	myTaskExecution.targetID = deploymentID
+	myTaskExecution.taskID = taskID
+	myTaskExecution.step = "Compute_install"
+
+	var myTaskExecution2 taskExecution
+	myTaskExecution2.cc = client
+	myTaskExecution2.targetID = deploymentID
+	myTaskExecution2.taskID = taskID
+	myTaskExecution2.step = "Compute_2_install"
+
+	expectedNextStep := "WFNode_creating"
+
+	// Test for duplicated task execution
+	// When Compute_install and Compute_2_install steps complete, they continue to register the next step WFNode_creating
+	// but only one task execution should be registered for the step WFNode_creating
+	srv.SetKV(t, path.Join(consulutil.WorkflowsPrefix, taskID, "Compute_install"), []byte("initial"))
+	srv.SetKV(t, path.Join(consulutil.WorkflowsPrefix, taskID, "Compute_2_install"), []byte("DONE"))
+	srv.SetKV(t, path.Join(consulutil.WorkflowsPrefix, taskID, "WFNode_initial"), []byte("DONE"))
+
+	err = myWorker.runWorkflowStep(context.Background(), &myTaskExecution, wfName, false)
+	require.NoError(t, err)
+	err = myWorker2.runWorkflowStep(context.Background(), &myTaskExecution2, wfName, false)
+	require.NoError(t, err)
+
+	// Test that consul contains an execution for next step
+	execKeys, _, err := consulutil.GetKV().Keys(consulutil.ExecutionsTaskPrefix+"/", "/", nil)
+	require.NoError(t, err)
+	foundStep := 0
+	for _, execKey := range execKeys {
+		execID := path.Base(execKey)
+		execPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
+		found, value, err := consulutil.GetStringValue(path.Join(execPath, "step"))
+		require.NoError(t, err)
+		if found && value == expectedNextStep {
+			foundStep++
+		}
+	}
+	require.Equal(t, 1, foundStep, "Found more than one task execution is registered for one step %s", expectedNextStep)
+}
+
 // Construct key/value to initialise KV before running test
 func testData(deploymentID string) map[string][]byte {
 	return map[string][]byte{
