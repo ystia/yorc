@@ -63,7 +63,7 @@ jobs:
 
     - name: Install sphinx dependencies
       run: |
-        pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23 Pygments>=2.7.1
+        pip install --user --upgrade 'sphinx==1.8.1' 'semantic-version' 'requests' 'urllib3[secure]==1.23' 'Pygments>=2.7.1' 'jinja2<3.1.0'
         pip install -r doc/requirements.txt
         sudo apt-get install -y jq \
                                 latexmk \
@@ -89,7 +89,7 @@ jobs:
         mkdir -p dist/gh-release
         mv dist/yorc-*.tgz dist/yorc-server*-distrib.zip dist/gh-release/
 
-    # Use a specific trusted commit (do not relie on tags that could evolve like v1) 
+    # Use a specific trusted commit (do not relie on tags that could evolve like v1)
     - uses: tristan-weil/ghaction-checksum-sign-artifact@1d1a6873e7f53532850e8a6f03e790e063bae662
       with:
         path: 'dist/gh-release/*'
