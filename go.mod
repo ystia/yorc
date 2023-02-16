@@ -11,7 +11,7 @@ require (
 	github.com/bradleyjkemp/cupaloy v2.3.0+incompatible // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cheggaaa/pb/v3 v3.0.3
-	github.com/containerd/containerd v1.6.0 // indirect
+	github.com/containerd/containerd v1.6.18 // indirect
 	github.com/dgraph-io/ristretto v0.0.1
 	github.com/docker/distribution v2.8.0+incompatible // indirect
 	github.com/docker/docker v20.10.12+incompatible
@@ -57,7 +57,6 @@ require (
 	github.com/moby/moby v20.10.12+incompatible
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/oklog/run v1.1.0 // indirect
-	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
@@ -70,10 +69,9 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tmc/dot v0.0.0-20180926222610-6d252d5ff882
 	github.com/ystia/tdt2go v0.3.0
-	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
+	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 	gopkg.in/AlecAivazis/survey.v1 v1.6.3
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
