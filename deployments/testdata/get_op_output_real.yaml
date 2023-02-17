@@ -149,7 +149,7 @@ node_types:
         type: starlings.capabilities.DockerVolume
     requirements:
       - hosted_on:
-          capability: tosca.capabilities.Container
+          capability: tosca.capabilities.Compute
           relationship: tosca.relationships.HostedOn
           occurrences: [1,1]
       - filesystem_endpoint:
@@ -229,7 +229,7 @@ topology_template:
       requirements:
         - host:
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     Compute:
       type: tosca.nodes.Compute
@@ -253,7 +253,7 @@ topology_template:
       requirements:
         - hosted_on:
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
         - filesystem_endpoint:
             node: DockerContainer
@@ -267,7 +267,7 @@ topology_template:
       requirements:
         - hosted_on:
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
         - filesystem_endpoint:
             node: DockerContainer

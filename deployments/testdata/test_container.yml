@@ -47,4 +47,4 @@ node_types:
           implementation: scripts/install_testcontainer.sh
         start: scripts/start_testcontainer.sh
 capability_types:
-  yorc.test.capabilities.TestContainerCapability: {derived_from: tosca.capabilities.Container}
+  yorc.test.capabilities.TestContainerCapability: {derived_from: tosca.capabilities.Compute}

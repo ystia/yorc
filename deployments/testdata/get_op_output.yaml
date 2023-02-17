@@ -76,14 +76,14 @@ topology_template:
             relationship: yorc.tests.relationships.GetOPOutputsRel
         - host:
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     GetOPOutputsNodeSecondReq:
       type: yorc.tests.nodes.GetOPOutputs
       requirements:
         - host:
             node: Compute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
         - partition:
             node: BS

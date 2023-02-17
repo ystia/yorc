@@ -13,7 +13,7 @@ topology_template:
         - hostedOnComputeHost:
             type_requirement: host
             node: Bastion
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
     Bastion:

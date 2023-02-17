@@ -82,7 +82,7 @@ topology_template:
       type: yorc.test.nodes.TestContainer
       properties: {component_version: 1.0, port: 80, document_root: /var/www}
       requirements:
-      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+      - host: {node: TestCompute, capability: tosca.capabilities.Compute, relationship: tosca.relationships.HostedOn}
     Network:
       type: tosca.nodes.Network
       properties: {ip_version: 4}
@@ -90,7 +90,7 @@ topology_template:
       type: yorc.test.nodes.TestModule
       properties: {component_version: 1.0}
       requirements:
-      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+      - host: {node: TestCompute, capability: tosca.capabilities.Compute, relationship: tosca.relationships.HostedOn}
   outputs:
     TestComponent_url:
       description: The URL

@@ -66,7 +66,7 @@ topology_template:
         - hostedOnComputeConsulHost:
             type_requirement: host
             node: ConsulCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
         consul_server:
@@ -92,7 +92,7 @@ topology_template:
         - hostedOnComputeYorcHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     JDK:
       type: org.alien4cloud.java.jdk.linux.nodes.OracleJDK
@@ -104,7 +104,7 @@ topology_template:
         - hostedOnAlien4CloudComputeHost:
             type_requirement: host
             node: Alien4CloudCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     Alien4Cloud:
       type: org.alien4cloud.alien4cloud.webapp.nodes.Alien4Cloud
@@ -193,7 +193,7 @@ topology_template:
         - hostedOnComputeNfsHost:
             type_requirement: host
             node: NFSCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
         nfs_server:
@@ -211,7 +211,7 @@ topology_template:
         - hostedOnComputeYorcHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     NFSClient:
       type: org.ystia.nfs.linux.ansible.nodes.NFSClient
@@ -227,7 +227,7 @@ topology_template:
         - hostedOnComputeYorcHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     ConsulAgentA4C:
       type: org.ystia.yorc.experimental.consul.linux.ansible.nodes.ConsulAgent
@@ -256,7 +256,7 @@ topology_template:
         - hostedOnAlien4CloudComputeHost:
             type_requirement: host
             node: Alien4CloudCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
         consul_agent:
@@ -293,7 +293,7 @@ topology_template:
         - hostedOnComputeYorcHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
         consul_agent:
@@ -332,7 +332,7 @@ topology_template:
         - hostedOnComputeYorcHost:
             type_requirement: host
             node: VaultCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
       capabilities:
         consul_agent:
@@ -361,7 +361,7 @@ topology_template:
             relationship: org.alien4cloud.vault.relationships.ConnectToConsulAgent
         - host:
             node: VaultCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
     {{end}}
     YorcServer:
@@ -380,7 +380,7 @@ topology_template:
         - hostedOnComputeYorcHost:
             type_requirement: host
             node: YorcCompute
-            capability: tosca.capabilities.Container
+            capability: tosca.capabilities.Compute
             relationship: tosca.relationships.HostedOn
         - joinConsulAgentConsulAgentConsul_agent:
             type_requirement: consul
