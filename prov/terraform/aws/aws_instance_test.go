@@ -101,6 +101,7 @@ func testSimpleAWSInstance(t *testing.T, cfg config.Configuration) {
 	require.Equal(t, "ComputeAWS-0", compute.Tags.Name)
 	require.Equal(t, "us-east-2c", compute.AvailabilityZone)
 	require.Equal(t, "myPlacement", compute.PlacementGroup)
+	require.Equal(t, "subnet-f578918e", compute.SubnetID)
 	require.Equal(t, true, compute.RootBlockDevice.DeleteOnTermination)
 	require.Len(t, compute.SecurityGroups, 1)
 	require.Contains(t, compute.SecurityGroups, "yorc-securityGroup")
@@ -372,4 +373,39 @@ func testSimpleAWSInstanceWithPersistentDisk(t *testing.T, cfg config.Configurat
 	require.True(t, ok, "%s is not a VolumeAttachment", attachmentResourceName)
 	assert.Equal(t, "/dev/sdf", attachedDisk.DeviceName)
 
+}
+
+func testSimpleAWSInstanceWitthVPC(t *testing.T, cfg config.Configuration, srv *testutil.TestServer) {
+	t.Parallel()
+
+	deploymentID := loadTestYaml(t)
+	g := awsGenerator{}
+	infrastructure := commons.Infrastructure{}
+	ctx := context.Background()
+	env := make([]string, 0)
+	outputs := make(map[string]string)
+
+	srv.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/Network/type"):                                    []byte("yorc.nodes.aws.VPC"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/default_subnet_id"):      []byte("default_subnet_id"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/default_security_group"): []byte("default_security_group"),
+	})
+
+	err := g.generateAWSInstance(ctx, cfg, deploymentID, "AWS_Compute", "0", &infrastructure, outputs, &env)
+	require.Nil(t, err)
+	require.Len(t, infrastructure.Resource["aws_instance"], 1)
+
+	instancesMap := infrastructure.Resource["aws_instance"].(map[string]interface{})
+	require.Contains(t, instancesMap, "AWS_Compute-0")
+
+	compute, ok := instancesMap["AWS_Compute-0"].(*ComputeInstance)
+	require.True(t, ok, "%s is not a ComputeInstance", "AWS_Compute-0")
+
+	assert.Equal(t, "${aws_network_interface.network-inteface-0.id}", compute.NetworkInterface["network_interface_id"], "Subnetwork is not retrieved")
+	assert.Equal(t, "0", compute.NetworkInterface["device_index"], "Subnetwork is not retrieved")
+
+	instancesMap = infrastructure.Resource["aws_network_interface"].(map[string]interface{})
+	require.Contains(t, instancesMap, "network-inteface-0")
+	eni, ok := instancesMap["network-inteface-0"].(*NetworkInterface)
+	assert.Equal(t, "default_subnet_id", eni.SubnetID)
 }

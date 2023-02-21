@@ -18,6 +18,7 @@ topology_template:
         instance_type: "t2.micro"
         key_name: "yorc-keypair"
         security_groups: "yorc-securityGroup"
+        subnet_id: subnet-f578918e
         availability_zone: "us-east-2c"
         placement_group: "myPlacement"
       capabilities:

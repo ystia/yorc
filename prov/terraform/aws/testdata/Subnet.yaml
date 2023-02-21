@@ -1,0 +1,22 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: Subnets_creation_test
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-aws-types.yml>
+
+topology_template:
+  node_templates:
+    Network_Subnet:
+      type: yorc.nodes.aws.Subnet
+      properties:
+        vpc_id: "vpc_id"
+        cidr_block: 10.0.0.0/24
+        assign_generated_ipv6_cidr_block: true
+        tags: {"tag1": "foo"}

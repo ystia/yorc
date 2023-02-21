@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
 	"github.com/ystia/yorc/v4/locations"
 	"github.com/ystia/yorc/v4/testutil"
 )
@@ -64,6 +63,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleAWSInstanceWithMalformedEIP", func(t *testing.T) {
 			testSimpleAWSInstanceWithMalformedEIP(t, cfg)
 		})
+		t.Run("simpleAWSInstanceWitthVPC", func(t *testing.T) {
+			testSimpleAWSInstanceWitthVPC(t, cfg, srv)
+		})
 		t.Run("generateTerraformInfraForAWSNode", func(t *testing.T) {
 			testGenerateTerraformInfraForAWSNode(t, cfg, locationMgr)
 		})
@@ -75,6 +77,15 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		})
 		t.Run("simpleAWSInstanceWithPersistentDisk", func(t *testing.T) {
 			testSimpleAWSInstanceWithPersistentDisk(t, cfg, srv)
+		})
+		t.Run("VPC", func(t *testing.T) {
+			testVPC(t, cfg)
+		})
+		t.Run("Subnet", func(t *testing.T) {
+			testSubnet(t, srv, cfg)
+		})
+		t.Run("VPCWithNestedSubnetAndSG", func(t *testing.T) {
+			testVPCWithNestedSubnetAndSG(t, srv, cfg)
 		})
 	})
 }

@@ -1,0 +1,48 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: NetworkWithCustomSubnetsTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    Network:
+      type: yorc.nodes.aws.VPC
+      properties:
+        cidr_block: 10.0.0.0/16
+    AWS_Compute:
+      type: yorc.nodes.aws.Compute
+      properties:
+        image_id: "ami-16dffe73"
+        instance_type: "t2.micro"
+        key_name: "yorc-keypair"
+        security_groups: "yorc-securityGroup"
+        availability_zone: "us-east-2c"
+        placement_group: "myPlacement"
+      requirements:
+        - AWS_Compute_network:
+            type_requirement: network
+            node: Network
+            capability: tosca.capabilities.Connectivity
+            relationship: tosca.relationships.Network
+      capabilities:
+          scalable:
+            properties:
+              min_instances: 1
+              max_instances: 1
+              default_instances: 1
+          endpoint:
+            properties:
+              secure: true
+              protocol: tcp
+              network_name: PRIVATE
+              initiator: source
+              credentials: {user: centos}

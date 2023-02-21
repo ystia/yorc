@@ -3,10 +3,74 @@ tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 metadata:
   template_name: yorc-aws-types
   template_author: yorc
-  template_version: 1.1.0
+  template_version: 1.2.0
 
 imports:
   - yorc: <yorc-types.yml>
+
+data_types:
+  yorc.datatypes.aws.SubnetType:
+    derived_from: tosca.datatypes.Root
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      availability_zone:
+        type: string
+        required: false
+        description: The AZ for the subnet
+      availability_zone_id:
+        type: string
+        required: false
+        description: The AZ ID for the subnet
+      cidr_block:
+        type: string
+        required: true
+      ipv6_cidr_block :
+        type: string
+        required: false
+        description: The IPv6 network range for the subnet, in CIDR notation. The subnet size must use a /64 prefix length.
+      map_public_ip_on_launch:
+        type: boolean
+        required: false
+        description: Specify true to indicate that instances launched into the subnet should be assigned a public IP address. 
+      assign_ipv6_address_on_creation:
+        type: boolean
+        required: false
+        description: >
+          Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+
+  yorc.datatypes.aws.SecurityRuleType:
+    derived_from: tosca.datatypes.Root
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      from_port:
+        type: string
+        required: true
+      to_port:
+        type: string
+        required: true
+      protocol:
+        type: string
+        required: true
+
+  yorc.datatypes.aws.SecurityGroupType:
+    derived_from: tosca.datatypes.Root
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      name:
+        type: string
+        required: true
+      ingress:
+        type: yorc.datatypes.aws.SecurityRuleType
+        required: true
+      egress:
+        type: yorc.datatypes.aws.SecurityRuleType
+        required: true
 
 node_types:
   yorc.nodes.aws.Compute:
@@ -29,7 +93,12 @@ node_types:
         type: string
         description: >
           Comma-separated list of security groups to add to the Compute
-        required: true
+        required: false
+      subnet_id:
+        type: string
+        description: >
+          The VPC Subnet ID to launch in.
+        required: false
       availability_zone:
         type: string
         required: false
@@ -100,5 +169,102 @@ node_types:
         description: should this volume be deleted at undeployment
         required: false
         default: false
+
+  yorc.nodes.aws.Subnet:
+    derived_from: tosca.nodes.Network
+    # See : https://www.terraform.io/docs/providers/aws/r/subnet.html
+    properties:
+      availability_zone:
+        type: string
+        required: false
+        description: The AZ for the subnet
+      availability_zone_id:
+        type: string
+        required: false
+        description: The AZ ID for the subnet
+      cidr_block:
+        type: string
+        required: true
+      ipv6_cidr_block :
+        type: string
+        required: false
+        description: The IPv6 network range for the subnet, in CIDR notation. The subnet size must use a /64 prefix length.
+      map_public_ip_on_launch:
+        type: boolean
+        required: false
+        description: Specify true to indicate that instances launched into the subnet should be assigned a public IP address. 
+      assign_ipv6_address_on_creation:
+        type: boolean
+        required: false
+        description: >
+          Specify true to indicate that network interfaces created in the specified subnet should be assigned an IPv6 address
+      vpc_id:
+        type: string
+        required: true
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+
+  yorc.nodes.aws.VPC:
+    derived_from: tosca.nodes.Network
+    # See https://www.terraform.io/docs/providers/aws/r/vpc.html
+    properties:
+      cidr_block:
+        type: string
+        required: true
+      instance_tenancy:
+        type: string
+        description: >
+          You can run instances in your VPC on single-tenant, dedicated hardware. 
+          Select Dedicated to ensure that instances launched in this VPC are dedicated tenancy instances, regardless of the tenancy attribute specified at launch. 
+          Select Default to ensure that instances launched in this VPC use the tenancy attribute specified at launch
+        default: default
+        constraints : 
+          - valid_values: [default, dedicated]
+      enable_dns_support:
+        type: boolean
+        description: A boolean flag to enable/disable DNS support in the VPC. Defaults true.
+        default: true
+        required: false
+      enable_dns_hostnames:
+        type: boolean
+        default: false
+        description : A boolean flag to enable/disable DNS hostnames in the VPC. Defaults false.
+        required: false
+      enable_classiclink:
+        type: boolean
+        default: false
+        description: A boolean flag to enable/disable ClassicLink for the VPC. Only valid in regions and accounts that support EC2 Classic. 
+        required: false
+      enable_classiclink_dns_support:
+        type: boolean
+        required: false
+        description: A boolean flag to enable/disable ClassicLink DNS Support for the VPC. Only valid in regions and accounts that support EC2 Classic
+      assign_generated_ipv6_cidr_block:
+        type: boolean 
+        required: false
+        description: Requests an Amazon-provided IPv6 CIDR block with a /56 prefix length for the VPC. You cannot specify the range of IP addresses, or the size of the CIDR block.
+      tags:
+        type: map
+        description: A mapping of tags to assign to the resource.
+        required: false
+        entry_schema:
+          type: string
+      subnets:
+        type: list
+        description: Subnetworks in this VPC
+        required: false
+        entry_schema:
+          type: yorc.datatypes.aws.SubnetType
+      security_groups:
+        type: list
+        description: SecurityGroups in this VPC
+        required: false
+        entry_schema:
+          type: yorc.datatypes.aws.SecurityGroupType
+
 
 

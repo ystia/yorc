@@ -75,18 +75,16 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	}
 	instance.KeyName = keyName.RawString()
 
-	// security_groups needs to contain a least one occurrence
 	secGroups, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
 	}
-	if secGroups == nil || secGroups.RawString() == "" {
-		return errors.Errorf("Missing mandatory parameter 'security_groups' node type for %s", nodeName)
-	}
 
-	for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
-		secGroup = strings.TrimSpace(secGroup)
-		instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
+	if secGroups.RawString() != "" {
+		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
+			secGroup = strings.TrimSpace(secGroup)
+			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
+		}
 	}
 
 	// Get connection info (user, private key)
@@ -141,6 +139,131 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, cfg config.Confi
 	if placementGroup != nil {
 		instance.PlacementGroup = placementGroup.RawString()
 	}
+
+	// Network
+	subnetID, err := deployments.GetNodePropertyValue(ctx, deploymentID, nodeName, "subnet_id")
+	if err != nil {
+		return err
+	}
+	if subnetID != nil {
+		instance.SubnetID = subnetID.RawString()
+	}
+
+	// VPC
+	hasVPCNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.VPC")
+	if err != nil {
+		return err
+	}
+	if hasVPCNetwork {
+		networkRequirements, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "network")
+		if err != nil {
+			return err
+		}
+
+		i := 0
+		for _, networkReq := range networkRequirements {
+			networkInterface := &NetworkInterface{}
+			networkInterface.SecurityGroups = make([]string, 1)
+
+			if networkReq.Relationship == "tosca.relationships.Network" {
+				defaultSubnetID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_subnet_id")
+				if err != nil {
+					return err
+				}
+				networkInterface.SubnetID = defaultSubnetID
+				defaultSecurityGroup, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "default_security_group")
+				if err != nil {
+					return err
+				}
+				networkInterface.SecurityGroups = append(networkInterface.SecurityGroups, defaultSecurityGroup)
+
+			} else if networkReq.Relationship == "yorc.relationships.aws.Network" {
+				networkInterface.SubnetID, err = deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+				if err != nil {
+					return err
+				}
+				securityGroup, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+				if err != nil {
+					return err
+				}
+				networkInterface.SecurityGroups = append(networkInterface.SecurityGroups, securityGroup)
+			}
+
+			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
+			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
+
+			// First interface will be considered the network interface of the Compute Instance
+			if i == 0 {
+				instance.NetworkInterface = map[string]string{
+					"network_interface_id": "${aws_network_interface." + name + ".id}",
+					"device_index":         strconv.Itoa(i),
+				}
+			} else {
+				// Others interfaces are considered as attachment to the Compute Instance
+				networkInterface.Attachment = map[string]string{
+					"instance":     "${aws_instance." + instance.Tags.Name + ".id}",
+					"device_index": strconv.Itoa(i),
+				}
+			}
+
+			// No security groups on instance level when defining customs ENI, it will use a default one created by the VPC
+			instance.SecurityGroups = nil
+			commons.AddResource(infrastructure, "aws_network_interface", name, networkInterface)
+			i++
+		}
+	}
+
+	// Subnet
+	hasSubnetNetwork, _, err := deployments.HasAnyRequirementFromNodeType(ctx, deploymentID, nodeName, "network", "yorc.nodes.aws.Subnet")
+	if err != nil {
+		return err
+	}
+	if hasSubnetNetwork && !hasVPCNetwork {
+		networkRequirements, err := deployments.GetRequirementsByTypeForNode(ctx, deploymentID, nodeName, "network")
+		if err != nil {
+			return err
+		}
+
+		i := 0
+		for _, networkReq := range networkRequirements {
+			networkInterface := &NetworkInterface{}
+			networkInterface.SecurityGroups = make([]string, 1)
+
+			if networkReq.Relationship == "tosca.relationships.Network" {
+				subnetID, err := deployments.LookupInstanceAttributeValue(ctx, deploymentID, networkReq.RequirementAssignment.Node, instanceName, "subnet_id")
+				if err != nil {
+					return err
+				}
+				networkInterface.SubnetID = subnetID
+
+				networkInterface.SecurityGroups = instance.SecurityGroups
+
+			}
+
+			name := strings.ToLower("network-inteface-" + strconv.Itoa(i))
+			name = strings.Replace(strings.ToLower(name), "_", "-", -1)
+
+			// First interface will be considered the network interface of the Compute Instance
+			if i == 0 {
+				instance.NetworkInterface = map[string]string{
+					"network_interface_id": "${aws_network_interface." + name + ".id}",
+					"device_index":         strconv.Itoa(i),
+				}
+			} else {
+				// Others interfaces are considered as attachment to the Compute Instance
+				networkInterface.Attachment = map[string]string{
+					"instance":     "${aws_instance." + instance.Tags.Name + ".id}",
+					"device_index": strconv.Itoa(i),
+				}
+			}
+
+			// No security groups on instance level when defining customs ENI, it will use a default one created by the VPC
+			instance.SecurityGroups = nil
+			commons.AddResource(infrastructure, "aws_network_interface", name, networkInterface)
+			i++
+		}
+	}
+
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 

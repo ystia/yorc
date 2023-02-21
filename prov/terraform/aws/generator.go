@@ -125,11 +125,6 @@ func (g *awsGenerator) generateInstances(ctx context.Context, cfg config.Configu
 
 		switch nodeType {
 		case "yorc.nodes.aws.Compute":
-			*instances, err = deployments.GetNodeInstancesIds(ctx, nodeParams.deploymentID, nodeParams.nodeName)
-			if err != nil {
-				return err
-			}
-
 			err = g.generateAWSInstance(ctx, cfg, nodeParams.deploymentID, nodeParams.nodeName, instanceName, nodeParams.infrastructure, outputs, cmdEnv)
 			if err != nil {
 				return err
@@ -138,6 +133,17 @@ func (g *awsGenerator) generateInstances(ctx context.Context, cfg config.Configu
 			// Nothing to do
 		case "yorc.nodes.aws.EBSVolume":
 			err = g.generateEBS(ctx, *nodeParams, instanceName, instNb, outputs)
+			if err != nil {
+				return err
+			}
+		case "yorc.nodes.aws.VPC":
+			err = g.generateVPC(ctx, *nodeParams, instanceName, outputs)
+			if err != nil {
+				return err
+			}
+
+		case "yorc.nodes.aws.Subnet":
+			err = g.generateSubnet(ctx, *nodeParams, instanceName, outputs)
 			if err != nil {
 				return err
 			}
