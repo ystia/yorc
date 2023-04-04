@@ -14,7 +14,7 @@ require (
 	github.com/containerd/containerd v1.6.0 // indirect
 	github.com/dgraph-io/ristretto v0.0.1
 	github.com/docker/distribution v2.8.0+incompatible // indirect
-	github.com/docker/docker v20.10.12+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.6-0.20200428134631-c5be8f8ee116
 	github.com/fatih/color v1.9.0
